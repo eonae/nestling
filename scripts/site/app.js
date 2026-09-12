@@ -8,8 +8,11 @@
 
   /* Форма вывода: 'tree' — страница дерева, 'single' — вся документация файлом */
   var mode = document.body.getAttribute('data-mode') || 'tree';
-  /* Путь до корня вывода: им собираются адреса индекса поиска и его ссылок */
-  var docsRoot = document.body.getAttribute('data-root') || '';
+  /* Путь до корня своего языка: там лежат индекс поиска и разделы, на которые
+     он ссылается. У языка по умолчанию этот корень совпадает с корнем сайта. */
+  var langRoot = document.body.getAttribute('data-lang-root') || '';
+  /* Подписи оформления на языке страницы: их печатает сборка */
+  var ui = window.NESTLING_UI || {};
 
   /* ---------- Theme ---------- */
   var root = document.documentElement;
@@ -220,7 +223,7 @@
 
     function load() {
       if (index || pending) return pending;
-      pending = fetch(docsRoot + 'search-index.json')
+      pending = fetch(langRoot + 'search-index.json')
         .then(function (r) { return r.json(); })
         .then(function (data) { index = data; return data; })
         .catch(function () { index = []; return index; });
@@ -260,14 +263,14 @@
 
     function render(found, query) {
       if (!found.length) {
-        box.innerHTML = '<p class="empty">Ничего не нашлось по «' +
-          query.replace(/[<>&]/g, '') + '»</p>';
+        box.innerHTML = '<p class="empty">' + (ui.empty || 'Nothing found for') +
+          ' «' + query.replace(/[<>&]/g, '') + '»</p>';
         box.hidden = false;
         return;
       }
 
       box.innerHTML = found.map(function (hit) {
-        var href = docsRoot + hit.page.path + (hit.anchor ? '#' + hit.anchor : '');
+        var href = langRoot + hit.page.path + (hit.anchor ? '#' + hit.anchor : '');
         return '<a href="' + href + '"><span class="r-t">' + hit.page.title +
           '</span><span class="r-g">' + hit.page.group + '</span></a>';
       }).join('');

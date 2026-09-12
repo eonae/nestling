@@ -1,30 +1,30 @@
 ## 1. Генератор учится языкам
 
-- [ ] 1.1 `scripts/site/sections.mjs`: список `LANGUAGES` (`en` без префикса и по умолчанию, `ru` с префиксом `ru`), резолвер пути источника по языку (`docs/<путь>` ↔ `docs/en/<путь>`, `README.ru.md` ↔ `README.md`)
-- [ ] 1.2 `scripts/site/sections.mjs`: убрать из `SECTIONS` страницы `docs/decisions/roadmap.md` и `docs/decisions/deferred.md`
-- [ ] 1.3 `build.mjs`: `readModel(lang)` — модель одного языка, префикс языка в начале `page.route`
-- [ ] 1.4 `build.mjs`: печать дерева, `nestling-docs.html` и `search-index.json` на каждый язык; общие `favicon.svg`, `robots.txt`, `404.html`, `.nojekyll` — один раз
-- [ ] 1.5 `build.mjs`: `sitemap.xml` с адресами обоих языков и `xhtml:link`; `canonical` и `alternate` с `hreflang` (включая `x-default` на английский) при заданном `--base`
-- [ ] 1.6 `layout.html` и `styles.css`: переключатель языка в шапке; `lang` страницы — язык её дерева
-- [ ] 1.7 `app.js`: адрес индекса поиска берётся от корня своего языка; переключатель ведёт на тот же раздел в другом языке
-- [ ] 1.8 `build.mjs`: `docs:dev` следит за обеими ветками источников и пересобирает оба языка
+- [x] 1.1 `scripts/site/sections.mjs`: список `LANGUAGES` (`en` без префикса и по умолчанию, `ru` с префиксом `ru`), резолвер пути источника по языку (`docs/<путь>` ↔ `docs/en/<путь>`, `README.ru.md` ↔ `README.md`)
+- [x] 1.2 `scripts/site/sections.mjs`: убрать из `SECTIONS` страницы `docs/decisions/roadmap.md` и `docs/decisions/deferred.md`
+- [x] 1.3 `build.mjs`: `readModel(lang)` — модель одного языка, префикс языка в начале `page.route`
+- [x] 1.4 `build.mjs`: печать дерева, `nestling-docs.html` и `search-index.json` на каждый язык; общие `favicon.svg`, `robots.txt`, `404.html`, `.nojekyll` — один раз
+- [x] 1.5 `build.mjs`: `sitemap.xml` с адресами обоих языков и `xhtml:link`; `canonical` и `alternate` с `hreflang` (включая `x-default` на английский) при заданном `--base`
+- [x] 1.6 `layout.html` и `styles.css`: переключатель языка в шапке; `lang` страницы — язык её дерева
+- [x] 1.7 `app.js`: адрес индекса поиска берётся от корня своего языка; переключатель ведёт на тот же раздел в другом языке
+- [x] 1.8 `build.mjs`: `docs:dev` следит за обеими ветками источников и пересобирает оба языка
 
 ## 2. Каркас зеркала и словарь терминов
 
-- [ ] 2.1 `docs/en/glossary.md`: перевод глоссария; у каждого термина рядом стоит русский оригинал — это словарь для остального перевода
-- [ ] 2.2 `docs/en/index.md` — стартовая страница; `docs/en/guide/README.md`, `docs/en/recipes/README.md`, `docs/en/design/README.md` — оглавления папок
-- [ ] 2.3 `yarn docs:build` проходит: состав английского дерева полон, тексты глав ещё не переведены
-- [ ] 2.4 `docs/README.md`: правило раскладки языков одним экземпляром — где лежит пара, что паритету подлежит только публикуемое, что `decisions/` и `history/` остаются русскими
+- [x] 2.1 `docs/en/glossary.md`: перевод глоссария; у каждого термина рядом стоит русский оригинал — это словарь для остального перевода
+- [x] 2.2 `docs/en/index.md` — стартовая страница; `docs/en/guide/README.md`, `docs/en/recipes/README.md`, `docs/en/design/README.md` — оглавления папок
+- [x] 2.3 `yarn docs:build` проходит: состав английского дерева полон, тексты глав ещё не переведены
+- [x] 2.4 `docs/README.md`: правило раскладки языков одним экземпляром — где лежит пара, что паритету подлежит только публикуемое, что `decisions/` и `history/` остаются русскими
 
 ## 3. Правила и проверки английского текста
 
-- [ ] 3.1 `.claude/skills/docs-style/SKILL.md`: раздел о правилах английского текста; общий порядок изложения, термины из `docs/en/glossary.md`
-- [ ] 3.2 `.claude/skills/docs-style/scripts/lint.mjs`: второй список запрещённых слов, выбор списка по пути файла (`docs/en/**`, `packages/*/README.md`, корневой `README.md` — английские)
-- [ ] 3.3 `docs-audit`: инварианты `lang-parity` и `lang-outline` — пара у публикуемого файла, совпадение состава оглавлений
-- [ ] 3.4 `docs-audit`: инварианты `lang-link` (ссылка не пересекает границу языка) и `lang-cyrillic` (кириллица в английском файле вне блоков кода)
-- [ ] 3.5 `docs-audit`: инвариант `lang-glossary` — термин русского глоссария назван в английском
-- [ ] 3.6 `docs-audit`: плашка `verified against <примеры> (YYYY-MM-DD)` в английских главах и рецептах; `lang-stale` как WARN при отставании даты от русской пары
-- [ ] 3.7 `docs-audit`: существующие проверки README пакетов идут по обоим файлам пары, плашка ищет ссылки в папки своего языка
+- [x] 3.1 `.claude/skills/docs-style/SKILL.md`: раздел о правилах английского текста; общий порядок изложения, термины из `docs/en/glossary.md`
+- [x] 3.2 `.claude/skills/docs-style/scripts/lint.mjs`: второй список запрещённых слов, выбор списка по пути файла (`docs/en/**`, `packages/*/README.md`, корневой `README.md` — английские)
+- [x] 3.3 `docs-audit`: инварианты `lang-parity` и `lang-outline` — пара у публикуемого файла, совпадение состава оглавлений
+- [x] 3.4 `docs-audit`: инварианты `lang-link` (ссылка не пересекает границу языка) и `lang-cyrillic` (кириллица в английском файле вне блоков кода)
+- [x] 3.5 `docs-audit`: инвариант `lang-glossary` — термин русского глоссария назван в английском
+- [x] 3.6 `docs-audit`: плашка `verified against <примеры> (YYYY-MM-DD)` в английских главах и рецептах; `lang-stale` как WARN при отставании даты от русской пары
+- [x] 3.7 `docs-audit`: существующие проверки README пакетов идут по обоим файлам пары, плашка ищет ссылки в папки своего языка
 
 ## 4. Перевод: страницы корня и рецепты
 

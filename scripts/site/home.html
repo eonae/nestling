@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- СГЕНЕРИРОВАНО scripts/site/build.mjs из docs/index.md. Правки вносить в исходный файл. -->
-<html lang="ru" data-theme="">
+<html lang="{{lang}}" data-theme="">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,14 +9,15 @@
 {{styles}}
 </style>
 </head>
-<body data-root="{{root}}" data-mode="tree" class="home">
+<body data-root="{{root}}" data-lang-root="{{langroot}}" data-mode="tree" class="home">
 
 <header class="topbar">
-  <a class="brand" href="{{home}}"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">документация</span></a>
+  <a class="brand" href="{{home}}"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">{{tagline}}</span></a>
   <span class="spacer"></span>
 {{toplinks}}
 {{search}}
-  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+{{langs}}
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="{{themelabel}}">☾</button>
 </header>
 
 <main class="content">

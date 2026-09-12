@@ -16,10 +16,17 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import { collectPackageExports } from './package-exports.mjs';
-import { PACKAGES_OUTLINE, SECTIONS } from '../../../../scripts/site/sections.mjs';
+import {
+  LANGUAGES,
+  PACKAGES_OUTLINE,
+  SECTIONS,
+  readmeName,
+  sourcePath,
+} from '../../../../scripts/site/sections.mjs';
 
 const ROOT = process.cwd();
 const DOCS = join(ROOT, 'docs');
+const EN = join(DOCS, 'en');
 const ALLOWED_ROOT_MD = new Set(['README.md', 'README.ru.md', 'CLAUDE.md', 'RELEASING.md']);
 
 if (!existsSync(DOCS) || !existsSync(join(ROOT, '.git'))) {
@@ -71,6 +78,17 @@ for (const f of designFiles.filter((f) => f !== 'README.md')) {
   }
 }
 
+// ── 1a. Плашка «Target state of V1» в каждом docs/en/design/*.md ────────────
+// Английская пара несёт ту же плашку своей формой: аудит ищет её по языку.
+
+for (const f of mdFiles(join(EN, 'design')).filter((f) => f !== 'README.md')) {
+  const file = join(EN, 'design', f);
+  if (!/\*\*Target state of V1/i.test(head(file))) {
+    add('ERROR', 'design-plate', file,
+      'нет плашки «**Target state of V1**» в первых 12 строках');
+  }
+}
+
 // ── 2. Плашка «сверено с кодом» в главах и рецептах + её свежесть ──────────
 // Плашку несёт каждый .md обеих папок жанра, кроме их оглавлений
 // README.md. Файлов-исключений по имени нет: приложений с буквой не
@@ -82,43 +100,84 @@ const RECIPES = join(DOCS, 'recipes');
 const guideFiles = mdFiles(GUIDE).filter((f) => f !== 'README.md');
 const recipeFiles = mdFiles(RECIPES).filter((f) => f !== 'README.md');
 
-/** Файлы обеих папок жанра парами «папка, имя файла» */
-const chapterFiles = [
-  ...guideFiles.map((f) => [GUIDE, f]),
-  ...recipeFiles.map((f) => [RECIPES, f]),
-];
+/** Форма плашки на каждом языке: русская «сверено с кодом», английская «verified against» */
+const PLATE = {
+  ru: {
+    re: /сверено с кодом\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i,
+    shape: 'сверено с кодом `<пример>` (YYYY-MM-DD)',
+  },
+  en: {
+    re: /verified against\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i,
+    shape: 'verified against `<example>` (YYYY-MM-DD)',
+  },
+};
 
-for (const [dir, f] of chapterFiles) {
-  const file = join(dir, f);
-  const m = head(file).match(/сверено с кодом\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i);
-  if (!m) {
-    add('ERROR', 'guide-plate', file,
-      'нет плашки «сверено с кодом `<пример>` (YYYY-MM-DD)» в первых 12 строках');
-    continue;
-  }
-  const [, examples, checkedAt] = m;
-  for (const example of [...examples.matchAll(/`([^`]+)`/g)].map((x) => x[1])) {
-    // Обычно текст сверен с примером; рецепт про сателлит — с пакетом
-    const pkg = [`examples/${example}`, `packages/${example}`]
-      .find((p) => existsSync(join(ROOT, p)));
-    if (!pkg) {
-      add('ERROR', 'guide-example', file,
-        `нет ни examples/${example}, ни packages/${example}`);
+/** Дата плашки по языку: ключ — «жанр/файл», общий для пары */
+const plateDates = { ru: new Map(), en: new Map() };
+
+/**
+ * Проверяет плашки одного языка и свежесть примеров, на которые они ссылаются.
+ *
+ * Файл, которого на этом языке нет, пропускается: его отсутствие — забота
+ * инварианта `lang-parity`, и второе сообщение о том же было бы шумом.
+ */
+function checkPlates(entries, lang) {
+  for (const [dir, f, genre] of entries) {
+    const file = join(dir, f);
+    if (!existsSync(file)) continue;
+
+    const m = head(file).match(PLATE[lang].re);
+    if (!m) {
+      add('ERROR', 'guide-plate', file,
+        `нет плашки «${PLATE[lang].shape}» в первых 12 строках`);
       continue;
     }
-    // Манифест не в счёт: `lerna version` меняет в нём одно поле `version`,
-    // и без этого исключения каждый релиз помечал бы устаревшими все главы
-    // сразу. Сниппеты сверяются с кодом примера, а не с его манифестом
-    const code = [pkg, `:(exclude)${pkg}/package.json`];
-    const lastCommit = git('log', '-1', '--format=%cs', '--', ...code);
-    if (lastCommit && lastCommit > checkedAt) {
-      add('WARN', 'guide-stale', file,
-        `пример ${example} менялся ${lastCommit}, глава сверена ${checkedAt} — нужна пересверка`);
+    const [, examples, checkedAt] = m;
+    plateDates[lang].set(`${genre}/${f}`, checkedAt);
+
+    for (const example of [...examples.matchAll(/`([^`]+)`/g)].map((x) => x[1])) {
+      // Обычно текст сверен с примером; рецепт про сателлит — с пакетом
+      const pkg = [`examples/${example}`, `packages/${example}`]
+        .find((p) => existsSync(join(ROOT, p)));
+      if (!pkg) {
+        add('ERROR', 'guide-example', file,
+          `нет ни examples/${example}, ни packages/${example}`);
+        continue;
+      }
+      // Манифест не в счёт: `lerna version` меняет в нём одно поле `version`,
+      // и без этого исключения каждый релиз помечал бы устаревшими все главы
+      // сразу. Сниппеты сверяются с кодом примера, а не с его манифестом
+      const code = [pkg, `:(exclude)${pkg}/package.json`];
+      const lastCommit = git('log', '-1', '--format=%cs', '--', ...code);
+      if (lastCommit && lastCommit > checkedAt) {
+        add('WARN', 'guide-stale', file,
+          `пример ${example} менялся ${lastCommit}, глава сверена ${checkedAt} — нужна пересверка`);
+      }
+      if (git('status', '--porcelain', '--', ...code)) {
+        add('WARN', 'guide-stale', file,
+          `в ${pkg} есть незакоммиченные изменения — после них пересверь главу`);
+      }
     }
-    if (git('status', '--porcelain', '--', ...code)) {
-      add('WARN', 'guide-stale', file,
-        `в ${pkg} есть незакоммиченные изменения — после них пересверь главу`);
-    }
+  }
+}
+
+/** Файлы обеих папок жанра: состав задаёт русский оригинал */
+const chapterEntries = (root) => [
+  ...guideFiles.map((f) => [join(root, 'guide'), f, 'guide']),
+  ...recipeFiles.map((f) => [join(root, 'recipes'), f, 'recipes']),
+];
+
+checkPlates(chapterEntries(DOCS), 'ru');
+checkPlates(chapterEntries(EN), 'en');
+
+// Перевод отстал от правки — предупреждение: главу догоняют тем же
+// change'ом, но правило, которое ломает сборку на дате, останавливало бы
+// работу на ровном месте.
+for (const [key, checkedAt] of plateDates.en) {
+  const original = plateDates.ru.get(key);
+  if (original && checkedAt < original) {
+    add('WARN', 'lang-stale', join(EN, key),
+      `перевод сверен ${checkedAt}, оригинал ${original} — перевод отстал от правки`);
   }
 }
 
@@ -332,10 +391,20 @@ if (existsSync(ideasPath)) {
 // ── 9. README пакетов: структура, потолок, плашка, перечень экспортов ────────
 // Правила 10 и 11 «Правил ведения» из docs/README.md. README пакета отвечает
 // на вопрос «что в пакете сегодня и как называется»: шесть разделов, потолок
-// строк, плашка со ссылками и полный перечень публичных имён.
+// строк, плашка со ссылками и полный перечень публичных имён. Проверяются оба
+// файла пары: английский README.md и русский README.ru.md.
 
 const PACKAGES = join(ROOT, 'packages');
-const README_SECTIONS = ['Установка', 'Минимальный пример', 'Экспорты', 'Границы пакета'];
+
+/** Заголовки разделов README на каждом языке: состав и порядок общие */
+const README_SECTIONS = {
+  ru: ['Установка', 'Минимальный пример', 'Экспорты', 'Границы пакета'],
+  en: ['Install', 'Minimal example', 'Exports', 'Package boundaries'],
+};
+
+/** Папка документации, в которую ведёт плашка своего языка */
+const PLATE_DOCS = { ru: 'docs', en: 'docs/en' };
+
 const README_MAX_LINES = 120;
 const EXPORTS_MAX_LINES = 60;
 const PLATE_MAX_LINKS = 3;
@@ -394,17 +463,21 @@ const packageDirs = existsSync(PACKAGES)
       .sort()
   : [];
 
-for (const dir of packageDirs) {
-  const file = join(dir, 'README.md');
+/**
+ * Проверяет один файл пары README: разделы, потолок, плашку и перечень имён.
+ *
+ * @returns Имена, названные разделом экспортов; у пары они сверяются между собой
+ */
+function checkReadme(dir, lang, pkg, internal) {
+  const file = join(dir, readmeName(lang));
+  const sections = README_SECTIONS[lang];
+
   if (!existsSync(file)) {
-    add('ERROR', 'pkg-readme', dir, 'нет README.md');
-    continue;
+    add('ERROR', 'pkg-readme', dir, `нет ${readmeName(lang)}`);
+    return new Set();
   }
+
   const lines = readFileSync(file, 'utf8').split('\n');
-  const { name } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-  // Внутренний пакет узнаётся по имени: скоуп у всех общий, а `common.`
-  // в имени означает, что пакет ставится вместе с потребителем
-  const internal = name.startsWith('@nestlingjs/common.');
 
   // 9.1 Состав и порядок разделов второго уровня
   const headings = [];
@@ -416,17 +489,17 @@ for (const dir of packageDirs) {
     if (m) headings.push({ title: m[1], line: i + 1 });
   });
   const titles = headings.map((h) => h.title);
-  if (titles.join(' ') !== README_SECTIONS.join(' ')) {
+  if (titles.join(' ') !== sections.join(' ')) {
     for (const h of headings) {
-      if (!README_SECTIONS.includes(h.title)) {
+      if (!sections.includes(h.title)) {
         add('ERROR', 'pkg-readme-sections', file,
           `строка ${h.line}: лишний раздел «${h.title}» — обучение живёт в docs/guide/ и docs/recipes/, семантика в docs/design/`);
       }
     }
-    const known = titles.filter((t) => README_SECTIONS.includes(t));
-    if (known.join(' ') !== README_SECTIONS.join(' ')) {
+    const known = titles.filter((t) => sections.includes(t));
+    if (known.join(' ') !== sections.join(' ')) {
       add('ERROR', 'pkg-readme-sections', file,
-        `порядок разделов «${titles.join(', ') || 'разделов нет'}», нужен «${README_SECTIONS.join(', ')}»`);
+        `порядок разделов «${titles.join(', ') || 'разделов нет'}», нужен «${sections.join(', ')}»`);
     }
   }
 
@@ -450,8 +523,10 @@ for (const dir of packageDirs) {
     if (prose.length === 0) {
       add('ERROR', 'pkg-readme-plate', file, 'плашка статуса стоит раньше абзаца «что это»');
     }
+    // Плашка ведёт в папки своего языка: русская в docs/, английская в docs/en/
+    const docs = PLATE_DOCS[lang];
     const links = (dirName) =>
-      plate.join('\n').match(new RegExp(`\\]\\([^)]*docs/${dirName}/[^)]+\\)`, 'g')) ?? [];
+      plate.join('\n').match(new RegExp(`\\]\\([^)]*${docs}/${dirName}/[^)]+\\)`, 'g')) ?? [];
     const design = links('design');
     // Ссылки в guide/ и recipes/ — один вид: у пакета один текст-источник,
     // и жанр этого текста выбирает не пакет
@@ -467,11 +542,11 @@ for (const dir of packageDirs) {
       }
     } else {
       if (!design.length) {
-        add('ERROR', 'pkg-readme-plate', file, 'в плашке нет ссылки в docs/design/');
+        add('ERROR', 'pkg-readme-plate', file, `в плашке нет ссылки в ${docs}/design/`);
       }
       if (!guide.length) {
         add('ERROR', 'pkg-readme-plate', file,
-          'в плашке нет ссылки ни в docs/guide/, ни в docs/recipes/');
+          `в плашке нет ссылки ни в ${docs}/guide/, ни в ${docs}/recipes/`);
       }
       if (design.length > PLATE_MAX_LINKS) {
         add('ERROR', 'pkg-readme-plate', file,
@@ -484,8 +559,8 @@ for (const dir of packageDirs) {
     }
   }
 
-  // 9.4 «Минимальный пример» — ровно один блок кода
-  const exampleHeading = headings.find((h) => h.title === 'Минимальный пример');
+  // 9.4 Минимальный пример — ровно один блок кода
+  const exampleHeading = headings.find((h) => h.title === sections[1]);
   if (exampleHeading) {
     const after = headings[headings.indexOf(exampleHeading) + 1]?.line ?? lines.length + 1;
     const fences = lines
@@ -493,22 +568,21 @@ for (const dir of packageDirs) {
       .filter((l) => /^\s*(```|~~~)/.test(l)).length;
     if (fences !== 2) {
       add('ERROR', 'pkg-readme-sections', file,
-        `в «Минимальном примере» ${fences / 2} блоков кода вместо одного`);
+        `в разделе «${sections[1]}» ${fences / 2} блоков кода вместо одного`);
     }
   }
 
-  // 9.5 Раздел «Экспорты»: бюджет строк и полнота перечня
-  const exportsHeading = headings.find((h) => h.title === 'Экспорты');
-  if (!exportsHeading) continue;
+  // 9.5 Раздел экспортов: бюджет строк и полнота перечня
+  const exportsHeading = headings.find((h) => h.title === sections[2]);
+  if (!exportsHeading) return new Set();
   const next = headings[headings.indexOf(exportsHeading) + 1]?.line ?? lines.length + 1;
   const section = lines.slice(exportsHeading.line - 1, next - 1);
   while (section.length && !section.at(-1).trim()) section.pop();
   if (section.length > EXPORTS_MAX_LINES) {
     add('ERROR', 'pkg-exports-budget', file,
-      `раздел «Экспорты» занимает ${section.length} строк при потолке ${EXPORTS_MAX_LINES}`);
+      `раздел «${sections[2]}» занимает ${section.length} строк при потолке ${EXPORTS_MAX_LINES}`);
   }
 
-  const pkg = collectPackageExports(dir);
   const sectionText = section.join('\n');
 
   for (const s of pkg.subpaths) {
@@ -518,7 +592,7 @@ for (const dir of packageDirs) {
       continue;
     }
     if (s.key !== '.' && !sectionText.includes(s.key)) {
-      add('ERROR', 'pkg-exports', file, `в разделе «Экспорты» нет группы подпути «${s.key}»`);
+      add('ERROR', 'pkg-exports', file, `в разделе «${sections[2]}» нет группы подпути «${s.key}»`);
     }
     for (const m of s.missing) {
       add('ERROR', 'pkg-exports', file, `не разрешён реэкспорт ${m}`);
@@ -529,10 +603,10 @@ for (const dir of packageDirs) {
     // Пакет-инструмент: вместо перечня имён README называет команду.
     for (const command of pkg.bin) {
       if (!sectionText.includes(command)) {
-        add('ERROR', 'pkg-exports', file, `в разделе «Экспорты» не названа команда ${command}`);
+        add('ERROR', 'pkg-exports', file, `в разделе «${sections[2]}» не названа команда ${command}`);
       }
     }
-    continue;
+    return new Set();
   }
 
   const barrelNames = new Set();
@@ -544,7 +618,7 @@ for (const dir of packageDirs) {
   for (const source of sources) {
     if (!sectionText.includes(source)) {
       add('ERROR', 'pkg-exports', file,
-        `имена реэкспортированы из ${source}, а ссылки на этот пакет в разделе «Экспорты» нет`);
+        `имена реэкспортированы из ${source}, а ссылки на этот пакет в разделе «${sections[2]}» нет`);
     }
   }
 
@@ -556,6 +630,29 @@ for (const dir of packageDirs) {
   }
   if (unknown.size) {
     add('ERROR', 'pkg-exports', file, `нет в коде (${unknown.size}): ${listNames(unknown)}`);
+  }
+
+  return documented;
+}
+
+for (const dir of packageDirs) {
+  const { name } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+  // Внутренний пакет узнаётся по имени: скоуп у всех общий, а `common.`
+  // в имени означает, что пакет ставится вместе с потребителем
+  const internal = name.startsWith('@nestlingjs/common.');
+  const pkg = collectPackageExports(dir);
+
+  const documented = Object.fromEntries(
+    LANGUAGES.map(({ code }) => [code, checkReadme(dir, code, pkg, internal)]),
+  );
+
+  // 9.6 Перечни экспортов совпадают у пары: имена не переводятся
+  for (const [code, other] of [['en', 'ru'], ['ru', 'en']]) {
+    const only = new Set([...documented[code]].filter((n) => !documented[other].has(n)));
+    if (only.size) {
+      add('ERROR', 'pkg-exports', join(dir, readmeName(other)),
+        `имена названы в ${readmeName(code)}, а здесь нет (${only.size}): ${listNames(only)}`);
+    }
   }
 }
 
@@ -656,6 +753,196 @@ if (tracked) {
   const files = tracked.split('\n').filter(Boolean);
   add('ERROR', 'site-output', SITE_OUT,
     `вывод сборки отслеживается git (${files.length}): ${files.slice(0, 3).join(', ')}`);
+}
+
+// ── 12. Языки: паритет пар, оглавления, ссылки, кириллица, словарь ──────────
+// Публикуемый текст существует парой: английский основной, русский парный.
+// Состав публикуемого задают источники scripts/site/sections.mjs — паритету
+// подлежит ровно то, что попадает на сайт.
+
+/** Путь от корня репозитория через прямые слэши: им сравниваются языки */
+const slashed = (file) => relative(ROOT, file).split('\\').join('/');
+
+/** Путь пары на другом языке; `null` — у файла пары не бывает */
+function counterpart(file) {
+  const rel = slashed(file);
+
+  if (rel.startsWith('docs/en/')) return join(DOCS, rel.slice('docs/en/'.length));
+  if (rel.startsWith('docs/')) return join(EN, rel.slice('docs/'.length));
+  if (rel === 'README.md') return join(ROOT, 'README.ru.md');
+  if (rel === 'README.ru.md') return join(ROOT, 'README.md');
+
+  const pkg = /^(packages\/[^/]+)\/README(\.ru)?\.md$/.exec(rel);
+  if (pkg) return join(ROOT, pkg[1], pkg[2] ? 'README.md' : 'README.ru.md');
+
+  return null;
+}
+
+/** Публикуемые файлы одного языка: папки жанра, страницы, README пакетов */
+function publishedFiles(lang) {
+  const files = [];
+
+  for (const source of SECTIONS) {
+    const path = join(ROOT, sourcePath(source.path, lang));
+
+    if (source.kind === 'home' || source.kind === 'page') {
+      files.push(path);
+    } else if (source.kind === 'folder') {
+      files.push(join(path, 'README.md'));
+      for (const f of mdFiles(path).filter((f) => f !== 'README.md')) {
+        files.push(join(path, f));
+      }
+    } else if (source.kind === 'packages') {
+      for (const dir of packageDirs) files.push(join(dir, readmeName(lang)));
+    }
+  }
+
+  files.push(join(ROOT, lang === 'en' ? 'README.md' : 'README.ru.md'));
+
+  return files;
+}
+
+const published = new Map();
+for (const { code } of LANGUAGES) {
+  for (const file of publishedFiles(code)) published.set(file, code);
+}
+
+// 12.1 lang-parity: у публикуемого файла есть пара на другом языке
+for (const file of published.keys()) {
+  const pair = counterpart(file);
+  if (!pair) continue;
+
+  if (!existsSync(file)) {
+    add('ERROR', 'lang-parity', file, 'источник сайта назван, но файла нет');
+    continue;
+  }
+  if (!existsSync(pair)) {
+    add('ERROR', 'lang-parity', file, `нет пары ${slashed(pair)}`);
+  }
+}
+
+// 12.2 lang-outline: оглавления пары называют один состав файлов
+for (const source of SECTIONS.filter((s) => s.kind === 'folder')) {
+  const paths = Object.fromEntries(
+    LANGUAGES.map(({ code }) => [
+      code,
+      join(ROOT, sourcePath(source.path, code), 'README.md'),
+    ]),
+  );
+  if (!existsSync(paths.ru) || !existsSync(paths.en)) continue;
+
+  const listed = Object.fromEntries(
+    Object.entries(paths).map(([code, path]) => [
+      code,
+      new Set(
+        [...readFileSync(path, 'utf8').matchAll(/\]\(\.\/([^)#/]+\.md)/g)].map((m) => m[1]),
+      ),
+    ]),
+  );
+
+  for (const [code, other] of [['ru', 'en'], ['en', 'ru']]) {
+    for (const f of listed[code]) {
+      if (!listed[other].has(f)) {
+        add('ERROR', 'lang-outline', paths[other],
+          `оглавление ${slashed(paths[code])} называет ${f}, а это — нет`);
+      }
+    }
+  }
+}
+
+// 12.3 lang-link: ссылка не пересекает границу языка
+// Ссылка в непубликуемый файл остаётся относительной в обоих языках:
+// генератор переписывает её в адрес GitHub при сборке.
+for (const [file, lang] of published) {
+  if (!existsSync(file)) continue;
+
+  const lines = readFileSync(file, 'utf8').split('\n');
+  let inFence = false;
+
+  lines.forEach((raw, i) => {
+    if (/^\s*(```|~~~)/.test(raw)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) return;
+
+    for (const m of raw.replace(/`[^`]*`/g, '').matchAll(/\]\((\.{1,2}\/[^)\s]+?)\)/g)) {
+      const target = decodeURI(m[1].split('#')[0]);
+      if (!target) continue;
+
+      const abs = resolve(dirname(file), target).replace(/\/$/, '');
+      const other = published.get(abs);
+      if (other && other !== lang) {
+        const where = other === 'ru' ? 'русский' : 'английский';
+        add('ERROR', 'lang-link', file,
+          `строка ${i + 1}: ссылка ${m[1]} ведёт в ${where} файл`);
+      }
+    }
+  });
+}
+
+// 12.4 lang-cyrillic: английский текст написан по-английски
+// Блоки кода и инлайн-код не считаются: в них лежат идентификаторы, а в
+// словаре — русские оригиналы терминов.
+for (const [file, lang] of published) {
+  if (lang !== 'en' || !existsSync(file)) continue;
+
+  const lines = readFileSync(file, 'utf8').split('\n');
+  let inFence = false;
+
+  lines.forEach((raw, i) => {
+    if (/^\s*(```|~~~)/.test(raw)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) return;
+
+    const m = raw.replace(/`[^`]*`/g, '').match(/[\u0400-\u04FF]+/);
+    if (m) {
+      add('ERROR', 'lang-cyrillic', file,
+        `строка ${i + 1}: кириллица вне блока кода — «${m[0]}»`);
+    }
+  });
+}
+
+// 12.5 lang-glossary: термин русского глоссария назван в английском
+// Английский глоссарий служит словарём перевода: у каждого термина в нём
+// стоит русский оригинал, и по нему главы называют понятия одинаково.
+
+const glossaryRu = join(DOCS, 'glossary.md');
+const glossaryEn = join(EN, 'glossary.md');
+
+if (existsSync(glossaryRu) && existsSync(glossaryEn)) {
+  /** Имя термина без кавычек, уточнения в скобках и регистра */
+  const normalize = (term) =>
+    term
+      .replace(/`/g, '')
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+  const source = readFileSync(glossaryRu, 'utf8');
+  const terms = new Set();
+
+  for (const m of source.matchAll(/^- \*\*(.+?)\*\*/gm)) terms.add(normalize(m[1]));
+
+  // Таблица «Как пишем термины»: первая колонка называет то, чем пишем
+  const table =
+    source.split('<!-- docs-style: off -->')[1]?.split('<!-- docs-style: on -->')[0] ?? '';
+  for (const line of table.split('\n')) {
+    const cell = /^\|\s*([^|]+?)\s*\|/.exec(line);
+    if (cell && !/^:?-{2,}/.test(cell[1])) terms.add(normalize(cell[1]));
+  }
+  terms.delete('пишем');
+
+  const translated = readFileSync(glossaryEn, 'utf8').replace(/`/g, '').toLowerCase();
+  for (const term of [...terms].sort()) {
+    if (term && !translated.includes(term)) {
+      add('ERROR', 'lang-glossary', glossaryEn,
+        `термин «${term}» назван в docs/glossary.md, а здесь его нет`);
+    }
+  }
 }
 
 // ── Вывод ────────────────────────────────────────────────────────────────────

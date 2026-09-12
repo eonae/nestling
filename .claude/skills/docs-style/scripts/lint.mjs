@@ -10,9 +10,12 @@
  *   node .claude/skills/docs-style/scripts/lint.mjs [--warn] [--json] [путь ...]
  *
  * Без путей проверяет docs/design, docs/guide, docs/recipes, docs/glossary.md,
- * docs/conventions.md, docs/README.md, README пакетов и src/ всех пакетов. docs/history и
- * docs/decisions не проверяются никогда: первая папка заморожена, вторая —
- * append-only.
+ * docs/conventions.md, docs/README.md, английское зеркало docs/en, README
+ * пакетов на обоих языках и src/ всех пакетов. docs/history и docs/decisions
+ * не проверяются никогда: первая папка заморожена, вторая — append-only.
+ *
+ * Список запрещённых слов выбирается по пути файла: зеркало docs/en,
+ * README пакета и корневой README.md — английские, остальное русское.
  *
  * --warn — дополнительно показывать предупреждения (стрелки и цепочки тире
  * в прозе). Exit 1 — есть хотя бы одно запрещённое слово.
@@ -80,12 +83,65 @@ export const BANNED = [
   ],
 ];
 
+/**
+ * Запрещённые слова английского текста.
+ *
+ * Тот же класс, что в русском списке: обороты, которые ничего не сообщают
+ * о предмете. Перевод пишет агент, и без этого списка текст сползает в
+ * рекламную гладкость.
+ */
+export const BANNED_EN = [
+  [/\bleverage[sd]?\b/i, 'say what the code does: «uses», «calls», «reads»'],
+  [/\bseamless(ly)?\b/i, 'say what does not have to be done by hand'],
+  [/\brobust(ness)?\b/i, 'name the guarantee: «the assembly stops on a cycle»'],
+  [/\bcomprehensive(ly)?\b/i, 'say what exactly is covered'],
+  [/\bpowerful\b/i, 'name the capability instead of praising it'],
+  [/\bsimpl[ey]\b/i, 'drop the word: the sentence keeps its meaning'],
+  [/\bjust\b/i, 'drop the word or name the limit: «only the first request»'],
+  [/\bdelve[sd]?\b/i, '«describes», «goes through»'],
+  [/\bdive[sd]?\s+(in|into)\b/i, '«describes», «starts with»'],
+  [/\beffortless(ly)?\b/i, 'say what code is not written'],
+  [/\bintuitive(ly)?\b/i, 'show the record instead of calling it intuitive'],
+  [/(?<!runtime )\bmagic(al)?\b/i, 'name the mechanism; «no runtime magic» is the principle, not praise'],
+  [/\bblazing(ly)?\b|\blightning[- ]fast\b/i, 'give the number or drop it'],
+  [/\bcutting[- ]edge\b|\bstate[- ]of[- ]the[- ]art\b/i, 'say what is new about it'],
+  [/\bgame[- ]chang(er|ing)\b/i, 'say what changes for the reader'],
+  [/\b(world|best)[- ]class\b|\brock[- ]solid\b/i, 'name the property'],
+  [/\bsupercharge[sd]?\b|\bunleash(es|ed)?\b/i, '«adds», «turns on»'],
+  [/\butiliz(e|es|ed|ing)\b/i, '«uses»'],
+  [/\bfacilitate[sd]?\b/i, '«lets», «makes it possible to»'],
+  [/\b(plethora|myriad)\b/i, 'give the number or the list'],
+  [/\b(crucial|vital)\b/i, '«required», «the assembly fails without it»'],
+  [/\b(basically|essentially|obviously)\b/i, 'drop the word'],
+  [/\bit'?s worth noting\b|\bnote that\b/i, 'state the fact without the preface'],
+  [/\bin today'?s world\b|\bmodern (era|world)\b/i, 'drop the preface'],
+  [/\bbattle[- ]tested\b|\bproduction[- ]ready\b/i, 'say what is checked and by what'],
+  [/\bboilerplate\b/i, '«repeated code», name what repeats'],
+];
+
 const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', 'history', 'decisions', 'coverage']);
+
+/**
+ * Язык файла по его пути.
+ *
+ * Английский — зеркало docs/en, README пакета и README репозитория: их
+ * читает тот, кто пришёл из реестра. Остальное русское.
+ */
+export function isEnglish(path) {
+  const rel = relative(ROOT, path).split('\\').join('/');
+
+  return (
+    rel.startsWith('docs/en/') ||
+    rel === 'README.md' ||
+    /^packages\/[^/]+\/README\.md$/.test(rel)
+  );
+}
 
 const DEFAULT_TARGETS = [
   'docs/design',
   'docs/guide',
   'docs/recipes',
+  'docs/en',
   'docs/glossary.md',
   'docs/conventions.md',
   'docs/guarantees.md',
@@ -179,9 +235,10 @@ const files = (targets.length ? targets : DEFAULT_TARGETS)
 for (const file of files) {
   const text = readFileSync(file, 'utf8');
   const lines = file.endsWith('.md') ? proseLinesMd(text) : commentLinesTs(text);
+  const banned = isEnglish(file) ? BANNED_EN : BANNED;
   lines.forEach((line, i) => {
     if (line === null) return;
-    for (const [re, hint] of BANNED) {
+    for (const [re, hint] of banned) {
       const m = line.match(re);
       if (m) {
         findings.push({ severity: 'ERROR', file: relative(ROOT, file), line: i + 1, word: m[0], hint });

@@ -41,7 +41,17 @@ import MarkdownIt from 'markdown-it';
 import attrs from 'markdown-it-attrs';
 import container from 'markdown-it-container';
 
-import { PACKAGES_OUTLINE, SECTIONS, TOP_LINKS } from './sections.mjs';
+import {
+  DEFAULT_LANGUAGE,
+  LANGUAGES,
+  PACKAGES_OUTLINE,
+  PACKAGE_GROUPS,
+  SECTIONS,
+  TOP_LINKS,
+  UI,
+  readmeName,
+  sourcePath,
+} from './sections.mjs';
 
 /** Каталог скрипта: рядом лежат каркас документа и тема */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -81,6 +91,15 @@ class BuildError extends Error {}
 /** Путь файла от корня репозитория: он попадает в сообщения об ошибках */
 const rel = (path) => relative(ROOT, path);
 
+/** Текст источника: отсутствие файла называет недостающий путь, а не ENOENT */
+function readSource(path) {
+  if (!existsSync(path)) {
+    throw new BuildError(`${rel(path)} не найден: у раздела нет файла на этом языке`);
+  }
+
+  return readFileSync(path, 'utf8');
+}
+
 /* --------------------------------------------------------------- подсветка */
 
 /**
@@ -102,12 +121,12 @@ const SHELL_KEYWORDS =
   'export|local|source|set|unset|cd|echo|exit';
 
 /**
- * Правила языков: регулярное выражение с группами и классы этих групп.
+ * Правила языков кода: регулярное выражение с группами и классы этих групп.
  *
  * Языков четыре, потому что столько встречается в документации: примеры на
  * TypeScript, команды на bash, ответы и конфиги на json.
  */
-const LANGUAGES = {
+const SYNTAX = {
   typescript: {
     re: new RegExp(
       '(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)' + // 1 комментарий
@@ -153,7 +172,7 @@ const LANGUAGES = {
   },
 };
 
-LANGUAGES.javascript = LANGUAGES.typescript;
+SYNTAX.javascript = SYNTAX.typescript;
 
 /**
  * Размечает код языка классами токенов.
@@ -166,7 +185,7 @@ LANGUAGES.javascript = LANGUAGES.typescript;
  * команды или схема, и раскраска по правилам TypeScript в них врёт.
  */
 function highlight(code, lang) {
-  const rules = LANGUAGES[lang];
+  const rules = SYNTAX[lang];
 
   if (!rules) {
     return escapeHtml(code);
@@ -313,6 +332,32 @@ for (const rule of ['bullet_list_open', 'ordered_list_open']) {
 md.renderer.rules.table_open = () => '<div class="tbl-wrap">\n<table>\n';
 md.renderer.rules.table_close = () => '</table>\n</div>\n';
 
+/* ------------------------------------------------------------------ языки */
+
+/** Слово «часть» в заголовке группы: оглавление написано на своём языке */
+const PART = '(?:Часть|Part)';
+
+/** Текст поля `sections.mjs` на языке страницы */
+const textOf = (value, lang) => (value ? value[lang] : undefined);
+
+/** Имя группы пакетов на языке: заголовок без перевода останавливает сборку */
+function translateGroup(heading, lang, outlinePath) {
+  if (lang === 'ru') {
+    return heading;
+  }
+
+  const translated = PACKAGE_GROUPS[heading];
+
+  if (!translated) {
+    throw new BuildError(
+      `${rel(outlinePath)}: у группы «${heading}» нет английского имени — ` +
+        'добавьте его в PACKAGE_GROUPS файла scripts/site/sections.mjs',
+    );
+  }
+
+  return translated;
+}
+
 /* ------------------------------------------------------- состав источников */
 
 /** Заголовок первого уровня файла: он же заголовок его раздела */
@@ -329,19 +374,21 @@ function titleOf(text, path) {
 /**
  * Читает состав папки-источника из её README.
  *
- * Группа — заголовок `## Часть N. …`; файлы группы — строки таблицы под
- * ним: первая ячейка несёт ссылку на файл. У папки без таких заголовков
- * группа одна и названа в `sections.mjs`.
+ * Группа — заголовок `## Часть N. …` и его английская пара `## Part N. …`;
+ * файлы группы — строки таблицы под ним: первая ячейка несёт ссылку на файл.
+ * У папки без таких заголовков группа одна и названа в `sections.mjs`.
  *
  * @returns Файлы в порядке README: `{ slug, group }`
  */
 function readOutline(readme, readmePath, fallbackGroup) {
-  const parted = /^##\s+Часть\s+\d+\./m.test(readme);
+  const parted = new RegExp(`^##\\s+${PART}\\s+\\d+\\.`, 'm').test(readme);
   const files = [];
   let group;
 
   for (const line of readme.split('\n')) {
-    const heading = /^##\s+(Часть\s+\d+\.[^\n]*)\s*$/.exec(line);
+    const heading = new RegExp(
+      `^##\\s+(${PART}\\s+\\d+\\.[^\\n]*)\\s*$`,
+    ).exec(line);
     if (heading) {
       group = heading[1].replace(/\.$/, '');
       continue;
@@ -377,9 +424,12 @@ function readOutline(readme, readmePath, fallbackGroup) {
  * ним со ссылкой на каталог пакета. Второго списка пакетов не существует:
  * карта репозитория и есть оглавление справочника.
  *
+ * Оглавление пакетов лежит в русском файле о ведении репозитория, поэтому
+ * английские имена групп приходят из `PACKAGE_GROUPS`.
+ *
  * @returns Каталоги в порядке карты: `{ slug, group }`
  */
-function readPackagesOutline(outlinePath) {
+function readPackagesOutline(outlinePath, lang) {
   const lines = readFileSync(outlinePath, 'utf8').split('\n');
   const from = lines.findIndex((line) => /^##\s+Пакеты\s*$/.test(line));
 
@@ -396,7 +446,7 @@ function readPackagesOutline(outlinePath) {
   for (const line of to === -1 ? rest : rest.slice(0, to)) {
     const heading = /^###\s+(.+?)\s*$/.exec(line);
     if (heading) {
-      group = heading[1];
+      group = translateGroup(heading[1], lang, outlinePath);
       continue;
     }
 
@@ -583,9 +633,16 @@ function idOf(kind, section, slug) {
   return section ? `${section}${ANCHOR_SEP}${slug}` : slug;
 }
 
-/** Один раздел модели: всё, что печать берёт из исходного файла */
-function makePage({ kind, section, slug, path, source, group, badge }) {
+/**
+ * Один раздел модели: всё, что печать берёт из исходного файла.
+ *
+ * `route` начинается с префикса языка, `local` — тот же адрес без него.
+ * По `local` раздел находит свою пару в другом языке: имена файлов в паре
+ * совпадают, и адреса различаются только префиксом.
+ */
+function makePage({ kind, section, slug, path, source, group, badge, lang, directory }) {
   const headings = headingsOf(source);
+  const local = routeOf(kind, section, slug);
 
   return {
     kind,
@@ -593,6 +650,9 @@ function makePage({ kind, section, slug, path, source, group, badge }) {
     slug,
     group,
     badge,
+    directory,
+    lang: lang.code,
+    prefix: lang.prefix,
     path,
     dir: dirname(path),
     source,
@@ -600,13 +660,18 @@ function makePage({ kind, section, slug, path, source, group, badge }) {
     summary: summaryOf(source),
     headings,
     heads: headings.filter((heading) => heading.level === 2),
-    route: routeOf(kind, section, slug),
+    local,
+    route: [...lang.prefix, ...local],
     id: idOf(kind, section, slug),
   };
 }
 
 /**
- * Разворачивает `sections.mjs` в плоский список разделов документации.
+ * Разворачивает `sections.mjs` в плоский список разделов одного языка.
+ *
+ * Путь источника записан по русскому оригиналу, файл языка даёт
+ * `sourcePath`: английский текст лежит зеркалом в `docs/en/`, а README
+ * пакета различается именем файла.
  *
  * Слаг уникален внутри своего источника: `/design/container/` и
  * `/reference/nestling.container/` не спорят, потому что секции у них
@@ -614,11 +679,13 @@ function makePage({ kind, section, slug, path, source, group, badge }) {
  *
  * @returns Разделы в порядке `sections.mjs`
  */
-function readModel() {
+function readModel(lang) {
   const pages = [];
 
   for (const source of SECTIONS) {
-    const path = join(ROOT, source.path);
+    const path = join(ROOT, sourcePath(source.path, lang.code));
+    const group = textOf(source.group, lang.code);
+    const badge = textOf(source.badge, lang.code);
     const before = pages.length;
 
     if (source.kind === 'home' || source.kind === 'page') {
@@ -628,15 +695,16 @@ function readModel() {
           section: '',
           slug: basename(source.path, '.md'),
           path,
-          source: readFileSync(path, 'utf8'),
-          group: source.group,
-          badge: source.badge,
+          source: readSource(path),
+          group,
+          badge,
+          lang,
         }),
       );
     } else if (source.kind === 'folder') {
       const readmePath = join(path, 'README.md');
-      const readme = readFileSync(readmePath, 'utf8');
-      const entries = readOutline(readme, readmePath, source.group);
+      const readme = readSource(readmePath);
+      const entries = readOutline(readme, readmePath, group);
 
       assertComplete(
         entries,
@@ -653,8 +721,10 @@ function readModel() {
           slug: source.section,
           path: readmePath,
           source: readme,
-          group: source.group,
-          badge: source.badge,
+          group,
+          badge,
+          lang,
+          directory: path,
         }),
       );
 
@@ -666,15 +736,16 @@ function readModel() {
             section: source.section,
             slug: entry.slug,
             path: filePath,
-            source: readFileSync(filePath, 'utf8'),
+            source: readSource(filePath),
             group: entry.group,
-            badge: source.badge,
+            badge,
+            lang,
           }),
         );
       }
     } else if (source.kind === 'packages') {
       const outlinePath = join(ROOT, PACKAGES_OUTLINE);
-      const entries = readPackagesOutline(outlinePath);
+      const entries = readPackagesOutline(outlinePath, lang.code);
 
       assertComplete(
         entries,
@@ -685,20 +756,19 @@ function readModel() {
       );
 
       for (const entry of entries) {
-        const readmePath = join(path, entry.slug, 'README.md');
-        if (!existsSync(readmePath)) {
-          throw new BuildError(`${rel(readmePath)} не найден: у пакета нет README`);
-        }
+        const directory = join(path, entry.slug);
 
         pages.push(
           makePage({
             kind: 'doc',
             section: source.section,
             slug: entry.slug,
-            path: readmePath,
-            source: readFileSync(readmePath, 'utf8'),
+            path: join(directory, readmeName(lang.code)),
+            source: readSource(join(directory, readmeName(lang.code))),
             group: entry.group,
-            badge: source.badge,
+            badge,
+            lang,
+            directory,
           }),
         );
       }
@@ -734,19 +804,18 @@ function readModel() {
 
 /* ------------------------------------------------------------------ адреса */
 
-/** Путь от адреса одного раздела к адресу другого: оба кончаются каталогом */
-function routeHref(from, to) {
+/** Путь от адреса раздела к каталогу: пустая строка — тот же каталог */
+function routeUp(from, to) {
   const path = posix.relative(from.join('/'), to.join('/'));
-
-  return path ? `${path}/` : './';
-}
-
-/** Путь от адреса раздела к корню вывода: им собираются адреса файлов сайта */
-function routeRoot(from) {
-  const path = posix.relative(from.join('/'), '');
 
   return path ? `${path}/` : '';
 }
+
+/** Путь от адреса одного раздела к адресу другого: оба кончаются каталогом */
+const routeHref = (from, to) => routeUp(from, to) || './';
+
+/** Путь от адреса раздела к корню вывода: им собираются адреса файлов сайта */
+const routeRoot = (from) => routeUp(from, []);
 
 /**
  * Форма вывода: всё, чем дерево страниц отличается от одного файла.
@@ -766,6 +835,7 @@ const TREE = {
     return anchor ? `${base}#${anchor}` : base || './';
   },
   root: (from) => routeRoot(from.route),
+  langRoot: (from) => routeUp(from.route, from.prefix),
 };
 
 const SINGLE = {
@@ -774,6 +844,7 @@ const SINGLE = {
   href: (from, to, anchor) =>
     anchor ? `#${to.id}${ANCHOR_SEP}${anchor}` : `#${to.id}`,
   root: () => '',
+  langRoot: () => '',
 };
 
 /* ------------------------------------------------------------------ ссылки */
@@ -949,16 +1020,16 @@ function renderSidebar(pages, from, form) {
 }
 
 /** Ссылки на соседние разделы в порядке `sections.mjs` */
-function renderPager({ prev, next }, from, form) {
+function renderPager({ prev, next }, from, form, ui) {
   const link = (page, dir, cls) =>
     `    <a${cls ? ` class="${cls}"` : ''} href="${escapeAttr(form.href(from, page))}">\n` +
     `      <div class="dir">${escapeHtml(dir)}</div>\n` +
     `      <div class="ttl">${escapeHtml(page.title)}</div>\n` +
     `    </a>`;
 
-  const parts = [prev ? link(prev, '← Назад', '') : '    <span></span>'];
+  const parts = [prev ? link(prev, ui.prev, '') : '    <span></span>'];
   if (next) {
-    parts.push(link(next, 'Далее →', 'next'));
+    parts.push(link(next, ui.next, 'next'));
   }
 
   return `  <nav class="pager">\n${parts.join('\n')}\n  </nav>\n`;
@@ -969,13 +1040,13 @@ const renderBadge = (page) =>
   page.badge ? `<p class="badge">${escapeHtml(page.badge)}</p>\n` : '';
 
 /** Быстрые ссылки шапки: разделы, которые читатель ищет чаще прочих */
-function renderTopLinks(byId, from, form) {
+function renderTopLinks(byId, from, form, lang) {
   return TOP_LINKS.map(({ id, label }) => {
     const page = byId.get(id);
 
     return page
       ? `  <a class="tlink hide-sm" href="${escapeAttr(form.href(from, page))}">` +
-          `${escapeHtml(label)}</a>`
+          `${escapeHtml(label[lang])}</a>`
       : '';
   })
     .filter(Boolean)
@@ -983,12 +1054,40 @@ function renderTopLinks(byId, from, form) {
 }
 
 /** Поле поиска: индекс подгружается по первому обращению, сервер не нужен */
-const SEARCH_BOX =
+const searchBox = (ui) =>
   '  <div class="search">\n' +
-  '    <input id="q" type="search" placeholder="Поиск по документации" ' +
-  'autocomplete="off" aria-label="Поиск по документации">\n' +
+  `    <input id="q" type="search" placeholder="${escapeAttr(ui.search)}" ` +
+  `autocomplete="off" aria-label="${escapeAttr(ui.search)}">\n` +
   '    <div class="results" id="results" hidden></div>\n' +
   '  </div>';
+
+/**
+ * Переключатель языка: тот же раздел в другом языке.
+ *
+ * Адрес отличается от адреса страницы одним префиксом. Язык, в котором
+ * раздела нет, в переключатель не попадает: ссылка вела бы в 404.
+ */
+function renderLangs(page, present, ui) {
+  const key = page.local.join('/');
+
+  const items = LANGUAGES.filter(
+    (lang) => lang.code === page.lang || present.get(lang.code)?.has(key),
+  ).map((lang) => {
+    const href = routeHref(page.route, [...lang.prefix, ...page.local]);
+    const current = lang.code === page.lang;
+
+    return (
+      `    <a class="lang${current ? ' active' : ''}" href="${escapeAttr(href)}"` +
+      `${current ? ' aria-current="true"' : ''} hreflang="${lang.code}" ` +
+      `title="${escapeAttr(lang.label)}">${escapeHtml(lang.code.toUpperCase())}</a>`
+    );
+  });
+
+  return (
+    `  <div class="langs" role="group" aria-label="${escapeAttr(ui.language)}">\n` +
+    `${items.join('\n')}\n  </div>`
+  );
+}
 
 /** Птенец из шапки, отрисованный в иконку вкладки */
 const FAVICON =
@@ -999,12 +1098,32 @@ const FAVICON =
 
 /* ------------------------------------------------------------- метаданные */
 
-/** `title`, `description`, Open Graph и favicon одной страницы */
-function renderHead(page, { root, base, canonical }) {
-  const title =
-    page.kind === 'home'
-      ? `${SITE_NAME} — документация`
-      : `${page.title} — ${SITE_NAME}`;
+/**
+ * Ссылки на пару языков одного раздела.
+ *
+ * Печатаются только с базовым адресом: относительный адрес в `hreflang`
+ * смысла не имеет. Раздел, которого в другом языке нет, ссылок не несёт.
+ */
+function alternatesOf(page, base, present) {
+  if (!base) {
+    return [];
+  }
+
+  const key = page.local.join('/');
+  const links = LANGUAGES.filter((lang) => present.get(lang.code)?.has(key)).map(
+    (lang) => ({
+      code: lang.code,
+      url: absoluteUrl(base, [...lang.prefix, ...page.local]),
+      default: Boolean(lang.default),
+    }),
+  );
+
+  return links.length > 1 ? links : [];
+}
+
+/** `title`, `description`, Open Graph, favicon и адреса пары одной страницы */
+function renderHead(page, { root, base, canonical, alternates, ui }) {
+  const title = page.kind === 'home' ? ui.siteTitle : `${page.title} — ${SITE_NAME}`;
   const description = page.summary;
 
   const tags = [
@@ -1023,6 +1142,19 @@ function renderHead(page, { root, base, canonical }) {
     tags.push(`<meta property="og:url" content="${escapeAttr(canonical)}">`);
   }
 
+  for (const alternate of alternates) {
+    tags.push(
+      `<link rel="alternate" hreflang="${alternate.code}" ` +
+        `href="${escapeAttr(alternate.url)}">`,
+    );
+
+    if (alternate.default) {
+      tags.push(
+        `<link rel="alternate" hreflang="x-default" href="${escapeAttr(alternate.url)}">`,
+      );
+    }
+  }
+
   return tags.join('\n');
 }
 
@@ -1033,44 +1165,52 @@ const absoluteUrl = (base, route) =>
 /* ------------------------------------------------------------------ печать */
 
 /** Разметка одного раздела: бейдж, статья и пейджер */
-function renderArticle(page, neighbours, byPath, form) {
+function renderArticle(page, neighbours, byPath, form, ui) {
   const text = rewriteLinks(page.source, page, byPath, form);
   const article = anchorHeadings(md.render(text), page, form);
-  const pager = page.kind === 'home' ? '' : renderPager(neighbours, page, form);
+  const pager = page.kind === 'home' ? '' : renderPager(neighbours, page, form, ui);
 
   return renderBadge(page) + article + pager;
 }
 
 function renderTreePage(page, parts, options) {
-  const { layout, homeLayout, styles, script, byId, byPath, base } = options;
+  const { layout, homeLayout, styles, script, byId, byPath, base, ui, present } =
+    options;
   const template = page.kind === 'home' ? homeLayout : layout;
   const root = TREE.root(page);
   const canonical = base ? absoluteUrl(base, page.route) : '';
+  const alternates = alternatesOf(page, base, present);
 
-  let html = fill(template, '{{head}}', renderHead(page, { root, base, canonical }));
-  html = fill(html, '{{styles}}', styles);
-  html = fill(html, '{{root}}', escapeAttr(root));
-  html = fill(html, '{{mode}}', 'tree');
-  html = fill(
-    html,
-    '{{home}}',
-    escapeAttr(TREE.href(page, byId.get('home'))),
+  let html = fill(
+    template,
+    '{{head}}',
+    renderHead(page, { root, base, canonical, alternates, ui }),
   );
-  html = fill(html, '{{toplinks}}', renderTopLinks(byId, page, TREE));
-  html = fill(html, '{{search}}', SEARCH_BOX);
+  html = fill(html, '{{styles}}', styles);
+  html = fill(html, '{{lang}}', escapeAttr(page.lang));
+  html = fill(html, '{{root}}', escapeAttr(root));
+  html = fill(html, '{{langroot}}', escapeAttr(TREE.langRoot(page)));
+  html = fill(html, '{{mode}}', 'tree');
+  html = fill(html, '{{home}}', escapeAttr(TREE.href(page, byId.get('home'))));
+  html = fill(html, '{{tagline}}', escapeHtml(ui.tagline));
+  html = fill(html, '{{menu}}', escapeAttr(ui.menu));
+  html = fill(html, '{{themelabel}}', escapeAttr(ui.theme));
+  html = fill(html, '{{langs}}', renderLangs(page, present, ui));
+  html = fill(html, '{{toplinks}}', renderTopLinks(byId, page, TREE, page.lang));
+  html = fill(html, '{{search}}', searchBox(ui));
 
   if (page.kind !== 'home') {
     html = fill(html, '{{sidebar}}', renderSidebar(options.pages, page, TREE));
   }
 
-  html = fill(html, '{{article}}', renderArticle(page, parts, byPath, TREE));
-  html = fill(html, '{{script}}', script);
+  html = fill(html, '{{article}}', renderArticle(page, parts, byPath, TREE, ui));
+  html = fill(html, '{{script}}', uiScript(ui) + script);
 
   return html;
 }
 
 function renderSingleFile(pages, options) {
-  const { layout, styles, script, byId, byPath } = options;
+  const { layout, styles, script, byId, byPath, ui } = options;
   const start = byId.get('home');
 
   const body = pages
@@ -1080,6 +1220,7 @@ function renderSingleFile(pages, options) {
         { prev: pages[index - 1], next: pages[index + 1] },
         byPath,
         SINGLE,
+        ui,
       );
 
       return (
@@ -1095,22 +1236,31 @@ function renderSingleFile(pages, options) {
   let html = fill(
     layout,
     '{{head}}',
-    `<title>${escapeHtml(`${SITE_NAME} — документация`)}</title>\n` +
+    `<title>${escapeHtml(ui.siteTitle)}</title>\n` +
       `<meta name="description" content="${escapeAttr(start.summary)}">\n` +
       `<link rel="icon" href="${escapeAttr(icon)}" type="image/svg+xml">`,
   );
   html = fill(html, '{{styles}}', styles);
+  html = fill(html, '{{lang}}', escapeAttr(start.lang));
   html = fill(html, '{{root}}', '');
+  html = fill(html, '{{langroot}}', '');
   html = fill(html, '{{mode}}', 'single');
   html = fill(html, '{{home}}', `#${escapeAttr(start.id)}`);
-  html = fill(html, '{{toplinks}}', renderTopLinks(byId, start, SINGLE));
+  html = fill(html, '{{tagline}}', escapeHtml(ui.tagline));
+  html = fill(html, '{{menu}}', escapeAttr(ui.menu));
+  html = fill(html, '{{themelabel}}', escapeAttr(ui.theme));
+  html = fill(html, '{{langs}}', '');
+  html = fill(html, '{{toplinks}}', renderTopLinks(byId, start, SINGLE, start.lang));
   html = fill(html, '{{search}}', '');
   html = fill(html, '{{sidebar}}', renderSidebar(pages, null, SINGLE));
   html = fill(html, '{{article}}', body);
-  html = fill(html, '{{script}}', script);
+  html = fill(html, '{{script}}', uiScript(ui) + script);
 
   return html;
 }
+
+/** Подписи оформления, которые читает встроенный скрипт страницы */
+const uiScript = (ui) => `var NESTLING_UI = ${JSON.stringify(ui)};\n`;
 
 /* ------------------------------------------------------- файлы публикации */
 
@@ -1119,45 +1269,83 @@ const robotsTxt = (base) =>
     .filter(Boolean)
     .join('\n') + '\n';
 
-const sitemapXml = (pages, base) =>
+/**
+ * Карта сайта: адреса разделов всех языков.
+ *
+ * У раздела, существующего в паре, рядом с адресом стоят `xhtml:link` на
+ * оба языка: поисковику не нужно догадываться, что это один текст.
+ */
+const sitemapXml = (models, base, present) =>
   '<?xml version="1.0" encoding="UTF-8"?>\n' +
-  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-  pages
-    .map((page) => `  <url><loc>${escapeHtml(absoluteUrl(base, page.route))}</loc></url>`)
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" ' +
+  'xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' +
+  models
+    .flatMap(({ pages }) =>
+      pages.map((page) => {
+        const alternates = alternatesOf(page, base, present)
+          .map(
+            (alternate) =>
+              `\n    <xhtml:link rel="alternate" hreflang="${alternate.code}" ` +
+              `href="${escapeHtml(alternate.url)}"/>`,
+          )
+          .join('');
+
+        return (
+          `  <url><loc>${escapeHtml(absoluteUrl(base, page.route))}</loc>` +
+          `${alternates}${alternates ? '\n  ' : ''}</url>`
+        );
+      }),
+    )
     .join('\n') +
   '\n</urlset>\n';
 
-/** Индекс поиска: заголовок, адрес, заголовки второго уровня и текст */
+/**
+ * Индекс поиска: заголовок, адрес, заголовки второго уровня и текст.
+ *
+ * Адрес записан от корня языка: индекс лежит рядом со стартовой страницей
+ * своего языка, и страница считает адреса результатов от неё.
+ */
 const searchIndex = (pages) =>
   JSON.stringify(
     pages.map((page) => ({
       title: page.title,
       group: page.group ?? '',
-      path: page.route.length === 0 ? '' : `${page.route.join('/')}/`,
+      path: page.local.length === 0 ? '' : `${page.local.join('/')}/`,
       heads: page.heads.map((head) => ({ label: head.label, anchor: head.anchor })),
       text: plainTextOf(page.source).slice(0, 4000),
     })),
   );
 
-/** Страница «не найдено»: её отдаёт хостинг по любому неизвестному адресу */
-const notFoundHtml = (styles, base) =>
-  '<!DOCTYPE html>\n<html lang="ru" data-theme="">\n<head>\n' +
-  '<meta charset="utf-8">\n' +
-  '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
-  `<title>Страница не найдена — ${SITE_NAME}</title>\n` +
-  '<meta name="robots" content="noindex">\n' +
-  `<style>\n${styles}\n</style>\n</head>\n<body class="home">\n` +
-  '<header class="topbar">\n' +
-  `  <a class="brand" href="${escapeAttr(base ? `${base}/` : '/')}">` +
-  '<span class="logo">🐣</span> Nestling ' +
-  '<span class="tag hide-sm">документация</span></a>\n' +
-  '</header>\n' +
-  '<main class="content"><article class="article">\n' +
-  '<h1>Такой страницы нет</h1>\n' +
-  '<p>Адрес раздела мог измениться: документация собирается заново на ' +
-  'каждое изменение исходных файлов.</p>\n' +
-  `<p><a href="${escapeAttr(base ? `${base}/` : '/')}">К началу документации</a></p>\n` +
-  '</article></main>\n</body>\n</html>\n';
+/**
+ * Страница «не найдено»: её отдаёт хостинг по любому неизвестному адресу.
+ *
+ * Страница одна на сайт и написана на языке по умолчанию: адрес, по
+ * которому её показали, языка не называет. Оформление встроено в файл —
+ * она открывается из любого подпути.
+ */
+const notFoundHtml = (styles, base) => {
+  const ui = UI[DEFAULT_LANGUAGE];
+  const home = escapeAttr(base ? `${base}/` : '/');
+
+  return (
+    `<!DOCTYPE html>\n<html lang="${DEFAULT_LANGUAGE}" data-theme="">\n<head>\n` +
+    '<meta charset="utf-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+    `<title>${escapeHtml(ui.notFoundTitle)} — ${SITE_NAME}</title>\n` +
+    '<meta name="robots" content="noindex">\n' +
+    `<style>\n${styles}\n</style>\n</head>\n<body class="home">\n` +
+    '<header class="topbar">\n' +
+    `  <a class="brand" href="${home}">` +
+    '<span class="logo">🐣</span> Nestling ' +
+    `<span class="tag hide-sm">${escapeHtml(ui.tagline)}</span></a>\n` +
+    '</header>\n' +
+    '<main class="content"><article class="article">\n' +
+    `<h1>${escapeHtml(ui.notFoundHead)}</h1>\n` +
+    `<p>${escapeHtml(ui.notFoundText)}</p>\n` +
+    `<p><a href="${home}">${escapeHtml(ui.notFoundLink)}</a></p>\n` +
+    '</article></main>\n</body>\n</html>\n'
+  );
+};
 
 /* ------------------------------------------------------------------ сборка */
 
@@ -1177,51 +1365,90 @@ function readBase(argv) {
   return raw.replace(/\/$/, '');
 }
 
+/** Адреса разделов, по которым язык находит пару: адрес без префикса языка */
+const localRoutes = (pages) => new Set(pages.map((page) => page.local.join('/')));
+
+/**
+ * Разделы одного языка по пути файла.
+ *
+ * Ссылка на каталог ведёт в раздел, который его представляет:
+ * `../packages/nestling.app/` и `../design/` встречаются в текстах наравне
+ * со ссылками на файл.
+ */
+function indexByPath(pages) {
+  const byPath = new Map();
+
+  for (const page of pages) {
+    byPath.set(page.path, page);
+
+    if (page.directory) {
+      byPath.set(page.directory, page);
+    }
+  }
+
+  return byPath;
+}
+
 function build(base) {
   const layout = readFileSync(join(HERE, 'layout.html'), 'utf8');
   const homeLayout = readFileSync(join(HERE, 'home.html'), 'utf8');
   const styles = readFileSync(join(HERE, 'styles.css'), 'utf8');
   const script = readFileSync(join(HERE, 'app.js'), 'utf8');
 
-  const pages = readModel();
+  const models = LANGUAGES.map((lang) => ({ lang, pages: readModel(lang) }));
+  const present = new Map(
+    models.map(({ lang, pages }) => [lang.code, localRoutes(pages)]),
+  );
 
   // Каталог собирается заново: файлы прошлой сборки иначе остались бы лежать
   // в выводе и открываться по прежним адресам
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
 
-  const byId = new Map(pages.map((page) => [page.id, page]));
-  const byPath = new Map();
-  for (const page of pages) {
-    byPath.set(page.path, page);
-    // Ссылка на каталог ведёт в его оглавление: `../packages/nestling.app/`
-    // и `../design/` встречаются в текстах наравне со ссылками на файл
-    if (basename(page.path) === 'README.md') {
-      byPath.set(dirname(page.path), page);
+  for (const { lang, pages } of models) {
+    const byId = new Map(pages.map((page) => [page.id, page]));
+    const options = {
+      layout,
+      homeLayout,
+      styles,
+      script,
+      byId,
+      byPath: indexByPath(pages),
+      base,
+      pages,
+      present,
+      ui: UI[lang.code],
+    };
+
+    for (const [index, page] of pages.entries()) {
+      const parts = { prev: pages[index - 1], next: pages[index + 1] };
+      const dir = join(OUT, ...page.route);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'index.html'), renderTreePage(page, parts, options));
     }
+
+    const langDir = join(OUT, ...lang.prefix);
+    writeFileSync(join(langDir, SINGLE_FILE), renderSingleFile(pages, options));
+    writeFileSync(join(langDir, 'search-index.json'), searchIndex(pages));
   }
 
-  const options = { layout, homeLayout, styles, script, byId, byPath, base, pages };
-
-  for (const [index, page] of pages.entries()) {
-    const parts = { prev: pages[index - 1], next: pages[index + 1] };
-    const dir = join(OUT, ...page.route);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, 'index.html'), renderTreePage(page, parts, options));
-  }
-
-  writeFileSync(join(OUT, SINGLE_FILE), renderSingleFile(pages, options));
-  writeFileSync(join(OUT, 'search-index.json'), searchIndex(pages));
   writeFileSync(join(OUT, 'favicon.svg'), FAVICON);
   writeFileSync(join(OUT, 'robots.txt'), robotsTxt(base));
   writeFileSync(join(OUT, '404.html'), notFoundHtml(styles, base));
+  // Pages без этого файла прячет каталоги, начинающиеся с подчёркивания,
+  // и прогоняет вывод через Jekyll
+  writeFileSync(join(OUT, '.nojekyll'), '');
 
   if (base) {
-    writeFileSync(join(OUT, 'sitemap.xml'), sitemapXml(pages, base));
+    writeFileSync(join(OUT, 'sitemap.xml'), sitemapXml(models, base, present));
   }
 
-  console.log(`  docs/.site/ — страниц: ${pages.length}`);
-  console.log(`  docs/.site/${SINGLE_FILE} — вся документация одним файлом`);
+  for (const { lang, pages } of models) {
+    const where = lang.prefix.length ? `${lang.prefix.join('/')}/` : '';
+    console.log(`  docs/.site/${where} — ${lang.label}, страниц: ${pages.length}`);
+    console.log(`  docs/.site/${where}${SINGLE_FILE} — вся документация одним файлом`);
+  }
+
   if (base) {
     console.log(`  docs/.site/sitemap.xml — адреса от ${base}`);
   }
@@ -1262,18 +1489,27 @@ if (process.argv.includes('--watch')) {
 
   // Папка слушается целиком, а `packages/` — только по README пакетов: в
   // каталогах пакетов лежат `dist` и `node_modules`, и рекурсивный слушатель
-  // пересобирал бы сайт на каждую сборку кода
-  for (const source of SECTIONS) {
-    const path = join(ROOT, source.path);
+  // пересобирал бы сайт на каждую сборку кода. Ветки языков слушаются обе:
+  // правка перевода пересобирает сайт наравне с правкой оригинала
+  const observe = (path, options) => {
+    if (existsSync(path)) {
+      watch(path, options ?? {}, rebuild);
+    }
+  };
 
-    if (source.kind === 'folder') {
-      watch(path, { recursive: true }, rebuild);
-    } else if (source.kind === 'packages') {
-      for (const name of packageDirs(path)) {
-        watch(join(path, name, 'README.md'), rebuild);
+  for (const source of SECTIONS) {
+    for (const lang of LANGUAGES) {
+      const path = join(ROOT, sourcePath(source.path, lang.code));
+
+      if (source.kind === 'folder') {
+        observe(path, { recursive: true });
+      } else if (source.kind === 'packages') {
+        for (const name of packageDirs(path)) {
+          observe(join(path, name, readmeName(lang.code)));
+        }
+      } else {
+        observe(path);
       }
-    } else {
-      watch(path, rebuild);
     }
   }
 
@@ -1297,5 +1533,10 @@ if (process.argv.includes('--watch')) {
   const watched = SECTIONS.map((source) => source.path).join(', ');
   console.log(`\n  http://localhost:${port}/ — дерево страниц`);
   console.log(`  http://localhost:${port}/${SINGLE_FILE} — один файл`);
-  console.log(`\nЖду изменений в ${watched} и scripts/site/ …  (Ctrl+C — выход)`);
+  for (const lang of LANGUAGES.filter((lang) => lang.prefix.length)) {
+    console.log(`  http://localhost:${port}/${lang.prefix.join('/')}/ — ${lang.label}`);
+  }
+  console.log(
+    `\nЖду изменений в ${watched}, docs/en/ и scripts/site/ …  (Ctrl+C — выход)`,
+  );
 }
