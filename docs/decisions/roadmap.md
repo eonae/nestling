@@ -69,6 +69,10 @@ change'ы серии, начатой `examples-out`.
 74 добавлен 2026-09-12 на apply change'а 71: открытый вопрос 2 записи
 «Транзакционный приём» вынесен отдельной строкой — окно дедупликации
 брокера снимает повторы relay, но транзакционной гарантии не даёт.
+75 добавлен 2026-09-12 на apply change'а 74: прогон против живого брокера
+показал, что `defaultConnector` не удовлетворяет `NatsLike` — приведение
+через `unknown` компилятор не проверяет, а интеграционный прогон без
+переменной окружения пропускается. Независим от 74.
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -145,7 +149,8 @@ change'ы серии, начатой `examples-out`.
 | 71 | `inbox` | пакет `@nestlingjs/inbox`: плагин `inbox({ transaction, store })` со слоем для подписчиков, интерфейс `InboxStore` с реализацией в памяти, составной ключ «паттерн endpoint'а + ключ идемпотентности», политика `requiresInbox`, ресурс уборщика; третий исход pre-юнита `done()` в ядре; адаптер `@nestlingjs/drizzle.pg/inbox`; глава 27 гайда | M | **done** — новый пакет [`@nestlingjs/inbox`](../../packages/nestling.inbox/), [ideas.md [2026-09-12]](./ideas.md) «Транзакционный приём» |
 | 72 | `http-method-constructors` | шесть статиков по HTTP-методу у `httpEndpoint`: `httpEndpoint.get(path, { … })` и остальные пять, метод уходит из словаря в имя конструктора; `cliEndpoint(command, { … })` тем же ходом; миграция 378 мест | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-12-http-method-constructors/), [deferred [2026-09-03]](./deferred.md) «Конструктор HTTP-декларации с методом в имени» |
 | 73 | `drizzle-pg` | пакет `@nestlingjs/drizzle.pg`: соединение значением `drizzlePg({ schema })` с DI-токеном, переменной транзакции, конструктором слоя `db.transaction()`, политикой `requiresTransaction` и ключами конфига семейства `database`; пул — ресурс с пробой; адаптер `OutboxStore` подпутём `./outbox`, таблица записей объявлением drizzle и строкой DDL; пример `users-service` на PostgreSQL | L | **done** — [архив](../../openspec/changes/archive/2026-09-12-drizzle-pg/), новые спеки [`database-connections`](../../openspec/specs/database-connections/spec.md), [`request-transaction`](../../openspec/specs/request-transaction/spec.md) и [`sql-outbox-store`](../../openspec/specs/sql-outbox-store/spec.md), [ideas.md [2026-09-11]](./ideas.md) «Соединение с базой: сателлит `drizzle.pg`» |
-| 74 | `nats-msg-id` | ключ идемпотентности конверта отображается на заголовок `Nats-Msg-Id` транспорта NATS: окно дедупликации JetStream снимает повторы relay без участия приложения. Транзакционной гарантии не даёт — у транспорта нет транзакции приложения, — поэтому дополняет слой приёма, а не заменяет его | S | план — [ideas.md [2026-09-12]](./ideas.md) «Транзакционный приём», открытый вопрос 2; после 71 |
+| 74 | `nats-msg-id` | ключ идемпотентности конверта отображается на заголовок `Nats-Msg-Id` транспорта NATS: окно дедупликации JetStream снимает повторы relay без участия приложения. Транзакционной гарантии не даёт — у транспорта нет транзакции приложения, — поэтому дополняет слой приёма, а не заменяет его | S | **done** — [архив](../../openspec/changes/archive/2026-09-12-nats-msg-id/), обновлены спеки [`nats-transport`](../../openspec/specs/nats-transport/spec.md), [`durable-delivery`](../../openspec/specs/durable-delivery/spec.md) и [`transactional-inbox`](../../openspec/specs/transactional-inbox/spec.md), [ideas.md [2026-09-12]](./ideas.md) «Транзакционный приём», открытый вопрос 2 (помечен РЕАЛИЗОВАНО) |
+| 75 | `nats-connector-adapter` | `defaultConnector` собирает `NatsLike` из клиента `nats` явным адаптером вместо приведения через `unknown`: `headers()` импортом модуля, `subscribe` через `consumerOpts()`, `StreamInfo` и `ConsumerInfo` разворачиваются до конфигурации, сообщение потока оборачивается до `NatsJsMsgLike`. Интеграционный прогон становится воротами релиза | M | план — [ideas.md [2026-09-12]](./ideas.md) «Коннектор к живому клиенту `nats`»; независим от 74 |
 
 ## Порядок и зависимости
 
@@ -494,7 +499,8 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 71 | `inbox` | M | **done**; outbox превратил «может потеряться» в «может продублироваться», а дедупликация на приёме осталась соглашением: в примере это `Set` в памяти, который живёт до перезапуска и не разделяется репликами |
 | 72 | `http-method-constructors` | M, breaking | мотив синтаксический: `httpEndpoint.get('/users/:id', { … })` короче словаря с `method`, а имя `httpEndpoint` после 68 уже несёт статик. Change 68 его не тронул: миграция там 39 мест, здесь ~305, и ни один call site не переезжает дважды |
 | 73 | `drizzle-pg` | L | **done** — [архив](../../openspec/changes/archive/2026-09-12-drizzle-pg/); база данных — первая инфраструктура каждого сервиса, а Nestling не давал для неё ничего: пример держал таблицу в памяти, слой транзакции писался руками, адаптер `OutboxStore` был работой приложения; решение — [ideas.md [2026-09-11]](./ideas.md) «Соединение с базой: сателлит `drizzle.pg`» |
-| 74 | `nats-msg-id` | S | повторы relay в пределах окна брокера можно снять без участия приложения: JetStream уже умеет дедуплицировать по `Nats-Msg-Id`, а транспорт везёт ключ собственным заголовком |
+| 74 | `nats-msg-id` | S | **done** — [архив](../../openspec/changes/archive/2026-09-12-nats-msg-id/); повторы relay в пределах окна брокера снимаются без участия приложения: JetStream уже умеет дедуплицировать по `Nats-Msg-Id`, а транспорт везёт ключ собственным заголовком |
+| 75 | `nats-connector-adapter` | M | транспорт NATS ни разу не работал против живого брокера: `defaultConnector` приводит клиента к `NatsLike` через `unknown`, а интеграционный прогон без `NATS_TEST_SERVERS` пропускается — расхождений пять, и пакет с ними опубликован |
 
 Change'и 29–38 ломающие, хотя окно фиксации публичного API закрыто
 волной 2. Это осознанно: они правят гарантии, а не добавляют способности,

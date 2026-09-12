@@ -29,6 +29,7 @@ export {
   CONTEXT_HEADER,
   IDEMPOTENCY_HEADER,
   jsonCodec,
+  MSG_ID_HEADER,
   SUBJECT_HEADER,
   TIMEOUT_HEADER,
 } from './wire.js';

@@ -51,6 +51,18 @@ export const IDEMPOTENCY_HEADER = 'Nl-Idempotency-Key';
 export const SUBJECT_HEADER = 'Nl-Subject';
 
 /**
+ * Заголовок идентификатора сообщения — **брокерский**, а не наш.
+ *
+ * По нему поток снимает повтор публикации в пределах своего окна
+ * дедупликации. Ставится только у долговечной публикации: core NATS
+ * повторы не снимает, и заголовок там обещал бы гарантию, которой нет.
+ *
+ * Значение — ключ идемпотентности конверта: тот же, что едет в
+ * {@link IDEMPOTENCY_HEADER}.
+ */
+export const MSG_ID_HEADER = 'Nats-Msg-Id';
+
+/**
  * Заголовок провозимого контекста: **один** на всё, значение — JSON-объект.
  *
  * Не `Nl-Ctx-<ключ>` по заголовку на переменную, как предполагал дизайн:
@@ -130,6 +142,15 @@ export interface WireEnvelope {
   readonly timeoutMs?: number;
   readonly idempotencyKey?: string;
   readonly context?: Record<string, unknown>;
+
+  /**
+   * Публикация идёт через поток.
+   *
+   * От этого зависит один заголовок — {@link MSG_ID_HEADER}. Признак
+   * едет конвертом, а не второй функцией кодирования: конверт остаётся
+   * единственным местом, где заголовки называются по именам.
+   */
+  readonly durable?: boolean;
 }
 
 /**
@@ -138,6 +159,9 @@ export interface WireEnvelope {
  * Провозимый контекст кодируется JSON'ом целиком в один заголовок: имена
  * заголовков канонизируются брокером, а ключи ambient-переменных обязаны
  * прийти буквально (см. {@link CONTEXT_HEADER}).
+ *
+ * Долговечная публикация с ключом идемпотентности получает вдобавок
+ * заголовок брокера {@link MSG_ID_HEADER} с тем же значением.
  *
  * @param headers - Пустой набор заголовков от клиента брокера
  * @param subject - Адрес, попадающий в диагностический заголовок
@@ -156,6 +180,12 @@ export function encodeEnvelope(
 
   if (envelope.idempotencyKey !== undefined) {
     headers.set(IDEMPOTENCY_HEADER, envelope.idempotencyKey);
+
+    // Заголовок брокера — только у публикации через поток: окно
+    // дедупликации есть у потока, а у core-доставки его нет
+    if (envelope.durable === true) {
+      headers.set(MSG_ID_HEADER, envelope.idempotencyKey);
+    }
   }
 
   if (envelope.context !== undefined) {
@@ -173,6 +203,9 @@ export function encodeEnvelope(
  * Нечитаемое значение провозимой переменной **отбрасывается**, а не валит
  * доставку: провоз пересекает границу доверия, и один кривой заголовок не
  * повод потерять сообщение.
+ *
+ * {@link MSG_ID_HEADER} обратно не читается: он принадлежит брокеру, а
+ * ключ идемпотентности приходит своим {@link IDEMPOTENCY_HEADER}.
  */
 export function decodeEnvelope(headers?: NatsHeadersLike): WireEnvelope {
   if (!headers) {

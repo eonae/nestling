@@ -9,6 +9,7 @@
  */
 
 import { NatsDouble as Broker, natsDouble } from './testing/double.js';
+import type { NatsTransportOptions } from './transport.js';
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -94,6 +95,39 @@ async function process(
   await bus.serve(makeDispatch(declarations), new AbortController().signal);
 
   return bus;
+}
+
+/**
+ * Окно потока, который транспорт создал сам, в наносекундах.
+ *
+ * `undefined` означает, что поле в определении не задано вовсе: так
+ * выглядит выключенная дедупликация.
+ */
+async function windowOf(
+  options: Pick<NatsTransportOptions, 'dedupeWindowMs'>,
+): Promise<number | undefined> {
+  const broker = new Broker();
+  const publisher = new NatsBus({
+    connect: natsDouble(broker),
+    logger: spyLogger().logger,
+    ...options,
+  });
+
+  await publisher.connect();
+  await publisher.publish(
+    'durable.orders.placed',
+    { orderId: 'o-1' },
+    { durable: true },
+  );
+
+  const manager = await broker.jetstreamManager();
+  const { config } = await manager.streams.info(
+    'nestling_durable_orders_placed',
+  );
+
+  await publisher.close();
+
+  return config.duplicate_window;
 }
 
 /** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
@@ -319,6 +353,115 @@ describe('долговечная доставка', () => {
         },
       },
     ]);
+
+    await subscriber.close();
+    await publisher.close();
+  });
+
+  it('повтор публикации внутри окна доходит до подписчика один раз', async () => {
+    const broker = new Broker();
+    const subscriber = await process(broker, [Billing]);
+    const publisher = await process(broker, []);
+
+    // Ровно то, что делает relay outbox'а: брокер сохранил сообщение,
+    // подтверждение не дошло, и та же запись публикуется снова
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await publisher.publish(
+        'durable.orders.placed',
+        { orderId: 'o-1' },
+        { durable: true, idempotencyKey: 'record-1' },
+      );
+    }
+    await settle(20);
+
+    expect(handled).toEqual(['billing:o-1']);
+
+    await subscriber.close();
+    await publisher.close();
+  });
+
+  it('повтор за пределами окна доходит второй раз', async () => {
+    let now = 0;
+    const broker = new Broker({ now: () => now });
+    const subscriber = await process(broker, [Billing]);
+    const publisher = await process(broker, []);
+
+    await publisher.publish(
+      'durable.orders.placed',
+      { orderId: 'o-1' },
+      { durable: true, idempotencyKey: 'record-1' },
+    );
+    await settle(20);
+
+    // Окно брокера закрывает быстрые повторы, а не все: relay, вернувшийся
+    // к записи позже, публикует её заново, и повтор снимает слой приёма
+    now += 5 * 60 * 1000 + 1;
+
+    await publisher.publish(
+      'durable.orders.placed',
+      { orderId: 'o-1' },
+      { durable: true, idempotencyKey: 'record-1' },
+    );
+    await settle(20);
+
+    expect(handled).toEqual(['billing:o-1', 'billing:o-1']);
+
+    await subscriber.close();
+    await publisher.close();
+  });
+
+  it('созданный поток несёт окно: умолчание, опция и ноль', async () => {
+    await expect(windowOf({})).resolves.toBe(5 * 60 * 1000 * 1_000_000);
+    await expect(windowOf({ dedupeWindowMs: 600_000 })).resolves.toBe(
+      600_000 * 1_000_000,
+    );
+    await expect(windowOf({ dedupeWindowMs: 0 })).resolves.toBeUndefined();
+  });
+
+  it('существующий поток с узким окном даёт одну запись warn на поток', async () => {
+    const broker = new Broker();
+    const manager = await broker.jetstreamManager();
+
+    // Поток создан вне Nestling: окно у него своё, и транспорт его не
+    // переписывает — retention, storage и лимиты остаются за эксплуатацией
+    await manager.streams.add({
+      name: 'nestling_durable_orders_placed',
+      subjects: ['durable.orders.placed'],
+      duplicate_window: 60_000 * 1_000_000,
+    });
+
+    const spy = spyLogger();
+    const publisher = new NatsBus({
+      connect: natsDouble(broker),
+      logger: spy.logger,
+    });
+    await publisher.connect();
+
+    for (const orderId of ['o-1', 'o-2']) {
+      await publisher.publish(
+        'durable.orders.placed',
+        { orderId },
+        { durable: true },
+      );
+    }
+
+    expect(spy.entries.filter((entry) => entry.level === 'warn')).toEqual([
+      {
+        level: 'warn',
+        message: 'nats stream dedupe window is narrower than configured',
+        fields: {
+          stream: 'nestling_durable_orders_placed',
+          configuredMs: 5 * 60 * 1000,
+          actualMs: 60_000,
+        },
+      },
+    ]);
+
+    // Узкое окно публикации не мешает: обе записи лежат в потоке
+    const subscriber = await process(broker, [Billing]);
+    await settle(20);
+
+    expect(handled).toEqual(['billing:o-1', 'billing:o-2']);
 
     await subscriber.close();
     await publisher.close();

@@ -214,6 +214,28 @@ suite('живой брокер', () => {
     await publisher.close();
   });
 
+  it('повтор долговечной публикации снимается окном потока', async () => {
+    const publisher = await bus([]);
+
+    // Ровно то, что делает relay outbox'а после неполученного
+    // подтверждения: та же запись публикуется с тем же ключом
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await publisher.publish(
+        'live.orders.placed',
+        { orderId: 'o-dup' },
+        { durable: true, idempotencyKey: `dup-${process.pid}` },
+      );
+    }
+
+    const subscriber = await bus([PlacedImpl]);
+    await settle(300);
+
+    expect(archived.filter((orderId) => orderId === 'o-dup')).toHaveLength(1);
+
+    await subscriber.close();
+    await publisher.close();
+  });
+
   it('вызов недоступного владельца отвечает SERVICE_UNAVAILABLE', async () => {
     const caller = await bus([]);
 

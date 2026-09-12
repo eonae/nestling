@@ -7,6 +7,8 @@
  * ровно та граница, за которой отвечает интеграционный прогон.
  */
 
+import { MSG_ID_HEADER } from '../wire.js';
+
 import {
   NATS_NO_RESPONDERS,
   NatsDouble,
@@ -225,6 +227,35 @@ describe('двойник брокера — JetStream', () => {
     }
 
     expect(attempts).toEqual([1, 2]);
+  });
+
+  it('повтор в окне потока подтверждается признаком дубля', async () => {
+    let now = 0;
+    const broker = new NatsDouble({ now: () => now });
+    const manager = await broker.jetstreamManager();
+
+    await manager.streams.add({
+      name: 'nestling_orders_placed',
+      subjects: ['orders.placed'],
+      duplicate_window: 60_000 * 1_000_000,
+    });
+
+    const headers = broker.headers();
+    headers.set(MSG_ID_HEADER, 'k-1');
+
+    const publish = async (): Promise<{ seq: number; duplicate: boolean }> =>
+      await broker.jetstream().publish('orders.placed', bytes('o-1'), {
+        headers,
+      });
+
+    // Повтор не попадает в поток, а подтверждается номером первой записи
+    expect(await publish()).toMatchObject({ seq: 1, duplicate: false });
+    expect(await publish()).toMatchObject({ seq: 1, duplicate: true });
+
+    // Окно кончилось — та же публикация становится новой записью
+    now += 60_001;
+
+    expect(await publish()).toMatchObject({ seq: 2, duplicate: false });
   });
 
   it('публикация в subject без потока отказывает', async () => {

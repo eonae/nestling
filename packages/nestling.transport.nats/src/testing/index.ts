@@ -17,3 +17,4 @@ export {
   NatsDoubleError,
   subjectMatches,
 } from './double.js';
+export type { NatsDoubleOptions } from './double.js';
