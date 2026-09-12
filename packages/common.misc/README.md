@@ -7,7 +7,7 @@
 и поля секций конфигурации, поэтому ошибка валидации везде выглядит
 одинаково.
 
-> Внутренний пакет Nestling: ставится вместе с ядром, весь его API реэкспортирует `@nestlingjs/app`.
+> Внутренний пакет Nestling: ставится вместе с ядром, часть его имён реэкспортирует `@nestlingjs/app`.
 
 ## Установка
 
@@ -47,8 +47,6 @@ try {
 | `NotAStandardSchemaError` | у объекта нет `~standard` с `version: 1` |
 | `Constructor` | конструктор класса как значение |
 | `Optional` | `T` либо `undefined` |
-| `Nullable` | `T` либо `null` |
-| `Nullish` | `T`, `null` либо `undefined` |
 | Реэкспорт `@standard-schema/spec` | `StandardSchemaV1`, чтобы не ставить пакет спецификации |
 
 ## Границы пакета
