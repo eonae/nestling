@@ -182,6 +182,30 @@ incompatible changes, but blocks neither the build nor CI. How it works:
   an unreadable baseline (a foreign `snapshotVersion`) is an error of
   the checker's author, and it throws.
 
+### 1.8. Three consumers of a declaration
+
+An operation is a value, and anyone can read it. Today three consumers
+do, and all three surfaces are derived from one declaration:
+
+- [`@nestlingjs/openapi`](../../../packages/nestling.openapi/) builds an
+  OpenAPI 3.1 document from the declarations;
+- [`@nestlingjs/client`](../../../packages/nestling.client/) builds a typed
+  HTTP client from the same declarations;
+- [`@nestlingjs/mcp`](../../../packages/nestling.mcp/) builds the tool
+  definitions for an agent from them.
+
+The match with a tool definition is complete: `makeRequest` requires a
+`name` and takes `input`, `output`, `errors` and the `doc` section, while
+the protocol requires `name` and `inputSchema` and takes `description`,
+`outputSchema` and `annotations`. Only the schemas have to be translated,
+from Standard Schema into JSON Schema, and that is done by the same helper
+the OpenAPI generator uses ([transports.md](./transports.md), §8).
+
+No field that only makes sense for an agent appears in the `doc` section:
+that section does not depend on the documentation format. The name, the
+description and the hints for the agent are declared by the dictionary of
+the tool declaration.
+
 ## 2. Ports
 
 ### 2.1. Implementation

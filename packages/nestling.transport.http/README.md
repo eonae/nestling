@@ -66,8 +66,8 @@ await makeApp({
   `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`, `HttpRequest`,
   `HttpResponse`.
 - **Byte level** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
-  `parseMultipartForm`, `parseNdjson`, `parseRaw`, `readQuery`,
-  `sendResponse`.
+  `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
+  `readQuery`, `sendResponse`.
 
   These parts are public on purpose: a custom `ITransport`
   implementation can be assembled on top of a third-party HTTP server

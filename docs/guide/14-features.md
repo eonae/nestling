@@ -1,6 +1,6 @@
 # 14. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -182,7 +182,7 @@ const QUOTA_CALL_BUDGET_MS = 500;
   ClaimQuota.caller,
   // …
 ])
-class CreateUserHandler {
+export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
     private readonly quotas: Port<typeof ClaimQuota>,
@@ -384,7 +384,9 @@ export const app = makeApp({
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
-  transports: [http()],
+  // Два протокола на одном сокете: рецепт
+  // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
+  transports: [api, http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,

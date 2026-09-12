@@ -1,6 +1,6 @@
 # 15. Оповещать соседей о случившемся
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
 > Целевое описание: [design/operations.md](../design/operations.md),
 > разделы «Три вида» и «Профиль вызова». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Порты: межфичевое
@@ -79,7 +79,7 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
   SignupRecorded.emitter,
   ActivityHub,
 ])
-class CreateUserHandler {
+export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
     private readonly quotas: Port<typeof ClaimQuota>,

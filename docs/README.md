@@ -136,7 +136,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Двадцать один каталог `packages/`. Ядро — три из них: `@nestlingjs/container`,
+Двадцать два каталога `packages/`. Ядро — три из них: `@nestlingjs/container`,
 `@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -171,6 +171,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
 | [`@nestlingjs/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
 | [`@nestlingjs/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, слой в декларации endpoint'а, список зависимостей класса против параметров конструктора |
+| [`@nestlingjs/mcp`](../packages/nestling.mcp/) | MCP входящим транспортом: инструмент агента — endpoint, схемы и описания берутся с декларации |
 | [`@nestlingjs/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
 
 ### Внутренние

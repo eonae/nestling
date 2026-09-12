@@ -1,6 +1,6 @@
 # 19. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи, выбор и переключатели» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -146,7 +146,9 @@ export const app = makeApp({
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
-  transports: [http()],
+  // Два протокола на одном сокете: рецепт
+  // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
+  transports: [api, http({ server: api }), mcp({ … })],
 });
 ```
 

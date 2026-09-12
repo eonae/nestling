@@ -47,15 +47,6 @@ export type { McpViolation } from './diagnostics.js';
 // ./errors.js — 2
 export { McpSessionLimitReached, McpSessionNotFound } from './errors.js';
 
-// ./handler.js — 6
-export {
-  closeSession,
-  handleMessage,
-  SESSION_HEADER,
-  VERSION_HEADER,
-} from './handler.js';
-export type { McpContext, McpOutcome, McpRequest } from './handler.js';
-
 // ./options.js — 4
 export {
   DEFAULT_PATH,
@@ -64,21 +55,12 @@ export {
 } from './options.js';
 export type { McpRuntimeOptions } from './options.js';
 
-// ./protocol.js — 6
+// ./protocol.js — 3
 export {
-  JsonRpcErrorCode,
   LATEST_PROTOCOL_VERSION,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from './protocol.js';
-export type {
-  JsonRpcMessage,
-  JsonRpcResponse,
-  ProtocolVersion,
-} from './protocol.js';
-
-// ./sessions.js — 3
-export { McpSessions } from './sessions.js';
-export type { McpClientInfo, McpSession } from './sessions.js';
+export type { ProtocolVersion } from './protocol.js';
 
 // ./types.js — 6
 export type {

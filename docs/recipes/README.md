@@ -11,6 +11,7 @@
 | [CLI-утилита на тех же примитивах](./cli.md) | `cliEndpoint`, `cli()`, argv и REPL, поток из stdin | `simple-cli` |
 | [Зависимости по имени и сбор вкладов из модулей](./token-families.md) | семейства DI-токенов, `familyProvider`, `.auto` на `Logger$`, `.all` | `container` |
 | [Конфиг из файла и без перезапуска](./config-sources.md) | источники и привязка, `.keys`, общие ключи, `reloadable` | `container` |
+| [Отдать операции агенту по MCP](./mcp.md) | `mcp()`, `mcpTool`, инструмент из операции, слой на инструменте | `app-with-http` |
 | [Кто сейчас подключён и как его отключить](./ops.md) | реестр подписок, `tracked`, административные endpoint'ы | `app-with-http` |
 | [Без `makeApp`](./standalone.md) | `makeDispatch`, `serve`, `ContainerBuilder` | `simple-http-server`, `container` |
 | [Расширить ядро своим пакетом](./extending.md) | граница ядра, сателлит, subpath `./testing` | `nestling.subscriptions` |

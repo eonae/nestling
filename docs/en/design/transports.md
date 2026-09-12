@@ -502,3 +502,81 @@ in-memory double of the broker is exported by the `./testing`
 convention: the tests of the application and the package pass with no
 network, and a separate integration run checks compatibility with the
 real broker.
+
+## 8. MCP (`@nestlingjs/mcp`)
+
+MCP is an inbound protocol: the agent sends `tools/call`, the server
+picks the route, runs it through the pipeline and answers. That is how a
+transport is built, so `mcp(...)` is declared in `transports:` of the
+root next to `http()`.
+
+```typescript
+const api = httpServer();
+
+makeApp({
+  features: [UsersFeature],
+  transports: [
+    api,
+    http({ server: api }),
+    mcp({
+      server: api,
+      info: { name: 'users-service', version: '1.0.0' },
+      converters: [zodConverter()],
+    }),
+  ],
+});
+```
+
+The transport opens no socket. `server` takes the declaration of an HTTP
+server, the handler joins its chain, and the port stays one for both
+protocols — the same mechanism as in §4.2. The handler takes `POST` and
+`DELETE` on `path` (`/mcp` by default) and passes everything else down
+the chain.
+
+A tool is an endpoint of that transport, and it is declared the way any
+other endpoint is: `mcpTool('search_users', { … })` together with the
+schemas, `mcpTool.implement(CreateUser, { … })` for a declared operation
+([endpoints.md](./endpoints.md), §1). There is no second list of the
+composition: the tools lie in `endpoints:` of the features and are seen
+where the HTTP endpoints are. The call is run by `dispatch.call`, so the
+tool goes through the pipeline of its declaration, its layers and its
+policies.
+
+The capabilities of the transport are `value` both ways: the arguments
+and the result of a tool call are values. A tool with a stream or a
+`multipart` form is rejected by the kernel form check (§1.1).
+
+The definitions that reach the agent in `tools/list` are built in `serve`
+from `dispatch.routes`, that is before `listen`. The schemas are
+translated by `leafJsonSchema` with the converters from
+`mcp({ converters })` — the same ones the OpenAPI generator takes. The
+violations of a declaration are collected and thrown as one list: a tool
+with no description, a non-object input schema, a schema with no
+converter. Uniqueness of the name is checked by the kernel on ASSEMBLE as
+uniqueness of the «transport instance, pattern» pair, so the package
+needs no name check of its own.
+
+The name, the description and the hints for the agent travel in the
+`binding` of the declaration: the route projection carries no `doc`
+section (§1). The name of a tool is its `pattern`, and in the
+`implement` form it is derived from the name of the operation by
+replacing the dots with underscores: `users.create` gives `users_create`.
+
+`Ok` reaches the agent as the result of the call: the value as JSON text
+in `content` and, when an `outputSchema` is declared, in
+`structuredContent`. `Fail` reaches it as the same result with
+`isError: true` and a text that names the code, the message and the
+details of the failure. A failure does not become a protocol error: a
+declared failure is part of the contract of the operation, and the agent
+has to read it.
+
+The client sessions are the state of the transport instance:
+`initialize` opens a session and returns its id in the `Mcp-Session-Id`
+header, and `close()` on SHUTDOWN clears the map. The number of sessions
+and the idle time are limited by options.
+
+One operation can be served both over HTTP and by a tool. The ban on two
+owners fires on two bus bindings, while these declarations have different
+transport bindings, so `httpEndpoint.implement(CreateUser, …)` and
+`mcpTool.implement(CreateUser, …)` live in one application with one
+handler class.

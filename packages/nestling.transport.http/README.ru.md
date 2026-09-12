@@ -63,8 +63,8 @@ await makeApp({
   `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`, `HttpRequest`,
   `HttpResponse`.
 - **Байтовый уровень** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
-  `parseMultipartForm`, `parseNdjson`, `parseRaw`, `readQuery`,
-  `sendResponse`.
+  `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
+  `readQuery`, `sendResponse`.
 
   Эти части публичны намеренно: на них собирается своя реализация
   `ITransport` поверх стороннего HTTP-сервера, без правок пакета.
