@@ -62,9 +62,6 @@ export interface CliEndpointDictionary<
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
 > {
-  /** Имя команды; оно же паттерн endpoint'а */
-  command: string;
-
   /** Форма io для input: значение или `stream(...)` */
   input?: I;
 
@@ -109,16 +106,23 @@ export interface CliEndpointDictionary<
 }
 
 /**
- * Конструктор CLI-деклараций.
+ * Конструктор CLI-деклараций: имя команды первым аргументом, словарь
+ * транспорта вторым.
  *
  * Тонкая надстройка над kernel-примитивом `makeEndpoint`: `transport` —
  * `'cli'`, `pattern` — имя команды. Общий механизм деклараций (обе формы
  * `handler`, `resolve`, бренд) живёт в `makeEndpoint`.
  *
+ * Адрес стоит там же, где у HTTP-конструктора, — первым аргументом.
+ * Статиков по методу у CLI нет: у команды нет глагола, который делил бы
+ * её адрес на две части.
+ *
+ * @param command - Имя команды; оно же паттерн endpoint'а
+ * @param declaration - Словарь команды: формы io, пайплайн, хендлер
+ *
  * @example
  * ```typescript
- * export const Deploy = cliEndpoint({
- *   command: 'deploy',
+ * export const Deploy = cliEndpoint('deploy', {
  *   input: z.object({ env: z.enum(['dev', 'prod']) }),
  *   output: DeployResult,
  *   missing: 'prompt',
@@ -138,6 +142,7 @@ export function cliEndpoint<
   PF extends AnyFail = never,
   R extends AnyHandlerResult<O> = AnyHandlerResult<O>,
 >(
+  command: string,
   declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
     handler: CheckedHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
   },
@@ -151,12 +156,14 @@ export function cliEndpoint<
   PF extends AnyFail = never,
   C extends HandlerClass<I, O, P, AnyFail> = HandlerClass<I, O, P, AnyFail>,
 >(
+  command: string,
   declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
     handler: C &
       ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function cliEndpoint(
+  command: string,
   declaration: CliEndpointDictionary<
     any,
     any,
@@ -168,16 +175,18 @@ export function cliEndpoint(
     handler: unknown;
   },
 ): AnyEndpointDefinition {
-  const { command, on, missing = 'error', ...rest } = declaration;
+  const { on, missing = 'error', ...rest } = declaration;
 
   if (typeof command !== 'string' || command.length === 0) {
-    throw new Error("cliEndpoint({ … }): 'command' must be a non-empty name.");
+    throw new Error(
+      "cliEndpoint('<command>', { … }): the command name must be a non-empty string.",
+    );
   }
 
   if (missing !== 'error' && missing !== 'prompt') {
     throw new Error(
-      `cliEndpoint({ … }): 'missing' must be 'error' or 'prompt', got ` +
-        `${JSON.stringify(missing)}.`,
+      `cliEndpoint('${command}', { … }): 'missing' must be 'error' or ` +
+        `'prompt', got ${JSON.stringify(missing)}.`,
     );
   }
 

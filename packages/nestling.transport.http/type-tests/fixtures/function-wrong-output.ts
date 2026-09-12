@@ -10,9 +10,7 @@ import { httpEndpoint } from '@nestlingjs/transport.http';
 
 import { User, UserInput } from '../support/fixture-kit.js';
 
-export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+export const GetUser = httpEndpoint.get('/users/:id', {
   input: UserInput,
   output: User,
   handler: async () => new Ok({ unexpected: true }),

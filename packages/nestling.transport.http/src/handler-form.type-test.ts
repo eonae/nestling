@@ -65,26 +65,20 @@ const neutralByOperation = httpEndpoint.implement(Login, {
 });
 
 /** Анонимная декларация принимает и HTTP-хендлер, и нейтральный */
-const anonymous = httpEndpoint({
-  method: 'POST',
-  path: '/login',
+const anonymous = httpEndpoint.post('/login', {
   input: z.object({ email: z.string() }),
   output: z.object({ token: z.string() }),
   handler: LoginHttpHandler,
 });
 
-const anonymousNeutral = httpEndpoint({
-  method: 'POST',
-  path: '/login-neutral',
+const anonymousNeutral = httpEndpoint.post('/login-neutral', {
   input: z.object({ email: z.string() }),
   output: z.object({ token: z.string() }),
   handler: LoginHandler,
 });
 
 /** Декларация без пайплайна всё равно даёт хендлеру `meta.http` */
-const readsHeader = httpEndpoint({
-  method: 'GET',
-  path: '/whoami',
+const readsHeader = httpEndpoint.get('/whoami', {
   output: z.object({ agent: z.string() }),
   handler: async (_payload, meta) =>
     new Ok({ agent: meta.http.headers['user-agent'] ?? 'unknown' }),
@@ -98,9 +92,7 @@ const httpBase = makePipeline<HttpStartContext>()
 const executable: Pipeline<HttpStartContext, any, never> = httpBase;
 
 /** Юнит транспорта читает стартовый контекст и виден хендлеру */
-const withUnits = httpEndpoint({
-  method: 'GET',
-  path: '/tenant',
+const withUnits = httpEndpoint.get('/tenant', {
   output: z.object({ tenant: z.string(), ip: z.string() }),
   pipeline: httpBase,
   handler: async (_payload, meta) =>

@@ -90,8 +90,7 @@ describe('потоковый вход через stdin', () => {
   it('NDJSON-строки передаются в хендлер валидированными, счётчики растут', async () => {
     const summaries: { itemsIn: number }[] = [];
 
-    const Import = cliEndpoint({
-      command: 'import',
+    const Import = cliEndpoint('import', {
       input: stream(Row),
       output: z.object({ imported: z.number() }),
       pipeline: makePipeline().finally((_outcome, _res, ctx) => {
@@ -130,8 +129,7 @@ describe('потоковый вход через stdin', () => {
   });
 
   it('невалидный элемент отказывает kernel-кодом валидации', async () => {
-    const Import = cliEndpoint({
-      command: 'import',
+    const Import = cliEndpoint('import', {
       input: stream(Row),
       output: z.object({ imported: z.number() }),
       pipeline: makePipeline(),
@@ -174,8 +172,7 @@ describe('потоковый вход через stdin', () => {
   it("stream('binary') остаётся рабочей формой: чанки как есть", async () => {
     let bytes = 0;
 
-    const Count = cliEndpoint({
-      command: 'count-bytes',
+    const Count = cliEndpoint('count-bytes', {
       input: stream('binary'),
       output: z.object({ bytes: z.number() }),
       pipeline: makePipeline(),
@@ -209,8 +206,7 @@ describe('потоковый выход в stdout', () => {
     const outcomes: Outcome[] = [];
     const output = sink();
 
-    const Export = cliEndpoint({
-      command: 'export',
+    const Export = cliEndpoint('export', {
       output: stream(Row),
       pipeline: observing((outcome) => outcomes.push(outcome)),
       handler: async () =>
@@ -267,8 +263,7 @@ describe('потоковый выход в stdout', () => {
       },
     };
 
-    const Export = cliEndpoint({
-      command: 'export-stopped',
+    const Export = cliEndpoint('export-stopped', {
       output: stream(Row),
       pipeline: observing((outcome) => outcomes.push(outcome)),
       handler: async () => new Ok(source),
@@ -300,8 +295,7 @@ describe('потоковый выход в stdout', () => {
 
 describe('отказ регистрации несовместимых форм', () => {
   it('events в output отвергается: у команды нет открытого соединения', async () => {
-    const Watch = cliEndpoint({
-      command: 'watch',
+    const Watch = cliEndpoint('watch', {
       output: events(Row),
       pipeline: makePipeline(),
       handler: async () =>
@@ -322,8 +316,7 @@ describe('отказ регистрации несовместимых форм'
   });
 
   it('multipart в input отвергается: файлы приходят путями в аргументах', async () => {
-    const Upload = cliEndpoint({
-      command: 'upload',
+    const Upload = cliEndpoint('upload', {
       input: multipart({ files: { report: upload() } }),
       pipeline: makePipeline(),
       handler: async () => new Ok({}),

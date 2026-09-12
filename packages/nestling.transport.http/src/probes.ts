@@ -108,17 +108,13 @@ export function httpProbes(options: HttpProbesOptions = {}): Plugin {
   return makePlugin({
     name: '@nestlingjs/transport.http/probes',
     endpoints: [
-      httpEndpoint({
-        method: 'GET',
-        path: liveness,
+      httpEndpoint.get(liveness, {
         ...(on === undefined ? {} : { on }),
         detached: REASON,
         doc: { hidden: REASON },
         handler: LivenessHandler,
       }),
-      httpEndpoint({
-        method: 'GET',
-        path: readiness,
+      httpEndpoint.get(readiness, {
         ...(on === undefined ? {} : { on }),
         errors: [NotReady],
         detached: REASON,

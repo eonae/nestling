@@ -112,7 +112,7 @@ export function parseHttpSection(
       throw new TypeError(
         `${where}: 'http.${field}' describes how a request is handled, and a ` +
           `operation declares only where it is addressed. Move it to the ` +
-          `implementation (httpEndpoint({ operation, … }) or implement(...)).`,
+          `implementation (httpEndpoint.implement(...) or implement(...)).`,
       );
     }
   }

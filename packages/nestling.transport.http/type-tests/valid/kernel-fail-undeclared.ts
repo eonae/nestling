@@ -10,9 +10,7 @@ import { User } from '../support/fixture-kit.js';
 import { InternalError } from '@nestlingjs/operations';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   output: User,
   handler: async () => InternalError(),
 });

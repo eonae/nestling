@@ -25,8 +25,7 @@ import { zodConverter } from '@nestlingjs/schema.zod';
 import { cli, cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
-export const Deploy = cliEndpoint({
-  command: 'deploy',
+export const Deploy = cliEndpoint('deploy', {
   input: z.object({
     env: z.enum(['dev', 'prod']).describe('Target environment'),
     force: z.boolean(),
@@ -57,7 +56,7 @@ Standard Schema интроспекции не даёт. Конвертера н�
 | Имя | Что делает |
 |---|---|
 | `cli` | провайдер транспорта для `transports:`; принимает опции |
-| `cliEndpoint` | декларация endpoint'а с полем `command` вместо маршрута |
+| `cliEndpoint` | декларация endpoint'а: имя команды первым аргументом вместо маршрута |
 | `cliBindingOf` | читает политику `missing` с декларации или проекции маршрута |
 | `CliTransport` | реализация `ITransport`: разбор argv, запуск, REPL, вопросы |
 | `CliTransport$` | DI-токен транспорта |

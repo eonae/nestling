@@ -11,9 +11,7 @@ import { EmailTaken, User } from '../support/fixture-kit.js';
 import { Ok } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   output: User,
   errors: [EmailTaken],
   handler: async () =>

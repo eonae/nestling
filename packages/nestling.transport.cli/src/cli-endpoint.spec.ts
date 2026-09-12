@@ -65,8 +65,7 @@ interface LogEntry {
 
 describe('cliEndpoint', () => {
   it("имя команды становится паттерном endpoint'а", () => {
-    const ProcessStdin = cliEndpoint({
-      command: 'process-stdin',
+    const ProcessStdin = cliEndpoint('process-stdin', {
       output: z.object({ lines: z.number() }),
       handler: async () => new Ok({ lines: 0 }),
     });
@@ -79,16 +78,15 @@ describe('cliEndpoint', () => {
   });
 
   it('пустое имя команды — ошибка в момент создания', () => {
-    expect(() =>
-      cliEndpoint({ command: '', handler: async () => new Ok({}) }),
-    ).toThrow(/'command' must be a non-empty name/);
+    expect(() => cliEndpoint('', { handler: async () => new Ok({}) })).toThrow(
+      /cliEndpoint\('<command>', { … }\): the command name must be a non-empty string/,
+    );
   });
 
   it('detached передаётся в значение декларации, пустая причина отвергается', () => {
     const reason = 'служебная команда обслуживания: политик auth не касается';
 
-    const Vacuum = cliEndpoint({
-      command: 'vacuum',
+    const Vacuum = cliEndpoint('vacuum', {
       detached: reason,
       handler: async () => new Ok({}),
     });
@@ -96,8 +94,7 @@ describe('cliEndpoint', () => {
     expect(Vacuum.detached).toBe(reason);
 
     expect(() =>
-      cliEndpoint({
-        command: 'vacuum',
+      cliEndpoint('vacuum', {
         detached: '',
         handler: async () => new Ok({}),
       }),
@@ -105,8 +102,7 @@ describe('cliEndpoint', () => {
   });
 
   it('CliTransport обслуживает объявленную команду', async () => {
-    const Greet = cliEndpoint({
-      command: 'greet',
+    const Greet = cliEndpoint('greet', {
       output: z.object({ message: z.string() }),
       pipeline: makePipeline(),
       handler: async () => new Ok({ message: 'hello' }),
@@ -130,8 +126,7 @@ describe('cliEndpoint', () => {
   });
 
   it('в поток вывода уходит только значение, без статуса и обёрток', async () => {
-    const Greet = cliEndpoint({
-      command: 'greet',
+    const Greet = cliEndpoint('greet', {
       output: z.object({ message: z.string() }),
       pipeline: makePipeline(),
       handler: async () => new Ok('created', { message: 'hello' }),
@@ -162,8 +157,7 @@ describe('cliEndpoint', () => {
       }
     }
 
-    const Now = cliEndpoint({
-      command: 'now',
+    const Now = cliEndpoint('now', {
       output: z.object({ now: z.string() }),
       pipeline: makePipeline(),
       handler: NowHandler,
@@ -197,8 +191,7 @@ describe('cliEndpoint — объявленные отказы', () => {
   });
 
   it('errors: доходит до значения декларации и до проверки границы', async () => {
-    const Count = cliEndpoint({
-      command: 'count',
+    const Count = cliEndpoint('count', {
       output: z.object({ lines: z.number() }),
       pipeline: makePipeline(),
       errors: [TooManyLines],
@@ -231,8 +224,7 @@ describe('cliEndpoint — объявленные отказы', () => {
   });
 
   it('незадекларированный отказ нормализуется, хук получает оригинал', async () => {
-    const Count = cliEndpoint({
-      command: 'count',
+    const Count = cliEndpoint('count', {
       output: z.object({ lines: z.number() }),
       pipeline: makePipeline(),
       handler: async () => {

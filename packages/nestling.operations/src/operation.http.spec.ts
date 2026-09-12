@@ -255,7 +255,7 @@ describe('карта операции совпадает с картой одн�
       bind,
       rawBody,
       input,
-      where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
+      where: `httpEndpoint.${method.toLowerCase()}('${path}', { … })`,
     });
 
     // Имя операции исключено из сравнения: оно не часть правила

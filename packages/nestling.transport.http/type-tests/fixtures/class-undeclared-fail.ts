@@ -15,9 +15,7 @@ class CreateUserHandler {
   }
 }
 
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   output: User,
   errors: [EmailTaken],
   handler: CreateUserHandler,

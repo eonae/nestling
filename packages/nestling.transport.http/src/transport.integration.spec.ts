@@ -275,9 +275,7 @@ describe('HttpTransport — error response safety', () => {
   beforeAll(async () => {
     transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/boom',
+      httpEndpoint.post('/boom', {
         pipeline: makePipeline(),
         handler: () => {
           throw new Error('db password invalid');
@@ -285,9 +283,7 @@ describe('HttpTransport — error response safety', () => {
       }),
     );
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/fail',
+      httpEndpoint.post('/fail', {
         pipeline: makePipeline(),
         errors: [EmailTaken],
         handler: () => {
@@ -298,9 +294,7 @@ describe('HttpTransport — error response safety', () => {
     // Тот же отказ, но незадекларированный: проверка границы снимет его.
     // Категория `conflict` — не код ядра, иначе анонимный отказ прошёл бы
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/undeclared',
+      httpEndpoint.post('/undeclared', {
         pipeline: makePipeline(),
         handler: () => {
           throw Fail.conflict('Email already taken', { field: 'email' });
@@ -308,9 +302,7 @@ describe('HttpTransport — error response safety', () => {
       }),
     );
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/rate-limited',
+      httpEndpoint.post('/rate-limited', {
         pipeline: makePipeline(),
         errors: [RateLimited],
         handler: () => {
@@ -319,9 +311,7 @@ describe('HttpTransport — error response safety', () => {
       }),
     );
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/timeout',
+      httpEndpoint.post('/timeout', {
         pipeline: makePipeline(),
         errors: [UpstreamTimeout],
         handler: () => {
@@ -333,9 +323,7 @@ describe('HttpTransport — error response safety', () => {
 
     exposed = makeTransport({ exposeErrorDetails: true });
     routesOf(exposed).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/boom',
+      httpEndpoint.post('/boom', {
         pipeline: makePipeline(),
         handler: () => {
           throw new Error('boom');
@@ -415,9 +403,7 @@ describe('HttpTransport — error response safety', () => {
     const hooked = makeTransport();
     loggers.set(hooked, spy.logger);
     routesOf(hooked).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/undeclared',
+      httpEndpoint.post('/undeclared', {
         pipeline: makePipeline(),
         handler: () => {
           throw Fail.notFound('order 42');
@@ -463,9 +449,7 @@ describe('HttpTransport — error response safety', () => {
 
     const hooked = makeTransport();
     routesOf(hooked).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/brand-blind',
+      httpEndpoint.post('/brand-blind', {
         pipeline: makePipeline(),
         handler,
       }),
@@ -494,9 +478,7 @@ describe('HttpTransport — категория отказа и заголовк�
   beforeAll(async () => {
     transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/orders/:id',
+      httpEndpoint.get('/orders/:id', {
         input: z.object({ id: z.string() }),
         output: z.object({ id: z.string() }),
         errors: [OrderNotFound],
@@ -505,9 +487,7 @@ describe('HttpTransport — категория отказа и заголовк�
     );
     // Отказы ядра проходят границу без объявления в `errors:`
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/too-large',
+      httpEndpoint.post('/too-large', {
         pipeline: makePipeline(),
         handler: () => {
           throw PayloadTooLarge({ limit: 10 });
@@ -515,9 +495,7 @@ describe('HttpTransport — категория отказа и заголовк�
       }),
     );
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/slow',
+      httpEndpoint.post('/slow', {
         pipeline: makePipeline(),
         handler: () => {
           throw Timeout();
@@ -525,9 +503,7 @@ describe('HttpTransport — категория отказа и заголовк�
       }),
     );
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/orders',
+      httpEndpoint.post('/orders', {
         output: z.object({ id: z.string() }),
         handler: async () =>
           HttpResponse.of(Ok.created({ id: '42' }), {
@@ -603,9 +579,7 @@ describe('HttpTransport — request validation errors', () => {
 
     // JSON endpoint с пайплайном: проверку входа делает рантайм
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/json',
+      httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
         handler: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
@@ -613,9 +587,7 @@ describe('HttpTransport — request validation errors', () => {
 
     // Endpoint без пайплайна: тот же рантайм с пустым пайплайном
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/fallback',
+      httpEndpoint.post('/fallback', {
         input: z.object({ name: z.string() }),
         handler: (payload: { name: string }) => ({ ok: payload.name }),
       }),
@@ -623,9 +595,7 @@ describe('HttpTransport — request validation errors', () => {
 
     // Схема с async-refinement: ошибка конфигурации приложения, не входа
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/async-schema',
+      httpEndpoint.post('/async-schema', {
         input: asyncSchema,
         handler: () => new Ok({ ok: true }),
       }),
@@ -633,9 +603,7 @@ describe('HttpTransport — request validation errors', () => {
 
     // Та же ошибка конфигурации у endpoint'а без пайплайна
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/async-schema-bare',
+      httpEndpoint.post('/async-schema-bare', {
         input: asyncSchema,
         handler: () => new Ok({ ok: true }),
       }),
@@ -643,9 +611,7 @@ describe('HttpTransport — request validation errors', () => {
 
     // Объект, не реализующий Standard Schema: тоже не ошибка входа
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/not-a-schema',
+      httpEndpoint.post('/not-a-schema', {
         input: notASchema,
         handler: () => new Ok({ ok: true }),
       }),
@@ -775,9 +741,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // POST: поля по канону — в теле
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/users',
+      httpEndpoint.post('/users', {
         input: z.object({ name: z.string() }),
         handler: (payload: { name: string }) => new Ok(payload),
       }),
@@ -785,9 +749,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // PATCH: одноимённые path-параметр и поле тела
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'PATCH',
-        path: '/users/:id',
+      httpEndpoint.patch('/users/:id', {
         input: z.object({ id: z.string(), name: z.string() }),
         handler: (payload: { id: string; name: string }) => new Ok(payload),
       }),
@@ -795,9 +757,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // GET: повтор ключа даёт массив
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/tags',
+      httpEndpoint.get('/tags', {
         input: z.object({ tag: z.array(z.string()) }),
         handler: (payload: { tag: string[] }) => new Ok(payload),
       }),
@@ -805,9 +765,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // GET: пометка multiple даёт массив и при одном вхождении
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/multi',
+      httpEndpoint.get('/multi', {
         input: z.object({ tag: z.array(z.string()) }),
         bind: { tag: query({ multiple: true }) },
         handler: (payload: { tag: string[] }) => new Ok(payload),
@@ -816,9 +774,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // POST: поле вытянуто пометкой из тела в query
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/marked',
+      httpEndpoint.post('/marked', {
         input: z.object({ name: z.string(), dryRun: z.string().optional() }),
         bind: { dryRun: query() },
         handler: (payload: { name: string; dryRun?: string }) =>
@@ -828,9 +784,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // Multipart с path-параметром
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/users/:id/avatar',
+      httpEndpoint.post('/users/:id/avatar', {
         input: multipart({
           fields: z.object({ id: z.string() }),
           files: { avatar: upload() },
@@ -849,9 +803,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // Поля multipart проверяет рантайм: у транспорта своей ветки нет
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/uploads',
+      httpEndpoint.post('/uploads', {
         input: multipart({
           fields: z.object({ title: z.string().min(1) }),
           files: { report: upload() },
@@ -869,9 +821,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     // Webhook: сырые байты в типизированном стартовом контексте
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/hooks/stripe',
+      httpEndpoint.post('/hooks/stripe', {
         input: z.object({ event: z.string() }),
         rawBody: true,
         pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(captureRawBody),
@@ -1009,17 +959,13 @@ describe('HttpTransport — тело читается только по треб
     // Лимит меньше присылаемого тела: если транспорт его прочитает — 413
     transport = makeTransport({ maxBodySize: 100 });
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/search',
+      httpEndpoint.get('/search', {
         input: z.object({ q: z.string() }),
         handler: (payload: { q: string }) => new Ok(payload),
       }),
     );
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/hooks',
+      httpEndpoint.post('/hooks', {
         input: z.object({ event: z.string() }),
         rawBody: true,
         pipeline: makePipeline<{ rawBody: Uint8Array }>(),
@@ -1069,17 +1015,13 @@ describe('HttpTransport — body size limits', () => {
   beforeAll(async () => {
     small = makeTransport({ maxBodySize: 100 });
     routesOf(small).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/json',
+      httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
         handler: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
     routesOf(small).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/stream',
+      httpEndpoint.post('/stream', {
         input: stream(z.object({ n: z.number() })),
         handler: async (payload: AsyncIterable<unknown>) => {
           let count = 0;
@@ -1092,9 +1034,7 @@ describe('HttpTransport — body size limits', () => {
     );
     // Тот же лимит у endpoint'а с пайплайном: путь исполнения один
     routesOf(small).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/stream-piped',
+      httpEndpoint.post('/stream-piped', {
         input: stream(z.object({ n: z.number() })),
         pipeline: makePipeline(),
         handler: async (payload: AsyncIterable<unknown>) => {
@@ -1110,9 +1050,7 @@ describe('HttpTransport — body size limits', () => {
 
     unlimited = makeTransport({ maxBodySize: 0 });
     routesOf(unlimited).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/json',
+      httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
         handler: (payload: { name: string }) =>
           new Ok({ length: payload.name.length }),
@@ -1184,9 +1122,7 @@ describe('HttpServer — timeouts and graceful drain', () => {
   it('дренаж с идущим keep-alive завершается быстро', async () => {
     const transport = makeTransport({ keepAliveTimeout: 60_000 });
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/ping',
+      httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
         handler: () => new Ok({ pong: true }),
       }),
@@ -1219,9 +1155,7 @@ describe('HttpServer — timeouts and graceful drain', () => {
   it('дренаж с зависшим запросом завершается по closeTimeout', async () => {
     const transport = makeTransport({ closeTimeout: 300 });
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/hang',
+      httpEndpoint.post('/hang', {
         pipeline: makePipeline(),
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         handler: () => new Promise<never>(() => {}), // никогда не резолвится
@@ -1273,9 +1207,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const transport = makeTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/slow',
+      httpEndpoint.get('/slow', {
         pipeline: makePipeline(),
         handler: handle,
       }),
@@ -1302,9 +1234,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const transport = makeTransport();
     let captured: AbortSignal | undefined;
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/ping',
+      httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
         handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           captured = meta.signal;
@@ -1332,9 +1262,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const transport = makeTransport({ closeTimeout: 5000 });
     const { handle, started, aborted } = makeAwaitingHandler();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/graceful',
+      httpEndpoint.post('/graceful', {
         pipeline: makePipeline(),
         handler: handle,
       }),
@@ -1363,9 +1291,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const transport = makeTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/raw',
+      httpEndpoint.get('/raw', {
         handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           const result = handle(_payload, meta);
           return result.then((ok) => ok.value);
@@ -1392,9 +1318,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('серия запросов не накапливает слушателей transport-level сигнала', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/ping',
+      httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
         handler: () => new Ok({ pong: true }),
       }),
@@ -1424,9 +1348,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('серия запросов оставляет реестр контроллеров пустым', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/ping',
+      httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
         handler: () => new Ok({ pong: true }),
       }),
@@ -1456,9 +1378,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const allStarted = new Promise<void>((r) => (onAllStarted = r));
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/hold',
+      httpEndpoint.get('/hold', {
         pipeline: makePipeline(),
         handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           signals.push(meta.signal);
@@ -1529,9 +1449,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('JSON-ответ несёт content-length по длине тела', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/users/42',
+      httpEndpoint.get('/users/42', {
         pipeline: makePipeline(),
         handler: () => new Ok({ id: '42', name: 'Алиса' }),
       }),
@@ -1553,9 +1471,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('заголовок хендлера перекрывает заголовок формы в любом регистре', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/plain',
+      httpEndpoint.get('/plain', {
         pipeline: makePipeline(),
         handler: () =>
           HttpResponse.of(Ok.created('hello'), {
@@ -1580,9 +1496,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('две cookie уходят двумя заголовками Set-Cookie', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/session',
+      httpEndpoint.get('/session', {
         output: z.object({ ok: z.boolean() }),
         handler: () =>
           HttpResponse.of(new Ok({ ok: true }), {
@@ -1609,9 +1523,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('редирект отвечает объявленным статусом и заголовком Location', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/go',
+      httpEndpoint.get('/go', {
         redirect: 303,
         handler: () => HttpResponse.redirect('/app'),
       }),
@@ -1635,9 +1547,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('пустой ответ 204 идёт без заголовка длины', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/gone',
+      httpEndpoint.get('/gone', {
         handler: () => Ok.noContent(),
       }),
     );
@@ -1657,9 +1567,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('статус вызова перекрывает объявленный', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/go-307',
+      httpEndpoint.get('/go-307', {
         redirect: 303,
         handler: () => HttpResponse.redirect('/app', { status: 307 }),
       }),
@@ -1676,9 +1584,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('редирект без объявленного redirect — internal_error', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/undeclared',
+      httpEndpoint.get('/undeclared', {
         handler: () => HttpResponse.redirect('/app'),
       }),
     );
@@ -1697,9 +1603,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
   it('метаданные чужого транспорта — internal_error с обоими именами', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/foreign',
+      httpEndpoint.get('/foreign', {
         // Форму чужого транспорта типы отвергают; здесь проверяется
         // рантайм-граница, до которой значение может дойти из JS-кода
         handler: (() => ({
@@ -1730,9 +1634,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
       seen = ctx.raw.pattern;
     });
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/users/:id',
+      httpEndpoint.get('/users/:id', {
         input: z.object({
           id: z.string(),
           limit: z.coerce.number().optional(),

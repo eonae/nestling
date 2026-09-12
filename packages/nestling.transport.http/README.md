@@ -28,9 +28,7 @@ import { makeApp, Ok } from '@nestlingjs/app';
 import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
-export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }), // id берётся из пути
   output: z.object({ id: z.string(), name: z.string() }),
   handler: async ({ id }) => new Ok({ id, name: 'Alice' }),
@@ -55,9 +53,12 @@ await makeApp({
   `httpBindingOf`, `httpEndpoint`, `httpEndpoint.implement`, `HttpRouter`,
   `HttpStartContext`.
 
-  Конструкторов два. `httpEndpoint({ method, path, … })` объявляет адрес
-  сам. `httpEndpoint.implement(Operation, { … })` реализует операцию с
-  секцией `http:`: адрес, схемы, `errors` и `doc` берутся с неё.
+  `httpEndpoint` — значение, а не функция. Декларацию создают семь
+  статиков. Шесть по HTTP-методу — `get`, `head`, `post`, `put`, `patch`,
+  `delete` — объявляют адрес сами: метод назван именем конструктора, путь
+  идёт первым аргументом. Седьмой, `httpEndpoint.implement(Operation,
+  { … })`, реализует операцию с секцией `http:`: адрес, схемы, `errors` и
+  `doc` берутся с неё.
 - **Запрос и ответ** — `Cookie`, `httpCodeOf`, `HttpHandler`,
   `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`, `HttpRequest`,
   `HttpResponse`.

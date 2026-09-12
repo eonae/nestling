@@ -170,17 +170,13 @@ class SatelliteTransport implements ITransport {
 
 const User = z.object({ id: z.string(), name: z.string() });
 
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
   handler: ({ id }) => new Ok({ id, name: `user-${id}` }),
 });
 
-const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+const CreateUser = httpEndpoint.post('/users', {
   input: z.object({ name: z.string() }),
   output: User,
   handler: ({ name }) => Ok.created({ id: 'u-1', name }),
