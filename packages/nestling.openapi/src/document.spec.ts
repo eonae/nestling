@@ -27,7 +27,7 @@ import {
 import { makeSwitch } from '@nestlingjs/container';
 import { zodConverter } from '@nestlingjs/openapi.zod';
 import type { StandardSchemaV1 } from '@nestlingjs/operations';
-import { makeRequest, query } from '@nestlingjs/operations';
+import { body, makeRequest, query } from '@nestlingjs/operations';
 import { cliEndpoint } from '@nestlingjs/transport.cli';
 import { http, httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 import { z } from 'zod';
@@ -148,15 +148,113 @@ describe('адрес операции и её параметры', () => {
         required: false,
         style: 'form',
         explode: true,
-        schema: expect.anything(),
+        schema: { type: 'boolean' },
       },
     ]);
 
     const body = operation.requestBody?.content['application/json']
       .schema as Record<string, unknown>;
 
-    expect(Object.keys(body.properties as object)).toEqual(['name']);
+    expect(body.properties).toEqual({ name: { type: 'string' } });
     expect(body.required).toEqual(['name']);
+  });
+
+  it('path-параметр с разбором в число несёт тип разобранной формы', () => {
+    const Page = httpEndpoint({
+      method: 'GET',
+      path: '/pages/:page',
+      input: z.object({
+        page: z.string().pipe(z.coerce.number<string>().int().min(1).max(100)),
+      }),
+      output: z.array(User),
+      handler: async () => new Ok([]),
+    });
+
+    const operation = documentOf([Page]).paths['/pages/{page}'].get;
+
+    expect(operation.parameters).toEqual([
+      {
+        name: 'page',
+        in: 'path',
+        required: true,
+        schema: { type: 'integer', minimum: 1, maximum: 100 },
+      },
+    ]);
+  });
+
+  it('совпадающие формы параметр не меняют', () => {
+    const Search = httpEndpoint({
+      method: 'GET',
+      path: '/users/search',
+      input: z.object({ q: z.string(), limit: z.coerce.number().optional() }),
+      output: z.array(User),
+      handler: async () => new Ok([]),
+    });
+
+    const operation = documentOf([Search]).paths['/users/search'].get;
+
+    expect(operation.parameters?.map((p) => [p.name, p.schema])).toEqual([
+      ['q', { type: 'string' }],
+      ['limit', { type: 'number' }],
+    ]);
+  });
+
+  it('преобразование в схеме оставляет параметры входной формой', () => {
+    const List = httpEndpoint({
+      method: 'GET',
+      path: '/users',
+      input: z.object({
+        dryRun: z.stringbool().optional(),
+        tags: z.string().transform((value) => value.split(',')),
+      }),
+      output: z.array(User),
+      handler: async () => new Ok([]),
+    });
+
+    const operation = documentOf([List]).paths['/users'].get;
+
+    expect(operation.parameters?.map((p) => [p.name, p.schema])).toEqual([
+      ['dryRun', { type: 'string' }],
+      ['tags', { type: 'string' }],
+    ]);
+  });
+
+  it('поле, помеченное телом, остаётся в теле входной формой', () => {
+    const Create = httpEndpoint({
+      method: 'POST',
+      path: '/users',
+      input: z.object({ dryRun: z.stringbool() }),
+      bind: { dryRun: body() },
+      output: User,
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
+    });
+
+    const operation = documentOf([Create]).paths['/users'].post;
+
+    expect(operation.parameters).toBeUndefined();
+    expect(
+      operation.requestBody?.content['application/json'].schema,
+    ).toMatchObject({ properties: { dryRun: { type: 'string' } } });
+  });
+
+  it('выбранное свойство приносит описание и умолчание разобранной формы', () => {
+    const List = httpEndpoint({
+      method: 'GET',
+      path: '/users',
+      input: z.object({
+        dryRun: z.stringbool().default(true).describe('пробный прогон'),
+      }),
+      output: z.array(User),
+      handler: async () => new Ok([]),
+    });
+
+    const [dryRun] = documentOf([List]).paths['/users'].get.parameters ?? [];
+
+    expect(dryRun.schema).toEqual({
+      description: 'пробный прогон',
+      default: true,
+      type: 'boolean',
+    });
   });
 
   it('метод без тела раскладывает весь вход в query', () => {
