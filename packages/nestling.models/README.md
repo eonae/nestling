@@ -1,30 +1,31 @@
 # @nestlingjs/models
 
-Модели входных и выходных данных на zod: схема с валидацией и выводом типов,
-которую компилятор сверяет с уже существующим TypeScript-типом. Нужно это
-там, где тип задан заранее — сгенерирован из proto, GraphQL или OpenAPI, — и
-схема обязана его описывать.
+Input and output data models on zod: a schema with validation and type
+inference that the compiler checks against an already existing
+TypeScript type. This is needed where the type is set in advance (for
+example, generated from proto, GraphQL or OpenAPI), and the schema must
+describe it.
 
-> 🛰️ Сателлит на zod, вне ядра V1: у пакета есть `peerDependencies.zod`, API
-> может меняться.
-> Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md).
-> Гайд: [глава 3. Проверить вход](../../docs/guide/03-input.md).
+> 🛰️ A zod satellite, outside the V1 core: the package has
+> `peerDependencies.zod`, the API may change.
+> Design: [`docs/en/design/schemas.md`](../../docs/en/design/schemas.md).
+> Guide: [chapter 3. Check the input](../../docs/en/guide/03-input.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/models zod
 ```
 
-Пакет требует `zod@^4.0.0` как peer-зависимость.
+The package requires `zod@^4.0.0` as a peer dependency.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { fromType } from '@nestlingjs/models';
 import { z } from 'zod';
 
-// Тип уже существует: например, сгенерирован из proto
+// the type already exists: for example, generated from proto
 interface UserProto {
   name?: string;
   email?: string;
@@ -39,24 +40,25 @@ const UserModel = fromType<UserProto>().makeModel(
   }),
 );
 
-// Тип результата строже исходного: все поля стали обязательными.
-// Лишнее поле в схеме или несовместимый тип — ошибка компиляции.
+// the result type is stricter than the source: all fields became required.
+// an extra field in the schema or an incompatible type is a compilation error.
 const user = UserModel.parse({ name: 'Alice', email: 'a@b.c', age: 30 });
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `fromType` | `fromType<T>().makeModel(schema)` — проверяет на компиляции, что `z.input<S>` сужает `T` |
-| `fromScratch` | `fromScratch().makeModel(schema)` — возвращает схему без сверки с типом |
-| `makeModel` | то же, что `fromScratch().makeModel(schema)` |
+| `fromType` | `fromType<T>().makeModel(schema)`: checks at compile time that `z.input<S>` narrows `T` |
+| `fromScratch` | `fromScratch().makeModel(schema)`: returns the schema without checking it against a type |
+| `makeModel` | the same as `fromScratch().makeModel(schema)` |
 
-Все три функции ничего не делают в рантайме: они возвращают переданную схему.
-Вся работа происходит в типах.
+None of the three functions do anything at runtime: they return the
+schema they were given. All the work happens in the types.
 
-## Границы пакета
+## Package boundaries
 
-Пакет не валидирует данные сам, не регистрируется в контейнере и не
-подключается к транспортам. Он отдаёт zod-схему, которая передаётся в
-`input`/`output` endpoint'а или вызывается напрямую.
+The package does not validate data itself, does not register in the
+container and does not connect to transports. It gives out a zod schema
+that is passed into the `input`/`output` of an endpoint or called
+directly.

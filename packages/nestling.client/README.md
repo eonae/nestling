@@ -1,62 +1,64 @@
 # @nestlingjs/client
 
-Типизированный HTTP-клиент из деклараций операций. `makeClient(record, config)`
-возвращает объект API, метод которого вызывается так же, как порт операции:
-`Ok | Fail` для `request`, `Promise<void>` для `command`. Пакет зависит только
-от `@nestlingjs/operations` и глобального `fetch`, поэтому собирается для
-браузера.
+A typed HTTP client built from operation declarations.
+`makeClient(record, config)` returns an API object whose method is called
+the same way as an operation's port: `Ok | Fail` for `request`,
+`Promise<void>` for `command`. The package depends only on
+`@nestlingjs/operations` and the global `fetch`, so it builds for the
+browser.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md) §5.
-> Гайд: [глава 13. Отдать фронтенду документацию и клиент](../../docs/guide/13-openapi-and-client.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/operations.md`](../../docs/en/design/operations.md) §5.
+> Guide: [chapter 13. Give the frontend the documentation and the client](../../docs/en/guide/13-openapi-and-client.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/client
 ```
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { CreateUser, GetUser } from '@acme/billing-operations';
 import { makeClient } from '@nestlingjs/client';
 
 const api = makeClient(
-  { createUser: CreateUser, getUser: GetUser }, // имена методов задаёте вы
+  { createUser: CreateUser, getUser: GetUser }, // you choose the method names
   { baseUrl, headers: () => ({ authorization: `Bearer ${token()}` }) },
 );
 
 const created = await api.createUser({ name: 'Alice', email: 'a@b.c' });
 
 if (EmailTaken.is(created)) {
-  // details типизированы схемой из makeFail; отказ узнаётся по code
+  // details are typed by the schema from makeFail; the failure is recognized by code
 } else if (created.isFail) {
-  // множество ответов закрыто: объявленные отказы плюс InternalError
+  // the set of responses is closed: the declared failures plus InternalError
 } else {
   created.value.id;
 }
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `makeClient` | собирает объект API из записи операций и конфигурации |
-| `Client` | тип собранного объекта API |
-| `ClientConfig` | `baseUrl`, `headers`, своя реализация `fetch`, `validateOutput` |
-| `ClientMeta` | второй аргумент метода: `signal` и `deadline` |
-| `ClientMethod` | тип одного метода клиента |
-| `ClientArgs` | аргументы метода, выведенные из операции |
-| `ClientResult` | результат метода, выведенный из операции |
-| `ClientFail` | отказ клиента: объявленный операцией либо `InternalError` |
-| `ClientHeaders` | заголовки: объект либо функция на каждый запрос |
+| `makeClient` | builds the API object from a record of operations and configuration |
+| `Client` | the type of the assembled API object |
+| `ClientConfig` | `baseUrl`, `headers`, a custom `fetch` implementation, `validateOutput` |
+| `ClientMeta` | the second argument of the method: `signal` and `deadline` |
+| `ClientMethod` | the type of one client method |
+| `ClientArgs` | the method arguments, derived from the operation |
+| `ClientResult` | the method result, derived from the operation |
+| `ClientFail` | the client failure: the one declared by the operation, or `InternalError` |
+| `ClientHeaders` | headers: an object, or a function called on every request |
 
-`makeClient` бросает `TypeError` сразу, называя ключ метода: операция без
-секции `http:`, операция вида `event`, потоковая или `multipart` форма io,
-не-JSON тело, неабсолютный `baseUrl`.
+`makeClient` throws a `TypeError` immediately, naming the method key: an
+operation without an `http:` section, an operation of the `event` kind,
+a streaming or `multipart` io shape, a non-JSON body, a non-absolute
+`baseUrl`.
 
-## Границы пакета
+## Package boundaries
 
-Клиент не поддерживает потоковые и multipart-операции, события и
-`idempotencyKey`.
+The client does not support streaming and multipart operations, events
+and `idempotencyKey`.

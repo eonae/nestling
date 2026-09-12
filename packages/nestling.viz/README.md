@@ -1,43 +1,45 @@
 # @nestlingjs/viz
 
-Интерактивная визуализация графа зависимостей контейнера в браузере.
-Команда поднимает локальный сервер и рисует модули и провайдеры
-force-directed графом.
+An interactive visualization of the container's dependency graph in the
+browser. The command brings up a local server and draws the modules and
+the providers as a force-directed graph.
 
-> 🚧 Активная разработка, API может меняться. В реестр пока не публикуется:
-> ставится из репозитория.
-> Дизайн: [`docs/design/container.md`](../../docs/design/container.md).
-> Гайд: [рецепт «Без `makeApp`»](../../docs/recipes/standalone.md).
+> 🚧 Active development, the API may change. Not yet published to the
+> registry: install it from the repository.
+> Design: [`docs/en/design/container.md`](../../docs/en/design/container.md).
+> Guide: [recipe "Without `makeApp`"](../../docs/en/recipes/standalone.md).
 
-## Установка
+## Install
 
 ```bash
 npm install --save-dev @nestlingjs/viz
 ```
 
-## Минимальный пример
+## Minimal example
 
-Граф выгружается из собранного контейнера: `await container.toJSON()`
-записывается в файл. Дальше файл открывается командой:
+The graph is exported from the assembled container:
+`await container.toJSON()` is written to a file. Then the file is opened
+with the command:
 
 ```bash
 nestling-viz di-metadata.json --port 4000
 ```
 
-## Экспорты
+## Exports
 
-Пакет ставится ради команды `nestling-viz`; барреля для импорта у него нет.
+The package is installed for the `nestling-viz` command; it has no
+barrel to import.
 
-| Опция команды | Что делает |
+| Command option | What it does |
 |---|---|
-| `-p, --port <number>` | порт сервера; по умолчанию `3333` |
-| `--no-open` | не открывать браузер |
-| `-s, --silent` | не печатать сообщения в консоль |
+| `-p, --port <number>` | the server port; `3333` by default |
+| `--no-open` | do not open the browser |
+| `-s, --silent` | do not print messages to the console |
 
-Рабочий пример — скрипты `export-metadata` и `visualize` в
+A working example: the `export-metadata` and `visualize` scripts in
 [`examples/container`](../../examples/container/).
 
-## Границы пакета
+## Package boundaries
 
-Инструмент только показывает граф: он не проверяет его и не меняет.
-Проверку графа делает сборка контейнера.
+The tool only shows the graph: it does not check it and does not change
+it. The container assembly does the checking of the graph.

@@ -30,16 +30,16 @@
 
 - [x] 4.1 `docs/en/guarantees.md`, `docs/en/from-nestjs.md`, `docs/en/conventions.md`
 - [x] 4.2 Рецепты, пачка 1: `alternatives.md`, `cli.md`, `config-sources.md`, `extending.md`
-- [ ] 4.3 Рецепты, пачка 2: `ops.md`, `standalone.md`, `token-families.md`, `webhook.md`
-- [ ] 4.4 Линтер и `docs:audit` по переведённому; ссылки внутри языка, плашки на месте
+- [x] 4.3 Рецепты, пачка 2: `ops.md`, `standalone.md`, `token-families.md`, `webhook.md`
+- [x] 4.4 Линтер и `docs:audit` по переведённому; ссылки внутри языка, плашки на месте
 
 ## 5. Перевод: путь
 
 - [x] 5.1 Главы 01–07: `01-first-service.md`, `02-composition.md`, `03-input.md`, `04-errors.md`, `05-handler-class.md`, `06-repository.md`, `07-config.md`
-- [ ] 5.2 Главы 08–14: `08-testing.md`, `09-logging.md`, `10-auth.md`, `11-database.md`, `12-files-and-streams.md`, `13-openapi-and-client.md`, `14-features.md`
-- [ ] 5.3 Главы 15–21: `15-events.md`, `16-durable-events.md`, `17-live-feed.md`, `18-testing-features.md`, `19-select.md`, `20-split.md`, `21-compatibility.md`
-- [ ] 5.4 Карта понятий в `docs/en/guide/README.md` — именами из словаря
-- [ ] 5.5 Комментарии внутри сниппетов английские, идентификаторы и структура кода совпадают с примерами; линтер и `docs:audit` по пути
+- [x] 5.2 Главы 08–14: `08-testing.md`, `09-logging.md`, `10-auth.md`, `11-database.md`, `12-files-and-streams.md`, `13-openapi-and-client.md`, `14-features.md`
+- [x] 5.3 Главы 15–21: `15-events.md`, `16-durable-events.md`, `17-live-feed.md`, `18-testing-features.md`, `19-select.md`, `20-split.md`, `21-compatibility.md`
+- [x] 5.4 Карта понятий в `docs/en/guide/README.md` — именами из словаря
+- [x] 5.5 Комментарии внутри сниппетов английские, идентификаторы и структура кода совпадают с примерами; линтер и `docs:audit` по пути
 
 ## 6. Перевод: design
 
