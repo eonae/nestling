@@ -115,6 +115,12 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
    - Do NOT merge into `main` and do NOT push. If `ListAgents` shows no
      `Merger: Main`, tell the user; the Merger's periodic scan picks the
      branch up anyway once it is running.
+   - The Merger answers twice: first "merged, verifying", then the final word
+     once `yarn verify` and `yarn docs:audit` are green on `main`. On the
+     final word tell the user in one line —
+     `change <name> влит в main и проверен — сессию можно закрывать` — and do
+     nothing else. If the Merger reports a red check instead, fix what it
+     names in the change branch, commit, and hand over again.
 
 7. **Display summary**
 
