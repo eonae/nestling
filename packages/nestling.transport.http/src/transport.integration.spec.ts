@@ -1583,6 +1583,33 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     expect(headers.get('location')).toEqual(['/app']);
     expect(body).toBe('');
 
+    // Без длины `node:http` дописал бы `transfer-encoding: chunked` и
+    // отправил пустой кадр — на редиректе это и заметили
+    expect(headers.get('content-length')).toEqual(['0']);
+    expect(headers.get('transfer-encoding')).toBeUndefined();
+
+    await shutdown(transport);
+  });
+
+  it('пустой ответ 204 идёт без заголовка длины', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/gone',
+        handler: () => Ok.noContent(),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers, body } = await rawGet(baseUrl, '/gone');
+
+    // Тела у 204 нет по протоколу: заголовки тела убирает сам `node:http`
+    expect(status).toBe(204);
+    expect(body).toBe('');
+    expect(headers.get('content-length')).toBeUndefined();
+    expect(headers.get('transfer-encoding')).toBeUndefined();
+
     await shutdown(transport);
   });
 
