@@ -42,9 +42,8 @@ const delivered: { id: string; idempotencyKey?: string }[] = [];
 /**
  * Подписчик события: он же ставит шину в граф.
  *
- * Ключ идемпотентности читает штатный писатель ядра: у события
- * типизированного `meta.idempotencyKey` нет, и ключ приходит транспортным
- * атрибутом конверта.
+ * Ключ идемпотентности читает штатный писатель ядра из атрибутов
+ * конверта: relay публикует запись с ключом, равным её идентификатору.
  */
 const AuditUserCreated = implement(UserCreated, {
   subscriber: 'audit',
@@ -75,7 +74,6 @@ const application = (): App =>
         transaction: Tx,
         store: OutboxStore$,
         operations: [UserCreated],
-        partitionKey: (payload) => (payload as { id: string }).id,
       }),
     ],
     transports: [testTransport()],
@@ -111,6 +109,8 @@ describe('outbox(): пакет в собранном приложении', () =
     expect(delivered[0].id).toBe('u-1');
     expect(store.snapshot()).toHaveLength(1);
     expect(store.snapshot()[0].record.subject).toBe(UserCreated.name);
+    // Раздел назвало место вызова, а не плагин
+    expect(store.snapshot()[0].record.partitionKey).toBe('u-1');
   });
 
   it('relay публикует запись, и подписчик видит ключ идемпотентности', async () => {
@@ -222,8 +222,24 @@ describe('outbox(): отказы сборки', () => {
       transports: [testTransport()],
     });
 
-    await expect(assembleTest(busless)).rejects.toThrow(
-      /MessageBus.*bus transport.*remove the outbox plugin/s,
+    let failure: Error | undefined;
+
+    try {
+      await assembleTest(busless);
+    } catch (error) {
+      failure = error as Error;
+    }
+
+    // Обе починки — подсказками объявлений, по строке на DI-токен; имя
+    // потребителя остаётся именем
+    expect(failure?.message).toContain(
+      "'MessageBus' required by '@nestlingjs/outbox relay'",
+    );
+    expect(failure?.message).toContain(
+      "MessageBus: add a bus transport to 'transports:'",
+    );
+    expect(failure?.message).toContain(
+      '@nestlingjs/outbox relay: or remove the outbox plugin',
     );
   });
 

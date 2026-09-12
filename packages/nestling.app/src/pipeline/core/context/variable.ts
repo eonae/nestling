@@ -3,15 +3,23 @@
  *
  * Отдельного хранилища у переменных нет: переменная называет поле, которое
  * пайплайн и так накапливает, поэтому значение из `Ctx` всегда совпадает с
- * контекстом. Записывает переменную только юнит `Var.provide(compute)`:
- * добавку строит сама переменная, и объявление совпадает с записью.
+ * контекстом. Записывает переменную только юнит `Var.provide` — формой
+ * `provide(compute)` или `provide(deps, compute)`: добавку строит сама
+ * переменная, и объявление совпадает с записью.
  */
 
+import type { DeferredPreUnitFn } from '../deferred.js';
+import { deferUnit } from '../deferred.js';
 import type { ExtendableContext } from '../types/context.js';
 import type { PreUnitFn } from '../types/unit.js';
 
 import { currentCell } from './store.js';
 
+import type {
+  InjectionToken,
+  UnwrapInjectionTokens,
+} from '@nestlingjs/container';
+import { getAutoSentinelFamily, isToken } from '@nestlingjs/container';
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 /**
@@ -80,6 +88,50 @@ export interface ContextVar<T, K extends string = string>
   provide<TReq extends AnyInput = EmptyInput>(
     compute: (ctx: ExtendableContext<TReq>) => T | Promise<T>,
   ): PreUnitFn<TReq, Record<K, T>>;
+
+  /**
+   * Вторая форма: писатель с зависимостями из контейнера.
+   *
+   * Значения DI-токенов резолвятся один раз на `bind()` пайплайна тем же
+   * резолвером, что и классы-юниты, и приходят в `compute` следом за
+   * контекстом. Класса-моста, который кладёт значение из контейнера в
+   * `ctx.input`, не требуется.
+   *
+   * Требования к накопленному контексту объявляются аннотацией параметра
+   * `ctx`: список DI-токенов выводится из первого аргумента, а частичного
+   * вывода тип-аргументов в TypeScript нет.
+   *
+   * `Family.auto` в списке отвергается: у писателя нет класса-потребителя,
+   * по имени которого выбирается член семейства.
+   *
+   * @param deps - DI-токены, значения которых получает `compute`
+   * @param compute - Вычисляет значение по контексту и зависимостям
+   * @returns `.pre`-юнит с непустым `TNeeds`: исполним после `bind()`
+   *
+   * @example
+   * ```typescript
+   * const transactional = makePipeline().pre(
+   *   Tx.provide([Database], (_ctx, db) => db.begin()),
+   * );
+   *
+   * // Требования к контексту — аннотацией `ctx`
+   * Tx.provide(
+   *   [Database],
+   *   (ctx: ExtendableContext<{ identity: Identity }>, db) =>
+   *     db.begin(ctx.input.identity.tenant),
+   * );
+   * ```
+   */
+  provide<
+    const D extends readonly InjectionToken[],
+    TReq extends AnyInput = EmptyInput,
+  >(
+    deps: D,
+    compute: (
+      ctx: ExtendableContext<TReq>,
+      ...deps: UnwrapInjectionTokens<[...D]>
+    ) => T | Promise<T>,
+  ): DeferredPreUnitFn<TReq, Record<K, T>, D[number]>;
 }
 
 /**
@@ -156,6 +208,46 @@ function assertKey(key: string): void {
       `contextVar<T>()('${SIGNAL_KEY}'): the key '${SIGNAL_KEY}' is reserved. ` +
         `The abort signal is not part of the accumulated input — import the ` +
         `ready-made variable Signal and inject Ctx(Signal).`,
+    );
+  }
+}
+
+/**
+ * Проверяет аргументы формы `provide(deps, compute)`.
+ *
+ * Список принимает только DI-токены: объектные и классы. `Family.auto`
+ * отвергается отдельно, с починкой: у писателя нет класса-потребителя, по
+ * имени которого семейство выбрало бы члена.
+ */
+function assertWriterDeps(
+  key: string,
+  deps: readonly unknown[],
+  compute: unknown,
+): void {
+  for (const [index, dep] of deps.entries()) {
+    const family = getAutoSentinelFamily(dep as InjectionToken);
+
+    if (family) {
+      throw new Error(
+        `Context variable '${key}': '${family.familyName}.auto' is not ` +
+          `allowed in deps of provide(deps, compute) — a variable writer has ` +
+          `no consumer class to name the member after. Use an explicit ` +
+          `'${family.familyName}('<name>')' member DI token instead.`,
+      );
+    }
+
+    if (!isToken(dep) && typeof dep !== 'function') {
+      throw new TypeError(
+        `Context variable '${key}': provide(deps, compute) takes a list of ` +
+          `DI tokens, got ${typeof dep} at index ${index}.`,
+      );
+    }
+  }
+
+  if (typeof compute !== 'function') {
+    throw new TypeError(
+      `Context variable '${key}': provide(deps, compute) needs a function ` +
+        `as the second argument, got ${typeof compute}.`,
     );
   }
 }
@@ -265,10 +357,10 @@ export function contextVar<T>(...misuse: []): ContextVarDeclarator<T> {
     const propagate = options.propagate === true;
 
     /** Ставит на юнит метку переменной, которую он кладёт */
-    const mark = (
-      unit: (ctx: ExtendableContext<AnyInput>) => unknown,
+    const mark = <U extends (...args: never[]) => unknown>(
+      unit: U,
       variable: ContextVar<T, K>,
-    ): typeof unit => {
+    ): U => {
       // Метка одна и та же у `provide` и `propagated`, поэтому `hasVar`
       // засчитывает оба юнита: способ получить значение политике не важен
       Object.defineProperty(unit, DECLARED_VAR, {
@@ -279,13 +371,37 @@ export function contextVar<T>(...misuse: []): ContextVarDeclarator<T> {
       return unit;
     };
 
-    const provide = ((compute: (ctx: ExtendableContext<AnyInput>) => unknown) =>
-      mark(
-        async (ctx: ExtendableContext<AnyInput>) => ({
-          [key]: await compute(ctx),
+    const provide = ((first: unknown, second?: unknown) => {
+      if (!Array.isArray(first)) {
+        const compute = first as (ctx: ExtendableContext<AnyInput>) => unknown;
+
+        return mark(
+          async (ctx: ExtendableContext<AnyInput>) => ({
+            [key]: await compute(ctx),
+          }),
+          variable,
+        );
+      }
+
+      const deps = first as readonly InjectionToken[];
+      assertWriterDeps(key, deps, second);
+      const compute = second as (
+        ctx: ExtendableContext<AnyInput>,
+        ...values: unknown[]
+      ) => unknown;
+
+      // Значения зависимостей подставит `bind()`; до него юнит — заглушка
+      return mark(
+        deferUnit({
+          name: `${key}.provide`,
+          deps,
+          make: (values) => async (ctx: ExtendableContext<AnyInput>) => ({
+            [key]: await compute(ctx, ...values),
+          }),
         }),
         variable,
-      )) as ContextVar<T, K>['provide'];
+      );
+    }) as ContextVar<T, K>['provide'];
 
     const propagated = (): unknown => {
       if (!propagate) {

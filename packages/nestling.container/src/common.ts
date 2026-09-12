@@ -22,12 +22,30 @@ export interface Constructor<T = any> {
 export interface Token<T = unknown> {
   /** Идентификатор для отчётов, ошибок и графа */
   readonly id: string;
+  /** Текст починки на случай, когда провайдера для DI-токена нет */
+  readonly hint?: string;
   /**
    * Фантомное поле: несёт тип значения. В рантайме его нет — оно
    * существует, чтобы `Token<string>` и `Token<number>` не были
    * взаимозаменяемы.
    */
   readonly __type?: T;
+}
+
+/**
+ * Опции объявления DI-токена.
+ *
+ * @see {@link makeToken}
+ */
+export interface TokenOptions {
+  /**
+   * Текст починки на случай, когда провайдера для DI-токена нет.
+   *
+   * Печатается в ошибке сборки строкой под перечнем недостающих
+   * зависимостей. Это починка, а не описание DI-токена: что за DI-токеном
+   * стоит, читатель берёт из идентификатора и из типа.
+   */
+  readonly hint?: string;
 }
 
 /**
@@ -86,8 +104,15 @@ export type UnwrapInjectionTokens<T extends InjectionToken[]> = {
  * но подмены одной реализации другой не произойдёт. DI-токен объявляют один
  * раз и импортируют значением.
  *
+ * Опция `hint` — текст починки на случай, когда провайдера для DI-токена в
+ * графе нет. Она печатается в ошибке сборки и не влияет на идентичность:
+ * два DI-токена с одинаковым `id` и разными подсказками остаются разными.
+ * Подсказка не заменяет описание — что за DI-токеном стоит, читатель берёт
+ * из идентификатора и из типа.
+ *
  * @template T - Тип, который представляет DI-токен
  * @param id - Идентификатор для отчётов и ошибок
+ * @param options - Опции объявления: подсказка о починке
  * @returns Типизированный DI-токен
  *
  * @example
@@ -106,9 +131,19 @@ export type UnwrapInjectionTokens<T extends InjectionToken[]> = {
  * // Регистрация под DI-токеном интерфейса — провайдером класса
  * classProvider(ILogger, ConsoleLogger);
  * ```
+ *
+ * @example
+ * ```typescript
+ * // Подсказка печатается, если провайдера шины в графе нет
+ * const MessageBus$ = makeToken<IMessageBus>('MessageBus', {
+ *   hint: "add a bus transport to 'transports:'",
+ * });
+ * ```
  */
-export const makeToken = <T>(id: string): Token<T> =>
-  Object.freeze({ id }) as Token<T>;
+export const makeToken = <T>(id: string, options?: TokenOptions): Token<T> =>
+  Object.freeze(
+    options?.hint === undefined ? { id } : { id, hint: options.hint },
+  ) as Token<T>;
 
 /**
  * Проверяет, что значение — объектный DI-токен, а не класс и не что-то ещё.

@@ -44,7 +44,7 @@ export const CreateUser = makeRequest({
 ## Экспорты
 
 - **Операция** ([design](../../docs/design/operations.md)) — `AnyOperation`,
-  `assertDoc`, `CommandMeta`, `CommandOperation`, `DeclarationDoc`, `Emitter`,
+  `assertDoc`, `CommandOperation`, `DeclarationDoc`, `EmitMeta`, `Emitter`,
   `EmitterFamily`, `EmitterToken`, `EmittingOperation`, `EventOperation`,
   `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`, `lookupOperation`,
   `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`, `Operation`,

@@ -61,7 +61,7 @@ await app.assemble().run();
   `bindInputStream`, `ClientDisconnectedError`, `collectPropagatedContext`,
   `compose`, `contextKernel`, `contextVar`, `ContextVar`,
   `ContextVarDeclarator`, `ContextVarOptions`, `ContextVarUnavailableError`,
-  `Ctx`, `CtxReader`, `EndpointDefinition`, `EndpointFilter`, `EndpointMeta`,
+  `Ctx`, `CtxReader`, `DeferredPreUnitFn`, `EndpointDefinition`, `EndpointFilter`, `EndpointMeta`,
   `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`, `everyEndpoint`,
   `ExtendableContext`, `FinallyUnitFn`, `HandlerClass`, `handlerClassOf`,
   `HandlerFn`, `isAsyncIterable`, `isEndpointDefinition`, `isMidStreamFailure`,

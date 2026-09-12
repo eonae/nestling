@@ -44,7 +44,6 @@ function emitterFor(
     store,
     transaction: reader(transaction),
     transactionKey: Tx.key,
-    partitionKey: (payload) => (payload as { id?: string }).id,
   });
 }
 
@@ -105,17 +104,30 @@ describe('emit: запись выполняется транзакцией вы�
     expect(record.createdAt).toBeGreaterThanOrEqual(before);
   });
 
-  it('кладёт раздел, который назвала функция плагина', async () => {
+  it('кладёт раздел из места вызова', async () => {
+    const store = new InMemoryOutboxStore();
+    const tx = new TestTransaction();
+
+    await emitterFor(UserCreated, store, tx).emit(
+      { id: 'u-7', email: 'alice@example.com' },
+      { partitionKey: 'u-7' },
+    );
+    tx.commit();
+
+    expect(store.snapshot()[0].record.partitionKey).toBe('u-7');
+  });
+
+  it('запись без переданного раздела остаётся без него', async () => {
     const store = new InMemoryOutboxStore();
     const tx = new TestTransaction();
 
     await emitterFor(UserCreated, store, tx).emit({
-      id: 'u-7',
+      id: 'u-8',
       email: 'alice@example.com',
     });
     tx.commit();
 
-    expect(store.snapshot()[0].record.partitionKey).toBe('u-7');
+    expect(store.snapshot()[0].record.partitionKey).toBeUndefined();
   });
 
   it('у события без durable признак долговечности выключен', async () => {

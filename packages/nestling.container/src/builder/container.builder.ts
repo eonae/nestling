@@ -1,5 +1,5 @@
 import type { Constructor, InjectionToken } from '../common.js';
-import { tokenId } from '../common.js';
+import { isToken, tokenId } from '../common.js';
 import type { DINodeMetadata } from '../graph/index.js';
 import { DIGraph, DINode } from '../graph/index.js';
 import type { Module } from '../modules/index.js';
@@ -51,6 +51,20 @@ const MAX_MATERIALIZATION_ROUNDS = 100;
  */
 const isThenable = (value: unknown): value is PromiseLike<unknown> =>
   typeof (value as PromiseLike<unknown> | null)?.then === 'function';
+
+/**
+ * Строит строки подсказок для перечня недостающих зависимостей.
+ *
+ * Подсказка печатается там, где напечатан её DI-токен: строка на DI-токен,
+ * с его идентификатором. DI-токены без подсказок строк не дают, поэтому
+ * граф без подсказок печатается прежним текстом.
+ */
+const hintLines = (tokens: readonly InjectionToken[]): string[] =>
+  [...new Set(tokens)].flatMap((token) => {
+    const hint = isToken(token) ? token.hint : undefined;
+
+    return hint === undefined ? [] : [`    ${tokenId(token)}: ${hint}`];
+  });
 
 /** Зарегистрированный рецепт семейства и модуль, через который он пришёл. */
 interface FamilyRecipeEntry {
@@ -916,6 +930,11 @@ export class ContainerBuilder {
    * Создание экземпляров упало бы на первом же отсутствующем DI-токене, и
    * зависимости пришлось бы чинить по одной за перезапуск. Строгая сборка
    * сообщает всё сразу.
+   *
+   * Под строкой перечня печатаются подсказки объявлений: недостающего
+   * DI-токена и каждого потребителя, у которого она есть. Починка зависит от
+   * пары «чего не хватило» и «кому»: DI-токен знает, как его поставить,
+   * потребитель — как обойтись без него.
    */
   private assertDependenciesSatisfied(): void {
     const missing = new Map<InjectionToken, InjectionToken[]>();
@@ -939,12 +958,12 @@ export class ContainerBuilder {
       return;
     }
 
-    const lines = [...missing].map(
-      ([dep, consumers]) =>
-        `  - '${tokenId(dep)}' required by ${consumers
-          .map((consumer) => `'${tokenId(consumer)}'`)
-          .join(', ')}`,
-    );
+    const lines = [...missing].flatMap(([dep, consumers]) => [
+      `  - '${tokenId(dep)}' required by ${consumers
+        .map((consumer) => `'${tokenId(consumer)}'`)
+        .join(', ')}`,
+      ...hintLines([dep, ...consumers]),
+    ]);
 
     throw new Error(
       `Unsatisfied dependencies (${missing.size}):\n${lines.join(

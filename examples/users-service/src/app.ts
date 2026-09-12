@@ -15,14 +15,12 @@ import { http, HttpTransport$ } from '@nestlingjs/transport.http';
  * Транзакционный emit: событие уходит в шину после коммита.
  *
  * Плагин создаётся один раз: рецепт семейства регистрируется однажды.
- * Раздел — идентификатор пользователя: события одного пользователя
- * доставляются в порядке создания.
+ * Раздел записи плагин не назначает — его называет место вызова `emit`.
  */
 export const appOutbox = outbox({
   transaction: Tx,
   store: OutboxStore$,
   operations: [UserCreated],
-  partitionKey: (payload) => (payload as { id: string }).id,
 });
 
 /**

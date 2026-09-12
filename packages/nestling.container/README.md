@@ -56,7 +56,7 @@ await container.destroy();
 
 - **DI-токены и общее** ([design](../../docs/design/container.md)) —
   `ClassToken`, `Constructor`, `InjectionToken`, `isToken`, `makeToken`,
-  `Token`, `tokenId`, `UnwrapInjectionTokens`.
+  `Token`, `tokenId`, `TokenOptions`, `UnwrapInjectionTokens`.
 - **Сборка контейнера** — `BuiltContainer`, `ContainerBuilder`,
   `ContainerBuilderOptions`, `FamilyOverrideEntry`, `HealthResource`,
   `TokenOverride`.

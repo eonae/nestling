@@ -550,8 +550,9 @@ function unresolvedHandler(state: EndpointState): AnyHandler {
 }
 
 /**
- * Создаёт инстансы классов-юнитов пайплайна тем же резолвером, что и
- * класс-хендлер, чтобы транспорт получил пайплайн, готовый к выполнению.
+ * Резолвит отложенные зависимости пайплайна — классы-юниты и DI-токены
+ * писателей переменных — тем же резолвером, что и класс-хендлер, чтобы
+ * транспорт получил пайплайн, готовый к выполнению.
  */
 function bindPipeline(
   state: EndpointState,
@@ -561,7 +562,7 @@ function bindPipeline(
     return undefined;
   }
 
-  return state.pipeline.bind((ctor) => resolver(ctor));
+  return state.pipeline.bind(resolver);
 }
 
 function resolveDefinition(

@@ -22,11 +22,13 @@ import { withRequestLogging } from '../middlewares/logging.js';
 import { withRequestId } from '../middlewares/meta.js';
 
 import { withTiming } from './__test-helpers__/middleware.js';
+import { contextVar } from './context/variable.js';
 import type { ExtendableContext } from './types/context.js';
 import type { PreUnitFn } from './types/unit.js';
 import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
+import { makeToken } from '@nestlingjs/container';
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 // ============================================================================
@@ -516,5 +518,55 @@ describe('Pipeline v2 — типизация меты хендлера', () => {
       );
 
     expect(typeof use).toBe('function');
+  });
+});
+
+// ============================================================================
+// TNeeds: писатель переменной с зависимостями
+// ============================================================================
+
+describe('Pipeline v2 — TNeeds писателя переменной', () => {
+  const Database$ = makeToken<{ begin(): string }>('Database');
+  const Tx = contextVar<string>()('tx');
+
+  it('DI-токены писателя попадают в TNeeds и блокируют исполнение', () => {
+    const pipeline = makePipeline().pre(
+      Tx.provide([Database$], (_ctx, db) => db.begin()),
+    );
+
+    type Needs = InferNeeds<typeof pipeline>;
+    type _HasNeeds = Expect<Equal<Needs, typeof Database$>>;
+
+    type Acc = InferAcc<typeof pipeline>;
+    type _HasTx = Expect<Acc extends { tx: string } ? true : false>;
+
+    // @ts-expect-error: pipeline с нерезолвленными зависимостями не исполним
+    acceptsExecutable(pipeline);
+  });
+
+  it('bind() разрешает TNeeds писателя в never', () => {
+    const bound = makePipeline()
+      .pre(Tx.provide([Database$], (_ctx, db) => db.begin()))
+      .bind(() => ({ begin: () => 'tx' }));
+
+    type Needs = InferNeeds<typeof bound>;
+    type _NoNeeds = Expect<Equal<Needs, never>>;
+
+    acceptsExecutable(bound);
+  });
+
+  it('требования писателя из аннотации ctx проверяются в точке pre', () => {
+    const withTenant = Tx.provide(
+      [Database$],
+      (ctx: ExtendableContext<{ tenant: string }>, db) =>
+        `${ctx.input.tenant}:${db.begin()}`,
+    );
+
+    makePipeline()
+      .pre(addField({ tenant: 'acme' }))
+      .pre(withTenant);
+
+    // @ts-expect-error: слоя, кладущего tenant, перед писателем нет
+    makePipeline().pre(withTenant);
   });
 });

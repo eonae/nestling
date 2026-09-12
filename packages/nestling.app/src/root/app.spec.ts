@@ -5,6 +5,7 @@
 
 import type { AnyInput, ExtendableContext } from '../pipeline/index.js';
 import {
+  contextVar,
   makeEmptyContext,
   makeEndpoint,
   makeFail,
@@ -1084,5 +1085,32 @@ describe('assemble — именованные экземпляры трансп�
     await expect(app.check()).rejects.toThrow(
       /is required by endpoint 'GET \/metrics'/,
     );
+  });
+});
+
+describe('assemble — писатель переменной с зависимостями', () => {
+  it('незарегистрированная зависимость писателя — ошибка старта до приёма запросов', async () => {
+    const Database$ = makeToken<{ begin(): string }>('Database');
+    const Tx = contextVar<string>()('tx');
+
+    const BrokenEndpoint = testEndpoint({
+      method: 'GET',
+      path: '/broken',
+      pipeline: makePipeline().pre(
+        Tx.provide([Database$], (_ctx, db) => db.begin()),
+      ),
+      handler: async () => new Ok({}),
+    });
+
+    const transport = new MockTransport();
+    const app = makeApp({
+      features: [makeFeature({ name: 'billing', endpoints: [BrokenEndpoint] })],
+      transports: [asTransport(transport)],
+    }).assemble();
+
+    await expect(app.run()).rejects.toThrow(
+      /Dependency 'Database'.*GET \/broken.*module 'billing'.*not available in the DI container/s,
+    );
+    expect(transport.serving).toBe(false);
   });
 });
