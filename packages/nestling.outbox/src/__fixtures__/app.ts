@@ -114,7 +114,7 @@ export const CreateUser = makeEndpoint({
 /** Хендлер, запросивший операцию, которой нет в списке плагина */
 @Handler([outboxed(UserDeleted)])
 export class DeleteUserHandler {
-  constructor(private readonly deleted: Emitter<typeof UserDeleted>) {}
+  constructor(private readonly deleted: OutboxEmitter<typeof UserDeleted>) {}
 
   async handle(input: { id: string }): Output<undefined> {
     await this.deleted.emit({ id: input.id });

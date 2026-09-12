@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
+/* eslint-disable @nestlingjs/dependency-list -- негативные случаи расходятся с конструктором намеренно: их отвергает компилятор */
 
 /**
  * Три роли класса: метаданные, списки зависимостей и запрещённые формы.

@@ -136,6 +136,16 @@ ruleTester.run('dependency-list', dependencyList, {
         }`,
     },
     {
+      name: 'класс с именем Logger, объявленный в файле, — обычный класс',
+      code: `
+        import { Component } from '@nestlingjs/container';
+        class Logger {}
+        @Component([Logger])
+        class Greeter {
+          constructor(readonly logger: Logger) {}
+        }`,
+    },
+    {
       name: 'многострочный список из всех строк таблицы',
       code: `${prelude}
         @Component([
@@ -576,6 +586,39 @@ ruleTester.run('dependency-list', dependencyList, {
     },
 
     // Расхождение элемента: suggestion, автофикса нет
+    {
+      name: 'класс с именем Logger при видимом Logger$: семейство сильнее',
+      code: `${prelude}
+        class Logger {}
+        @Component([Logger])
+        class Greeter {
+          constructor(readonly logger: Logger) {}
+        }`,
+      output: null,
+      errors: [
+        {
+          messageId: 'mismatch',
+          data: {
+            className: 'Greeter',
+            parameter: 'logger',
+            type: 'Logger',
+            expected: 'Logger$.auto',
+            written: 'Logger',
+          },
+          suggestions: [
+            {
+              messageId: 'replace',
+              output: `${prelude}
+        class Logger {}
+        @Component([Logger$.auto])
+        class Greeter {
+          constructor(readonly logger: Logger) {}
+        }`,
+            },
+          ],
+        },
+      ],
+    },
     {
       name: 'DI-токен другого имени — suggestion',
       code: `${prelude}

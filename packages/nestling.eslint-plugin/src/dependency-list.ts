@@ -281,10 +281,11 @@ function arrayElementOf(
 /**
  * Ожидаемый элемент по типу параметра — таблица правила.
  *
- * Строки проверяются по порядку: массив, `Logger`, тип при видимом `X$`,
- * класс, `Config`/`Port`/`Emitter` с `typeof`. Видимый `X$` сильнее
+ * Строки проверяются по порядку: массив, тип при видимом `X$`, класс,
+ * `Logger`, `Config`/`Port`/`Emitter` с `typeof`. Видимый `X$` сильнее
  * классификации: класс тоже бывает зарегистрирован под DI-токеном
- * интерфейса.
+ * интерфейса. Класс сильнее строки `Logger`: класс с таким именем,
+ * объявленный в файле или импортированный значением, — обычный класс.
  */
 function expectedOf(
   type: TSESTree.TypeNode | undefined,
@@ -314,16 +315,26 @@ function expectedOf(
 
   if (args.length === 0) {
     const token = `${name}${TOKEN_SUFFIX}`;
-
-    if (name === LOGGER) {
-      return { kind: 'family', head: token, canonical: `${token}.auto` };
-    }
+    // `Logger$` — семейство: голый `Logger$` не компилируется, канон — `.auto`
+    const logger = {
+      kind: 'family',
+      head: token,
+      canonical: `${token}.auto`,
+    } as const;
 
     if (lookup.visible(token)) {
-      return { kind: 'family', head: token, canonical: token };
+      return name === LOGGER
+        ? logger
+        : { kind: 'family', head: token, canonical: token };
     }
 
-    return lookup.isClass(name) ? { kind: 'identifier', name } : OPAQUE;
+    if (lookup.isClass(name)) {
+      return { kind: 'identifier', name };
+    }
+
+    // Тип `Logger` импортируют через `import type`, и без видимого `Logger$`
+    // строка таблицы срабатывает по имени
+    return name === LOGGER ? logger : OPAQUE;
   }
 
   const query = args.length === 1 ? typeQueryName(args[0]) : undefined;
