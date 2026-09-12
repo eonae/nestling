@@ -56,7 +56,18 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
 2. **Create the change directory**
 
    First make sure the name is free: no branch `change/<name>` and no archive
-   `openspec/changes/archive/*-<name>`. Then:
+   `openspec/changes/archive/*-<name>`.
+
+   The name is now known, so offer the session rename right here, before any
+   artifact is written — the session cannot rename itself, and the user does
+   it while the proposal is being generated. A copy-ready line on its own:
+
+   ```text
+   /rename change/<name>
+   ```
+
+   The name lets the user and the Merger session tell this session apart
+   from the others. Then:
    ```bash
    openspec new change "<name>"
    ```
@@ -115,13 +126,6 @@ After completing all artifacts, summarize:
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
 - Prompt: "Run `/opsx:apply` to start implementing."
-- Rename offer, as a copy-ready line on its own — the session cannot rename itself:
-
-  ```text
-  /rename change/<name>
-  ```
-
-  The name lets the user and the Merger session tell this session apart from the others.
 
 **Artifact Creation Guidelines**
 
