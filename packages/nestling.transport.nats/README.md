@@ -34,17 +34,14 @@ await app.assemble(load(RootConfig).features).run();
 ## Экспорты
 
 - **Транспорт** ([design](../../docs/design/transports.md)) — `nats`,
-  `NatsBus`, `NatsTransportOptions`, `NatsSubscriptionOptions`,
-  `natsConfigKeys`.
-- **Соединение** — `NatsConnector`, `defaultConnector`, `NatsConnectOptions`,
-  `NatsConnectionInfo`, `NatsDeliveryFailure`.
+  `NatsBus`, `NatsTransportOptions`, `natsConfigKeys`.
+- **Соединение** — `NatsConnectionInfo`, `NatsDeliveryFailure`.
+- **Шов коннектора** — `NatsConnector`, `NatsConnectOptions`, `NatsLike`.
+  Свой клиент брокера подставляется опцией фабрики; формы сообщений и
+  JetStream входят в `NatsLike`, называть их для этого не нужно.
 - **Адресация** — `consumerNameOf`, `groupOf`, `streamNameOf`,
   `SUBJECT_HEADER`, `CONTEXT_HEADER`, `IDEMPOTENCY_HEADER`, `TIMEOUT_HEADER`.
 - **Кодек** — `jsonCodec`, `NatsCodec`.
-- **Формы клиента брокера** — `NatsLike`, `NatsMsgLike`, `NatsHeadersLike`,
-  `NatsJsMsgLike`, `NatsJetStreamLike`, `NatsJetStreamManagerLike`,
-  `NatsPubAckLike`, `NatsStreamConfigLike`, `NatsConsumerConfigLike`,
-  `NatsSubscriptionLike`.
 - **Подпуть `./testing`** — `natsDouble`, `NatsDouble`, `NatsDoubleError`,
   `HeadersDouble`, `subjectMatches`, `DEFAULT_MAX_DELIVER`,
   `NATS_CONNECTION_CLOSED`, `NATS_NO_RESPONDERS`, `NATS_TIMEOUT`.

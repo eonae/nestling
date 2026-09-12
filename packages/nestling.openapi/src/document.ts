@@ -24,8 +24,9 @@ import type {
 
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { assertConverters, busBindingOf, describeForm } from '@nestlingjs/app';
-import type { HttpBinding } from '@nestlingjs/transport.http';
-import { httpBindingOf, isHttpBinding } from '@nestlingjs/transport.http';
+import type { HttpBinding } from '@nestlingjs/operations';
+import { isHttpBinding } from '@nestlingjs/operations';
+import { httpBindingOf } from '@nestlingjs/transport.http';
 
 /** Endpoint, отобранный для документа: его карта уже прочитана */
 interface Documented {

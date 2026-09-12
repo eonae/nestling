@@ -47,34 +47,28 @@ await makeApp({
 ## Экспорты
 
 - **Транспорт** ([design](../../docs/design/transports.md)) — `http`,
-  `HTTP_CAPABILITIES`, `HTTP_TRANSPORT_NAME`, `httpServerKeys`, `HttpTransport`,
-  `HttpTransport$`, `HttpTransportOptions`.
-- **Сервер и пробы** — `httpProbes`, `HttpProbesOptions`, `HttpRequestListener`,
-  `httpServer`, `HttpServer`, `HttpServer$`, `HttpServerOptions`,
-  `HttpServerSpec`, `NotReady`.
+  `HTTP_CAPABILITIES`, `HTTP_TRANSPORT_NAME`, `httpServerKeys`,
+  `HttpTransport`, `HttpTransport$`.
+- **Сервер и пробы** — `httpProbes`, `httpServer`, `HttpServer`,
+  `HttpServer$`.
 - **Декларация endpoint'а** ([design](../../docs/design/endpoints.md)) —
-  `assemblePayload`, `BindingBearer`, `bindingNeedsBody`, `httpBindingOf`,
-  `httpEndpoint`, `httpEndpoint.implement`, `HttpEndpointDictionary`,
-  `HttpHandlerClass`, `HttpHandlerFn`, `HttpImplementDictionary`, `HttpRouter`,
-  `HttpStartContext`, `PayloadSources`, `readQuery`, `RouteEntry`,
-  `StartContext`.
+  `httpBindingOf`, `httpEndpoint`, `httpEndpoint.implement`, `HttpRouter`,
+  `HttpStartContext`.
 
   Конструкторов два. `httpEndpoint({ method, path, … })` объявляет адрес
   сам. `httpEndpoint.implement(Operation, { … })` реализует операцию с
   секцией `http:`: адрес, схемы, `errors` и `doc` берутся с неё.
-- **Запрос и ответ** — `BytesObserver`, `collectFileParts`, `Cookie`,
-  `DEFAULT_REDIRECT_STATUS`, `DEFAULT_SSE_HEARTBEAT`, `httpCodeOf`,
-  `HttpHandler`, `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`,
-  `HttpRequest`, `HttpResponse`, `HttpResponseMeta`, `HttpResponseOptions`,
-  `MultipartResult`, `parseJson`, `parseJsonBuffer`, `parseMultipartForm`,
-  `parseNdjson`, `parseRaw`, `readBody`, `RedirectOptions`, `SendOptions`,
-  `sendResponse`, `SSE_ERROR_EVENT`.
+- **Запрос и ответ** — `Cookie`, `httpCodeOf`, `HttpHandler`,
+  `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`, `HttpRequest`,
+  `HttpResponse`.
+- **Байтовый уровень** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
+  `parseMultipartForm`, `parseNdjson`, `parseRaw`, `readQuery`,
+  `sendResponse`.
+
+  Эти части публичны намеренно: на них собирается своя реализация
+  `ITransport` поверх стороннего HTTP-сервера, без правок пакета.
 - **Юниты пайплайна** ([design](../../docs/design/pipeline.md)) —
   `httpAccessLog`, `withClientIp`, `withHeader`.
-- **Ошибки транспорта** — `JsonParseError`, `MultipartFieldError`,
-  `PayloadTooLargeError`.
-- **Реэкспорт [`@nestlingjs/operations`](../nestling.operations/)** — две формы
-  bind-карты приходят из пакета-соседа.
 
 ## Границы пакета
 
