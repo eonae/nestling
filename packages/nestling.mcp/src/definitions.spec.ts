@@ -1,167 +1,144 @@
 /**
- * Построение определений: перевод схем и нарушения объявления.
+ * Построение определений инструментов и диагностика объявления.
  *
- * Нарушения сообщаются одним списком. Проверяется и это: два дефектных
- * инструмента дают одно сообщение, в котором названы оба.
+ * Маршруты берутся у настоящего диспетчера: проекция декларации — это то,
+ * что транспорт получает в `serve`, и строить её вручную значило бы
+ * проверять не тот вход.
  */
 
 import { buildToolDefinitions } from './definitions.js';
-import { tool } from './tool.js';
+import { mcpTool } from './tool.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeRequest, stream } from '@nestlingjs/operations';
+import type { ExecutableDeclaration } from '@nestlingjs/app';
+import { makeDispatch, Ok } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { z } from 'zod';
 
 const converters = [zodConverter()];
 
-const CreateUser = makeRequest({
-  name: 'mcp-definitions-spec.users.create',
-  input: z.object({ email: z.string() }),
-  output: z.object({ id: z.string() }),
-  doc: { summary: 'Create a user' },
+/** Проекции маршрутов: то, что транспорт видит в `dispatch.routes` */
+const routesOf = (...tools: ExecutableDeclaration[]) =>
+  makeDispatch(tools).routes;
+
+const Search = mcpTool('search_users', {
+  description: 'Найти пользователей по подстроке в адресе почты.',
+  input: z.object({ query: z.string() }),
+  output: z.object({ total: z.number() }),
+  annotations: { readOnlyHint: true },
+  handler: () => new Ok({ total: 0 }),
 });
 
-const CountUsers = makeRequest({
-  name: 'mcp-definitions-spec.users.count',
-  input: z.object({ tenant: z.string() }),
+const Ping = mcpTool('ping_service', {
+  description: 'Проверить, что сервис отвечает.',
+  output: z.object({ up: z.boolean() }),
+  handler: () => new Ok({ up: true }),
+});
+
+const CountUsers = mcpTool('count_users', {
+  description: 'Сосчитать пользователей.',
+  input: z.object({ active: z.boolean() }),
   output: z.number(),
-  doc: { summary: 'Count users' },
+  handler: () => new Ok(1),
 });
 
-const Ping = makeRequest({
-  name: 'mcp-definitions-spec.ping',
-  output: z.object({ pong: z.boolean() }),
-  doc: { summary: 'Ping the service' },
-});
-
-const ImportUsers = makeRequest({
-  name: 'mcp-definitions-spec.users.import',
-  input: stream(z.object({ email: z.string() })),
-  output: z.object({ imported: z.number() }),
-  doc: { summary: 'Import users' },
-});
-
-const Silent = makeRequest({
-  name: 'mcp-definitions-spec.users.silent',
+const Nameless = mcpTool('nameless_tool', {
+  description: '',
   input: z.object({ id: z.string() }),
-  output: z.object({ ok: z.boolean() }),
+  handler: () => new Ok(null),
 });
 
-describe('buildToolDefinitions(tools, options)', () => {
-  it('переводит схему входа в объектную JSON Schema', () => {
-    const [built] = buildToolDefinitions([tool(CreateUser)], { converters });
+const Primitive = mcpTool('primitive_input', {
+  description: 'Вход примитивом.',
+  input: z.string(),
+  handler: () => new Ok(null),
+});
 
-    expect(built.definition.inputSchema).toMatchObject({
+describe('buildToolDefinitions(routes, { converters })', () => {
+  it('переводит схему входа в объектную JSON Schema', () => {
+    const [tool] = buildToolDefinitions(routesOf(Search), { converters });
+
+    expect(tool.definition.name).toBe('search_users');
+    expect(tool.definition.inputSchema).toMatchObject({
       type: 'object',
-      properties: { email: { type: 'string' } },
+      properties: { query: { type: 'string' } },
     });
   });
 
-  it('объявляет схему выхода, когда она переводится в объектную', () => {
-    const [built] = buildToolDefinitions([tool(CreateUser)], { converters });
+  it('объявляет схему выхода при объектной форме выхода', () => {
+    const [tool] = buildToolDefinitions(routesOf(Search), { converters });
 
-    expect(built.definition.outputSchema).toMatchObject({ type: 'object' });
-    expect(built.structured).toBe(true);
+    expect(tool.definition.outputSchema).toMatchObject({ type: 'object' });
+    expect(tool.structured).toBe(true);
   });
 
-  it('оставляет схему выхода необъявленной, когда выход не объектный', () => {
-    const [built] = buildToolDefinitions([tool(CountUsers)], { converters });
+  it('не объявляет схему выхода при необъектной форме', () => {
+    const [tool] = buildToolDefinitions(routesOf(CountUsers), { converters });
 
-    expect(built.definition.outputSchema).toBeUndefined();
-    expect(built.structured).toBe(false);
+    expect(tool.definition.outputSchema).toBeUndefined();
+    expect(tool.structured).toBe(false);
   });
 
-  it('даёт операции без входа пустую объектную схему', () => {
-    const [built] = buildToolDefinitions([tool(Ping)], { converters });
+  it('даёт инструменту без входа пустую объектную схему', () => {
+    const [tool] = buildToolDefinitions(routesOf(Ping), { converters });
 
-    expect(built.definition.inputSchema).toEqual({
+    expect(tool.definition.inputSchema).toEqual({
       type: 'object',
       properties: {},
     });
   });
 
-  it('переносит имя, описание и подсказки в определение', () => {
-    const [built] = buildToolDefinitions(
-      [tool(CreateUser, { annotations: { idempotentHint: false } })],
-      { converters },
+  it('переносит описание и подсказки в определение', () => {
+    const [tool] = buildToolDefinitions(routesOf(Search), { converters });
+
+    expect(tool.definition.description).toBe(
+      'Найти пользователей по подстроке в адресе почты.',
     );
-
-    expect(built.definition).toMatchObject({
-      name: 'mcp-definitions-spec_users_create',
-      description: 'Create a user',
-      annotations: { idempotentHint: false },
-    });
+    expect(tool.definition.annotations).toEqual({ readOnlyHint: true });
   });
 
-  it('сообщает об отсутствии конвертера, называя инструмент и слот', () => {
-    expect(() => buildToolDefinitions([tool(CreateUser)], {})).toThrow(
-      /'input' schema is a 'zod' schema, and no converter for that vendor/,
-    );
+  it('сохраняет порядок объявления', () => {
+    const built = buildToolDefinitions(routesOf(Search, Ping), { converters });
+
+    expect(built.map((tool) => tool.pattern)).toEqual([
+      'search_users',
+      'ping_service',
+    ]);
   });
 
-  it('сообщает о непереводимой схеме', () => {
-    const broken = zodConverter();
-    const failing = {
-      vendor: broken.vendor,
-      toJsonSchema: () => {
-        throw new Error('unrepresentable');
-      },
-    };
-
-    expect(() =>
-      buildToolDefinitions([tool(CreateUser)], { converters: [failing] }),
-    ).toThrow(/could not be converted to JSON Schema: unrepresentable/);
-  });
-
-  it('сообщает о необъектном входе', () => {
-    expect(() =>
-      buildToolDefinitions([tool(ImportUsers)], { converters }),
-    ).toThrow(/'input' is not an object form/);
-  });
-
-  it('сообщает об отсутствии описания, называя три места', () => {
-    expect(() => buildToolDefinitions([tool(Silent)], { converters })).toThrow(
-      /it has no description.*doc\.summary/s,
+  it('падает, когда конвертера для вендора схемы не передали', () => {
+    expect(() => buildToolDefinitions(routesOf(Search), {})).toThrow(
+      /tool 'search_users'.*'input' schema is a 'zod' schema.*no converter/s,
     );
   });
 
-  it('отвергает имя, которое не принимает протокол', () => {
+  it('падает, когда у инструмента нет описания', () => {
     expect(() =>
-      buildToolDefinitions([tool(CreateUser, { name: 'users/create' })], {
-        converters,
-      }),
-    ).toThrow(/its name does not match/);
+      buildToolDefinitions(routesOf(Nameless), { converters }),
+    ).toThrow(/tool 'nameless_tool'.*has no description/s);
   });
 
-  it('называет подстановку точек причиной столкновения имён', () => {
-    const Dotted = makeRequest({
-      name: 'mcp-definitions-spec.collide.one',
-      input: z.object({ id: z.string() }),
-      doc: { summary: 'One' },
-    });
-    const Underscored = makeRequest({
-      name: 'mcp-definitions-spec_collide_one',
-      input: z.object({ id: z.string() }),
-      doc: { summary: 'Two' },
-    });
-
+  it('падает, когда вход не переводится в объектную схему', () => {
     expect(() =>
-      buildToolDefinitions([tool(Dotted), tool(Underscored)], { converters }),
-    ).toThrow(/derived from the operation name with dots replaced/);
+      buildToolDefinitions(routesOf(Primitive), { converters }),
+    ).toThrow(/tool 'primitive_input'.*'input' is not an object form/s);
   });
 
-  it('сообщает два нарушения одним списком', () => {
+  it('сообщает нарушения всех инструментов одним списком', () => {
     let message = '';
 
     try {
-      buildToolDefinitions([tool(Silent), tool(ImportUsers)], { converters });
+      buildToolDefinitions(routesOf(Nameless, Primitive), { converters });
     } catch (error) {
       message = (error as Error).message;
     }
 
-    expect(message).toMatch(/^2 tool\(s\) cannot be exposed over MCP:/);
-    expect(message).toContain('mcp-definitions-spec.users.silent');
-    expect(message).toContain('mcp-definitions-spec.users.import');
+    expect(message).toMatch(
+      /2 problem\(s\) in tools declared on the MCP transport/,
+    );
+    expect(message).toMatch(/tool 'nameless_tool': it has no description/);
+    expect(message).toMatch(
+      /tool 'primitive_input': its 'input' is not an object form/,
+    );
   });
 });

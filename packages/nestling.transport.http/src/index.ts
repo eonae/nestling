@@ -38,6 +38,16 @@ export {
 // ./adapter.js — 2
 export { httpCodeOf, sendResponse } from './adapter.js';
 
+// ./errors.js — 1
+/**
+ * Превышение лимита тела запроса.
+ *
+ * Публичен ради транспорта поверх этого же сервера: он читает тело
+ * `parseRaw` и без этого класса не отличил бы «клиент прислал слишком
+ * много» от внутренней ошибки.
+ */
+export { PayloadTooLargeError } from './errors.js';
+
 // ./helpers.js — 2
 export { httpEndpoint } from './helpers.js';
 export type { HttpStartContext } from './helpers.js';

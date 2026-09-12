@@ -1,17 +1,15 @@
 /**
- * Опции сервера в том виде, в каком их читает рантайм пакета.
+ * Опции транспорта в том виде, в каком их читает рантайм пакета.
  *
- * Плагин принимает словарь с необязательными полями, нормализует его один
- * раз при создании и кладёт результат в контейнер под {@link McpOptions$}.
- * Обработчик протокола и карта сессий читают уже нормализованное значение.
+ * `mcp(...)` принимает словарь с необязательными полями, нормализует его
+ * один раз при создании объявления и отдаёт результат экземпляру
+ * транспорта. Обработчик протокола и карта сессий читают уже
+ * нормализованное значение, поэтому умолчания подставляются в одном месте.
  */
 
 import type { McpServerInfo } from './types.js';
 
-import type { InjectionToken } from '@nestlingjs/container';
-import { makeToken } from '@nestlingjs/container';
-
-/** Путь endpoint'а по умолчанию */
+/** Путь, по которому транспорт принимает сообщения протокола */
 export const DEFAULT_PATH = '/mcp';
 
 /**
@@ -32,10 +30,13 @@ export const DEFAULT_SESSION_LIMIT = 100;
  */
 export const DEFAULT_SESSION_IDLE_MS = 5 * 60 * 1000;
 
-/** Опции сервера после нормализации: значения по умолчанию уже подставлены */
+/** Опции транспорта после нормализации: умолчания уже подставлены */
 export interface McpRuntimeOptions {
   /** Имя и версия сервера; уходят клиенту в ответе `initialize` */
-  readonly server: McpServerInfo;
+  readonly info: McpServerInfo;
+
+  /** Путь, по которому транспорт берёт `POST` и `DELETE` */
+  readonly path: string;
 
   /** Предельное число открытых сессий */
   readonly sessionLimit: number;
@@ -43,12 +44,3 @@ export interface McpRuntimeOptions {
   /** Срок бездействия сессии в миллисекундах */
   readonly sessionIdleMs: number;
 }
-
-/**
- * DI-токен нормализованных опций.
- *
- * Публичен ради тестов и своих провайдеров: значение, которое читают
- * карта сессий и обработчик, должно быть доступно и снаружи.
- */
-export const McpOptions$: InjectionToken<McpRuntimeOptions> =
-  makeToken<McpRuntimeOptions>('nestling:mcp:options');

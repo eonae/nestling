@@ -5,21 +5,20 @@
  * двух, а схема третьего не переводится, оно узнаёт про все три сразу — тем
  * же приёмом, которым копит нарушения генератор OpenAPI.
  *
- * Нарушения бросаются на фазе ASSEMBLE, до INIT и до открытия сокета:
- * определения строит провайдер жадного контейнера, поэтому отдельного кода
- * для этой гарантии не нужно.
+ * Нарушения бросаются в `serve`, до того как сервер откроет сокет: старт
+ * идёт шагами, и `listen` — последний из них.
  */
 
 /** Одно нарушение: где оно и в чём состоит */
 export interface McpViolation {
-  /** Инструмент: `tool 'users_create' (operation 'users.create')` */
+  /** Инструмент: `tool 'users_create'` */
   readonly where: string;
 
   /** Суть нарушения и способ починки — хвост строки диагностики */
   readonly detail: string;
 }
 
-/** Копилка нарушений одной сборки */
+/** Копилка нарушений одного старта */
 export class McpDiagnostics {
   readonly #violations: McpViolation[] = [];
 
@@ -46,16 +45,17 @@ export class McpDiagnostics {
       .join('\n');
 
     throw new Error(
-      `${this.#violations.length} tool(s) cannot be exposed over MCP:\n\n` +
+      `${this.#violations.length} problem(s) in tools declared on the MCP ` +
+        `transport:\n\n` +
         `${lines}\n\n` +
-        `Every tool in 'tools:' must carry a name the protocol accepts, a ` +
-        `description the agent can choose it by, and an object input ` +
-        `schema. Fix each one, or drop it from the list.`,
+        `Every tool declared on the MCP transport must carry a description ` +
+        `the agent can choose it by and an object input schema. Fix each ` +
+        `one, or move the declaration to another transport.`,
     );
   }
 }
 
 /** Координаты инструмента для текста диагностики */
-export function whereOf(toolName: string, operationName: string): string {
-  return `tool '${toolName}' (operation '${operationName}')`;
+export function whereOf(toolName: string): string {
+  return `tool '${toolName}'`;
 }

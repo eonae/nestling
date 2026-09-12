@@ -1,14 +1,16 @@
 /**
  * Объявление инструмента: что берётся с операции и что добавляет словарь.
  *
- * Здесь проверяется только вывод. Нарушения — имя не по шаблону, описания
- * нет, имена столкнулись — сообщаются при сборке, и их проверяет
+ * Здесь проверяется вывод имени, описания и биндинга. Нарушения, которые
+ * видны только при старте — описания нет, схема не переводится, — проверяет
  * `definitions.spec.ts`.
  */
 
-import { tool } from './tool.js';
+import { McpTransport$ } from './token.js';
+import { mcpBindingOf, mcpTool } from './tool.js';
 
 import { describe, expect, it } from '@jest/globals';
+import { Ok } from '@nestlingjs/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
@@ -29,6 +31,7 @@ const FindUsers = makeRequest({
 const Silent = makeRequest({
   name: 'mcp-tool-spec.users.silent',
   input: z.object({ id: z.string() }),
+  output: z.object({ ok: z.boolean() }),
 });
 
 const SendEmail = makeCommand({
@@ -41,64 +44,160 @@ const UserRegistered = makeEvent({
   input: z.object({ id: z.string() }),
 });
 
-describe('tool(operation, options?)', () => {
-  it('возвращает значение и ничего не регистрирует', () => {
-    const declared = tool(CreateUser);
+describe('mcpTool.implement(operation, { … })', () => {
+  it('берёт схемы, отказы и секцию doc с операции', () => {
+    const tool = mcpTool.implement(CreateUser, {
+      handler: () => new Ok({ id: 'u-1' }),
+    });
 
-    expect(declared.operation).toBe(CreateUser);
-    expect(declared.name).toBe('mcp-tool-spec_users_create');
+    expect(tool.input).toBe(CreateUser.input);
+    expect(tool.output).toBe(CreateUser.output);
+    expect(tool.doc).toBe(CreateUser.doc);
+    expect(tool.transport).toBe(McpTransport$('default'));
   });
 
   it('заменяет точки подчёркиваниями в выведенном имени', () => {
-    expect(tool(FindUsers).name).toBe('mcp-tool-spec_users_find');
-    expect(tool(FindUsers).nameDerived).toBe(true);
+    const tool = mcpTool.implement(CreateUser, {
+      handler: () => new Ok({ id: 'u-1' }),
+    });
+
+    expect(tool.pattern).toBe('mcp-tool-spec_users_create');
   });
 
   it('перекрывает выведенное имя явным', () => {
-    const declared = tool(FindUsers, { name: 'search_users' });
+    const tool = mcpTool.implement(FindUsers, {
+      name: 'search_users',
+      handler: () => new Ok({ total: 0 }),
+    });
 
-    expect(declared.name).toBe('search_users');
-    expect(declared.nameDerived).toBe(false);
+    expect(tool.pattern).toBe('search_users');
   });
 
-  it('берёт описание из doc.summary, когда описания нет в словаре', () => {
-    expect(tool(CreateUser).description).toBe('Create a user');
+  it('берёт описание из doc.description раньше, чем из doc.summary', () => {
+    const tool = mcpTool.implement(FindUsers, {
+      handler: () => new Ok({ total: 0 }),
+    });
+
+    expect(mcpBindingOf(tool).description).toBe('The long one');
   });
 
-  it('предпочитает doc.description значению doc.summary', () => {
-    expect(tool(FindUsers).description).toBe('The long one');
+  it('берёт описание из doc.summary, когда description не объявлен', () => {
+    const tool = mcpTool.implement(CreateUser, {
+      handler: () => new Ok({ id: 'u-1' }),
+    });
+
+    expect(mcpBindingOf(tool).description).toBe('Create a user');
   });
 
-  it('перекрывает описание операции значением словаря', () => {
-    expect(tool(CreateUser, { description: 'Mine' }).description).toBe('Mine');
+  it('перекрывает описание операции описанием словаря', () => {
+    const tool = mcpTool.implement(FindUsers, {
+      description: 'Свой текст для агента',
+      handler: () => new Ok({ total: 0 }),
+    });
+
+    expect(mcpBindingOf(tool).description).toBe('Свой текст для агента');
   });
 
-  it('оставляет описание пустым, когда его нет ни в одном из трёх мест', () => {
-    expect(tool(Silent).description).toBeUndefined();
+  it('кладёт подсказки агенту в биндинг', () => {
+    const tool = mcpTool.implement(FindUsers, {
+      annotations: { readOnlyHint: true },
+      handler: () => new Ok({ total: 0 }),
+    });
+
+    expect(mcpBindingOf(tool).annotations).toEqual({ readOnlyHint: true });
   });
 
-  it('переносит подсказки агенту как есть', () => {
-    expect(tool(CreateUser, { annotations: { readOnlyHint: true } }))
-      .toHaveProperty('annotations', { readOnlyHint: true });
+  it('оставляет биндинг пустым, когда объявлять в него нечего', () => {
+    const tool = mcpTool.implement(Silent, {
+      handler: () => new Ok({ ok: true }),
+    });
+
+    expect(tool.binding).toBeUndefined();
+    expect(mcpBindingOf(tool)).toEqual({});
+  });
+
+  it('выбирает экземпляр транспорта через on', () => {
+    const tool = mcpTool.implement(Silent, {
+      name: 'silent_admin',
+      on: 'admin',
+      handler: () => new Ok({ ok: true }),
+    });
+
+    expect(tool.transport).toBe(McpTransport$('admin'));
   });
 
   it('отвергает операцию вида command', () => {
-    expect(() => tool(SendEmail as never)).toThrow(
-      /kind 'command'.*requires kind 'request'/s,
-    );
+    expect(() =>
+      (mcpTool.implement as (o: unknown, d: unknown) => unknown)(SendEmail, {
+        handler: () => new Ok(null),
+      }),
+    ).toThrow(/kind 'command'.*requires kind 'request'/s);
   });
 
   it('отвергает операцию вида event', () => {
-    expect(() => tool(UserRegistered as never)).toThrow(/kind 'event'/);
+    expect(() =>
+      (mcpTool.implement as (o: unknown, d: unknown) => unknown)(
+        UserRegistered,
+        { handler: () => new Ok(null) },
+      ),
+    ).toThrow(/kind 'event'/);
   });
 
-  it('отвергает значение, которое не операция', () => {
-    expect(() => tool({} as never)).toThrow(/created by makeRequest/);
+  it('отвергает первый аргумент, который не операция', () => {
+    expect(() =>
+      (mcpTool.implement as (o: unknown, d: unknown) => unknown)(
+        { name: 'x' },
+        { handler: () => new Ok(null) },
+      ),
+    ).toThrow(/must be an operation value created by makeRequest/);
   });
 
-  it('отвергает неизвестное поле словаря, называя известные', () => {
-    expect(() => tool(CreateUser, { title: 'Create' } as never)).toThrow(
-      /unknown field 'title'.*name, description, annotations/s,
-    );
+  it('отвергает поле операции в словаре реализации', () => {
+    expect(() =>
+      (mcpTool.implement as (o: unknown, d: unknown) => unknown)(CreateUser, {
+        input: z.object({ other: z.string() }),
+        handler: () => new Ok({ id: 'u-1' }),
+      }),
+    ).toThrow(/'input' belongs to the operation/);
+  });
+
+  it('отвергает имя не по шаблону протокола', () => {
+    expect(() =>
+      mcpTool.implement(CreateUser, {
+        name: 'users/create',
+        handler: () => new Ok({ id: 'u-1' }),
+      }),
+    ).toThrow(/does not match/);
+  });
+});
+
+describe("mcpTool('<name>', { … })", () => {
+  it('ставит имя инструмента паттерном декларации', () => {
+    const tool = mcpTool('search_users', {
+      description: 'Найти пользователей.',
+      input: z.object({ query: z.string() }),
+      output: z.object({ total: z.number() }),
+      handler: () => new Ok({ total: 0 }),
+    });
+
+    expect(tool.pattern).toBe('search_users');
+    expect(tool.transport).toBe(McpTransport$('default'));
+    expect(mcpBindingOf(tool).description).toBe('Найти пользователей.');
+  });
+
+  it('отвергает имя не по шаблону протокола', () => {
+    expect(() =>
+      mcpTool('users/create', {
+        description: 'Создать пользователя.',
+        handler: () => new Ok(null),
+      }),
+    ).toThrow(String.raw`[a-zA-Z0-9_-]{1,128}`);
+  });
+});
+
+describe('mcpBindingOf(bearer)', () => {
+  it('читает пустой биндинг как пустые данные', () => {
+    expect(mcpBindingOf({})).toEqual({});
+    expect(mcpBindingOf({ binding: 'not an object' })).toEqual({});
   });
 });

@@ -1,7 +1,7 @@
 {
   "name": "@nestlingjs/mcp",
   "version": "0.1.0",
-  "description": "Сервер MCP из деклараций операций: инструмент агента объявляется значением tool(Operation), схемы переводят те же конвертеры, что у OpenAPI",
+  "description": "MCP транспортом Nestling: инструмент агента — endpoint, схемы переводят те же конвертеры, что у OpenAPI",
   "keywords": [
     "nestling",
     "typescript",
@@ -9,7 +9,8 @@
     "mcp",
     "model-context-protocol",
     "agent",
-    "tools"
+    "tools",
+    "transport"
   ],
   "license": "MIT",
   "author": "eonae",

@@ -2,18 +2,18 @@
  * Обработчик сообщений протокола: пять методов и конверт JSON-RPC.
  *
  * Функция принимает тело запроса с заголовками и возвращает то, чем на
- * него отвечать. HTTP она не знает: транспортом занимается endpoint
- * плагина, и обработчик проверяется без поднятия приложения.
+ * него отвечать. HTTP она не знает: кадрированием ответа занимается
+ * транспорт, и обработчик проверяется без поднятия приложения.
  */
 
-import type { BoundToolDefinition } from './definitions.js';
+import type { BoundTool } from './definitions.js';
 import { McpSessionLimitReached, McpSessionNotFound } from './errors.js';
 import type { McpRuntimeOptions } from './options.js';
 import type { JsonRpcId, JsonRpcResponse } from './protocol.js';
 import {
   isSupportedVersion,
-  JsonRpcErrorCode,
   jsonRpcError,
+  JsonRpcErrorCode,
   jsonRpcResult,
   LATEST_PROTOCOL_VERSION,
   parseMessage,
@@ -22,10 +22,10 @@ import {
 import { toCallToolResult } from './result.js';
 import type { McpSessions } from './sessions.js';
 import { McpSessionLimitError } from './sessions.js';
+import { MCP_TRANSPORT_NAME } from './token.js';
 
-import type { AnyFail, Port } from '@nestlingjs/app';
-import { Fail } from '@nestlingjs/app';
-import type { RequestOperation } from '@nestlingjs/operations';
+import type { AnyFail, Dispatch, EndpointMeta, Raw } from '@nestlingjs/app';
+import { Fail, makeEmptyContext } from '@nestlingjs/app';
 
 /** Заголовок с идентификатором сессии */
 export const SESSION_HEADER = 'mcp-session-id';
@@ -40,15 +40,9 @@ export const VERSION_HEADER = 'mcp-protocol-version';
  * `notifications/initialized` доходит до сервера сразу за `initialize`.
  * Сессия нужна там, где ответ зависит от состава инструментов.
  */
-const SESSION_METHODS = new Set(['tools/list', 'tools/call']);
+const SESSION_METHODS = new Set(['tools/call', 'tools/list']);
 
-/** Инструмент с портом своей операции: то, чем обработчик исполняет вызов */
-export interface BoundTool extends BoundToolDefinition {
-  /** Вызывающая сторона операции: `Operation.caller` из контейнера */
-  readonly port: Port<RequestOperation<any, any, any>>;
-}
-
-/** Запрос к endpoint'у: тело, заголовки и сигнал отмены */
+/** Запрос к транспорту: тело, заголовки и сигнал отмены */
 export interface McpRequest {
   /** Тело запроса текстом; разбирает его обработчик */
   readonly body: string;
@@ -56,11 +50,11 @@ export interface McpRequest {
   /** Заголовки запроса; имена в нижнем регистре */
   readonly headers: Readonly<Record<string, unknown>>;
 
-  /** Сигнал отмены запроса: доходит до операции через `meta` вызова */
+  /** Сигнал отмены запроса: доходит до хендлера через контекст */
   readonly signal: AbortSignal;
 }
 
-/** Что endpoint должен отправить в ответ */
+/** Что транспорт должен отправить в ответ */
 export type McpOutcome =
   /** Ответ JSON-RPC со статусом `ok`; `sessionId` уходит заголовком */
   | {
@@ -70,14 +64,24 @@ export type McpOutcome =
     }
   /** Нотификация принята: статус `accepted` без тела */
   | { readonly kind: 'accepted' }
-  /** Отказ ядра: его тело собирает пайплайн, а не обработчик */
+  /** Запрос закрыл сессию: статус `no_content` без тела */
+  | { readonly kind: 'closed' }
+  /** Отказ транспорта: сообщения протокола в ответе нет */
   | { readonly kind: 'fail'; readonly fail: AnyFail };
 
 /** Всё, из чего обработчик исполняет сообщение */
 export interface McpContext {
+  /** Инструменты с готовыми определениями; построены в `serve` */
   readonly tools: readonly BoundTool[];
+
+  /** Карта сессий транспорта */
   readonly sessions: McpSessions;
+
+  /** Опции транспорта после нормализации */
   readonly options: McpRuntimeOptions;
+
+  /** Маршруты транспорта и исполнение endpoint'а */
+  readonly dispatch: Dispatch;
 }
 
 /** Читает заголовок запроса строкой */
@@ -88,11 +92,6 @@ function headerOf(
   const value = headers[name];
 
   return typeof value === 'string' ? value : undefined;
-}
-
-/** Отказ `bad_request` с одной строкой объяснения */
-function badRequest(message: string): AnyFail {
-  return Fail.badRequest(message);
 }
 
 /**
@@ -109,7 +108,7 @@ function checkVersion(request: McpRequest): AnyFail | undefined {
     return undefined;
   }
 
-  return badRequest(
+  return Fail.badRequest(
     `Header '${VERSION_HEADER}: ${declared}' names a protocol version this ` +
       `server does not implement. Supported versions are ` +
       `${SUPPORTED_PROTOCOL_VERSIONS.join(', ')}.`,
@@ -177,12 +176,18 @@ function initialize(
       // Объявлен один `tools`: ресурсов, промптов и логирования по
       // протоколу пакет не отдаёт
       capabilities: { tools: {} },
-      serverInfo: { ...context.options.server },
+      serverInfo: { ...context.options.info },
     }),
   };
 }
 
-/** Обслуживает `tools/call`: находит инструмент и зовёт порт его операции */
+/**
+ * Обслуживает `tools/call`: находит инструмент и исполняет его декларацию.
+ *
+ * Второго пути исполнения у пакета нет: инструмент проходит пайплайн своей
+ * декларации, её слои и её политики — тем же `dispatch.call`, каким HTTP
+ * исполняет свой endpoint.
+ */
 async function callTool(
   id: JsonRpcId,
   params: Record<string, unknown> | undefined,
@@ -216,28 +221,68 @@ async function callTool(
     };
   }
 
-  // Вход проверяет сам вызыватель схемой операции: непрошедший payload
-  // возвращается отказом `bad_request`, и агент читает его результатом
-  // вызова
-  const result = await found.port.call(params?.arguments, {
-    signal: request.signal,
-  });
+  const raw: Raw = {
+    transport: MCP_TRANSPORT_NAME,
+    pattern: found.pattern,
+    // Вход проверяет рантайм пайплайна схемой декларации: непрошедшие
+    // аргументы возвращаются отказом `bad_request`, и агент читает его
+    // результатом вызова
+    payload: params?.arguments,
+    attributes: { ...request.headers },
+  };
+
+  const endpoint: EndpointMeta = {
+    transport: MCP_TRANSPORT_NAME,
+    pattern: found.pattern,
+    input: found.route.input,
+    output: found.route.output,
+    // Объявленные отказы попадают в проверку границы только так:
+    // декларация → транспорт → контекст, без глобального реестра
+    errors: found.route.errors,
+  };
+
+  const response = await context.dispatch.call(
+    found.pattern,
+    makeEmptyContext(raw, endpoint, request.signal),
+  );
 
   return {
     kind: 'response',
-    body: jsonRpcResult(
-      id,
-      toCallToolResult(result, found.structured),
-    ),
+    body: jsonRpcResult(id, toCallToolResult(response, found.structured)),
   };
+}
+
+/**
+ * Закрывает сессию по запросу клиента.
+ *
+ * Сообщения протокола у такого запроса нет: клиент сообщает о закрытии
+ * методом запроса и заголовком сессии.
+ *
+ * @param request - Заголовки запроса; тело не читается
+ * @param context - Карта сессий транспорта
+ */
+export function closeSession(
+  request: McpRequest,
+  context: McpContext,
+): McpOutcome {
+  const declared = headerOf(request.headers, SESSION_HEADER);
+
+  if (declared === undefined || !context.sessions.close(declared)) {
+    return {
+      kind: 'fail',
+      fail: McpSessionNotFound({ sessionId: declared ?? '' }),
+    };
+  }
+
+  return { kind: 'closed' };
 }
 
 /**
  * Исполняет одно сообщение протокола.
  *
  * @param request - Тело запроса, заголовки и сигнал отмены
- * @param context - Инструменты, карта сессий и опции сервера
- * @returns Ответ JSON-RPC, принятая нотификация либо отказ ядра
+ * @param context - Инструменты, карта сессий, опции и диспетчер
+ * @returns Ответ JSON-RPC, принятая нотификация либо отказ транспорта
  */
 export async function handleMessage(
   request: McpRequest,
@@ -262,7 +307,7 @@ export async function handleMessage(
     if (declared === undefined) {
       return {
         kind: 'fail',
-        fail: badRequest(
+        fail: Fail.badRequest(
           `Header '${SESSION_HEADER}' is required for '${method}'. Send ` +
             `'initialize' first and pass back the session id it returns.`,
         ),
@@ -291,6 +336,8 @@ export async function handleMessage(
       return { kind: 'response', body: jsonRpcResult(id, {}) };
     }
     case 'tools/list': {
+      // Страничного перебора нет: список известен целиком с `serve` и во
+      // время работы не меняется
       return {
         kind: 'response',
         body: jsonRpcResult(id, {

@@ -30,7 +30,7 @@ export type JsonValue =
  */
 export interface McpObjectSchema {
   type: 'object';
-  properties?: { [key: string]: object };
+  properties?: Record<string, object>;
   required?: string[];
   [key: string]: unknown;
 }
@@ -109,7 +109,7 @@ export interface McpCallToolResult {
    * Есть только у успеха и только у инструмента с `outputSchema`: клиент
    * проверяет поле этой схемой, и отказ операции под неё не подходит.
    */
-  structuredContent?: { [key: string]: unknown };
+  structuredContent?: Record<string, unknown>;
 
   /** Вызов завершился отказом операции */
   isError?: boolean;

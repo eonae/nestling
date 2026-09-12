@@ -1,14 +1,17 @@
 /**
- * `@nestlingjs/mcp` — сервер MCP из деклараций операций.
+ * `@nestlingjs/mcp` — MCP транспортом Nestling.
  *
- * Инструмент агента объявляется значением: `tool(Operation, { … })` читает
- * имя, схемы, отказы и секцию `doc` операции, а словарь добавляет то, что
- * нужно агенту и чего в API нет. Список `tools:` плагина `mcp(...)` —
- * единственный источник состава.
+ * Агент присылает запрос, сервер выбирает маршрут, исполняет его
+ * пайплайном и отвечает: это работа транспорта, и объявляется он в
+ * `transports:` корня рядом с `http()`. Второго сокета не появляется —
+ * обработчик встаёт в цепочку уже объявленного HTTP-сервера.
  *
- * Плагин ставит два endpoint'а на уже объявленный HTTP-транспорт: `POST`
- * для сообщений протокола и `DELETE` для закрытия сессии. Второго сервера
- * и второго порта не появляется.
+ * Инструмент — endpoint этого транспорта. Форм две, как у всех
+ * транспортов: `mcpTool('search_users', { … })` объявляет инструмент
+ * вместе со схемами, `mcpTool.implement(CreateUser, { … })` обслуживает
+ * уже объявленную операцию. Отдельного списка состава нет: инструменты
+ * видны там же, где endpoint'ы любого другого транспорта, — в `endpoints:`
+ * фич.
  *
  * Зависимости от валидатора у пакета нет: перевод схемы в JSON Schema
  * приходит **данными** — списком `SchemaDocConverter`, тем же, который
@@ -18,9 +21,25 @@
  * внутренним. Полный перечень с разбивкой — в README пакета.
  */
 
+// ./transport.js — 4
+export { mcp, MCP_CAPABILITIES, McpTransport } from './transport.js';
+export type { McpTransportOptions } from './transport.js';
+
+// ./token.js — 2
+export { MCP_TRANSPORT_NAME, McpTransport$ } from './token.js';
+
+// ./tool.js — 6
+export { deriveToolName, mcpBindingOf, mcpTool } from './tool.js';
+export type {
+  AnyRequestOperation,
+  McpBinding,
+  McpImplementDictionary,
+  McpToolDictionary,
+} from './tool.js';
+
 // ./definitions.js — 3
 export { buildToolDefinitions } from './definitions.js';
-export type { BoundToolDefinition, BuildOptions } from './definitions.js';
+export type { BoundTool, BuildOptions } from './definitions.js';
 
 // ./diagnostics.js — 1
 export type { McpViolation } from './diagnostics.js';
@@ -29,21 +48,21 @@ export type { McpViolation } from './diagnostics.js';
 export { McpSessionLimitReached, McpSessionNotFound } from './errors.js';
 
 // ./handler.js — 6
-export { handleMessage, SESSION_HEADER, VERSION_HEADER } from './handler.js';
-export type { BoundTool, McpContext, McpOutcome, McpRequest } from './handler.js';
+export {
+  closeSession,
+  handleMessage,
+  SESSION_HEADER,
+  VERSION_HEADER,
+} from './handler.js';
+export type { McpContext, McpOutcome, McpRequest } from './handler.js';
 
-// ./options.js — 6
+// ./options.js — 4
 export {
   DEFAULT_PATH,
   DEFAULT_SESSION_IDLE_MS,
   DEFAULT_SESSION_LIMIT,
-  McpOptions$,
 } from './options.js';
 export type { McpRuntimeOptions } from './options.js';
-
-// ./plugin.js — 3
-export { mcp, McpTools$ } from './plugin.js';
-export type { McpOptions } from './plugin.js';
 
 // ./protocol.js — 6
 export {
@@ -60,14 +79,6 @@ export type {
 // ./sessions.js — 3
 export { McpSessions } from './sessions.js';
 export type { McpClientInfo, McpSession } from './sessions.js';
-
-// ./tool.js — 4
-export { tool } from './tool.js';
-export type {
-  AnyRequestOperation,
-  DeclaredTool,
-  McpToolOptions,
-} from './tool.js';
 
 // ./types.js — 6
 export type {

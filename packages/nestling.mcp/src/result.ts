@@ -1,5 +1,5 @@
 /**
- * Отображение результата операции на результат вызова инструмента.
+ * Отображение исхода пайплайна на результат вызова инструмента.
  *
  * Исходов два, и оба доходят до агента результатом вызова: успех и отказ.
  * Отказ ошибкой протокола не становится — объявленный отказ это часть
@@ -8,8 +8,7 @@
 
 import type { McpCallToolResult, McpContent } from './types.js';
 
-import { InternalError, isFail, Ok } from '@nestlingjs/app';
-import type { FailData } from '@nestlingjs/operations';
+import type { ErrorDetails, ResponseContext } from '@nestlingjs/app';
 
 /** Текстовый элемент результата */
 function text(value: string): McpContent[] {
@@ -28,7 +27,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * объявлена схема выхода, ещё и в `structuredContent`. Два поля нужны
  * потому, что часть клиентов структурированный ответ не читает.
  *
- * @param value - Значение `Ok` операции
+ * @param value - Значение успешного ответа
  * @param structured - Объявлена ли у инструмента схема выхода
  */
 export function successResult(
@@ -53,37 +52,32 @@ export function successResult(
  * Необъявленная ошибка приходит из пайплайна отказом `internal_error` с
  * общим сообщением: текста исключения и стека в нём уже нет.
  *
- * @param fail - Отказ, вернувшийся из вызова порта
+ * @param error - Детали отказа из контекста ответа
  */
-export function failureResult(fail: FailData): McpCallToolResult {
+export function failureResult(error: ErrorDetails): McpCallToolResult {
   const body: Record<string, unknown> = {
-    code: fail.code ?? InternalError.code,
-    message: fail.message ?? 'Error',
+    code: error.code,
+    message: error.error,
   };
 
-  if (fail.details !== undefined) {
-    body.details = fail.details;
+  if (error.details !== undefined) {
+    body.details = error.details;
   }
 
   return { content: text(JSON.stringify(body)), isError: true };
 }
 
 /**
- * Переводит ответ порта в результат вызова инструмента.
+ * Переводит контекст ответа в результат вызова инструмента.
  *
- * @param result - Ответ `port.call`: `Ok` или `Fail`
+ * @param response - Исход `dispatch.call`: успех или отказ
  * @param structured - Объявлена ли у инструмента схема выхода
  */
 export function toCallToolResult(
-  result: unknown,
+  response: ResponseContext,
   structured: boolean,
 ): McpCallToolResult {
-  if (isFail(result)) {
-    return failureResult(result);
-  }
-
-  return successResult(
-    result instanceof Ok ? result.value : result,
-    structured,
-  );
+  return response.isSuccess
+    ? successResult(response.value, structured)
+    : failureResult(response.value);
 }

@@ -1,5 +1,8 @@
 /**
- * Построение определений инструментов из объявленных операций.
+ * Построение определений инструментов из маршрутов транспорта.
+ *
+ * Источник состава — `dispatch.routes`: инструменты это endpoint'ы,
+ * объявленные на транспорте MCP, и второго списка у пакета нет.
  *
  * Схемы переводятся в JSON Schema помощником ядра `leafJsonSchema` — тем
  * же, которым пользуется генератор OpenAPI. Конвертер приходит данными в
@@ -8,33 +11,29 @@
  * Нарушения копятся в {@link McpDiagnostics} и бросаются одним списком.
  */
 
-import type { McpViolation } from './diagnostics.js';
 import { McpDiagnostics, whereOf } from './diagnostics.js';
-import type { AnyRequestOperation, DeclaredTool } from './tool.js';
-import { deriveToolName, TOOL_NAME_PATTERN } from './tool.js';
+import { mcpBindingOf } from './tool.js';
 import type { JsonValue, McpObjectSchema, McpToolDefinition } from './types.js';
 
-import type { SchemaDocConverter } from '@nestlingjs/app';
+import type { RouteDeclaration, SchemaDocConverter } from '@nestlingjs/app';
 import { describeForm, leafJsonSchema } from '@nestlingjs/app';
 
-/** Что построение определений получает помимо списка инструментов */
+/** Что построение определений получает помимо маршрутов */
 export interface BuildOptions {
   /** Конвертеры листовых схем: список — данные вызывающего */
   readonly converters?: readonly SchemaDocConverter[];
 }
 
-/**
- * Инструмент, готовый к вызову: определение для агента и операция, чей
- * порт его исполняет.
- */
-export interface BoundToolDefinition<
-  C extends AnyRequestOperation = AnyRequestOperation,
-> {
+/** Инструмент, готовый к вызову: определение для агента и его маршрут */
+export interface BoundTool {
   /** Определение, которое уходит агенту в `tools/list` */
   readonly definition: McpToolDefinition;
 
-  /** Операция, чей порт исполняет вызов */
-  readonly operation: C;
+  /** Паттерн декларации; им `dispatch.call` находит инструмент */
+  readonly pattern: string;
+
+  /** Проекция маршрута: формы io и объявленные отказы для контекста */
+  readonly route: RouteDeclaration;
 
   /**
    * Объявлена ли схема выхода.
@@ -57,7 +56,7 @@ function asObjectSchema(json: unknown): McpObjectSchema | undefined {
   return source.type === 'object' ? (source as McpObjectSchema) : undefined;
 }
 
-/** Пустая схема входа: операция без `input` принимает вызов без аргументов */
+/** Пустая схема входа: инструмент без `input` принимает вызов без аргументов */
 function emptyObjectSchema(): McpObjectSchema {
   return { type: 'object', properties: {} };
 }
@@ -68,6 +67,50 @@ type SlotOutcome =
   | { readonly outcome: 'empty' }
   | { readonly outcome: 'not-object' }
   | { readonly outcome: 'failed' };
+
+/**
+ * Приводит вывод конвертера к JSON-значению.
+ *
+ * Отбрасываются `undefined` и функции: они не переживут `JSON.stringify`,
+ * которым определение уходит агенту. Порядок ключей не меняется — его
+ * задал автор схемы.
+ */
+function asJson(value: unknown): JsonValue {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => asJson(item));
+  }
+
+  switch (typeof value) {
+    case 'boolean':
+    case 'string': {
+      return value;
+    }
+    case 'number': {
+      return Number.isFinite(value) ? value : null;
+    }
+    case 'object': {
+      const result: Record<string, JsonValue> = {};
+
+      for (const [key, item] of Object.entries(
+        value as Record<string, unknown>,
+      )) {
+        if (item === undefined || typeof item === 'function') {
+          continue;
+        }
+        result[key] = asJson(item);
+      }
+
+      return result;
+    }
+    default: {
+      return null;
+    }
+  }
+}
 
 /**
  * Переводит форму io в объектную JSON Schema.
@@ -137,103 +180,25 @@ function convertSlot(
 }
 
 /**
- * Приводит вывод конвертера к JSON-значению.
- *
- * Отбрасываются `undefined` и функции: они не переживут `JSON.stringify`,
- * которым определение уходит агенту. Порядок ключей не меняется — его
- * задал автор схемы.
- */
-function asJson(value: unknown): JsonValue {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => asJson(item));
-  }
-
-  switch (typeof value) {
-    case 'boolean':
-    case 'string': {
-      return value;
-    }
-    case 'number': {
-      return Number.isFinite(value) ? value : null;
-    }
-    case 'object': {
-      const result: Record<string, JsonValue> = {};
-
-      for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-        if (item === undefined || typeof item === 'function') {
-          continue;
-        }
-        result[key] = asJson(item);
-      }
-
-      return result;
-    }
-    default: {
-      return null;
-    }
-  }
-}
-
-/** Сообщает о столкновении имён, называя подстановку причиной */
-function reportCollision(
-  first: DeclaredTool,
-  second: DeclaredTool,
-  diagnostics: McpDiagnostics,
-): void {
-  const derived = first.nameDerived || second.nameDerived;
-  const cause = derived
-    ? ` The name is derived from the operation name with dots replaced by ` +
-      `underscores, and '${deriveToolName(first.operation.name)}' comes out ` +
-      `of both. Give one of them an explicit 'name'.`
-    : ` Give one of them a different 'name'.`;
-
-  diagnostics.add(
-    whereOf(second.name, second.operation.name),
-    `its name is already taken by the tool of operation ` +
-      `'${first.operation.name}'.${cause}`,
-  );
-}
-
-/**
  * Строит определения инструментов и проверяет объявления.
  *
- * @param tools - Список `tools:` плагина
+ * @param routes - Маршруты транспорта: `dispatch.routes`
  * @param options - Конвертеры схем
- * @returns Определения в порядке объявления
+ * @returns Инструменты в порядке объявления
  * @throws {Error} Перечисление всех нарушений одним сообщением
  */
 export function buildToolDefinitions(
-  tools: readonly DeclaredTool[],
+  routes: readonly RouteDeclaration[],
   options: BuildOptions = {},
-): BoundToolDefinition[] {
+): BoundTool[] {
   const diagnostics = new McpDiagnostics();
-  const byName = new Map<string, DeclaredTool>();
-  const built: BoundToolDefinition[] = [];
+  const built: BoundTool[] = [];
 
-  for (const declared of tools) {
-    const where = whereOf(declared.name, declared.operation.name);
+  for (const route of routes) {
+    const where = whereOf(route.pattern);
+    const { description, annotations } = mcpBindingOf(route);
 
-    const first = byName.get(declared.name);
-    if (first === undefined) {
-      byName.set(declared.name, declared);
-    } else {
-      reportCollision(first, declared, diagnostics);
-    }
-
-    if (!TOOL_NAME_PATTERN.test(declared.name)) {
-      diagnostics.add(
-        where,
-        `its name does not match ${TOOL_NAME_PATTERN.source}, which the ` +
-          `protocol requires. Declare a name the protocol accepts with ` +
-          `'name' in the tool dictionary.`,
-      );
-    }
-
-    if (declared.description === undefined || declared.description === '') {
+    if (description === undefined || description === '') {
       diagnostics.add(
         where,
         `it has no description. An agent picks a tool by its description, ` +
@@ -244,7 +209,7 @@ export function buildToolDefinitions(
     }
 
     const input = convertSlot(
-      declared.operation.input,
+      route.input,
       'input',
       where,
       options,
@@ -261,31 +226,26 @@ export function buildToolDefinitions(
     }
 
     const output = convertSlot(
-      declared.operation.output,
+      route.output,
       'output',
       where,
       options,
       diagnostics,
     );
 
-    const inputSchema =
-      input.outcome === 'object' ? input.schema : emptyObjectSchema();
-
     built.push({
-      operation: declared.operation,
+      pattern: route.pattern,
+      route,
       structured: output.outcome === 'object',
       definition: {
-        name: declared.name,
-        inputSchema,
-        ...(declared.description === undefined
+        name: route.pattern,
+        inputSchema:
+          input.outcome === 'object' ? input.schema : emptyObjectSchema(),
+        ...(description === undefined ? {} : { description }),
+        ...(output.outcome === 'object' ? { outputSchema: output.schema } : {}),
+        ...(annotations === undefined
           ? {}
-          : { description: declared.description }),
-        ...(output.outcome === 'object'
-          ? { outputSchema: output.schema }
-          : {}),
-        ...(declared.annotations === undefined
-          ? {}
-          : { annotations: { ...declared.annotations } }),
+          : { annotations: { ...annotations } }),
       },
     });
   }
@@ -294,5 +254,3 @@ export function buildToolDefinitions(
 
   return built;
 }
-
-export type { McpViolation };

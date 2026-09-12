@@ -1,23 +1,25 @@
 /**
- * Карта сессий клиентов.
+ * Карта сессий клиентов — состояние экземпляра транспорта.
  *
  * Сессия заводится на `initialize` и хранит согласованную версию протокола
- * со сведениями о клиенте. Карта живёт ресурсом: контейнер захватывает её
- * на INIT и освобождает на SHUTDOWN, поэтому после остановки приложения
- * открытых сессий не остаётся.
+ * со сведениями о клиенте. Отдельного ресурса карте не нужно: у транспорта
+ * уже есть жизненный цикл, и `close()` на SHUTDOWN очищает её.
  *
  * Роста карта не даёт по двум правилам: число сессий ограничено, а сессия
  * без запросов дольше объявленного срока закрывается. Просроченные записи
- * убираются при обращении к карте, поэтому своего таймера у ресурса нет.
+ * убираются при обращении к карте, поэтому своего таймера у неё нет.
  */
 
 import { randomUUID } from 'node:crypto';
 
 import type { McpRuntimeOptions } from './options.js';
-import { McpOptions$ } from './options.js';
 import type { ProtocolVersion } from './protocol.js';
 
-import { Resource } from '@nestlingjs/container';
+/** Пределы карты сессий: то, что она читает из опций транспорта */
+export type McpSessionLimits = Pick<
+  McpRuntimeOptions,
+  'sessionIdleMs' | 'sessionLimit'
+>;
 
 /** Сведения о клиенте из `initialize` */
 export interface McpClientInfo {
@@ -45,7 +47,7 @@ export class McpSessionLimitError extends Error {
   constructor(readonly limit: number) {
     super(
       `The server already holds ${limit} open MCP session(s), which is the ` +
-        `declared limit. Close a session with DELETE on the endpoint path, ` +
+        `declared limit. Close a session with DELETE on the transport path, ` +
         `or raise 'sessionLimit' in the mcp(...) options.`,
     );
     this.name = 'McpSessionLimitError';
@@ -61,18 +63,10 @@ export class McpSessionLimitError extends Error {
  * sessions.get(session.id)?.protocolVersion;
  * ```
  */
-@Resource([McpOptions$])
 export class McpSessions {
   readonly #sessions = new Map<string, McpSession>();
 
-  static acquire(
-    options: McpRuntimeOptions,
-    _signal: AbortSignal,
-  ): Promise<McpSessions> {
-    return Promise.resolve(new McpSessions(options));
-  }
-
-  private constructor(private readonly options: McpRuntimeOptions) {}
+  constructor(private readonly limits: McpSessionLimits) {}
 
   /** Число открытых сессий; просроченные уже убраны */
   get size(): number {
@@ -89,8 +83,8 @@ export class McpSessions {
   open(protocolVersion: ProtocolVersion, client: McpClientInfo): McpSession {
     this.#sweep();
 
-    if (this.#sessions.size >= this.options.sessionLimit) {
-      throw new McpSessionLimitError(this.options.sessionLimit);
+    if (this.#sessions.size >= this.limits.sessionLimit) {
+      throw new McpSessionLimitError(this.limits.sessionLimit);
     }
 
     const session: McpSession = {
@@ -132,14 +126,14 @@ export class McpSessions {
     return this.#sessions.delete(id);
   }
 
-  /** Освобождение на SHUTDOWN: после него открытых сессий не остаётся */
-  release(): void {
+  /** Очистка на остановке транспорта: открытых сессий не остаётся */
+  clear(): void {
     this.#sessions.clear();
   }
 
   /** Убирает сессии, которые молчали дольше объявленного срока */
   #sweep(): void {
-    const oldest = Date.now() - this.options.sessionIdleMs;
+    const oldest = Date.now() - this.limits.sessionIdleMs;
 
     for (const [id, session] of this.#sessions) {
       if (session.lastSeen < oldest) {
