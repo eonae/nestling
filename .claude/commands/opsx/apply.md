@@ -146,6 +146,7 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Never merge the branch into `main` or push: `main` is written only by the Merger session (`.claude/skills/merger/SKILL.md`), the user does the push
 
 **Fluid Workflow Integration**
 

@@ -81,7 +81,26 @@ Archive a completed change in the experimental workflow.
    mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    ```
 
-6. **Display summary**
+6. **Commit in the change branch and hand over to Merger**
+
+   The archive commit lives in the change branch, never in `main`. `main` is
+   written only by the Merger session (`.claude/skills/merger/SKILL.md`).
+
+   - Update the change's status row in `docs/decisions/roadmap.md` and add the
+     paragraph to `docs/decisions/archlog.md` (see CLAUDE.md, «Workflow
+     изменений»). Commit everything in the change branch:
+     `openspec: архив <name>, дельты влиты в спеки`.
+   - Make sure the worktree is clean: `git status --porcelain` prints nothing.
+   - Send a message to the Merger session with SendMessage
+     (`to: "Merger: Main"`). First line:
+     `change <name> заархивирован, ветка change/<name> готова к слиянию`.
+     Then the worktree path and whether the branch is behind `main`
+     (`git rev-list --count change/<name>..main`).
+   - Do NOT merge into `main` and do NOT push. If `ListAgents` shows no
+     `Merger: Main`, tell the user; the Merger's periodic scan picks the
+     branch up anyway once it is running.
+
+7. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -156,5 +175,6 @@ Target archive directory already exists.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
+- Never merge into `main` or push: the Merger session does the merge, the user does the push
 - If sync is requested, use the Skill tool to invoke `openspec-sync-specs` (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
