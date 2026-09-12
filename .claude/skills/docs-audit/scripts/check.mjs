@@ -69,16 +69,25 @@ for (const f of designFiles.filter((f) => f !== 'README.md')) {
   }
 }
 
-// ── 2. Плашка «сверено с кодом» в главах guide/*.md + её свежесть ───────────
-// Главы гайда — все .md в docs/guide/, кроме оглавления README.md и
-// приложений appendix-*.md: у приложений нет примера-источника. Плашка
-// может называть несколько примеров через запятую.
+// ── 2. Плашка «сверено с кодом» в главах и рецептах + её свежесть ──────────
+// Плашку несёт каждый .md обеих папок жанра, кроме их оглавлений
+// README.md. Файлов-исключений по имени нет: приложений с буквой не
+// существует, а рецепт без примера-источника не заводится. Плашка может
+// называть несколько примеров через запятую.
 
 const GUIDE = join(DOCS, 'guide');
+const RECIPES = join(DOCS, 'recipes');
 const guideFiles = mdFiles(GUIDE).filter((f) => f !== 'README.md');
-const chapterFiles = guideFiles.filter((f) => !f.startsWith('appendix-'));
-for (const f of chapterFiles) {
-  const file = join(GUIDE, f);
+const recipeFiles = mdFiles(RECIPES).filter((f) => f !== 'README.md');
+
+/** Файлы обеих папок жанра парами «папка, имя файла» */
+const chapterFiles = [
+  ...guideFiles.map((f) => [GUIDE, f]),
+  ...recipeFiles.map((f) => [RECIPES, f]),
+];
+
+for (const [dir, f] of chapterFiles) {
+  const file = join(dir, f);
   const m = head(file).match(/сверено с кодом\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i);
   if (!m) {
     add('ERROR', 'guide-plate', file,
@@ -87,7 +96,7 @@ for (const f of chapterFiles) {
   }
   const [, examples, checkedAt] = m;
   for (const example of [...examples.matchAll(/`([^`]+)`/g)].map((x) => x[1])) {
-    // Обычно глава сверена с примером; глава про сателлит (25) — с пакетом
+    // Обычно текст сверен с примером; рецепт про сателлит — с пакетом
     const pkg = [`examples/${example}`, `packages/${example}`]
       .find((p) => existsSync(join(ROOT, p)));
     if (!pkg) {
@@ -112,33 +121,65 @@ for (const f of chapterFiles) {
 }
 
 // ── 3. Карты полны в обе стороны ─────────────────────────────────────────────
-// Главы — оглавление docs/guide/README.md; design-доки — карта в
-// docs/design/README.md. docs/README.md обязан вести на оглавление гайда.
+// Главы — оглавление docs/guide/README.md, рецепты — docs/recipes/README.md;
+// design-доки — карта в docs/design/README.md. docs/README.md обязан вести
+// на оба оглавления.
 
 const readmePath = join(DOCS, 'README.md');
 const readme = readFileSync(readmePath, 'utf8');
 const guideTocPath = join(GUIDE, 'README.md');
-if (!existsSync(guideTocPath)) {
-  add('ERROR', 'guide-toc', GUIDE, 'нет оглавления docs/guide/README.md');
-} else {
-  const toc = readFileSync(guideTocPath, 'utf8');
+const recipesTocPath = join(RECIPES, 'README.md');
+
+/** Проверяет полноту оглавления папки жанра в обе стороны */
+function checkToc(dir, tocPath, files, label) {
+  if (!existsSync(tocPath)) {
+    add('ERROR', 'guide-toc', dir, `нет оглавления ${relative(ROOT, tocPath)}`);
+    return;
+  }
+  const toc = readFileSync(tocPath, 'utf8');
   const listed = new Set(
     [...toc.matchAll(/\]\(\.\/([^)#/]+\.md)/g)].map((m) => m[1]),
   );
-  for (const f of guideFiles) {
+  for (const f of files) {
     if (!listed.has(f)) {
-      add('ERROR', 'guide-toc', guideTocPath, `docs/guide/${f} не упомянут в оглавлении`);
+      add('ERROR', 'guide-toc', tocPath, `${label}/${f} не упомянут в оглавлении`);
     }
   }
   for (const f of listed) {
-    if (!guideFiles.includes(f)) {
-      add('ERROR', 'guide-toc', guideTocPath, `ссылка на несуществующий docs/guide/${f}`);
+    if (!files.includes(f)) {
+      add('ERROR', 'guide-toc', tocPath, `ссылка на несуществующий ${label}/${f}`);
     }
   }
-  if (!/\]\(\.\/guide\/README\.md\)/.test(readme)) {
-    add('ERROR', 'readme-table', readmePath, 'docs/README.md не ссылается на ./guide/README.md');
+  if (!new RegExp(`\\]\\(\\./${label.split('/')[1]}/README\\.md\\)`).test(readme)) {
+    add('ERROR', 'readme-table', readmePath,
+      `docs/README.md не ссылается на ./${label.split('/')[1]}/README.md`);
   }
 }
+
+checkToc(GUIDE, guideTocPath, guideFiles, 'docs/guide');
+checkToc(RECIPES, recipesTocPath, recipeFiles, 'docs/recipes');
+
+// Нумерация глав пути сквозная и без пропусков: номер задаёт порядок
+// чтения, и пропуск означает, что глава потерялась при переименовании.
+const chapterNumbers = guideFiles
+  .map((f) => /^(\d+)-/.exec(f))
+  .filter(Boolean)
+  .map((m) => Number(m[1]))
+  .sort((a, b) => a - b);
+
+for (const f of guideFiles) {
+  if (!/^\d+-/.test(f)) {
+    add('ERROR', 'guide-numbering', join(GUIDE, f),
+      'глава пути без номера в имени файла — номер задаёт порядок чтения');
+  }
+}
+
+chapterNumbers.forEach((number, index) => {
+  if (number !== index + 1) {
+    add('ERROR', 'guide-numbering', guideTocPath,
+      `нумерация глав пути не сквозная: после ${index} идёт ${number}`);
+  }
+});
 
 const designMapPath = join(DOCS, 'design', 'README.md');
 if (!existsSync(designMapPath)) {
@@ -191,6 +232,11 @@ for (const file of [
   ...designFiles.map((f) => join(DOCS, 'design', f)),
   guideTocPath,
   ...guideFiles.map((f) => join(GUIDE, f)),
+  recipesTocPath,
+  ...recipeFiles.map((f) => join(RECIPES, f)),
+  ...['guarantees.md', 'from-nestjs.md']
+    .map((f) => join(DOCS, f))
+    .filter((f) => existsSync(f)),
   ...mdFiles(join(DOCS, 'decisions')).map((f) => join(DOCS, 'decisions', f)),
 ]) {
   scanLinks(file);
@@ -361,7 +407,7 @@ for (const dir of packageDirs) {
     for (const h of headings) {
       if (!README_SECTIONS.includes(h.title)) {
         add('ERROR', 'pkg-readme-sections', file,
-          `строка ${h.line}: лишний раздел «${h.title}» — обучение живёт в docs/guide/, семантика в docs/design/`);
+          `строка ${h.line}: лишний раздел «${h.title}» — обучение живёт в docs/guide/ и docs/recipes/, семантика в docs/design/`);
       }
     }
     const known = titles.filter((t) => README_SECTIONS.includes(t));
@@ -394,7 +440,9 @@ for (const dir of packageDirs) {
     const links = (dirName) =>
       plate.join('\n').match(new RegExp(`\\]\\([^)]*docs/${dirName}/[^)]+\\)`, 'g')) ?? [];
     const design = links('design');
-    const guide = links('guide');
+    // Ссылки в guide/ и recipes/ — один вид: у пакета один текст-источник,
+    // и жанр этого текста выбирает не пакет
+    const guide = [...links('guide'), ...links('recipes')];
     if (internal) {
       if (plate.length > 1) {
         add('ERROR', 'pkg-readme-plate', file,
@@ -409,7 +457,8 @@ for (const dir of packageDirs) {
         add('ERROR', 'pkg-readme-plate', file, 'в плашке нет ссылки в docs/design/');
       }
       if (!guide.length) {
-        add('ERROR', 'pkg-readme-plate', file, 'в плашке нет ссылки в docs/guide/');
+        add('ERROR', 'pkg-readme-plate', file,
+          'в плашке нет ссылки ни в docs/guide/, ни в docs/recipes/');
       }
       if (design.length > PLATE_MAX_LINKS) {
         add('ERROR', 'pkg-readme-plate', file,
@@ -417,7 +466,7 @@ for (const dir of packageDirs) {
       }
       if (guide.length > PLATE_MAX_LINKS) {
         add('ERROR', 'pkg-readme-plate', file,
-          `${guide.length} ссылок на главы гайда при потолке ${PLATE_MAX_LINKS}`);
+          `${guide.length} ссылок на главы и рецепты при потолке ${PLATE_MAX_LINKS}`);
       }
     }
   }
