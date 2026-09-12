@@ -45,6 +45,14 @@ export interface NatsSubscriptionLike extends AsyncIterable<NatsMsgLike> {
 export interface NatsPubAckLike {
   readonly stream: string;
   readonly seq: number;
+
+  /**
+   * Брокер снял повтор окном дедупликации потока.
+   *
+   * Без этого признака дубль не отличить от первой публикации: `seq` у
+   * него называет запись, которая уже лежит в потоке.
+   */
+  readonly duplicate: boolean;
 }
 
 /** Сообщение потока: то же плюс подтверждения обработки */
@@ -66,6 +74,18 @@ export interface NatsJsMsgLike extends NatsMsgLike {
 export interface NatsStreamConfigLike {
   name: string;
   subjects: string[];
+
+  /**
+   * Окно дедупликации в наносекундах.
+   *
+   * Имя поля и единица взяты у API брокера — как у соседних
+   * `durable_name` и `max_deliver`. Коннектор перечисляет поля брокера
+   * его же словами: переименование спрятало бы то, что подстановщик
+   * своего клиента обязан узнать.
+   *
+   * Поле не задано — поток берёт умолчание сервера.
+   */
+  duplicate_window?: number;
 }
 
 /** Определение durable-потребителя */

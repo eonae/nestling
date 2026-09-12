@@ -4,7 +4,7 @@
  * Моделирует ровно ту семантику, на которую опирается транспорт: subject'ы
  * и wildcard-матчинг, queue-группы, req-reply с отказом «никто не слушает»,
  * headers и минимальный JetStream (поток, durable-потребитель, ack/nak,
- * повторная доставка).
+ * повторная доставка, дедупликация по `Nats-Msg-Id` в окне потока).
  *
  * Ограничение называется прямо и не смягчается: двойник проверяет **наш
  * код**, а не совместимость с брокером. За совместимость отвечает
@@ -25,6 +25,7 @@ import type {
   NatsSubscriptionLike,
   NatsSubscriptionOptions,
 } from '../connector.js';
+import { MSG_ID_HEADER } from '../wire.js';
 
 /** Коды отказов клиента `nats` — двойник обязан говорить теми же */
 export const NATS_NO_RESPONDERS = '503';
@@ -234,11 +235,23 @@ interface StoredMessage {
   readonly headers?: NatsHeadersLike;
 }
 
+/** Запись окна дедупликации: чем ответить на повтор и до какого момента */
+interface DedupeEntry {
+  /** Номер первой публикации: повтор подтверждается им */
+  readonly seq: number;
+
+  /** Момент, после которого запись протухла */
+  readonly expiresAt: number;
+}
+
 /** Поток JetStream: определение плюс записанные сообщения */
 interface StreamState {
   config: NatsStreamConfigLike;
   readonly messages: StoredMessage[];
   readonly consumers: Map<string, ConsumerState>;
+
+  /** Идентификатор сообщения → запись окна дедупликации */
+  readonly dedupe: Map<string, DedupeEntry>;
 }
 
 /** Durable-потребитель: курсор по потоку плюс очередь повторов */
@@ -258,6 +271,20 @@ interface ConsumerState {
 /** Лимит попыток durable-доставки — умолчание двойника и транспорта */
 export const DEFAULT_MAX_DELIVER = 5;
 
+/** Окно потока приходит в наносекундах: единица брокера */
+const NANOSECONDS_PER_MS = 1_000_000;
+
+/** Настройка двойника */
+export interface NatsDoubleOptions {
+  /**
+   * Часы двойника: ими отмеряется окно дедупликации потока.
+   *
+   * Умолчание — `Date.now`. Тест, которому нужно перешагнуть окно,
+   * передаёт свои: ждать пять минут настоящего времени он не станет.
+   */
+  now?: () => number;
+}
+
 /**
  * Двойник брокера: **общее** состояние кластера.
  *
@@ -274,11 +301,16 @@ export class NatsDouble implements NatsLike {
   readonly #subscriptions: SubscriptionDouble[] = [];
   readonly #cursors = new Map<string, number>();
   readonly #streams = new Map<string, StreamState>();
+  readonly #now: () => number;
 
   #anonymous = 0;
 
   /** Что публиковалось: наблюдаемость для тестов транспорта */
   readonly published: { subject: string; headers?: NatsHeadersLike }[] = [];
+
+  constructor(options: NatsDoubleOptions = {}) {
+    this.#now = options.now ?? Date.now;
+  }
 
   headers(): NatsHeadersLike {
     return new HeadersDouble();
@@ -485,7 +517,13 @@ export class NatsDouble implements NatsLike {
     return groups.size;
   }
 
-  /** Публикация в поток: сохранение плюс обычная core-доставка */
+  /**
+   * Публикация в поток: сохранение плюс обычная core-доставка.
+   *
+   * Повтор с известным `Nats-Msg-Id` внутри окна потока не сохраняется и
+   * не доставляется: подтверждение несёт признак дубля и номер первой
+   * публикации. Ровно то же делает брокер.
+   */
   #jsPublish(
     subject: string,
     data: Uint8Array,
@@ -506,11 +544,34 @@ export class NatsDouble implements NatsLike {
       );
     }
 
+    const windowMs = (stream.config.duplicate_window ?? 0) / NANOSECONDS_PER_MS;
+    const msgId =
+      windowMs > 0 && headers?.has(MSG_ID_HEADER)
+        ? headers.get(MSG_ID_HEADER)
+        : undefined;
+    const now = this.#now();
+
+    if (msgId !== undefined) {
+      const known = stream.dedupe.get(msgId);
+
+      if (known && known.expiresAt > now) {
+        return {
+          stream: stream.config.name,
+          seq: known.seq,
+          duplicate: true,
+        };
+      }
+    }
+
     const seq = stream.messages.push({
       subject,
       data,
       ...(headers ? { headers } : {}),
     });
+
+    if (msgId !== undefined) {
+      stream.dedupe.set(msgId, { seq, expiresAt: now + windowMs });
+    }
 
     for (const consumer of stream.consumers.values()) {
       consumer.wake?.();
@@ -518,7 +579,7 @@ export class NatsDouble implements NatsLike {
 
     this.#deliver(subject, data, headers);
 
-    return { stream: stream.config.name, seq };
+    return { stream: stream.config.name, seq, duplicate: false };
   }
 
   #addStream(config: NatsStreamConfigLike): NatsStreamConfigLike {
@@ -532,6 +593,7 @@ export class NatsDouble implements NatsLike {
       config,
       messages: [],
       consumers: new Map(),
+      dedupe: new Map(),
     });
 
     return config;

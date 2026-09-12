@@ -12,7 +12,12 @@ import type { NatsDouble } from './testing/double.js';
 import { NatsDouble as Broker, natsDouble } from './testing/double.js';
 import type { NatsBusOptions } from './transport.js';
 import { BUS_CAPABILITIES, nats, NatsBus } from './transport.js';
-import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
+import {
+  CONTEXT_HEADER,
+  IDEMPOTENCY_HEADER,
+  MSG_ID_HEADER,
+  TIMEOUT_HEADER,
+} from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
@@ -331,6 +336,39 @@ describe('NatsBus — конверт и потолок', () => {
     });
 
     await owner.close();
+    await caller.close();
+  });
+
+  it('заголовок брокера ставится только у публикации через поток', async () => {
+    const broker = new Broker();
+    const caller = await process(broker, []);
+
+    await caller.publish(
+      'orders.placed',
+      { orderId: 'o-1' },
+      { durable: true, idempotencyKey: 'k-1' },
+    );
+    await caller.publish(
+      'orders.ship',
+      { orderId: 'o-1' },
+      { idempotencyKey: 'k-1' },
+    );
+    await settle();
+
+    const durable = broker.published.find(
+      ({ subject }) => subject === 'orders.placed',
+    );
+    const core = broker.published.find(
+      ({ subject }) => subject === 'orders.ship',
+    );
+
+    // Оба конверта везут ключ; окно дедупликации есть только у потока,
+    // поэтому заголовок брокера ставится только долговечной публикации
+    expect(durable?.headers?.get(IDEMPOTENCY_HEADER)).toBe('k-1');
+    expect(durable?.headers?.get(MSG_ID_HEADER)).toBe('k-1');
+    expect(core?.headers?.get(IDEMPOTENCY_HEADER)).toBe('k-1');
+    expect(core?.headers?.has(MSG_ID_HEADER)).toBe(false);
+
     await caller.close();
   });
 

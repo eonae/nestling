@@ -40,11 +40,14 @@ await app.assemble(load(RootConfig).features).run();
   Свой клиент брокера подставляется опцией фабрики; формы сообщений и
   JetStream входят в `NatsLike`, называть их для этого не нужно.
 - **Адресация** — `consumerNameOf`, `groupOf`, `streamNameOf`,
-  `SUBJECT_HEADER`, `CONTEXT_HEADER`, `IDEMPOTENCY_HEADER`, `TIMEOUT_HEADER`.
+  `SUBJECT_HEADER`, `CONTEXT_HEADER`, `IDEMPOTENCY_HEADER`, `TIMEOUT_HEADER`,
+  `MSG_ID_HEADER`. Последний — заголовок брокера: по нему поток снимает
+  повтор публикации.
 - **Кодек** — `jsonCodec`, `NatsCodec`.
-- **Подпуть `./testing`** — `natsDouble`, `NatsDouble`, `NatsDoubleError`,
-  `HeadersDouble`, `subjectMatches`, `DEFAULT_MAX_DELIVER`,
-  `NATS_CONNECTION_CLOSED`, `NATS_NO_RESPONDERS`, `NATS_TIMEOUT`.
+- **Подпуть `./testing`** — `natsDouble`, `NatsDouble`, `NatsDoubleOptions`,
+  `NatsDoubleError`, `HeadersDouble`, `subjectMatches`,
+  `DEFAULT_MAX_DELIVER`, `NATS_CONNECTION_CLOSED`, `NATS_NO_RESPONDERS`,
+  `NATS_TIMEOUT`.
 
 Двойник из `./testing` подставляется опцией `connector` и проигрывает
 доставку в памяти: тест видит те же subject'ы, заголовки и повторы.
@@ -56,3 +59,14 @@ await app.assemble(load(RootConfig).features).run();
 Пакет не поднимает брокер и не заводит стримы за пределами тех, что нужны
 операциям. Формат сообщения задаёт кодек, а семантику доставки —
 `docs/design/transports.md`.
+
+Поток собственного создания несёт окно дедупликации: повтор долговечной
+публикации с тем же ключом идемпотентности внутри окна брокер снимает сам.
+Умолчание — 5 минут, другая величина задаётся опцией фабрики
+`dedupeWindowMs`, `0` выключает дедупликацию. Чужой поток транспорт не
+переписывает: окно меньше настроенного даёт запись `warn`, а правится оно
+командой `nats stream edit <имя> --dupe-window=5m`.
+
+Гарантии «ровно один раз» окно не даёт: у транспорта нет транзакции
+приложения, поэтому повтор позже окна доходит до подписчика. За гарантию
+отвечает [`@nestlingjs/inbox`](../nestling.inbox/).

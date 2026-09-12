@@ -96,6 +96,21 @@ export const BUS_CAPABILITIES: TransportCapabilities = {
 const DEFAULT_MAX_DELIVER = 5;
 
 /**
+ * Окно дедупликации потока по умолчанию — пять минут.
+ *
+ * Окно обязано перекрывать цикл повторов relay outbox'а: пока запись не
+ * отмечена опубликованной, relay возвращается к ней снова. По умолчаниям
+ * секции `outbox` цикл занимает около 122 секунд (`backoffMs` 500,
+ * удвоение, потолок `backoffMaxMs` 30 000, `maxAttempts` 10). Умолчание
+ * JetStream — две минуты, то есть впритык, а пять минут дают запас в два с
+ * половиной раза.
+ */
+const DEFAULT_DEDUPE_WINDOW_MS = 5 * 60 * 1000;
+
+/** Окно потока задаётся в наносекундах: единица брокера, не наша */
+const NANOSECONDS_PER_MS = 1_000_000;
+
+/**
  * Проверяет, что обработка завершилась решением.
  *
  * Решение — это успех или любой отказ с кодом, кроме `internal_error`. Код
@@ -146,6 +161,23 @@ export interface NatsTransportOptions {
   maxDeliver?: number;
 
   /**
+   * Окно дедупликации потоков собственного создания, в миллисекундах.
+   *
+   * Повтор публикации с тем же ключом идемпотентности внутри окна брокер
+   * снимает сам: сообщение не попадает в поток и не доходит до
+   * подписчика. Умолчание — 5 минут, и оно выбрано по циклу повторов
+   * relay outbox'а: тот занимает около 122 секунд по умолчаниям секции
+   * `outbox`.
+   *
+   * Значение `0` выключает дедупликацию: поле в определении потока не
+   * задаётся, окно существующего потока не сверяется.
+   *
+   * Поток, созданный не транспортом, окна не получает: транспорт чужие
+   * потоки не переписывает, а о расхождении пишет `warn`.
+   */
+  dedupeWindowMs?: number;
+
+  /**
    * Хук смены состояния соединения.
    *
    * Это событие для приложения, а не канал вывода: без хука транспорт
@@ -186,6 +218,9 @@ export class NatsBus implements IMessageBus, ITransport {
   readonly #closing = new AbortController();
 
   readonly #logger: Logger;
+
+  /** Потоки, о чьём узком окне уже сказано: запись `warn` одна на поток */
+  readonly #dedupeWarned = new Set<string>();
 
   #connection?: NatsLike;
   #dispatch?: Dispatch;
@@ -355,7 +390,18 @@ export class NatsBus implements IMessageBus, ITransport {
 
     if (options.durable) {
       await this.#ensureStream(connection, address);
-      await connection.jetstream().publish(address, data, { headers });
+
+      const ack = await connection
+        .jetstream()
+        .publish(address, data, { headers });
+
+      if (ack.duplicate) {
+        // Событие редкое и означает, что окно сработало: повтор публикации
+        // не попал в поток и до подписчика не дойдёт
+        this.#logger.debug('nats publish deduplicated by stream window', {
+          subject: address,
+        });
+      }
 
       return;
     }
@@ -562,6 +608,7 @@ export class NatsBus implements IMessageBus, ITransport {
     const manager: NatsJetStreamManagerLike =
       await connection.jetstreamManager();
     const name = streamNameOf(address);
+    const windowMs = this.#options.dedupeWindowMs ?? DEFAULT_DEDUPE_WINDOW_MS;
 
     // Существующий поток принимается **как есть**: retention, storage и
     // лимиты остаются зоной эксплуатации, транспорт их не переписывает
@@ -581,12 +628,57 @@ export class NatsBus implements IMessageBus, ITransport {
         );
       }
 
+      this.#checkDedupeWindow(name, existing.duplicate_window, windowMs);
+
       return name;
     }
 
-    await manager.streams.add({ name, subjects: [address] });
+    await manager.streams.add({
+      name,
+      subjects: [address],
+      // Ноль выключает дедупликацию: поле не задаётся вовсе, и поток
+      // берёт умолчание сервера
+      ...(windowMs > 0
+        ? { duplicate_window: windowMs * NANOSECONDS_PER_MS }
+        : {}),
+    });
 
     return name;
+  }
+
+  /**
+   * Сверяет окно существующего потока с настроенным.
+   *
+   * Окно уже поднятого потока транспорт не переписывает: retention,
+   * storage и лимиты — зона эксплуатации. Узкое окно означает сегодняшнее
+   * поведение, которое закрывает слой приёма, поэтому расхождение даёт
+   * запись `warn`, а не отказ сборки.
+   *
+   * Запись идёт один раз на поток: `#ensureStream` вызывается на каждой
+   * долговечной публикации, и без памяти предупреждение шло бы на каждое
+   * сообщение.
+   */
+  #checkDedupeWindow(
+    stream: string,
+    actualNanos: number | undefined,
+    windowMs: number,
+  ): void {
+    if (windowMs === 0 || this.#dedupeWarned.has(stream)) {
+      return;
+    }
+
+    const actualMs = Math.trunc((actualNanos ?? 0) / NANOSECONDS_PER_MS);
+
+    if (actualMs >= windowMs) {
+      return;
+    }
+
+    this.#dedupeWarned.add(stream);
+    this.#logger.warn('nats stream dedupe window is narrower than configured', {
+      stream,
+      configuredMs: windowMs,
+      actualMs,
+    });
   }
 
   /** Маршрутизирует входящее сообщение в исполнение endpoint'а */
@@ -726,6 +818,11 @@ export class NatsBus implements IMessageBus, ITransport {
         ? { idempotencyKey: options.idempotencyKey }
         : {}),
       ...(options.context === undefined ? {} : { context: options.context }),
+      // Публикация через поток несёт вдобавок заголовок брокера: конверт
+      // долговечной публикации отличается от core-публикации только им
+      ...('durable' in options && options.durable === true
+        ? { durable: true }
+        : {}),
     });
   }
 
