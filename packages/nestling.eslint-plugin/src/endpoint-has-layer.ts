@@ -198,19 +198,61 @@ function callContainsLayer(
   return 'unknown';
 }
 
-/** Декларация попадает под фильтр пути (или фильтра нет) */
+/**
+ * Вызов создаёт декларацию настроенным конструктором.
+ *
+ * Форм две: сам идентификатор (`cliEndpoint(…)`) и обращение к его
+ * свойству (`httpEndpoint.get(…)`, `httpEndpoint.implement(…)`).
+ * Вычисляемое свойство (`httpEndpoint['get']`) не разбирается: имя в нём
+ * не буквально.
+ */
+function isConstructorCall(node: CallExpression, name: string): boolean {
+  const { callee } = node;
+
+  if (callee.type === 'Identifier') {
+    return callee.name === name;
+  }
+
+  return (
+    callee.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.object.type === 'Identifier' &&
+    callee.object.name === name
+  );
+}
+
+/**
+ * Словарь декларации — последний аргумент вызова, если это объектный
+ * литерал.
+ *
+ * Позиция адреса у конструкторов разная (путь, имя команды, операция), а
+ * словарь всегда идёт последним.
+ */
+function dictionaryOf(node: CallExpression): ObjectExpression | undefined {
+  const last = node.arguments.at(-1);
+
+  return last?.type === 'ObjectExpression' ? last : undefined;
+}
+
+/**
+ * Декларация попадает под фильтр пути (или фильтра нет).
+ *
+ * Адрес сверяется с первым аргументом вызова. Не строковый литерал —
+ * под фильтр не подвести, значит и говорить не о чем: так молчит правило
+ * и на `httpEndpoint.implement(CreateUser, { … })`, где адрес несёт
+ * операция.
+ */
 function underPattern(
-  declaration: ObjectExpression,
+  node: CallExpression,
   pattern: string | undefined,
 ): boolean {
   if (pattern === undefined) {
     return true;
   }
 
-  const path = literalString(propertyOf(declaration, 'path')?.value as Node);
+  const address = literalString(node.arguments[0] as Node | undefined);
 
-  // Путь не литерал — под фильтр не подвести, значит и говорить не о чем
-  return path === undefined ? false : new RegExp(pattern).test(path);
+  return address === undefined ? false : new RegExp(pattern).test(address);
 }
 
 export const endpointHasLayer: Rule.RuleModule = {
@@ -257,15 +299,12 @@ export const endpointHasLayer: Rule.RuleModule = {
 
     return {
       CallExpression(node: CallExpression & Rule.NodeParentExtension) {
-        if (
-          node.callee.type !== 'Identifier' ||
-          node.callee.name !== options.constructorName
-        ) {
+        if (!isConstructorCall(node, options.constructorName)) {
           return;
         }
 
-        const [argument] = node.arguments;
-        if (argument?.type !== 'ObjectExpression') {
+        const argument = dictionaryOf(node);
+        if (!argument) {
           return;
         }
 
@@ -274,7 +313,7 @@ export const endpointHasLayer: Rule.RuleModule = {
           return;
         }
 
-        if (!underPattern(argument, options.pattern)) {
+        if (!underPattern(node, options.pattern)) {
           return;
         }
 
