@@ -283,7 +283,7 @@ for (;;) {
       else if (e.state === 'merged' && prev.locked && !e.locked) console.log(`UNLOCKED ${describe(e)}`);
       else if (stateKey(prev) !== stateKey(e)) {
         if (e.state === 'ready') console.log(`READY ${describe(e)}`);
-        else if (e.state === 'merged') console.log(`MERGED ${e.branch}`);
+        else if (e.state === 'merged' && prev.state !== 'merged') console.log(`MERGED ${e.branch}`);
         else console.log(`CHANGED ${describe(e)}`);
       }
     }
