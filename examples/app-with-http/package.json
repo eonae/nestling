@@ -22,6 +22,7 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/client": "workspace:*",
     "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/mcp": "workspace:*",
     "@nestlingjs/openapi": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "@nestlingjs/schema.zod": "workspace:*",

@@ -34,7 +34,7 @@ const QUOTA_CALL_BUDGET_MS = 500;
   SignupRecorded.emitter,
   ActivityHub,
 ])
-class CreateUserHandler {
+export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
     private readonly quotas: Port<typeof ClaimQuota>,

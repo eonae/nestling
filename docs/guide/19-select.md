@@ -1,6 +1,6 @@
 # 19. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи, выбор и переключатели» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -83,7 +83,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 ```
 
 ```
-[nestling] features: users, quotas; transports: http, bus
+[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: users + quotas
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
@@ -104,7 +104,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 приходит только явным выбором.
 
 ```
-[nestling] features: ops; transports: http, bus
+[nestling] features: ops; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
@@ -146,7 +146,9 @@ export const app = makeApp({
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
-  transports: [http()],
+  // Два протокола на одном сокете: рецепт
+  // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
+  transports: [api, http({ server: api }), mcp({ … })],
 });
 ```
 
@@ -189,7 +191,7 @@ DI-токена у переключателя нет: инжектировать
 Выбор виден в строке старта рядом с фичами:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, bus
+[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
 ```
 
 и в отчёте `check()` полем `switches`.

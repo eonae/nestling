@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `app-with-http` (2026-09-12).
+> Guide to the current API; verified against `app-with-http` (2026-09-13).
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -90,7 +90,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 ```
 
 ```
-[nestling] features: users, quotas; transports: http, bus
+[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: users + quotas
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
@@ -113,7 +113,7 @@ The `ops` feature does not connect: nobody calls its operations, and it
 arrives only by an explicit selection.
 
 ```
-[nestling] features: ops; transports: http, bus
+[nestling] features: ops; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
@@ -156,7 +156,9 @@ export const app = makeApp({
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
-  transports: [http()],
+  // Two protocols on one socket: the recipe
+  // [«Expose the operations to an agent over MCP»](../recipes/mcp.md)
+  transports: [api, http({ server: api }), mcp({ … })],
 });
 ```
 
@@ -202,7 +204,7 @@ assembled: instead, it is absent from the graph entirely.
 The selection is visible in the start line next to the features:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, bus
+[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
 ```
 
 and in the `check()` report as the `switches` field.

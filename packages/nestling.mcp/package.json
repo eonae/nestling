@@ -1,0 +1,74 @@
+{
+  "name": "@nestlingjs/mcp",
+  "version": "0.1.0",
+  "description": "MCP транспортом Nestling: инструмент агента — endpoint, схемы переводят те же конвертеры, что у OpenAPI",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "tools",
+    "transport"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.mcp"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.mcp#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@nestlingjs/openapi": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
+  }
+}

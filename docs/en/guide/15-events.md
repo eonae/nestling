@@ -1,6 +1,6 @@
 # 15. Tell the neighbours what happened
 
-> Guide to the current API; verified against `app-with-http` (2026-09-12).
+> Guide to the current API; verified against `app-with-http` (2026-09-13).
 > Target description: [design/operations.md](../design/operations.md), the
 > "Three kinds" and "Call profile" sections. Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -84,7 +84,7 @@ implementation of the request. The list from
   SignupRecorded.emitter,
   ActivityHub,
 ])
-class CreateUserHandler {
+export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
     private readonly quotas: Port<typeof ClaimQuota>,

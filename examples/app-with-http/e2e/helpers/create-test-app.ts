@@ -1,10 +1,10 @@
 import { appConfigKeys } from '../../src/app.config.js';
-import { app } from '../../src/app.js';
+import { api, app } from '../../src/app.js';
 
 import type { AssembledApp } from '@nestlingjs/app';
 import { makeApp, objectSource } from '@nestlingjs/app';
 import type { HttpServer } from '@nestlingjs/transport.http';
-import { http, httpServer, httpServerKeys } from '@nestlingjs/transport.http';
+import { httpServerKeys } from '@nestlingjs/transport.http';
 
 /** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';
@@ -25,16 +25,15 @@ export interface TestAppContext {
  * привязываются тем же способом, `process.env` не трогается.
  */
 export async function createTestApp(): Promise<TestAppContext> {
-  const api = httpServer();
-
   // Та же декларация, что в `app.ts`, с эфемерным портом и секретами из
-  // объекта: состав берётся из `app.spec`
+  // объекта: состав берётся из `app.spec`, включая оба транспорта на
+  // общем сервере
   const assembled = makeApp({
     features: app.spec.features,
     plugins: app.spec.plugins,
     switches: app.spec.switches,
     policies: app.spec.policies,
-    transports: [api, http({ server: api })],
+    transports: app.spec.transports,
     config: [
       [
         objectSource(

@@ -1,6 +1,6 @@
 # 14. Separate the second area
 
-> Guide to the current API; verified against `app-with-http` (2026-09-12).
+> Guide to the current API; verified against `app-with-http` (2026-09-13).
 > Target description: [design/composition.md](../design/composition.md), the
 > "Feature boundary" and "Plugin" sections, and
 > [design/operations.md](../design/operations.md). Why: entries
@@ -186,7 +186,7 @@ const QUOTA_CALL_BUDGET_MS = 500;
   ClaimQuota.caller,
   // …
 ])
-class CreateUserHandler {
+export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
     private readonly quotas: Port<typeof ClaimQuota>,
@@ -393,7 +393,9 @@ export const app = makeApp({
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
-  transports: [http()],
+  // Two protocols on one socket: the recipe
+  // [«Expose the operations to an agent over MCP»](../recipes/mcp.md)
+  transports: [api, http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
