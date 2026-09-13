@@ -102,6 +102,19 @@ export type OutcomeOks<M extends OutcomeMap> = {
 }[keyof M & SuccessStatus];
 
 /**
+ * Успешный результат по объявленным исходам: один `Ok` или их юнион.
+ *
+ * Им типизирован результат вызова у клиента и у вызывающей стороны:
+ * проверка `result.status === '<статус>'` сужает `value` до типа ветки.
+ */
+export type DeclaredOk<
+  O,
+  S extends SuccessStatus = never,
+> = O extends OutcomesForm<infer M>
+  ? OutcomeOks<M>
+  : Ok<InferOutput<O>, EffectiveStatus<O, S>>;
+
+/**
  * Результат хендлера, выведенный из объявленных исходов декларации.
  *
  * У развилки это юнион `Ok` по статусам: проверка

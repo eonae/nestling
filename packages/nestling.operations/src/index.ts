@@ -188,6 +188,7 @@ export type {
 
 // ./output.js — 6
 export type {
+  DeclaredOk,
   DeclaredOutput,
   DeclaredOutputSync,
   DeclaredStatuses,

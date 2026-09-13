@@ -205,11 +205,14 @@ export type OutputOf<C extends AnyOperation> =
 /**
  * Статус, объявленный полем `status` операции.
  *
+ * Читается прямо с поля, а не выводится `infer`: у операции без `status`
+ * поле имеет тип `undefined`, и выводить из него нечего — `infer` вернул
+ * бы всё множество статусов.
+ *
  * Умолчание здесь не подставляется: его считает `EffectiveStatus` по
  * форме `output`. Операция без поля даёт `never`.
  */
-export type StatusOf<C extends AnyOperation> =
-  C extends Operation<any, any, any, any, infer S> ? S : never;
+export type StatusOf<C extends AnyOperation> = NonNullable<C['status']>;
 
 /**
  * Объединение объявленных отказов операции: множество `E` на стороне

@@ -18,20 +18,26 @@ import { readFailure, readSuccess, unknownFailure } from './response.js';
 import type {
   AnyFail,
   AnyFailDefinition,
+  AnyOk,
   AnyOperation,
   CommandOperation,
+  DeclaredOk,
   FailOf,
+  FormDescriptor,
   InputOf,
   InternalError,
-  Ok,
   OperationFailsOf,
-  OutputOf,
+  OutputFormOf,
   RequestOperation,
+  StatusOf,
   Timeout,
 } from '@nestlingjs/operations';
 import {
   describeForm,
+  describeOutcomes,
   isFail,
+  isNone,
+  isOutcomes,
   isPrimitiveLeaf,
   Timeout as TimeoutFail,
 } from '@nestlingjs/operations';
@@ -44,9 +50,15 @@ import {
  */
 export type ClientFail = FailOf<typeof InternalError> | FailOf<typeof Timeout>;
 
-/** Множество ответов метода: успех, объявленный отказ или kernel-отказ */
+/**
+ * Множество ответов метода: объявленные исходы, объявленный отказ или
+ * kernel-отказ.
+ *
+ * У операции с развилкой успешная половина — юнион `Ok` по статусам:
+ * проверка `result.status === 'accepted'` сужает `value` до формы ветки.
+ */
 export type ClientResult<C extends AnyOperation> =
-  | Ok<OutputOf<C>>
+  | DeclaredOk<OutputFormOf<C>, StatusOf<C>>
   | OperationFailsOf<C>
   | ClientFail;
 
@@ -137,22 +149,47 @@ function assertUsable(
   }
 
   for (const slot of ['input', 'output'] as const) {
-    const form = describeForm(value[slot]);
-
-    if (STREAMING_FORMS.has(form.kind)) {
-      throw new TypeError(
-        `${where}: operation '${value.name}' declares form '${form.kind}' in ` +
-          `'${slot}'. The streaming client (NDJSON for stream(...), SSE for ` +
-          `events(...)) is designed separately and does not exist yet.`,
-      );
+    // Развилка исходов проверяется по каждой ветке: потоковой формы в них
+    // быть не может, а примитив может
+    for (const form of formsOf(value[slot])) {
+      assertJsonForm(form, slot, value.name, where);
     }
+  }
+}
 
-    if (form.leaf !== undefined && isPrimitiveLeaf(form.leaf)) {
-      throw new TypeError(
-        `${where}: operation '${value.name}' declares '${form.leaf}' in ` +
-          `'${slot}'. The client speaks JSON only in v1.`,
-      );
-    }
+/**
+ * Формы одного слота: у развилки исходов — по одной на ветку с телом.
+ */
+function formsOf(io: unknown): readonly FormDescriptor[] {
+  if (!isOutcomes(io)) {
+    return [describeForm(io)];
+  }
+
+  return describeOutcomes(io)
+    .filter(([, form]) => !isNone(form))
+    .map(([, form]) => describeForm(form));
+}
+
+/** Клиент говорит только по JSON и только не потоком */
+function assertJsonForm(
+  form: FormDescriptor,
+  slot: 'input' | 'output',
+  name: string,
+  where: string,
+): void {
+  if (STREAMING_FORMS.has(form.kind)) {
+    throw new TypeError(
+      `${where}: operation '${name}' declares form '${form.kind}' in ` +
+        `'${slot}'. The streaming client (NDJSON for stream(...), SSE for ` +
+        `events(...)) is designed separately and does not exist yet.`,
+    );
+  }
+
+  if (form.leaf !== undefined && isPrimitiveLeaf(form.leaf)) {
+    throw new TypeError(
+      `${where}: operation '${name}' declares '${form.leaf}' in ` +
+        `'${slot}'. The client speaks JSON only in v1.`,
+    );
   }
 }
 
@@ -219,7 +256,7 @@ async function invoke(
   config: ClientConfig,
   payload: unknown,
   meta: ClientMeta | undefined,
-): Promise<Ok<unknown> | AnyFail> {
+): Promise<AnyOk | AnyFail> {
   const where = `client.${key}()`;
   const binding = operation.http as NonNullable<AnyOperation['http']>;
 
@@ -276,9 +313,10 @@ async function invoke(
       response.status,
       body,
       operation.output,
+      operation.status,
       config.validateOutput ?? true,
       where,
-    ) as Ok<unknown> | AnyFail;
+    ) as AnyOk | AnyFail;
   }
 
   return readFailure(
