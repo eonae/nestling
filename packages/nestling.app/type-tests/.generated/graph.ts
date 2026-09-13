@@ -6,10 +6,14 @@ import type {
   PreStepFn,
   StepResolver,
 } from '@nestlingjs/app';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { compose, makePipeline, Ok } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
 declare const resolve: StepResolver;
+
+/** Схема-заглушка бенча: тип есть, проверки нет */
+declare function schema<T>(): StandardSchemaV1<unknown, T>;
 
 declare const u0: PreStepFn<AnyInput, { f0: string }>;
 declare const f0Fail: FailDefinitionWithoutDetails<'conflict:bench_a'>;
@@ -165,202 +169,252 @@ const l49 = makePipeline<{ f48: string }>().pre(u49, { errors: [f49Fail] });
 export const composed = compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(compose(l0, l1), l2), l3), l4), l5), l6), l7), l8), l9), l10), l11), l12), l13), l14), l15), l16), l17), l18), l19), l20), l21), l22), l23), l24), l25), l26), l27), l28), l29), l30), l31), l32), l33), l34), l35), l36), l37), l38), l39), l40), l41), l42), l43), l44), l45), l46), l47), l48), l49);
 export const e0 = httpEndpoint.get('/bench/0', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 0 }),
 });
 export const e1 = httpEndpoint.get('/bench/1', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 1 }),
 });
 export const e2 = httpEndpoint.get('/bench/2', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 2 }),
 });
 export const e3 = httpEndpoint.get('/bench/3', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 3 }),
 });
 export const e4 = httpEndpoint.get('/bench/4', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 4 }),
 });
 export const e5 = httpEndpoint.get('/bench/5', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 5 }),
 });
 export const e6 = httpEndpoint.get('/bench/6', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 6 }),
 });
 export const e7 = httpEndpoint.get('/bench/7', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 7 }),
 });
 export const e8 = httpEndpoint.get('/bench/8', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 8 }),
 });
 export const e9 = httpEndpoint.get('/bench/9', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 9 }),
 });
 export const e10 = httpEndpoint.get('/bench/10', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 10 }),
 });
 export const e11 = httpEndpoint.get('/bench/11', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 11 }),
 });
 export const e12 = httpEndpoint.get('/bench/12', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 12 }),
 });
 export const e13 = httpEndpoint.get('/bench/13', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 13 }),
 });
 export const e14 = httpEndpoint.get('/bench/14', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 14 }),
 });
 export const e15 = httpEndpoint.get('/bench/15', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 15 }),
 });
 export const e16 = httpEndpoint.get('/bench/16', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 16 }),
 });
 export const e17 = httpEndpoint.get('/bench/17', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 17 }),
 });
 export const e18 = httpEndpoint.get('/bench/18', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 18 }),
 });
 export const e19 = httpEndpoint.get('/bench/19', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 19 }),
 });
 export const e20 = httpEndpoint.get('/bench/20', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 20 }),
 });
 export const e21 = httpEndpoint.get('/bench/21', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 21 }),
 });
 export const e22 = httpEndpoint.get('/bench/22', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 22 }),
 });
 export const e23 = httpEndpoint.get('/bench/23', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 23 }),
 });
 export const e24 = httpEndpoint.get('/bench/24', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 24 }),
 });
 export const e25 = httpEndpoint.get('/bench/25', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 25 }),
 });
 export const e26 = httpEndpoint.get('/bench/26', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 26 }),
 });
 export const e27 = httpEndpoint.get('/bench/27', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 27 }),
 });
 export const e28 = httpEndpoint.get('/bench/28', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 28 }),
 });
 export const e29 = httpEndpoint.get('/bench/29', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 29 }),
 });
 export const e30 = httpEndpoint.get('/bench/30', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 30 }),
 });
 export const e31 = httpEndpoint.get('/bench/31', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 31 }),
 });
 export const e32 = httpEndpoint.get('/bench/32', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 32 }),
 });
 export const e33 = httpEndpoint.get('/bench/33', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 33 }),
 });
 export const e34 = httpEndpoint.get('/bench/34', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 34 }),
 });
 export const e35 = httpEndpoint.get('/bench/35', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 35 }),
 });
 export const e36 = httpEndpoint.get('/bench/36', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 36 }),
 });
 export const e37 = httpEndpoint.get('/bench/37', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 37 }),
 });
 export const e38 = httpEndpoint.get('/bench/38', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 38 }),
 });
 export const e39 = httpEndpoint.get('/bench/39', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 39 }),
 });
 export const e40 = httpEndpoint.get('/bench/40', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 40 }),
 });
 export const e41 = httpEndpoint.get('/bench/41', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 41 }),
 });
 export const e42 = httpEndpoint.get('/bench/42', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 42 }),
 });
 export const e43 = httpEndpoint.get('/bench/43', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 43 }),
 });
 export const e44 = httpEndpoint.get('/bench/44', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 44 }),
 });
 export const e45 = httpEndpoint.get('/bench/45', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 45 }),
 });
 export const e46 = httpEndpoint.get('/bench/46', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 46 }),
 });
 export const e47 = httpEndpoint.get('/bench/47', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 47 }),
 });
 export const e48 = httpEndpoint.get('/bench/48', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 48 }),
 });
 export const e49 = httpEndpoint.get('/bench/49', {
   pipeline: composed,
+  output: schema<{ n: number }>(),
   handler: async () => new Ok({ n: 49 }),
 });
 

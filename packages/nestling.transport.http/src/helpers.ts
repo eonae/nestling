@@ -40,8 +40,8 @@ import type {
   OperationFailsOf,
   OutputFormOf,
   RedirectStatus,
-  StatusOf,
   SseConfig,
+  StatusOf,
   SuccessStatus,
   ValidateHandlerFails,
   ValidateOperationFails,
@@ -614,10 +614,10 @@ function implementOperation<
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
-  R extends AnyHandlerResult<
+  R extends AnyHandlerResult<OutputFormOf<C>, StatusOf<C>> = AnyHandlerResult<
     OutputFormOf<C>,
     StatusOf<C>
-  > = AnyHandlerResult<OutputFormOf<C>, StatusOf<C>>,
+  >,
 >(
   operation: C,
   declaration: HttpImplementDictionary<C, P, PN, PF> & {

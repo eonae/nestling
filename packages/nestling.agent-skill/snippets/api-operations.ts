@@ -47,6 +47,7 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
+  status: 'created',
   errors: [EmailTaken, QuotaExceeded, Unauthorized],
-  doc: { summary: 'Create user', tags: ['users'], status: 'created' },
+  doc: { summary: 'Create user', tags: ['users'] },
 });

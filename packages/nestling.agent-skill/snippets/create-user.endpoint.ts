@@ -25,7 +25,7 @@ class CreateUserHandler {
    */
   async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
+  ): Output<User, typeof EmailTaken | typeof QuotaExceeded, 'created'> {
     if (await this.users.byEmail(payload.email)) {
       return EmailTaken({ email: payload.email });
     }

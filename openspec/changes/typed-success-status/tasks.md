@@ -112,37 +112,37 @@
 
 ## 8. Документация
 
-- [ ] 8.1 `docs/design/endpoints.md`: поле `status`, развилка `outputs(...)`,
+- [x] 8.1 `docs/design/endpoints.md`: поле `status`, развилка `outputs(...)`,
       умолчание, связь с типом результата; `doc.status` уходит из описания
       секции `doc`
-- [ ] 8.2 `docs/design/errors.md`: `Ok<TValue, TStatus>` и выбор исхода
+- [x] 8.2 `docs/design/errors.md`: `Ok<TValue, TStatus>` и выбор исхода
       хендлером
-- [ ] 8.3 `docs/design/operations.md`: поле `status` и развилка у
+- [x] 8.3 `docs/design/operations.md`: поле `status` и развилка у
       `makeRequest`, их отсутствие у команды и события
-- [ ] 8.4 `docs/design/streaming.md`: потоковая форма объявляется
+- [x] 8.4 `docs/design/streaming.md`: потоковая форма объявляется
       единственным исходом, с причиной
-- [ ] 8.5 Английские пары 8.1–8.4 в `docs/en/design/` (инвариант
+- [x] 8.5 Английские пары 8.1–8.4 в `docs/en/design/` (инвариант
       `lang-parity`)
-- [ ] 8.6 Главы гайда `06-repository.md`, `08-testing.md`, `10-auth.md`,
+- [x] 8.6 Главы гайда `06-repository.md`, `08-testing.md`, `10-auth.md`,
       `11-database.md`, `13-openapi-and-client.md` и их английские пары:
       объявление исходов, плашка «сверено с кодом» с новым хэшем и датой
-- [ ] 8.7 `docs/recipes/ops.md`, `docs/recipes/alternatives.md` и
+- [x] 8.7 `docs/recipes/ops.md`, `docs/recipes/alternatives.md` и
       английские пары
-- [ ] 8.8 README пакетов `nestling.operations` и `nestling.transport.http`
+- [x] 8.8 README пакетов `nestling.operations` и `nestling.transport.http`
       (обе языковые половины), включая плашки статуса
-- [ ] 8.9 `docs/glossary.md` и `docs/en/glossary.md`: термин «исход»
+- [x] 8.9 `docs/glossary.md` и `docs/en/glossary.md`: термин «исход»
       (успешный исход операции) рядом с формами io
-- [ ] 8.10 `node .claude/skills/docs-style/scripts/lint.mjs` по всем
+- [x] 8.10 `node .claude/skills/docs-style/scripts/lint.mjs` по всем
       изменённым текстовым файлам — 0 запрещённых слов
 
 ## 9. Решение зафиксировано
 
-- [ ] 9.1 `docs/decisions/deferred.md`, запись `[2026-08-01]`
+- [x] 9.1 `docs/decisions/deferred.md`, запись `[2026-08-01]`
       «Типизированный успешный статус декларации»: пометка «**РЕАЛИЗОВАНО
       \<дата\>** — change `typed-success-status` (#84 roadmap)» с тем, что
       вышло целиком, и чем реализация уточнила решение — развилка исходов
       со своими телами вместо одного статуса и сверка на границе
-- [ ] 9.2 Открытый вопрос дизайна (политика `check()` на недостижимую ветку
+- [x] 9.2 Открытый вопрос дизайна (политика `check()` на недостижимую ветку
       развилки) записать в `deferred.md` отдельной записью с триггером
       возврата
 - [ ] 9.3 После `/opsx:archive`: строка 84 в `docs/decisions/roadmap.md` —

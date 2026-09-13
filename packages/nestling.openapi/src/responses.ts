@@ -162,11 +162,7 @@ function planSuccess(
  * Исход без тела (`none()` или декларация без `output`) печатается без
  * `content`.
  */
-function planOutcome(
-  form: unknown,
-  context: ConvertContext,
-): OpenApiResponse {
-
+function planOutcome(form: unknown, context: ConvertContext): OpenApiResponse {
   if (form === undefined) {
     return { description: 'Success' };
   }

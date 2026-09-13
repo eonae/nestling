@@ -115,17 +115,18 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
+  status: 'created',
   errors: [EmailTaken, QuotaExceeded, Unauthorized],
-  doc: { summary: 'Create user', tags: ['users'], status: 'created' },
+  doc: { summary: 'Create user', tags: ['users'] },
 });
 ```
 
 The file with operations imports only `@nestlingjs/operations`, the schemas
 and the failure definitions. That keeps it importable from a frontend
-bundle, which is the reason it exists.
-
-`doc:` feeds the OpenAPI document, which is built from the same
-declarations that validate requests.
+bundle, which is the reason it exists. `status:` names the successful
+outcome (`ok` by default, `no_content` with no `output`);
+`outputs({ ok: User, accepted: Job })` declares several. `doc:` feeds the
+OpenAPI document, built from the same declarations that validate requests.
 
 ## Two forms of handler
 
@@ -179,9 +180,8 @@ export const GetUser = httpEndpoint.implement(GetUserOperation, {
 ```
 
 The second parameter of `handle` is `meta`: it carries what the `.pre`
-steps of the layer put into the context, typed. The status of a success,
-headers, cookies and a redirect are the HTTP shape of the response and
-live in `references/http.md`.
+steps of the layer put into the context, typed. Headers, cookies and a
+redirect are the HTTP shape of the response and live in `references/http.md`.
 
 ## Forms of io
 

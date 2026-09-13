@@ -57,9 +57,10 @@ const SESSION_TTL = 3600;
 export const CreateSession = httpEndpoint.post('/sessions', {
   input: z.object({ email: z.email() }),
   output: Session,
+  status: 'created',
   pipeline: observability,
   detached: 'a session issues the token that the authed layer checks',
-  doc: { summary: 'Open a session', tags: ['users'], status: 'created' },
+  doc: { summary: 'Open a session', tags: ['users'] },
   handler: async () => {
     const session = { id: 'sid-1', expiresAt: new Date().toISOString() };
 
