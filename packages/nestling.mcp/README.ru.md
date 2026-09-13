@@ -37,7 +37,7 @@ makeApp({
     http({ server: api }),
     mcp({
       server: api,
-      info: { name: 'users-service', version: '1.0.0' },
+      info: { name: 'users-api', version: '1.0.0' },
       converters: [zodConverter()],
     }),
   ],
