@@ -212,7 +212,7 @@ family member is built as `root.child({ scope })`
 ([container.md](./container.md), "The kernel logger"), and the spy's
 child logger writes into the same list. A test checks `entries` by
 field, not by parsing `stderr`. The same logger is passed straight
-into a unit (`withRequestLogging(spy.logger)`), or into
+into a unit that takes a `Logger` argument, or into
 `makeDispatch(endpoints, { logger })` with no `App`.
 
 ### The transport

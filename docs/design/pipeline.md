@@ -139,11 +139,11 @@ export const base = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(audit);
-export const authed = compose(
+export const withIdempotency = compose(
   base,
-  makePipeline().pre(withIdentity()),
+  makePipeline().pre(withIdempotencyKey()),
 );
-// у endpoint'а: pipeline: compose(authed, makePipeline<{ identity: User }>().pre(...))
+// у endpoint'а: pipeline: compose(withIdempotency, makePipeline<{ idempotencyKey: string }>().pre(...))
 ```
 
 - `compose(outer, ..., inner)` принимает список слоёв. Он читается сверху

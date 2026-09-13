@@ -152,11 +152,11 @@ export const base = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(audit);
-export const authed = compose(
+export const withIdempotency = compose(
   base,
-  makePipeline().pre(withIdentity()),
+  makePipeline().pre(withIdempotencyKey()),
 );
-// on the endpoint: pipeline: compose(authed, makePipeline<{ identity: User }>().pre(...))
+// on the endpoint: pipeline: compose(withIdempotency, makePipeline<{ idempotencyKey: string }>().pre(...))
 ```
 
 - `compose(outer, ..., inner)` accepts a list of layers. It reads top
