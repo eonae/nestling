@@ -40,7 +40,7 @@ without it, the application does not start. `secret()` hides the value
 when the section is printed and in error text, as in
 [chapter 7](../guide/07-config.md).
 
-## A pre-unit that checks the signature
+## A pre-step that checks the signature
 
 ```typescript
 // src/features/users/endpoints/user-webhook.endpoint.ts (fragment)
@@ -69,22 +69,22 @@ export class VerifySignature {
 ```
 
 `VerifySignature` is built the same way as `Authenticate` from
-[chapter 10](../guide/10-auth.md): a class unit with a dependency on
+[chapter 10](../guide/10-auth.md): a class step with a dependency on
 the config section, registered in the `providers:` of the
 `UsersModule` module.
 
 The difference is in the context type.
-`ExtendableContext<{ rawBody: Uint8Array }>` declares that the unit
+`ExtendableContext<{ rawBody: Uint8Array }>` declares that the step
 needs the raw bytes of the body in `ctx.input.rawBody`. The transport
-puts this field there before the first pre-unit, if the declaration is
+puts this field there before the first pre-step, if the declaration is
 marked `rawBody: true`. Without the mark the field does not exist, and
-such a unit does not fit into the pipeline — the compiler makes the
+such a step does not fit into the pipeline — the compiler makes the
 check.
 
-The unit reads the signature header from `ctx.raw.attributes`. The
+The step reads the signature header from `ctx.raw.attributes`. The
 comparison runs through `timingSafeEqual`, so the response time does
 not depend on which byte of the signature differs. On a mismatch, the
-unit throws the failure, and the handler is not called.
+step throws the failure, and the handler is not called.
 
 ## A declaration with `rawBody: true`
 
@@ -121,7 +121,7 @@ export const UserWebhook = httpEndpoint.post('/hooks/users', {
 
 `rawBody: true` turns on access to the bytes of the body. The transport
 reads the body once: the same bytes go into `ctx.input.rawBody` for the
-unit and are parsed into JSON for the `input` schema, so there can be
+step and are parsed into JSON for the `input` schema, so there can be
 no gap between the signed bytes and the checked value. The handler
 receives an ordinary checked payload and knows nothing about the
 bytes.
@@ -144,15 +144,15 @@ hint: "declare 'rawBody: true', or provide the fields from an outer layer"
 A forgotten mark is caught in the editor, not by a request answering
 `500`.
 
-`errors: [InvalidSignature]` declares the failure thrown by the unit,
+`errors: [InvalidSignature]` declares the failure thrown by the step,
 not the handler. The rule from [chapter 10](../guide/10-auth.md)
 applies here too: the `errors:` list describes everything the client
-can receive, and a failure from a pre-unit passes the same check as a
+can receive, and a failure from a pre-step passes the same check as a
 failure from the handler. An undeclared failure would reach the client
 as `internal_error`.
 
-`detached` takes the endpoint out from under every assembly policy
-with a reason, and requires one: an empty string stops the assembly.
+`detached` takes the endpoint out from under every build policy
+with a reason, and requires one: an empty string stops the build.
 The policy from `app.ts` requires the `authed` layer from every
 `POST`, and here the signature confirms authenticity instead. The
 reason is printed at start and appears in the `check()` report, so the
@@ -164,7 +164,7 @@ list of policy exceptions can be read at review:
 
 ## Requests and checking
 
-The signature is computed by the same algorithm as in the unit:
+The signature is computed by the same algorithm as in the step:
 HMAC-SHA256 of the body's bytes, in hex.
 
 ```bash
@@ -188,7 +188,7 @@ curl localhost:3000/users/2
 ```
 
 The first request passed the check, and the handler removed the user.
-The second was rejected by the unit before the handler. The
+The second was rejected by the step before the handler. The
 `observability` layer's audit line is present in both cases: the layer
 stands inside and sees the outcome of the request.
 
@@ -233,7 +233,7 @@ it('отклоняет тело с чужой подписью', async () => {
 });
 ```
 
-The secret in the e2e assembly is bound by a source to the section's
+The secret in the e2e build is bound by a source to the section's
 keys (`e2e/helpers/create-test-app.ts`); the test does not touch
 `process.env`.
 

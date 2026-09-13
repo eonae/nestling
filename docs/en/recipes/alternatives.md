@@ -10,21 +10,21 @@ place: where an alternative is shown and when to choose it.
 | Task | Default form | Alternative | Shown in |
 |---|---|---|---|
 | Failure from a handler | `return Fail` | `throw Fail` from deep in the call stack | `user-webhook.endpoint.ts` |
-| Failure from a pre-unit | `return Fail` declared on the layer | `throw Fail` from deep in the call stack | `plugins/auth/authenticate.ts` |
+| Failure from a pre-step | `return Fail` declared on the layer | `throw Fail` from deep in the call stack | `plugins/auth/authenticate.ts` |
 | Reacting to an error | `.finally` with `outcome` | `.catch` with `.is()` | `features/users/endpoints/delete-user.endpoint.ts` |
-| Replacing a successful response | the handler builds the response | an `.ok` unit | not in the example |
+| Replacing a successful response | the handler builds the response | an `.ok` step | not in the example |
 | Success without a body | a bare value | `Ok.noContent()`, `Ok.accepted()` | `delete-user.endpoint.ts` |
 | Feature composition | `providers:` | `modules:` | `features/users/users.feature.ts` |
 | Feature selection | the object `{ features, includeDeps }` | a comma-separated string | `packages/nestling.app/README.md` |
 
-## Failure from a unit
+## Failure from a step
 
 ```typescript
 // src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
       return Unauthorized();
     }
-// connecting the unit declares its failures
+// connecting the step declares its failures
 makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 ```
 
@@ -36,8 +36,8 @@ the result into the context, so it never reaches the accumulated
 
 | Form | The compiler sees | Where it's declared |
 |---|---|---|
-| `return Fail` from a pre-unit | yes | the second argument of `.pre` |
-| `throw Fail` from a pre-unit | no | `.pre` or the endpoint's `errors:` |
+| `return Fail` from a pre-step | yes | the second argument of `.pre` |
+| `throw Fail` from a pre-step | no | `.pre` or the endpoint's `errors:` |
 | `throw Fail` from deep in the call stack | no | the endpoint's or the operation's `errors:` |
 
 `throw` remains for delivery from deep within the call stack: a
@@ -67,9 +67,9 @@ export class AuditDeletion {
   pipeline: compose(authed, makePipeline().catch(AuditDeletion)),
 ```
 
-A `.catch` unit is called only for an error response. It receives the
+A `.catch` step is called only for an error response. It receives the
 response context, not the `Fail` itself, so the failure is recognized
-through `.is()`. A unit that returns nothing leaves the response
+through `.is()`. A step that returns nothing leaves the response
 unchanged. Returning a different `Fail` is possible; turning an error
 into a success is not.
 
@@ -77,11 +77,11 @@ Choose `.catch` when the reaction is needed only for errors and
 depends on the failure code. For auditing every outcome, use
 `.finally` from [chapter 9](../guide/09-logging.md).
 
-## The `.ok` unit
+## The `.ok` step
 
-The example has no `.ok` unit. Per the README of `@nestlingjs/app`, it
+The example has no `.ok` step. Per the README of `@nestlingjs/app`, it
 is called only for a successful response and sees the full context:
-success means that every `.pre` unit has run. The unit may return a
+success means that every `.pre` step has run. The step may return a
 different successful response, for example to add a header, or return
 nothing and leave the response as is. Turning a success into an error
 through `.ok` is not possible. The `errors:` check runs after `.ok`
@@ -138,7 +138,7 @@ in both cases.
 
 ## Feature selection by string
 
-The `app.assemble(select)` argument accepts four forms: `'all'`, a
+The `app.build(select)` argument accepts four forms: `'all'`, a
 comma-separated string `'users,ops'`, an array `['users', 'ops']` and
 the object `{ features, includeDeps }`. The example reads a string
 from `APP_FEATURES` and wraps it in an object for `includeDeps`, as

@@ -59,7 +59,7 @@ endpoint'ы. `Suppressions` — список адресов, на которые
 
 Фича не может зависеть от провайдера другой фичи. Если в фиче `users`
 объявить провайдер `UsersReport` с `@Component([Suppressions])`, сборка
-остановится на фазе ASSEMBLE:
+остановится на фазе BUILD:
 
 ```
 1 edge(s) cross a feature boundary:
@@ -285,7 +285,7 @@ curl -X POST localhost:3000/users \
 // src/plugins/observability/observability.plugin.ts
 export const appObservability: Plugin = makePlugin({
   name: 'app-observability',
-  // Класс-юнит слоя `observability`: без регистрации слой не соберётся
+  // Класс-шаг слоя `observability`: без регистрации слой не соберётся
   providers: [AuditOutcome],
 });
 ```
@@ -294,7 +294,7 @@ export const appObservability: Plugin = makePlugin({
 `makeFeature`: имя, провайдеры, при необходимости endpoint'ы. Разница в
 роли: плагин перечисляется в `plugins:` корня, есть в каждом процессе, и
 фичи обращаются к нему DI-токенами. У `appObservability` параметров нет:
-логгер юниту даёт ядро, а уровень записи задаёт `NESTLING_LOG_LEVEL`
+логгер шагу даёт ядро, а уровень записи задаёт `NESTLING_LOG_LEVEL`
 логгера ядра ([глава 9](./09-logging.md)), поэтому значение плагина одно
 и объявлено прямо здесь.
 
@@ -333,7 +333,7 @@ export const authed = compose(
 );
 ```
 
-Класс-юнит `Authenticate` нужен endpoint'ам обеих фич, поэтому
+Класс-шаг `Authenticate` нужен endpoint'ам обеих фич, поэтому
 регистрирует его плагин. Модуль, достижимый из двух фич, обязан быть
 плагином: пока у него два владельца, ребро в него нельзя отнести ни к
 одной фиче, и сборка останавливается с предложением перенести модуль в
@@ -415,7 +415,7 @@ export const app = makeApp({
 ```typescript
 // src/app.spec.ts
 it('возвращает отказ соседней фичи на отвергнутый адрес', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });

@@ -122,7 +122,7 @@ At `build()`, the container takes four steps.
    itself depend on members of the same family or another one.
 
 From here on, the member is no different from a manually registered
-provider. It becomes a node at assembly and a value at INIT. Two
+provider. It becomes a node at build and a value at INIT. Two
 consumers of `Counter$('users')` receive one instance: `UserService`
 increments the counter, and `Demo` reads its value. The member takes
 part in the cycle check, is created and released in topological order
@@ -131,8 +131,8 @@ visualization. A member nobody requested is not created:
 `container.get(Counter$('orphan'))` returns `null`.
 
 A member named in `deps` for which no recipe is registered stops the
-assembly with the name of the family and the parameter. A recipe that
-returns a provider for a different DI token also stops the assembly:
+build with the name of the family and the parameter. A recipe that
+returns a provider for a different DI token also stops the build:
 the error names the family, the parameter and the actual DI token. A
 second recipe for the same family is a registration error.
 
@@ -273,7 +273,7 @@ Rules of the aggregate:
 - the array is frozen and shared by every consumer of `.all`;
 - the aggregate node belongs to no module, and a contribution from
   another module lands in the array with no extra declarations;
-- there is no provider with `provide: HealthCheck$.all`: the assembly
+- there is no provider with `provide: HealthCheck$.all`: the build
   creates this node itself, and a manual registration under the same
   DI token is a registration error.
 

@@ -5,7 +5,7 @@
 > [design/schemas.md](../design/schemas.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-13] Канонизация HTTP-input: канон размещения + bind-карта` and
-> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-юнитов`.
+> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-шагов`.
 
 The service needs three endpoints: `POST /users` accepts a user in the body,
 `GET /users/:id` returns it by identifier, `GET /users?limit=10` returns a
@@ -57,7 +57,7 @@ export const CreateUser = httpEndpoint.post('/users', {
 ```
 
 The `input` field sets the input schema. Checking the input is a duty of the
-runtime, not of the handler or a pipeline unit: you cannot turn it off, and the
+runtime, not of the handler or a pipeline step: you cannot turn it off, and the
 only way to accept any value is an explicit `z.unknown()` schema. The runtime
 checks the input before the handler is called, and the handler receives data of
 type `CreateUserInput`. Accessing a field that is not in the schema does not

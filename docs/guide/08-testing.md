@@ -21,7 +21,7 @@ export const app = makeApp({
 Тест должен собирать то же приложение, что и `main.ts`, — весь его
 состав целиком. Поэтому декларация лежит в отдельном файле, а
 `main.ts` и тесты импортируют одно и то же значение `app`. Словарь
-состава в тест не копируется: `assembleTest` принимает саму декларацию.
+состава в тест не копируется: `buildTest` принимает саму декларацию.
 
 ```typescript
 // src/app.spec.ts
@@ -71,7 +71,7 @@ export default {
 ```typescript
 // src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
@@ -81,7 +81,7 @@ it('отдаёт пользователя через полный пайплай
 });
 ```
 
-`assembleTest(app, options)` собирает ту же декларацию и проводит
+`buildTest(app, options)` собирает ту же декларацию и проводит
 приложение по фазам до `WIRE`: граф построен, политики проверены так же,
 как при старте, экземпляры созданы, ресурсы захвачены, таблица маршрутов
 создана. Тестовая
@@ -132,7 +132,7 @@ export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
 ```typescript
 // src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
@@ -160,7 +160,7 @@ DI-токена, которого нет в графе, останавливае
 ```typescript
 // src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: vars({
       API_TOKEN: 'test-token',
       APP_PAGE_SIZE: '1',

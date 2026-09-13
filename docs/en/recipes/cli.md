@@ -43,10 +43,10 @@ name is checked at the moment the declaration is created: an empty
 string in `command` is an error on importing the file, not on parsing
 the first command.
 
-The command's input is assembled from the process arguments.
+The command's input is built from the process arguments.
 Positional arguments land in the `args` array. An option `--key value`
 becomes the `key` field, a flag `--flag` with no value gives `true`.
-The assembled object is checked by the `input` schema before the
+The built object is checked by the `input` schema before the
 handler is called: `z.array(...).min(1)` sets the requirement for the
 name, and the `greet` command with no name answers with the
 `bad_request` failure on the `args` path, without calling the handler.
@@ -265,7 +265,7 @@ registration. The error names the command and the form: a command has
 no connection whose drop would be a normal end, and files arrive as
 paths in the arguments.
 
-The example assembles `dispatch` directly, because the commands have
+The example builds `dispatch` directly, because the commands have
 no dependencies. A command with a class handler needs a container:
 declare it in a feature and declare the application through `makeApp`
 with the `cli()` transport in `transports:`. The minimal example is in
@@ -317,7 +317,7 @@ describe('команды через execute', () => {
 });
 ```
 
-`parseArgv` assembles the input from an array of strings by the same
+`parseArgv` builds the input from an array of strings by the same
 rules as a run from the terminal. A command missing from `dispatch` is
 not a failure value but an exception carrying its name: `execute` does
 not build a request context in this case.

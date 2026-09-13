@@ -51,7 +51,7 @@ line.
 
 ## The framework creates the instance
 
-The endpoint registers the handler class itself: at assembly it adds a provider
+The endpoint registers the handler class itself: at build it adds a provider
 of this class into the module of the unit that declared the endpoint. `new` is
 not needed in the application code, the dependencies arrive in the constructor.
 There is no need to list the class in the `providers:` of a feature:
@@ -67,12 +67,12 @@ export const UsersFeature = makeFeature({
 });
 ```
 
-A class listed both in `handler` and in `providers:` stops the assembly at the
-ASSEMBLE phase instead of giving two instances: a node of the graph has one
+A class listed both in `handler` and in `providers:` stops the build at the
+BUILD phase instead of giving two instances: a node of the graph has one
 source. The message names the class, the pattern of the endpoint and the module
 where the second registration was found.
 
-The instance is created once, at the assembly of the application, and is reused
+The instance is created once, at the build of the application, and is reused
 between requests — like an ordinary singleton of the container. You cannot
 store the data of one request in a field: it will leak into the next one.
 Everything that belongs to the request arrives as arguments of `handle`.
@@ -118,7 +118,7 @@ A class is not the only shape. The `handler` field accepts two:
 | class | `handler: SomeHandler` | there are dependencies |
 
 A class gets dependencies from the container, the same rule as for providers
-and pipeline units. A function remains for a handler that has nothing to
+and pipeline steps. A function remains for a handler that has nothing to
 receive: a utility endpoint like `/ops/version`, and chapter one of this guide.
 The choice of shape does not affect the behaviour of the endpoint.
 

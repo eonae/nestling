@@ -10,9 +10,9 @@
 
 The whole application is not needed. A few endpoints need to be
 embedded into an existing process or script, or a dependency graph
-needs to be assembled with no transport, for example to export it for
+needs to be built with no transport, for example to export it for
 visualization. Both cases are solved by the same primitives the
-application assembly is built from.
+application build is built from.
 
 ## An HTTP server from a server, a transport and `dispatch`
 
@@ -57,11 +57,11 @@ process.on('SIGTERM', () => void stop('SIGTERM'));
 process.on('SIGINT', () => void stop('SIGINT'));
 ```
 
-The steps the assembly performs in the WIRE and START phases are
+The steps the build performs in the WIRE and START phases are
 written here by hand. `makeDispatch` builds the "pattern, handler"
 table from the declarations, accepting only executable declarations —
 with no unresolved dependencies in the handler class or the pipeline's
-unit classes: a declaration with dependencies fails the type check, and
+step classes: a declaration with dependencies fails the type check, and
 the call does not compile. Two declarations of the same transport with
 the same pattern stop `makeDispatch` with an error.
 
@@ -74,11 +74,11 @@ finishes reading open connections, `close()` cancels requests in
 flight.
 
 Declarations with dependencies first receive them through
-`endpoint.resolve(...)`; in an assembled application, the container
+`endpoint.resolve(...)`; in an built application, the container
 does this. Reading `process.env` in the root is allowed here: there is
 no config section without the configuration kernel.
 
-## An endpoint with no pipeline and an endpoint with a pre-unit
+## An endpoint with no pipeline and an endpoint with a pre-step
 
 ```typescript
 // src/endpoints/create-user.endpoint.ts
@@ -104,8 +104,8 @@ schema, the response is checked against the `errors:` list, and the
 request context is open.
 
 ```typescript
-// src/common/units.ts
-export const withStartedAt: PreUnitFn<
+// src/common/steps.ts
+export const withStartedAt: PreStepFn<
   EmptyInput,
   { startedAt: number }
 > = () => ({ startedAt: Date.now() });
@@ -123,9 +123,9 @@ export const SayHello = httpEndpoint.get('/', {
 });
 ```
 
-A pre-unit returns an addition to the context. The handler reads it
+A pre-step returns an addition to the context. The handler reads it
 from the second argument, `meta`, together with `signal` and `fail`;
-the type of the `startedAt` field is inferred from the unit.
+the type of the `startedAt` field is inferred from the step.
 
 ```bash
 yarn start:dev
@@ -158,7 +158,7 @@ export const makeContainer = async (
     // phase 0 and registers it as a value itself; here the calling
     // code does that
     .register(valueProvider(RootLogger$, makeKernelLogger(config)))
-    // Kernel modules that `assemble` registers itself: the kernel
+    // Kernel modules that `build` registers itself: the kernel
     // logger reads the `nestlingLog` section and the request id from
     // the context
     .register(contextKernel(), loggerKernel())
@@ -175,9 +175,9 @@ export const makeContainer = async (
 };
 ```
 
-`ContainerBuilder` assembles the same graph as `makeApp` in `main.ts`
+`ContainerBuilder` builds the same graph as `makeApp` in `main.ts`
 of the same example, but without the application phases and the
-transports. The configuration kernel, which the assembly through
+transports. The configuration kernel, which the build through
 `makeApp` registers itself, connects here in two steps:
 `bootstrapConfig` brings up the sources by the bindings to the
 sections' keys (as in the recipe [Configuration from a file and
@@ -190,11 +190,11 @@ value under `RootLogger$`. The kernel modules `contextKernel()` and
 registers through its own modules. The `modules` list may hold switch
 branches, so `resolveBranches(modules, values)` expands it: the
 example has no branches, and the value map is empty. `registerHealth`
-connects the probes: the `Health$` node is assembled even without
+connects the probes: the `Health$` node is built even without
 `makeApp`, and the calling code names its phase for it (the recipe [Who
 is connected right now and how to disconnect them](./ops.md)).
 `build()` is synchronous: it builds the graph and checks it as a
-whole — a missing dependency and a cycle stop the assembly with one
+whole — a missing dependency and a cycle stop the build with one
 error listing the nodes. It creates no instances: `init()` creates
 them.
 
@@ -235,7 +235,7 @@ main().catch(console.error);
 `toJSON()` gives back the graph with its nodes, edges and module
 membership. The script writes it to a file, and `@nestlingjs/viz` draws
 it in the browser. No transport is needed for this, so the script
-assembles a container, not an application.
+builds a container, not an application.
 
 ## Checking
 
@@ -263,7 +263,7 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
   return dispatch.call(endpoint.pattern, makeEmptyContext(raw, meta));
 };
 
-  it('отдаёт значение pre-юнита хендлеру', async () => {
+  it('отдаёт значение pre-шага хендлеру', async () => {
     const response = await call(SayHello);
 
     expect(response.isSuccess).toBe(true);
@@ -271,7 +271,7 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
   });
 ```
 
-Without `assembleTest`, the test itself assembles the request frame:
+Without `buildTest`, the test itself builds the request frame:
 `makeEmptyContext` builds the initial context from the request
 description and the declaration, and `dispatch.call` executes the
 endpoint the same way the transport does. The rest of the file's tests

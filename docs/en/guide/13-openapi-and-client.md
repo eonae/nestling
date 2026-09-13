@@ -49,7 +49,7 @@ options here, and a third when you need it:
   vendor without losing the default — or for someone who wants their own
   `zodConverter({ … })` with different options: a converter of the same
   vendor **replaces** the default. A schema that no converter translated
-  stops the start: the document is built on the ASSEMBLE phase, not on
+  stops the start: the document is built on the BUILD phase, not on
   the first request to `/openapi.json`.
 
 ```bash
@@ -84,7 +84,7 @@ import { writeFileSync } from 'node:fs';
 
 import { app, appOpenapi } from './app.js';
 
-/** The assembly argument is a command-line argument; without it every feature is selected */
+/** The build argument is a command-line argument; without it every feature is selected */
 const args = process.argv[2];
 
 const document = appOpenapi.document(app.discover(args));
@@ -93,13 +93,13 @@ const document = appOpenapi.document(app.discover(args));
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
 ```
 
-`app.discover(args)` runs phase 0 and stops there: it parses the assembly
+`app.discover(args)` runs phase 0 and stops there: it parses the build
 argument, expands the switch branches, resolves the feature selection and
 runs discovery. It goes no further — the config sources are not brought
 up, the graph is not built, the transports are not created. So the call is
 synchronous, and it needs no `await`.
 
-It needs the assembly argument for the same reason `assemble` does:
+It needs the build argument for the same reason `build` does:
 without the argument the document would describe every declared feature,
 while the process would bring up only the selected ones. An application
 with two features and the `docs` switch shows the difference right
@@ -125,7 +125,7 @@ is built by the same call.
 
 `app.discover(args)` throws the errors of phase 0: an unknown feature
 name, a switch value outside the dictionary, a duplicate pattern on a
-transport instance. Whether the graph will assemble is a question for
+transport instance. Whether the graph will build is a question for
 `app.check(args)` from [chapter 19](./19-select.md): an unsatisfied
 dependency and a violated policy do not stand in the way of `discover()`.
 
@@ -345,7 +345,7 @@ end up in its import graph.
 ## Check
 
 There is no test for the document in `src/app.spec.ts`. The document is
-available in the graph of the test assembly as a value under the
+available in the graph of the test build as a value under the
 `OpenApiDocument$` DI token:
 
 ```typescript
@@ -353,7 +353,7 @@ available in the graph of the test assembly as a value under the
 import { OpenApiDocument$ } from '@nestlingjs/openapi';
 
 it('описывает каждый публичный endpoint и скрывает служебный', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });

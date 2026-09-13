@@ -169,7 +169,7 @@ Sources consulted, in priority order: process.env
 yarn start:dev   # without API_TOKEN: error at start
 ```
 
-The section is checked when the graph is assembled, before the instances are
+The section is checked when the graph is built, before the instances are
 created and before the socket is opened. All the failed fields of a section are
 collected into one error. A value that is not set is not hidden in the error
 text: "the key is not set" is exactly what you need to see. Only the kernel
@@ -181,7 +181,7 @@ node that holds the socket. It has its own keys: `HTTP_PORT` and `HTTP_HOST`,
 `3000` and `0.0.0.0` by default. `http()` has no address option at all: the
 address changes without rebuilding the image, so it is set only by a variable.
 A second server gets its own keys by name: `server({ name: 'admin' })`
-reads `HTTP_ADMIN_PORT` and `HTTP_ADMIN_HOST`. A test assembly needs no port at
+reads `HTTP_ADMIN_PORT` and `HTTP_ADMIN_HOST`. A test build needs no port at
 all: it does not open a socket.
 
 ```bash

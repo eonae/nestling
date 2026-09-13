@@ -12,7 +12,7 @@ deduplicating commands by an idempotency key, an outbox, a registry of
 open subscriptions with administrative closing. Such a package is
 written separately, without touching the kernel and without forking
 it: it connects to the root as an ordinary plugin, is tested through
-`assembleTest`, and pulls neither a schema vendor nor storage into the
+`buildTest`, and pulls neither a schema vendor nor storage into the
 application.
 
 Such a package is called a satellite: it is built on top of the
@@ -29,7 +29,7 @@ Everything needed already exists in the public packages:
 | Primitive | Package | What the registry uses it for |
 |---|---|---|
 | `makePlugin` | `@nestlingjs/app` | connecting to the root through `plugins:` |
-| `@Handler`, `resourceProvider` | `@nestlingjs/container` | the registry as a graph resource, the layer's class units |
+| `@Handler`, `resourceProvider` | `@nestlingjs/container` | the registry as a graph resource, the layer's class steps |
 | `makePipeline`, the `.pre` and `.finally` phases | `@nestlingjs/app` | the `tracked` layer: the record lives as long as the subscription |
 | `AbortSignal` | the language standard | the subscription signal, combining three cancellation reasons |
 | `Topic` | `@nestlingjs/operations` | the registry's change feed |
@@ -92,10 +92,10 @@ export const tracked = makePipeline()
   .finally(UntrackSubscription);
 ```
 
-The layer consists of two units in class form: both need the registry
-from the container. The pre-unit returns the `subscription` field, and
+The layer consists of two steps in class form: both need the registry
+from the container. The pre-step returns the `subscription` field, and
 the handler sees it in its types as `meta.subscription`. The
-`.finally` unit for a streaming `output` runs after the stream has
+`.finally` step for a streaming `output` runs after the stream has
 ended, broken off or been closed by the consumer, so the record is
 removed at the exact moment the subscription actually ends. The
 registry needs no hook or timer of its own.
@@ -231,11 +231,11 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 The satellite's plugin is built the same way as the logging plugin
 from [chapter 14](../guide/14-features.md): the function accepts
 composition decisions and returns a `makePlugin` value. The plugin
-itself registers the layer's class units, so an endpoint with the
+itself registers the layer's class steps, so an endpoint with the
 `tracked` layer and no `subscriptions()` in the root stops the
-assembly at the ASSEMBLE phase: the layer's class unit gets no
+build at the BUILD phase: the layer's class step gets no
 dependencies. A second `subscriptions({ … })` value in the same root
-also stops the assembly: two plugins with one name. The resource's
+also stops the build: two plugins with one name. The resource's
 `deps` list depends on the `publish` option: with publishing turned
 off, there are no operation callers in the graph.
 
@@ -305,7 +305,7 @@ interface has no start method without routes.
 
 Not the instance but the **declaration** declares the io forms a
 transport can carry: the `capabilities` field of `TransportDeclaration`.
-This way, the form check happens at the ASSEMBLE phase, where
+This way, the form check happens at the BUILD phase, where
 instances do not exist yet. A declaration whose io form is not among
 the transport's capabilities is rejected before the first request is
 served. The transport is referenced by the instance's DI token, and
@@ -317,13 +317,13 @@ interface and put their own capability constant into the declaration.
 ## Checking
 
 A satellite is tested with the same test root as the application. The
-package's test assembles the plugin, one feature and a transport
+package's test builds the plugin, one feature and a transport
 fixture:
 
 ```typescript
 // packages/nestling.subscriptions/src/module.spec.ts (fragment)
   it('видит подписку, убивает её и снимает запись', async () => {
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],

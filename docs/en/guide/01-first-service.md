@@ -5,7 +5,7 @@
 > [design/endpoints.md](../design/endpoints.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,
-> `[2026-09-03] Декларация приложения: makeApp, assemble(select), AssembledApp`
+> `[2026-09-03] Декларация приложения: makeApp, build(select), BuiltApp`
 > and
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки; формы корня без фич`.
 
@@ -34,10 +34,10 @@ const app = makeApp({
   transports: [http()],
 });
 
-await app.assemble().run();
+await app.build().run();
 ```
 
-The application consists of two values plus the assembly.
+The application consists of two values plus the build.
 
 The `ListUsers` endpoint declaration describes the address, the response schema
 and the handler. The method is named by the constructor name, the path is the
@@ -61,10 +61,10 @@ The endpoints stand right at the root: a service with one route does not need a
 named unit. How an application splits into parts once it has more than one area
 is shown by [2. What an application consists of](./02-composition.md).
 
-`app.assemble()` assembles the application for this process, `run()` builds the
+`app.build()` builds the application for this process, `run()` builds the
 graph, checks it, opens the socket and installs the `SIGTERM` and `SIGINT`
 handlers. The order here is a guarantee: the socket opens after the graph is
-assembled and checked, and the transport cannot accept a request before the
+built and checked, and the transport cannot accept a request before the
 routing table is ready, since it has no start method without one. On the
 signal, the transport stops accepting new requests, tells the current ones
 about the cancellation and closes once they finish.
@@ -115,7 +115,7 @@ signal handlers, and a failed start crashes the process on its own.
 // src/main.ts
 import { app } from './app.js';
 
-await app.assemble().run();
+await app.build().run();
 ```
 
 The split into two files exists because more than the entry point reads the
@@ -132,7 +132,7 @@ The final example needs the `API_TOKEN` variable: one of its configuration
 sections declares it required, and the application does not start without it.
 For now, set it to any string.
 
-On start, the application prints the composition of the assembly:
+On start, the application prints the composition of the build:
 
 ```
 [nestling] features: users; transports: http

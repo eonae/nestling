@@ -30,7 +30,7 @@ Dependencies are listed as DI tokens on standard decorators. There is no
 :::
 :::card Guarantee over convention
 A cycle in the graph, a missing dependency or an endpoint without a
-required layer stop the assembly, not the request.
+required layer stop the build, not the request.
 :::
 :::card Schema-first
 The `input`, `output` and `errors` schemas define the validation, the

@@ -169,7 +169,7 @@ pipeline, which processes the request as a whole. Only steps that keep the
 element type are allowed on the output, because both ends of the chain are
 fixed by the `output` schema.
 
-The `observability` layer works here too. The `.finally` unit is called
+The `observability` layer works here too. The `.finally` step is called
 after the stream has finished or cut off, so the outcome in the audit line
 is correct.
 
@@ -288,7 +288,7 @@ request over the network:
 ```typescript
 // illustration; src/app.spec.ts has no such test
 it('импортирует строки и пропускает занятые email', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
   });

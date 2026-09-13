@@ -42,7 +42,7 @@ const RootConfig = makeConfig('root', {
  */
 const cfg = load(RootConfig);
 
-await app.assemble({ ...cfg, includeDeps: true }).run();
+await app.build({ ...cfg, includeDeps: true }).run();
 ```
 
 `load(section)` читает значения до сборки контейнера: синхронно и только
@@ -55,7 +55,7 @@ await app.assemble({ ...cfg, includeDeps: true }).run();
 потому что префикс `app` уже занят секцией приложения.
 
 Поля секции названы так же, как поля аргумента сборки, поэтому `cfg`
-подходит `assemble` целиком. Имя `docs` — имя переключателя, и лишнее
+подходит `build` целиком. Имя `docs` — имя переключателя, и лишнее
 поле в этом объекте не скомпилируется.
 
 ## Формы аргумента и замыкание по вызовам
@@ -109,14 +109,14 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 Сборка с выбором `'users'` без `includeDeps` останавливается на фазе
-ASSEMBLE:
+BUILD:
 
 ```
 Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
-selected feature implements it and this assembly has no intercom, so the
+selected feature implements it and this build has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
-assembly argument (or close the selection over calls with
-'assemble({ features, includeDeps: true })'), or assign the intercom role
+build argument (or close the selection over calls with
+'build({ features, includeDeps: true })'), or assign the intercom role
 to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
@@ -173,12 +173,12 @@ export const app = makeApp({
 обязательно, значение вне словаря не компилируется:
 
 ```typescript
-app.assemble({ features: 'all', docs: 'off' }); // ок
-app.assemble({ features: 'all', doc: 'off' }); // не компилируется: поля нет
-app.assemble({ features: 'all', docs: 'no' }); // не компилируется: нет значения
+app.build({ features: 'all', docs: 'off' }); // ок
+app.build({ features: 'all', doc: 'off' }); // не компилируется: поля нет
+app.build({ features: 'all', docs: 'no' }); // не компилируется: нет значения
 ```
 
-Те же четыре проверки повторяет рантайм на фазе ASSEMBLE — для
+Те же четыре проверки повторяет рантайм на фазе BUILD — для
 JS-потребителей и для значений, пришедших из окружения: значение не из
 словаря, `pick` на переключателе вне `switches:`, два переключателя с
 одним именем, значение без умолчания не передано.
@@ -203,7 +203,7 @@ DI-токена у переключателя нет: инжектировать
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       ...testConfig,
       args: 'ops',
     });

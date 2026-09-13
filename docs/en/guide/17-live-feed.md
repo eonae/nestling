@@ -169,7 +169,7 @@ registers the subscription in the registry and gives the handler
 with the administrative cancel from the registry, so the handler
 listens only to it.
 
-For a streamed response the `.finally` units of the `observability`
+For a streamed response the `.finally` steps of the `observability`
 layer run after the stream has ended, broken off, or been closed, so
 the outcome is honest: a client's disconnect gives `disconnected`, a
 source that ended on its own gives `completed`, a failure gives

@@ -101,7 +101,7 @@ The same policy that checks the connection checks the precondition: the
 outbox plugin gives it out under the same transaction variable
 ([chapter 11](./11-database.md)). An endpoint that calls the
 transactional `emit` and is not composed from the transaction layer
-stops the assembly on the ASSEMBLE phase.
+stops the build on the BUILD phase.
 
 ## Who sends the record
 
@@ -162,15 +162,15 @@ export const WelcomeEmail = implement(UserRegistered, {
 });
 ```
 
-The layer does two things. Its first unit puts the idempotency key
+The layer does two things. Its first step puts the idempotency key
 from the message envelope into the context, and the handler reads it
 as the familiar `meta.idempotencyKey`. The second calls the store: the
 mark is set by the pair "the endpoint's pattern and the key". For an
 event's subscriber the pattern looks like `users.registered@welcome-email`,
 so two subscribers of one event deduplicate independently.
 
-If the mark already existed, the unit returns `done()`, an early
-success. The following units and the handler are not called, the
+If the mark already existed, the step returns `done()`, an early
+success. The following steps and the handler are not called, the
 response phase starts with a success, and the broker gets the
 acknowledgment: there is nothing left to retry. Early success is a
 general pipeline channel ([chapter 10](./10-auth.md)), not a
@@ -219,14 +219,14 @@ inbox gives the guarantee.
 
 The relay's loop is split into two levels: `drain()` makes one pass
 over a batch, and `@OnStart` repeats it until the signal. A test
-assembly stops after the WIRE phase and does not run `@OnStart`
+build stops after the WIRE phase and does not run `@OnStart`
 ([chapter 8](./08-testing.md)), so the test makes the pass itself:
 
 ```typescript
 // src/app.spec.ts
 it('кладёт событие в outbox и доставляет его проходом relay', async () => {
   const spy = spyLogger();
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[RootLogger$, spy.logger]],
   });
@@ -293,7 +293,7 @@ difference between `publishedAt` and `createdAt` is the price for the
 event surviving a process crash. A record that has run out of attempts
 publishes `outbox.stuck`: this is a point for intervention, not for
 self-repair. Both operations may have no subscribers: the application
-assembles and runs without them.
+builds and runs without them.
 
 ## Checking
 

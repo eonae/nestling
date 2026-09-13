@@ -18,13 +18,13 @@ side while the consumers move to the new one. The framework neither
 requires nor parses the `.vN` suffix, and a name with no version is
 allowed.
 
-## The snapshot of the assembly's operations
+## The snapshot of the build's operations
 
 ```typescript
 // src/operations.compat.spec.ts
 /**
  * The same declaration with secrets from an object: `check()`
- * assembles the graph, and the section is read
+ * builds the graph, and the section is read
  */
 const checked = makeApp({
   features: app.spec.features,
@@ -67,7 +67,7 @@ const currentSnapshot = async (): Promise<OperationSnapshot> =>
 
 `checked` is the same application declaration as in chapter
 [19](./19-select.md): the secrets are bound to the section's keys by a
-source, because `check()` assembles the graph and reads the
+source, because `check()` builds the graph and reads the
 configuration section, and it accepts no overrides. The source of the
 descriptions is the `check()` report of every topology from the same
 chapter: it contains the `operations` field with descriptors of the
@@ -126,7 +126,7 @@ The snapshot lies in the repository as an ordinary file.
 `serializeSnapshot` gives a deterministic output: the operations by
 name, the failures by code, the JSON Schema keys sorted. The same
 graph gives byte for byte the same file, so a mismatch between the
-file and the assembly means a change to the operations, not to the
+file and the build means a change to the operations, not to the
 serialization order.
 
 ## Comparison against the baseline and verdicts
@@ -150,7 +150,7 @@ serialization order.
     expect(report.additive).toEqual([]);
     expect(report.unknown).toEqual([]);
 
-    // The snapshot is deterministic: the file equals the assembly
+    // The snapshot is deterministic: the file equals the build
     // byte for byte
     expect(serializeSnapshot(current)).toBe(
       readFileSync(BASELINE_PATH, 'utf8'),
@@ -168,7 +168,7 @@ the JSON path and a description, plus a summary by operation.
 Operation compatibility: 0 breaking, 0 additive, 0 unknown
 ```
 
-`diffOperations` takes no part in the assembly and throws no exception
+`diffOperations` takes no part in the build and throws no exception
 because of the comparison's result, except for one case: a baseline
 with an unknown `snapshotVersion` is an error of the check's author.
 What counts as a test failure is the test's own decision: here any

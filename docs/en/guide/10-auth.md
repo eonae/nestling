@@ -4,7 +4,7 @@
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/composition.md](../design/composition.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
-> `[2026-09-04] Отказы слоя: объявление в .pre(unit, { errors }), канал return у pre-юнита, эффективное множество errors`
+> `[2026-09-04] Отказы слоя: объявление в .pre(step, { errors }), канал return у pre-шага, эффективное множество errors`
 > and `[2026-09-12] Транзакционный приём`.
 
 Anyone can read the list of users, but only someone who has presented a
@@ -16,7 +16,7 @@ forget it on a new endpoint.
 // src/errors.ts
 import { makeFail } from '@nestlingjs/operations';
 
-/** The failure of the Bearer token check. The pre-unit of the `authed` layer returns it. */
+/** The failure of the Bearer token check. The pre-step of the `authed` layer returns it. */
 export const Unauthorized = makeFail('unauthorized', {
   message: 'Bearer token is missing or invalid',
 });
@@ -64,34 +64,34 @@ export const authed = compose(
 );
 ```
 
-`Authenticate` is a pre-unit in the form of a class. It needs the config
+`Authenticate` is a pre-step in the form of a class. It needs the config
 section from [chapter 7](./07-config.md), so the dependency is declared in
-the role decorator. The role here is `@Handler`: the unit has a `handle`
+the role decorator. The role here is `@Handler`: the step has a `handle`
 method. The class itself is registered in the `providers:` of the feature.
 
 The `handle` method gets the context of the request. `ctx.raw.attributes`
 holds the headers of the HTTP request; header names are lowercased. The
-unit compares the Bearer token with the `apiToken` value from the config
+step compares the Bearer token with the `apiToken` value from the config
 section.
 
-The unit finishes in one of two ways.
+The step finishes in one of two ways.
 
 - `return Unauthorized()` stops the pipeline: the handler is not called,
   and the response phase gets this failure.
-- `return { caller: … }` adds a field to the context. The following units
+- `return { caller: … }` adds a field to the context. The following steps
   and the handler will see it.
 
-The failure of a unit is declared at the point of connection — the second
+The failure of a step is declared at the point of connection — the second
 argument of `.pre`. Returning a failure outside this list is impossible:
-the compiler rejects the unit right in `.pre`. The `caller` field does not
+the compiler rejects the step right in `.pre`. The `caller` field does not
 reach the accumulated context on a failure: the runtime learns of the
 failure before the result is written into the context.
 
 `authed` is a new layer, composed from two: `compose(outer, inner)`. The
-pre-units of the outer layer run earlier, so `requestId` is already in the
+pre-steps of the outer layer run earlier, so `requestId` is already in the
 context by the time the Bearer token is checked, and the audit line is
 written for rejected requests too. The `authed` layer descends from
-`observability` — the assembly policy below relies on this.
+`observability` — the build policy below relies on this.
 
 A layer can declare a requirement on the outer context with the
 `makePipeline<{ caller: Caller }>()` signature. Composing such a layer with
@@ -118,19 +118,19 @@ The endpoint connects `authed` instead of `observability`. `Unauthorized`
 is not listed in `errors:`: the layer declared it. The failure set of an
 endpoint is made up of the `errors:` dictionary and the failures of its
 layers, and this set gets the type of the handler, the check at the
-boundary and the OpenAPI document. A failure from a pre-unit passes the
+boundary and the OpenAPI document. A failure from a pre-step passes the
 same check as a handler failure: the pipeline boundary replaces an
 undeclared failure with `internal_error` at code `500`.
 
-A pre-unit has three outcomes. The first two are visible here: an addition
+A pre-step has three outcomes. The first two are visible here: an addition
 to the context (`{ caller }`) and a failure (`Unauthorized()`). The third
-is an early success: the unit returns `done()`, and the endpoint finishes
+is an early success: the step returns `done()`, and the endpoint finishes
 with a success without reaching the handler.
 
 An early success is declared with the same second argument:
-`.pre(unit, { done: true })`. A declaration with such a layer must have no
+`.pre(step, { done: true })`. A declaration with such a layer must have no
 `output` — an early success carries no value — and this is checked when it
-is created. A unit that returns `done()` without declaring it drops the
+is created. A step that returns `done()` without declaring it drops the
 request with an error that names the fix in its text.
 
 The first use of this channel was the deduplication layer on message
@@ -144,7 +144,7 @@ OpenAPI, without listing someone else's failure of its own. The `hasLayer`
 policy below requires the layer on every mutating endpoint, so `401`
 appears on every one of them at once.
 
-The handler gets the fields that the pre-units put into the context as the
+The handler gets the fields that the pre-steps put into the context as the
 second argument, together with the reserved `signal` key — the
 cancellation signal of the request. The handlers of the example do not use
 the identity of the caller, but they could:
@@ -170,7 +170,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 
 A new endpoint with `pipeline: observability` compiles and works, but lets
 everyone through. So that such an endpoint does not reach production, the
-root declares assembly policies:
+root declares build policies:
 
 ```typescript
 // src/app.ts
@@ -196,7 +196,7 @@ export const app = makeApp({
 });
 ```
 
-A policy is an invariant over the assembled graph. `everyEndpoint(filter)`
+A policy is an invariant over the built graph. `everyEndpoint(filter)`
 selects endpoints: by the DI token of the transport or by a regular
 expression on the pattern. `.hasLayer(layer, label)` requires that the
 pipeline of every selected endpoint descend from this layer. `label`
@@ -206,12 +206,12 @@ A layer is compared by reference, not by content: a copy with the same
 content, declared in another file, does not pass the policy, and the check
 cannot be bypassed by redeclaring the layer.
 
-Policies are checked on the ASSEMBLE phase: before the instances are
+Policies are checked on the BUILD phase: before the instances are
 created, before the socket opens. A `POST /rogue` endpoint with the
 `observability` layer stops the start with this message:
 
 ```
-1 endpoint violation(s) of assembly policies:
+1 endpoint violation(s) of build policies:
 
 policy: every endpoint (pattern /^(POST|PATCH|DELETE) /) has layer 'authed'
   - POST /rogue (http, module 'rogue'): its pipeline is not composed from layer 'authed'
@@ -226,7 +226,7 @@ protected" invariant, no pipeline and no layer are indistinguishable.
 ## The second check: the context variable is declared
 
 In [chapter 9](./09-logging.md) the store read the request identifier
-through `Ctx(RequestId)`. The reader gives back the value that the pre-unit
+through `Ctx(RequestId)`. The reader gives back the value that the pre-step
 of the layer put there. If the route has no layer connected, `peek()`
 returns `undefined`, and `get()` throws an error. The compiler does not see
 such an omission: the store has no type for the input of the request, and
@@ -243,8 +243,8 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 ```
 
 `hasVar(variable, label)` requires that the pipeline of the selected
-endpoint declare this variable. A declaration is a pre-unit of the shape
-`Var.provide(…)`; `withRequestId()` from chapter 9 is such a unit. A unit
+endpoint declare this variable. A declaration is a pre-step of the shape
+`Var.provide(…)`; `withRequestId()` from chapter 9 is such a step. A step
 that puts the `requestId` field into the context with an ordinary function
 gives the value to readers, but the predicate does not count it: otherwise
 the check would come down to matching field names.
@@ -291,7 +291,7 @@ of them are declared with the same `detached` and `doc.hidden` (recipe
 ["Who is connected right now and how to disconnect
 them"](../recipes/ops.md)).
 
-The `doc.hidden` field controls the OpenAPI document, not the assembly
+The `doc.hidden` field controls the OpenAPI document, not the build
 policies.
 
 The `endpoint-has-layer` rule from `@nestlingjs/eslint-plugin` hints at the
@@ -315,7 +315,7 @@ export default [
 ```
 
 The rule is syntactic and sees only the text of the declaration, so its
-level is `warn`. The guarantee comes from the policy on the assembled
+level is `warn`. The guarantee comes from the policy on the built
 graph.
 
 ## The HTTP form of a handler: a cookie and a redirect
@@ -383,9 +383,9 @@ operation, `implements HttpHandler<typeof Op>` does the same with
 `meta.http` and `HttpOutput`. Both names come from one import together
 with the role decorator.
 
-## Transport units
+## Transport steps
 
-The transport gives the start context `HttpStartContext` to a unit that
+The transport gives the start context `HttpStartContext` to a step that
 needs the request:
 
 ```typescript
@@ -404,7 +404,7 @@ the status, the outcome and the byte counters.
 
 Such a pipeline is allowed in an HTTP declaration and does not compile in
 `implement`: the slot names the missing fields with an error literal. The
-transport does not attach units of its own — the layer is always visible
+transport does not attach steps of its own — the layer is always visible
 in the declaration.
 
 ## Check
@@ -413,7 +413,7 @@ in the declaration.
 // src/app.spec.ts
 it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
   const repo = inMemoryUsersRepo([alice]);
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, repo]],
   });
@@ -427,7 +427,7 @@ it('отклоняет запись без Bearer-токена до вызова
 });
 
 it('создаёт пользователя по Bearer-токену из конфига', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
@@ -450,8 +450,8 @@ it('создаёт пользователя по Bearer-токену из кон
 store stays untouched: the handler was not called. Headers in an app test
 are passed with the `attributes` option. The value of the Bearer token
 comes from `vars({ API_TOKEN: 'test-token' })` in the test options. The
-policies in the test assembly are the same as in `main.ts`: the test
-assembles the same `app` declaration, not a copy of its dictionary.
+policies in the test build are the same as in `main.ts`: the test
+builds the same `app` declaration, not a copy of its dictionary.
 
 ```bash
 API_TOKEN=secret yarn start:dev

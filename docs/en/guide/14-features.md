@@ -61,7 +61,7 @@ letters. The class is not exported outward and does not end up in the
 
 A feature cannot depend on the provider of another feature. If the
 `users` feature declares a `UsersReport` provider with
-`@Component([Suppressions])`, the assembly stops on the ASSEMBLE phase:
+`@Component([Suppressions])`, the build stops on the BUILD phase:
 
 ```
 1 edge(s) cross a feature boundary:
@@ -74,14 +74,14 @@ A feature cannot depend on the provider of another feature. If the
     implement it in 'notifications'.
 ```
 
-The check runs on the assembled graph and tells apart three kinds of
+The check runs on the built graph and tells apart three kinds of
 edges.
 
 | Edge | Verdict |
 |---|---|
-| a feature provider depends on a provider of another feature | assembly error |
+| a feature provider depends on a provider of another feature | build error |
 | a feature provider depends on a plugin provider | allowed |
-| a plugin provider depends on a feature provider | assembly error |
+| a plugin provider depends on a feature provider | build error |
 
 A feature is addressed by operations, a plugin by DI tokens. A DI token
 works only inside a process, an operation has an address and schemas and
@@ -169,9 +169,9 @@ class, the input checked against the schema, a failure outside the
 in the `endpoints:` of the feature next to the HTTP endpoints.
 
 An operation of the `request` kind whose caller is injected but whose
-implementation is absent from the assembly stops the assembly: the call
+implementation is absent from the build stops the build: the call
 would have nowhere to go. Two owners of one operation also stop the
-assembly.
+build.
 
 ## Calling through the caller
 
@@ -294,7 +294,7 @@ features depend on is declared as a plugin:
 // src/plugins/observability/observability.plugin.ts
 export const appObservability: Plugin = makePlugin({
   name: 'app-observability',
-  // The unit class of the observability layer: without registering it the layer will not assemble
+  // The step class of the observability layer: without registering it the layer will not build
   providers: [AuditOutcome],
 });
 ```
@@ -303,7 +303,7 @@ A plugin is cross-cutting infrastructure. `makePlugin` accepts the same
 thing as `makeFeature`: a name, providers, endpoints if needed. The
 difference is in the role: a plugin is listed in `plugins:` of the root,
 is present in every process, and features reach it by DI tokens.
-`appObservability` has no parameters: the kernel gives the unit its
+`appObservability` has no parameters: the kernel gives the step its
 logger, and `NESTLING_LOG_LEVEL` of the kernel logger sets the record
 level ([chapter 9](./09-logging.md)), so the plugin has one value and it
 is declared right here.
@@ -320,7 +320,7 @@ export const appSubscriptions = subscriptions({
 ```
 
 `subscriptions(options)` from the `@nestlingjs/subscriptions` package
-assembles a subscription registry. `identity` names a context variable:
+builds a subscription registry. `identity` names a context variable:
 the registry takes its value by the key and does not know the shape of
 the accumulated input. `labels` is a function of the context; the
 accumulated input is out of its reach too, and the values of variables
@@ -345,10 +345,10 @@ export const authed = compose(
 );
 ```
 
-The `Authenticate` unit class is needed by the endpoints of the `users`
+The `Authenticate` step class is needed by the endpoints of the `users`
 and `ops` features, so a plugin registers it. A module reachable from two
 features must be a plugin: as long as it has two owners, the edge into it
-cannot be assigned to either feature, and the assembly stops with a
+cannot be assigned to either feature, and the build stops with a
 suggestion to move the module into `plugins:`.
 
 ## Modules inside a feature
@@ -381,7 +381,7 @@ export const UsersFeature = makeFeature({
 A feature accepts providers two ways: as a `providers:` list or as a
 `modules:` list of modules. A module groups providers under a name, and
 the `dependsOn` field lists the modules it cannot work without. A module
-fits a feature with many providers, or one already assembled into a
+fits a feature with many providers, or one already built into a
 module for another application. The `notifications` feature gets by with
 `providers:`: it has two services. In both cases the feature, not the
 module, lists the endpoints.
@@ -420,14 +420,14 @@ export const app = makeApp({
 
 The value of a parameterized plugin is created once and imported: a
 second `subscriptions({ … })` call would give a second plugin with the
-same name, and the assembly would stop.
+same name, and the build would stop.
 
 ## Check
 
 ```typescript
 // src/app.spec.ts
 it('возвращает отказ соседней фичи на отвергнутый адрес', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });

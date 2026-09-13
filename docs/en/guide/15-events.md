@@ -63,7 +63,7 @@ implementation of an event and forbidden for the implementation of a
 request or a command. It gives the subscription a name. Inside a
 process the endpoint's pattern is built as `users.registered@welcome-email`,
 and two subscribers of one event are told apart by their names. The
-assembly stops with the same name twice. At a broker the name becomes
+build stops with the same name twice. At a broker the name becomes
 the name of the receiver group, so the author assigns it, not the
 framework.
 
@@ -211,7 +211,7 @@ export class Suppressions {
 }
 ```
 
-`withIdempotencyKey()` is a ready pre-unit from `@nestlingjs/app`: it
+`withIdempotencyKey()` is a ready pre-step from `@nestlingjs/app`: it
 takes the key from the call parameters and declares the
 `IdempotencyKey` context variable. The service reads it through
 `Ctx(IdempotencyKey)`, the same way the store read `RequestId` in
@@ -219,7 +219,7 @@ takes the key from the call parameters and declares the
 the kernel delivers the key to the handler, and what to do with it is up
 to the command's owner.
 
-A policy checks that the unit stands in the implementation's pipeline:
+A policy checks that the step stands in the implementation's pipeline:
 
 ```typescript
 // src/app.ts
@@ -235,7 +235,7 @@ The policies from [chapter 10](./10-auth.md) picked out the endpoints
 of the HTTP transport. Here the filter points at the bus transport
 `BusTransport$` and the pattern of the command, and the `hasVar` check
 requires the pipeline to declare the variable. Without
-`withIdempotencyKey()` the assembly stops.
+`withIdempotencyKey()` the build stops.
 
 ## The three kinds of operation
 
@@ -282,7 +282,7 @@ context, including `requestId`, do not reach the implementation.
 // src/app.spec.ts
 it('доставляет ключ идемпотентности команды до сервиса в глубине', async () => {
   const spy = spyLogger();
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     ...testConfig,
     overrides: [
       [UsersRepository$, inMemoryUsersRepo([alice])],

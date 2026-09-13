@@ -9,21 +9,21 @@
 > `[2026-07-13] Бюджет на DX типов pipeline`,
 > `[2026-07-14] Policy-check на собранном графе`,
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
-> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-юнитов`,
+> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-шагов`,
 > `[2026-09-03] Код отказа: категория и уточнение; makeFail`,
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`,
-> `[2026-09-04] Отказы слоя: объявление в .pre(unit, { errors }), канал return у pre-юнита, эффективное множество errors`,
-> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; юниты транспорта`,
-> `[2026-09-12] Транзакционный приём: отметка в базе, слой подписчика, досрочный успех pre-юнита`,
+> `[2026-09-04] Отказы слоя: объявление в .pre(step, { errors }), канал return у pre-шага, эффективное множество errors`,
+> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; шаги транспорта`,
+> `[2026-09-12] Транзакционный приём: отметка в базе, слой подписчика, досрочный успех pre-шага`,
 > `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. The model: flat phases
 
-A pipeline is the sequence of units around the handler. The units fall
+A pipeline is the sequence of steps around the handler. The steps fall
 into four kinds by the moment they run, and the declaration reads top
 to bottom as an execution plan. There are no nested wrappers and no
-`next()`: every unit has exactly one point of execution, and it is
+`next()`: every step has exactly one point of execution, and it is
 visible from the name of the method.
 
 A pipeline is declared with the `makePipeline()` builder. The builder is
@@ -41,43 +41,43 @@ The method names match the methods of `Promise`: `ok`, `catch`,
 becomes thenable, and `await pipeline` would try to resolve it.
 
 The pipeline has no separate notions of "middleware", "wrapper" or
-"exception filter". A transaction is recorded by three explicit units:
+"exception filter". A transaction is recorded by three explicit steps:
 `.pre` opens it, `.ok` commits it, `.catch` rolls it back. A centralized
-error transformation is an ordinary `.catch` unit.
+error transformation is an ordinary `.catch` step.
 
 ## 2. Executing one layer
 
-`.pre` units run in declaration order. Each one extends the context with
+`.pre` steps run in declaration order. Each one extends the context with
 typed fields; the context only grows, its fields are never removed and
-never change type. A unit finishes in one of three ways: it returns an
+never change type. A step finishes in one of three ways: it returns an
 addition to the context, a failure from the `errors` list, or the early
 success `done()`. A failure and an early success are declared when the
-unit is connected (§3). The runtime recognizes a returned failure by
+step is connected (§3). The runtime recognizes a returned failure by
 `isFail`, an early success by `isDone`, before either one is put into
 the context.
 
 A failure means the handler is not called, and the pipeline moves
 straight to the response phase with this `Fail`. A failure thrown from a
-unit is handled the same way.
+step is handled the same way.
 
-An early success means the remaining `.pre` units and the handler are
+An early success means the remaining `.pre` steps and the handler are
 not called, the `input` schema check does not run, and the response
 phase starts with a success with no value. For `.ok` and `.finally`
-units, such a request is indistinguishable from an ordinary success: the
+steps, such a request is indistinguishable from an ordinary success: the
 outcome is `completed`.
 
-The handler runs once every `.pre` unit has passed. A failure the
+The handler runs once every `.pre` step has passed. A failure the
 handler returns is handled the same way as a failure it throws: `throw`
 is only a way to deliver a `Fail` value, not a different semantics
 ([errors.md](./errors.md)).
 
-After the handler, the `.ok` and `.catch` units run. They form one list
-in declaration order. Before each unit, the runtime looks at the
-current response: for a success, the `.ok` units run, for an error, the
-`.catch` units run, the rest are skipped. A unit can change the
-response. If an `.ok` unit throws, the response becomes an error, and
-the `.catch` units further down the list run next. A `.catch` unit can
-return a plain `Fail` with no need to assemble an `ErrorResponseContext`
+After the handler, the `.ok` and `.catch` steps run. They form one list
+in declaration order. Before each step, the runtime looks at the
+current response: for a success, the `.ok` steps run, for an error, the
+`.catch` steps run, the rest are skipped. A step can change the
+response. If an `.ok` step throws, the response becomes an error, and
+the `.catch` steps further down the list run next. A `.catch` step can
+return a plain `Fail` with no need to build an `ErrorResponseContext`
 by hand: the runtime handles it the same way as a `Fail` returned by the
 handler.
 
@@ -90,7 +90,7 @@ The check sits after `.catch`, because `.catch` is exactly where an
 undeclared error can turn into a declared one, and before `.finally`,
 so `.finally` sees the response that actually reaches the client.
 
-`.finally` units run last and get the outcome of the request:
+`.finally` steps run last and get the outcome of the request:
 `completed`, `disconnected`, `aborted` or `failed`.
 
 **The moment of `.finally` depends on the shape of `output`.** For an
@@ -116,7 +116,7 @@ Right where the outcome becomes known, the runtime writes the request
 metrics: the counter `nestling.requests` and the histogram
 `nestling.request.duration` with the attributes `transport`, `pattern`
 and `outcome` ([container.md](./container.md), "The kernel metrics").
-The record is written by the runtime, not by a `.finally` unit, so an
+The record is written by the runtime, not by a `.finally` step, so an
 endpoint with no pipeline gets it too. For a streaming output, the
 record follows the delayed `.finally` and therefore measures the whole
 delivery, not only the work of the handler.
@@ -139,12 +139,12 @@ is read-only; the values are current at the moment they are read. Every
 endpoint has this field: for a non-streaming one the counters stay
 zero, so an observer does not need to check the output shape.
 `summary` lives in the context, not as a separate argument of
-`.finally`, because `.ok` units need it too.
+`.finally`, because `.ok` steps need it too.
 
 ## 3. Layers and `compose`
 
 One call to `makePipeline()` with a chain of methods defines one layer.
-The pipeline of an endpoint is a stack of layers, assembled by the
+The pipeline of an endpoint is a stack of layers, built by the
 `compose` function from constants:
 
 ```typescript
@@ -162,10 +162,10 @@ export const withIdempotency = compose(
 - `compose(outer, ..., inner)` accepts a list of layers. It reads top
   to bottom as "outside in"; `explain()` shows the layers in the same
   order.
-- `.pre` units run outside in, the response units and `.finally` run
+- `.pre` steps run outside in, the response steps and `.finally` run
   inside out.
-- A layer runs only when the `.pre` units of every outer layer have
-  passed. So the response units of a layer see the context of the outer
+- A layer runs only when the `.pre` steps of every outer layer have
+  passed. So the response steps of a layer see the context of the outer
   layers as full; `Partial` remains only for the `.pre` of its own
   layer.
 - A layer declares its requirements on the outer context explicitly, as
@@ -177,9 +177,9 @@ export const withIdempotency = compose(
   pipeline as a factory parameter, and the type of the parameter
   describes the required context.
 
-### Standard observability units
+### Standard observability steps
 
-The base layer is assembled from two kernel units. `withRequestId()`
+The base layer is built from two kernel steps. `withRequestId()`
 puts the request identifier into the context: it takes it from the
 `x-request-id` header or creates a new one. `withTracing()` puts the
 trace — the value of the `Trace` variable with the fields `traceId`,
@@ -203,14 +203,14 @@ value that cannot be parsed is not an error: it arrives from across a
 trust boundary and has no schema, so it is ignored, and the trace starts
 over.
 
-Both units are written as `<Var>.provide(…)`, so the policy
+Both steps are written as `<Var>.provide(…)`, so the policy
 `everyEndpoint(…).hasVar(Trace)` counts them (§7). No substitution into
 the pipeline happens by default: the layer is declared through
 composition.
 
 ### Layer failures
 
-A failure a pre-unit may finish with is declared when the unit is
+A failure a pre-step may finish with is declared when the step is
 connected:
 
 ```typescript
@@ -221,7 +221,7 @@ export const authed = compose(
 ```
 
 - The second argument of `.pre` is a list of `makeFail` definitions. The
-  unit returns a failure from this list by value, the same way a
+  step returns a failure from this list by value, the same way a
   handler returns a failure from `errors:`. A returned failure outside
   the list is a compilation error at the `.pre` site. The failures of
   the kernel are allowed with no declaration.
@@ -241,24 +241,24 @@ export const authed = compose(
   compilation error at the declaration site, in the format of §4, with
   a hint to add the definition to the operation. The constructor
   repeats the same check when the declaration is created: it has both
-  the operation and the pipeline on hand, so a separate ASSEMBLE check
+  the operation and the pipeline on hand, so a separate BUILD check
   is not needed.
-- A failure thrown from a unit or from deep in a call chain is not seen
+- A failure thrown from a step or from deep in a call chain is not seen
   by the compiler. It must be declared by a layer or by the endpoint,
   or the boundary replaces it with `InternalError`.
 
 ### Layer early success
 
-The right of a pre-unit to finish the endpoint with success is declared
+The right of a pre-step to finish the endpoint with success is declared
 by the same second argument of `.pre`:
 
 ```typescript
 export const dedup = makePipeline()
   .pre(readIdempotencyKey())
-  .pre(ClaimUnit, { done: true });
+  .pre(ClaimStep, { done: true });
 ```
 
-- The value `done()` is returned by a unit and finishes the endpoint
+- The value `done()` is returned by a step and finishes the endpoint
   with success and no value. There is no shape carrying a response
   value.
 - The pipeline carries the mark in its value, next to the sets of
@@ -273,11 +273,11 @@ export const dedup = makePipeline()
   when the declaration is created, both for the shape with an
   operation and for the shape with its own address. A violation is an
   error naming the layer, the declaration and the reason.
-- A unit that returns `done()` from a pipeline with no mark drops the
-  request with an error. The text names the fix: connect the unit with
+- A step that returns `done()` from a pipeline with no mark drops the
+  request with an error. The text names the fix: connect the step with
   `{ done: true }`.
-- There is no derivation of the mark from the body of a unit: whether a
-  unit will return `done()` cannot be known from its shape.
+- There is no derivation of the mark from the body of a step: whether a
+  step will return `done()` cannot be known from its shape.
 
 The channel is shared and belongs to the pipeline itself. Its first use
 was the deduplication layer of
@@ -288,8 +288,8 @@ no keys, no storage and no retries in the channel itself
 ## 4. Typing
 
 The type of the context in the response phase accounts for the fact
-that `.pre` units may not have run: `.catch` and `.finally` have their
-own layer of context as `Partial`. `.ok` units get a stronger
+that `.pre` steps may not have run: `.catch` and `.finally` have their
+own layer of context as `Partial`. `.ok` steps get a stronger
 guarantee. Success comes only from the handler, and the handler runs
 only after every `.pre`, so the context of `.ok` is full.
 
@@ -323,51 +323,51 @@ by delta against an empty base) with a hard threshold, and the latency
 of a real tsserver with a wide ceiling. A graph of about 50 nested
 layers compiles with no `TS2589`.
 
-## 5. Unit shapes and `TNeeds`
+## 5. Step shapes and `TNeeds`
 
 | Shape | TNeeds | Use |
 |---|---|---|
 | a function | — | the base case |
 | an instance (`new WithTracing(...)`) | — | a bridge: a class with no DI |
 | a class (`WithTracing`) | +Constructor | `App` resolves it from the container at start |
-| a DI token (`RateLimit('strict')`) | +Token | configurable units through DI token families |
+| a DI token (`RateLimit('strict')`) | +Token | configurable steps through DI token families |
 | a variable writer with dependencies (`Tx.provide([Database], compute)`) | +Token | `bind()` substitutes values from the container; the only functional shape with dependencies ([container.md](./container.md), "Asynchronous context") |
-| a transport unit (`withHeader('x-tenant')`) | — | typed by the start context of the transport; allowed only in the `pipeline` slot of a transport declaration ([transports.md §1.2](./transports.md)) |
+| a transport step (`withHeader('x-tenant')`) | — | typed by the start context of the transport; allowed only in the `pipeline` slot of a transport declaration ([transports.md §1.2](./transports.md)) |
 
 `TNeeds` is the second type parameter of the pipeline. It accumulates
-the dependencies the pipeline will get later: unit classes and the DI
-tokens of variable writers. A pipeline with no such units has `TNeeds`
+the dependencies the pipeline will get later: step classes and the DI
+tokens of variable writers. A pipeline with no such steps has `TNeeds`
 equal to `never` (`Pipeline<…, never>`). Standalone transports accept
 only such a pipeline; `run()` resolves `TNeeds` with the container on
 the WIRE phase. With no container, a resolver substitutes the
 dependencies: `pipeline.bind((token) => …)`. There is one resolver for
-both kinds: a class unit is the DI token that the class itself serves
-as. Failures declared when units are connected accumulate in a separate
+both kinds: a class step is the DI token that the class itself serves
+as. Failures declared when steps are connected accumulate in a separate
 type parameter, `TFails` (§3).
 
-A unit that needs values from the container is written as a class. The
+A step that needs values from the container is written as a class. The
 only exception is the context variable writer,
 `Var.provide(deps, compute)`: a class there would exist only to move a
 value through `ctx.input`. There is no public constructor of a
-functional unit with dependencies for the other phases.
+functional step with dependencies for the other phases.
 
-A unit is a singleton. The state of one request lives only in the
+A step is a singleton. The state of one request lives only in the
 context.
 
 ## 6. Pipeline boundaries
 
 - **The pipeline works with values, the transport works with bytes**
   ([transports.md](./transports.md)). Compression, CORS and content
-  negotiation are not units.
+  negotiation are not steps.
 - The response phase does not change the type of the response value:
   the output schema describes what goes over the network. A shared
   envelope like `{data, meta}` is part of the schema or a
-  serialization option of the transport, not a unit.
+  serialization option of the transport, not a step.
 - Retry and timeout are declarative options of the endpoint, run by an
-  orchestrator, not wrapper units. The option is visible in the
+  orchestrator, not wrapper steps. The option is visible in the
   metadata, the documentation and the visualization.
 - Logic at the level of a stream item (item validation, limits,
-  timeouts) is item chains on the io declaration, not request units.
+  timeouts) is item chains on the io declaration, not request steps.
   Streams have two different processing scopes: the connection and the
   item ([streaming.md](./streaming.md)).
 
@@ -377,10 +377,10 @@ context.
 layers annotated with the context accumulated (`→ {identity: User}`).
 It serves debugging, documentation and graph visualization.
 
-Policy-check checks cross-cutting invariants on the assembled graph. An
+Policy-check checks cross-cutting invariants on the built graph. An
 invariant like "every HTTP endpoint is protected" is not expressed by
 the types of the handler, so it is declared in the composition root and
-checked on the ASSEMBLE phase, when every value already exists:
+checked on the BUILD phase, when every value already exists:
 
 ```typescript
 makeApp({
@@ -400,13 +400,13 @@ makeApp({
 - There are two predicates in V1. `hasLayer(layer, label?)` — the
   pipeline of the endpoint is composed from this layer. `hasVar(variable,
   label?)` — the pipeline declared this ambient variable
-  ([container.md](./container.md)). A `.pre` unit of the
+  ([container.md](./container.md)). A `.pre` step of the
   `<Var>.provide(…)` shape counts as the declarer of a variable; the set
   of declared variables is stored on the pipeline next to its
   provenance and behaves the same way: `compose` unites it, the
-  builder's derivation and `bind` keep it. A unit that puts the same
+  builder's derivation and `bind` keep it. A step that puts the same
   field into the context by hand does not satisfy the predicate: the
-  assembly fails, and the fix is one line.
+  build fails, and the fix is one line.
 - A layer is identified by a reference to the value, not by a name. For
   this, the pipeline keeps the provenance of the composition —
   references to the values it was built from (`compose` keeps its
@@ -433,7 +433,7 @@ makeApp({
   endpoints with their reasons at start, and `check()` returns them in
   its report.
 - Policies run in `run()`, in `check()` and in the test root
-  `assembleTest`. This is the last check of the phase: after the
+  `buildTest`. This is the last check of the phase: after the
   transports and the io shapes are checked, and before INIT. In CI,
   policies run through the `.check()` matrix of topologies
   ([testing.md](./testing.md)).

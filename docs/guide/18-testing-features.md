@@ -11,7 +11,7 @@
 фичу нужно проверить одну, без соседей, так, чтобы тест не зависел от их
 кода и от брокера.
 
-Основа из главы [8](./08-testing.md) считается известной: `assembleTest`,
+Основа из главы [8](./08-testing.md) считается известной: `buildTest`,
 `testApp.call`, `unwrap`, `overrides` и `vars`.
 
 ## Соберите одну фичу без соседей
@@ -20,19 +20,19 @@
 // src/isolated.spec.ts (фрагмент)
 const isolated = makeApp({ features: [UsersFeature, NotificationsFeature] });
 
-await using testApp = await assembleTest(isolated, { args: 'users' });
+await using testApp = await buildTest(isolated, { args: 'users' });
 ```
 
 Аргумент сборки в тесте тот же, что в бою: в графе остаются только
 выбранные фичи ([глава 19](./19-select.md)). Такая сборка
-останавливается на фазе ASSEMBLE:
+останавливается на фазе BUILD:
 
 ```
 Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
-selected feature implements it and this assembly has no intercom, so the
+selected feature implements it and this build has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
-assembly argument (or close the selection over calls with
-'assemble({ features, includeDeps: true })'), or assign the intercom role
+build argument (or close the selection over calls with
+'build({ features, includeDeps: true })'), or assign the intercom role
 to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
@@ -49,7 +49,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       // Ни владельца `notifications.check-address`, ни подписчика `users.registered` в
       // сборке нет: обе стороны заменены стабами
@@ -150,7 +150,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 ```typescript
 // src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () => {
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       stubs: [
         stub(CheckAddress, async () => ({ remaining: 1 })),
@@ -190,7 +190,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 // src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () => {
     const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       ...testConfig,
       overrides: [
         [RootLogger$, spy.logger],
@@ -217,7 +217,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       ...testConfig,
       args: 'ops',
     });
@@ -228,7 +228,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
   });
 
   it('замыкает выбор по вызываемым операциям', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       ...testConfig,
       args: { features: 'users', includeDeps: true },
     });
