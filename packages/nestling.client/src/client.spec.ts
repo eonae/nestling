@@ -381,11 +381,13 @@ describe('makeClient: разбор успеха', () => {
 });
 
 describe('makeClient: разбор отказа', () => {
-  it('задекларированный отказ восстанавливается по коду', async () => {
+  it('задекларированный отказ восстанавливается по типу проблемы', async () => {
     const stub = stubFetch(() =>
       json(409, {
-        error: 'Email taken',
-        code: 'conflict:client_email_taken',
+        type: 'urn:error:conflict:client_email_taken',
+        title: 'Conflict',
+        status: 409,
+        detail: 'Email taken',
         details: { email: 'a@b.c' },
       }),
     );
@@ -407,10 +409,14 @@ describe('makeClient: разбор отказа', () => {
   });
 
   it('категория берётся из кода определения, а не из HTTP-кода ответа', async () => {
+    // Члены `title` и `status` документа клиент не читает: они говорят
+    // о HTTP-ответе, а категорию даёт код определения
     const stub = stubFetch(() =>
       json(500, {
-        error: 'Email taken',
-        code: 'conflict:client_email_taken',
+        type: 'urn:error:conflict:client_email_taken',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: 'Email taken',
         details: { email: 'a@b.c' },
       }),
     );
@@ -426,8 +432,13 @@ describe('makeClient: разбор отказа', () => {
   });
 
   it('незадекларированный код даёт internal_error с телом в cause', async () => {
-    const body = { error: 'nope', code: 'SOMETHING_ELSE' };
-    const stub = stubFetch(() => json(418, body));
+    const body = {
+      type: 'urn:error:conflict:something_else',
+      title: 'Conflict',
+      status: 409,
+      detail: 'nope',
+    };
+    const stub = stubFetch(() => json(409, body));
     const api = makeClient(
       { createUser: CreateUser },
       { baseUrl, fetch: stub.fetch },
@@ -437,13 +448,57 @@ describe('makeClient: разбор отказа', () => {
 
     expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
     expect((result as { cause?: unknown }).cause).toEqual(body);
+    expect((result as { message: string }).message).toContain(
+      "an undeclared code 'conflict:something_else'",
+    );
+  });
+
+  it('чужой тип проблемы даёт internal_error с телом в cause', async () => {
+    const body = {
+      type: 'https://example.com/errors/email-taken',
+      title: 'Conflict',
+      status: 409,
+      detail: 'Email taken',
+    };
+    const stub = stubFetch(() => json(409, body));
+    const api = makeClient(
+      { createUser: CreateUser },
+      { baseUrl, fetch: stub.fetch },
+    );
+
+    const result = await api.createUser({ email: 'a@b.c' });
+
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
+    expect(EmailTaken.is(result)).toBe(false);
+    expect((result as { cause?: unknown }).cause).toEqual(body);
+    expect((result as { message: string }).message).toContain(
+      "a problem type 'https://example.com/errors/email-taken'",
+    );
+  });
+
+  it('документ без типа проблемы даёт internal_error', async () => {
+    const body = { title: 'Conflict', status: 409, detail: 'Email taken' };
+    const stub = stubFetch(() => json(409, body));
+    const api = makeClient(
+      { createUser: CreateUser },
+      { baseUrl, fetch: stub.fetch },
+    );
+
+    const result = await api.createUser({ email: 'a@b.c' });
+
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
+    expect((result as { message: string }).message).toContain(
+      'no problem type',
+    );
   });
 
   it('несошедшиеся детали дают internal_error, а не отказ с мусором', async () => {
     const stub = stubFetch(() =>
       json(409, {
-        error: 'Email taken',
-        code: 'conflict:client_email_taken',
+        type: 'urn:error:conflict:client_email_taken',
+        title: 'Conflict',
+        status: 409,
+        detail: 'Email taken',
         details: { wrong: 1 },
       }),
     );
@@ -491,7 +546,14 @@ describe('makeClient: разбор отказа', () => {
   });
 
   it('команда бросает отказ вместо возврата', async () => {
-    const stub = stubFetch(() => json(404, { error: 'gone' }));
+    const stub = stubFetch(() =>
+      json(404, {
+        type: 'urn:error:not_found',
+        title: 'Not Found',
+        status: 404,
+        detail: 'gone',
+      }),
+    );
     const api = makeClient(
       { deleteUser: DeleteUser },
       { baseUrl, fetch: stub.fetch },

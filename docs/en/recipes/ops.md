@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `02d6b233`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
@@ -361,7 +361,8 @@ curl localhost:3000/ops/subscriptions
 # [{"id":"d5bd…","pattern":"GET /ops/subscriptions/live",…,"itemsOut":2}]
 
 curl -X DELETE localhost:3000/ops/subscriptions/nope -H 'authorization: Bearer secret'
-# {"error":"Subscription nope is not active on this node","code":"not_found:subscription","details":{"id":"nope"}}  404
+# {"type":"urn:error:not_found:subscription","title":"Not Found","status":404,
+#  "detail":"Subscription nope is not active on this node","details":{"id":"nope"}}  404
 
 curl localhost:3000/healthz
 # {"status":"ok"}

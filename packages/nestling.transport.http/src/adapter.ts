@@ -13,8 +13,17 @@ import type {
   SuccessResponseContext,
 } from '@nestlingjs/app';
 import { isAsyncIterable, isMidStreamFailure } from '@nestlingjs/app';
-import type { RedirectStatus, SseConfig } from '@nestlingjs/operations';
-import { InternalError, untilAborted } from '@nestlingjs/operations';
+import type {
+  ProblemDocument,
+  RedirectStatus,
+  SseConfig,
+} from '@nestlingjs/operations';
+import {
+  InternalError,
+  PROBLEM_MEDIA_TYPE,
+  problemOf,
+  untilAborted,
+} from '@nestlingjs/operations';
 
 /** Соответствие статусов ответа кодам HTTP */
 
@@ -161,20 +170,24 @@ function encodeSseFrame(item: unknown, sse?: SseConfig): string {
 }
 
 /**
- * Тело отказа посреди потока.
+ * Тело отказа посреди потока: тот же документ, что у обычного ответа.
+ *
+ * Документ несёт `status` отказа, а не уже отправленный статус потока:
+ * читатель кадра классифицирует отказ, не сопоставляя его с ответом.
  *
  * Отказ уже прошёл проверку `errors`: незадекларированный стал `internal_error`,
  * оригинал записан в логгер `dispatch`.
  */
-function midStreamBody(error: unknown): { error: string; code?: string } {
+function midStreamBody(error: unknown): ProblemDocument {
   if (isMidStreamFailure(error)) {
-    const { value } = error.response;
-    return value.code === undefined
-      ? { error: value.error }
-      : { error: value.error, code: value.code };
+    const { response } = error;
+    return problemOf(response.value, httpCodeOf(response.status));
   }
 
-  return { error: 'Internal server error' };
+  return problemOf(
+    { error: 'Internal server error', code: InternalError.code },
+    httpCodeOf('internal_error'),
+  );
 }
 
 /**
@@ -444,7 +457,9 @@ export async function sendResponse(
   const headers: OutgoingHttpHeaders = {};
 
   if (!empty) {
-    headers['content-type'] = 'application/json';
+    headers['content-type'] = response.isSuccess
+      ? 'application/json'
+      : PROBLEM_MEDIA_TYPE;
   }
   if (meta) {
     if (meta.headers) {
@@ -476,7 +491,11 @@ export async function sendResponse(
     return;
   }
 
-  const body = Buffer.from(JSON.stringify(response.value) ?? '');
+  // Отказ уходит документом RFC 9457; успешный ответ — значением как есть
+  const payload = response.isSuccess
+    ? response.value
+    : problemOf(response.value, status);
+  const body = Buffer.from(JSON.stringify(payload) ?? '');
   headers['content-length'] = body.length;
   countBytes(options.summary, body.length);
   res.writeHead(status, headers);

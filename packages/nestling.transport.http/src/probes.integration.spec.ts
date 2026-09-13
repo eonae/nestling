@@ -161,7 +161,9 @@ describe('пробы HTTP', () => {
       expect(alive).toEqual({ status: 200, body: { status: 'ok' } });
       expect(ready.status).toBe(503);
       expect(ready.body).toMatchObject({
-        code: 'service_unavailable:not_ready',
+        type: 'urn:error:service_unavailable:not_ready',
+        title: 'Service Unavailable',
+        status: 503,
       });
       expect(ready.body.details).toMatchObject({
         status: 'not_ready',

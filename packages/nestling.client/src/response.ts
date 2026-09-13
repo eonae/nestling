@@ -10,23 +10,19 @@
 import type {
   AnyFail,
   AnyFailDefinition,
+  ProblemDocument,
   StandardSchemaV1,
   SuccessStatus,
 } from '@nestlingjs/operations';
 import {
   describeForm,
   Fail,
+  failCodeOf,
   InternalError,
   isPrimitiveLeaf,
   Ok,
+  PROBLEM_TYPE_PREFIX,
 } from '@nestlingjs/operations';
-
-/** Тело отказа по сети — то же, что собирает серверная граница */
-interface WireFailure {
-  error?: unknown;
-  code?: unknown;
-  details?: unknown;
-}
 
 /**
  * HTTP-код успеха обратно в статус.
@@ -120,13 +116,15 @@ export function readSuccess(
 }
 
 /**
- * Восстанавливает отказ по коду из `errors:` операции.
+ * Восстанавливает отказ по документу RFC 9457.
  *
- * Код и категория берутся из **определения** (сервер мог ответить любым
- * HTTP-кодом — операция знает лучше), `message` — из ответа (он про
- * конкретный случай), `details` — тоже из ответа, но проверенные схемой
- * определения. Не сошлись детали — `InternalError`: отказ с невалидными
- * деталями хуже честного «не знаю».
+ * Код отказа берётся из члена `type` отбрасыванием префикса
+ * `urn:error:`. Код и категория итогового отказа — из **определения**
+ * (сервер мог ответить любым HTTP-кодом — операция знает лучше),
+ * `message` — из члена `detail` (он про конкретный случай), `details` —
+ * из одноимённого расширения, проверенного схемой определения. Не
+ * сошлись детали — `InternalError`: отказ с невалидными деталями хуже
+ * честного «не знаю». Члены `title` и `status` клиент не читает.
  */
 export function readFailure(
   status: number,
@@ -136,8 +134,8 @@ export function readFailure(
 ): AnyFail {
   const wire = (
     typeof body === 'object' && body !== null ? body : {}
-  ) as WireFailure;
-  const code = typeof wire.code === 'string' ? wire.code : undefined;
+  ) as Partial<ProblemDocument>;
+  const code = failCodeOf(wire.type);
   const definition = code
     ? errors?.find((candidate) => candidate.code === code)
     : undefined;
@@ -145,7 +143,7 @@ export function readFailure(
   if (!definition) {
     return unknownFailure(
       `${where}: the service answered ${status.toString()} with ` +
-        `${code === undefined ? 'no error code' : `an undeclared code '${code}'`}.`,
+        `${describeType(wire.type, code)}.`,
       body,
     );
   }
@@ -173,11 +171,27 @@ export function readFailure(
   }
 
   const message =
-    typeof wire.error === 'string' && wire.error.length > 0
-      ? wire.error
+    typeof wire.detail === 'string' && wire.detail.length > 0
+      ? wire.detail
       : definition.code;
 
   return new Fail(definition.code, message, {
     ...(details === undefined ? {} : { details }),
   });
+}
+
+/**
+ * Чем плох тип проблемы: его нет, он чужой или его код не объявлен.
+ *
+ * Три ветки вместо одной: «чужой тип» и «незадекларированный код» —
+ * разные починки, и текст обязан их различать.
+ */
+function describeType(type: unknown, code: string | undefined): string {
+  if (code !== undefined) {
+    return `an undeclared code '${code}'`;
+  }
+
+  return typeof type === 'string'
+    ? `a problem type '${type}' outside '${PROBLEM_TYPE_PREFIX}'`
+    : 'no problem type';
 }

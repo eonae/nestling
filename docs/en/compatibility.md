@@ -50,8 +50,10 @@ profile of an application, not a different runtime for the same one.
 ## 3. Protocols
 
 The `@nestlingjs/transport.http` package serves HTTP/1.1 over `node:http`.
-The body formats are JSON, NDJSON, SSE and multipart; the full list of
-what the package promises is in
+The body formats are JSON, NDJSON, SSE and multipart; the failure body is
+an RFC 9457 document under the `application/problem+json` media type
+([design/errors.md §6](./design/errors.md)). The full list of what the
+package promises is in
 [design/transports.md §4.1](./design/transports.md).
 
 | Protocol | Who serves it |

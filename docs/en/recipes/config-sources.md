@@ -1,6 +1,6 @@
 # Configuration from a file and without a restart
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `02d6b233`.
 > Target description: [design/config.md](../design/config.md), sections 2–8.
 > Rationale: the entries [ideas.md](../../decisions/ideas.md)
 > `Конфиг: keys-capability вместо configs:-владения` [2026-07-10],

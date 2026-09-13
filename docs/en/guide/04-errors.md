@@ -1,6 +1,6 @@
 # 4. Tell the client what went wrong
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `02d6b233`.
 > Target description: [design/errors.md](../design/errors.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Модель ошибок: Fail — значение, code-идентичность, makeFail, ошибки в контракте`,
@@ -72,13 +72,26 @@ export const GetUser = httpEndpoint.get('/users/:id', {
 
 The constant `alice` stands in for the store: it sits right in the handler. The
 `errors` field lists the failures that the endpoint may return. The handler
-returns a failure as a value, like an ordinary result. The client gets a body
-with the code and the details:
+returns a failure as a value, like an ordinary result. The client gets a
+failure document:
 
 ```bash
-curl localhost:3000/users/9
-# {"error":"User 9 not found","code":"not_found:user","details":{"id":"9"}}
+curl -i localhost:3000/users/9
+# HTTP/1.1 404 Not Found
+# content-type: application/problem+json
+#
+# {"type":"urn:error:not_found:user","title":"Not Found","status":404,
+#  "detail":"User 9 not found","details":{"id":"9"}}
 ```
+
+The failure body is an RFC 9457 document under the
+`application/problem+json` media type. The machine-readable code travels in
+the `type` member with the `urn:error:` prefix, the message in `detail`, the
+details in `details`. A ready-made library on any stack parses such a body,
+instead of code written for our own format. `title` and `status` describe the
+response itself: the HTTP status phrase and its code. The shape is the same
+for every failure of the boundary — the handler's response, a broken JSON
+body and the error frame of a stream alike.
 
 A failure is delivered by `return`: the returned failure is visible in the type
 of the handler, and the compiler checks it against the `errors` list. From deep

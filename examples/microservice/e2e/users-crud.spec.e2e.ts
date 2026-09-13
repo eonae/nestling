@@ -43,12 +43,17 @@ describeWithDatabase('пользователи по HTTP', () => {
     });
   });
 
-  it('отвечает 404 с кодом отказа', async () => {
+  it('отвечает 404 документом отказа', async () => {
     const response = await client.get('/users/999');
 
     expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
     expect(await response.json()).toMatchObject({
-      code: 'not_found:user',
+      type: 'urn:error:not_found:user',
+      title: 'Not Found',
+      status: 404,
       details: { id: '999' },
     });
   });
@@ -60,7 +65,9 @@ describeWithDatabase('пользователи по HTTP', () => {
     });
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ code: 'unauthorized' });
+    expect(await response.json()).toMatchObject({
+      type: 'urn:error:unauthorized',
+    });
   });
 
   it('создаёт пользователя: 201 и отказы 409 и 400', async () => {
@@ -85,7 +92,7 @@ describeWithDatabase('пользователи по HTTP', () => {
     );
     expect(duplicate.status).toBe(409);
     expect(await duplicate.json()).toMatchObject({
-      code: 'conflict:email_taken',
+      type: 'urn:error:conflict:email_taken',
     });
 
     const invalid = await client.json(
@@ -95,7 +102,9 @@ describeWithDatabase('пользователи по HTTP', () => {
       { auth: true },
     );
     expect(invalid.status).toBe(400);
-    expect(await invalid.json()).toMatchObject({ code: 'bad_request' });
+    expect(await invalid.json()).toMatchObject({
+      type: 'urn:error:bad_request',
+    });
   });
 
   it('проверяет данные без записи по ?dryRun=true', async () => {
@@ -130,7 +139,7 @@ describeWithDatabase('пользователи по HTTP', () => {
     const empty = await client.json('PATCH', '/users/2', {}, { auth: true });
     expect(empty.status).toBe(400);
     expect(await empty.json()).toMatchObject({
-      code: 'bad_request:nothing_to_update',
+      type: 'urn:error:bad_request:nothing_to_update',
     });
   });
 

@@ -1,6 +1,6 @@
 # Webhook with a signature check
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `02d6b233`.
 > Target description: [design/endpoints.md](../design/endpoints.md), the "Raw
 > bytes: `rawBody` " section. Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
@@ -179,10 +179,12 @@ curl -X POST localhost:3000/hooks/users \
 
 curl -X POST localhost:3000/hooks/users \
   -H 'content-type: application/json' -H 'x-signature: deadbeef' -d "$body"
-# {"error":"Webhook signature does not match the body","code":"unauthorized:invalid_signature"}  401
+# {"type":"urn:error:unauthorized:invalid_signature","title":"Unauthorized","status":401,
+#  "detail":"Webhook signature does not match the body"}                 401
 
 curl localhost:3000/users/2
-# {"error":"User 2 not found","code":"not_found:user","details":{"id":"2"}}  404
+# {"type":"urn:error:not_found:user","title":"Not Found","status":404,
+#  "detail":"User 2 not found","details":{"id":"2"}}                      404
 ```
 
 The first request passed the check, and the handler removed the user.
@@ -223,7 +225,9 @@ it('отклоняет тело с чужой подписью', async () => {
   });
 
   expect(response.status).toBe(401);
-  expect(await response.json()).toMatchObject({ code: 'unauthorized:invalid_signature' });
+  expect(await response.json()).toMatchObject({
+    type: 'urn:error:unauthorized:invalid_signature',
+  });
   const kept = await client.get('/users/1');
   expect(kept.status).toBe(200);
 });

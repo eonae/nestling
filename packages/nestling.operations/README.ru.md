@@ -79,6 +79,12 @@ export const CreateUser = makeRequest({
   `HttpBinding`, `HttpMethod`, `isBindMark`, `isHttpBinding`,
   `METHODS_WITHOUT_BODY`, `PathParams`, `query`, `readPathParams`,
   `RedirectStatus`, `SseConfig`.
+- **Тело отказа HTTP** ([design](../../docs/design/errors.md)) —
+  `ErrorDetailsLike`, `failCodeOf`, `PROBLEM_MEDIA_TYPE`,
+  `PROBLEM_TYPE_PREFIX`, `problemOf`, `problemTitleOf`, `problemTypeOf`,
+  `ProblemDocument`. Документ RFC 9457, которым HTTP-граница отвечает на
+  отказ; объявлен здесь, чтобы клиент читал его, не завися от серверного
+  пакета.
 - **Схемы** ([design](../../docs/design/schemas.md)) — `assertConverters`,
   `jsonSchema`, `jsonSchemaOf`, `leafJsonSchema`, `LeafJsonSchema`,
   `pickConverter`, `SchemaDocConverter`, `SchemaDocOptions`, `schemaVendorOf`.

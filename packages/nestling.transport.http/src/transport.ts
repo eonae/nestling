@@ -45,6 +45,8 @@ import {
   TransportClosingError,
 } from '@nestlingjs/app';
 import { factoryProvider } from '@nestlingjs/container';
+import type { ErrorDetailsLike } from '@nestlingjs/operations';
+import { PROBLEM_MEDIA_TYPE, problemOf } from '@nestlingjs/operations';
 
 /**
  * Запрос, который транспорт кладёт в стартовый контекст.
@@ -456,10 +458,12 @@ export class HttpTransport implements ITransport {
    * - остальное — 500, `internal_error`; детали уходят только при
    *   `exposeErrorDetails`.
    *
-   * Тела ошибок 400 и 413 описывают некорректный ввод и не раскрывают
-   * внутреннее состояние сервера. Исход самого endpoint'а сюда не
-   * попадает: `dispatch.call` возвращает готовый контекст ответа для
-   * любого исхода, включая отказ проверки входа.
+   * Тело — тот же документ RFC 9457, что пишет ответ пайплайна: у
+   * границы один формат отказа. Тела ошибок 400 и 413 описывают
+   * некорректный ввод и не раскрывают внутреннее состояние сервера.
+   * Исход самого endpoint'а сюда не попадает: `dispatch.call` возвращает
+   * готовый контекст ответа для любого исхода, включая отказ проверки
+   * входа.
    */
   private sendError(res: ServerResponse, error: unknown): void {
     if (res.headersSent) {
@@ -467,12 +471,7 @@ export class HttpTransport implements ITransport {
     }
 
     let status = 500;
-    const body: {
-      error: string;
-      code: string;
-      details?: unknown;
-      stack?: string;
-    } = {
+    const details: ErrorDetailsLike = {
       error: 'Internal server error',
       code: InternalError.code,
     };
@@ -482,24 +481,24 @@ export class HttpTransport implements ITransport {
       error instanceof MultipartFieldError
     ) {
       status = 400;
-      body.error = error.message;
-      body.code = BadRequest.code;
-      body.details = [{ message: error.message }];
+      details.error = error.message;
+      details.code = BadRequest.code;
+      details.details = [{ message: error.message }];
     } else if (error instanceof PayloadTooLargeError) {
       status = 413;
-      body.error = 'Payload too large';
-      body.code = PayloadTooLarge.code;
-      body.details = { limit: error.limit };
+      details.error = 'Payload too large';
+      details.code = PayloadTooLarge.code;
+      details.details = { limit: error.limit };
     } else if (this.exposeErrorDetails) {
-      body.error = error instanceof Error ? error.message : 'Unknown error';
+      details.error = error instanceof Error ? error.message : 'Unknown error';
       if (error instanceof Error && error.stack) {
-        body.stack = error.stack;
+        details.stack = error.stack;
       }
     }
 
     res.statusCode = status;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify(body));
+    res.setHeader('content-type', PROBLEM_MEDIA_TYPE);
+    res.end(JSON.stringify(problemOf(details, status)));
   }
 
   /**
