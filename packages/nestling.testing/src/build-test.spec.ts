@@ -126,6 +126,7 @@ describe('buildTest — приложение собрано, но запросы
     }
 
     const Orphan = httpEndpoint.get('/orphan', {
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -424,6 +425,7 @@ describe('app.call — полный пайплайн in-proc', () => {
 
   it("перечисляет доступные endpoint'ы, если декларации в приложении нет", async () => {
     const Invoices = httpEndpoint.get('/invoices', {
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -462,6 +464,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       ],
       endpoints: [
         httpEndpoint.post('/uploads', {
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -489,6 +492,7 @@ describe('app.call — полный пайплайн in-proc', () => {
 
     const Wait = httpEndpoint.get('/wait', {
       pipeline: makePipeline(),
+      output: z.unknown(),
       handler: async (_payload, meta) => {
         onStarted();
         meta.signal.addEventListener('abort', () => onAborted(), {
@@ -637,6 +641,7 @@ describe('vars и familyOverride', () => {
 describe('Discovery$ в тестовом корне', () => {
   it('тестовый корень видит тот же состав приложения, что и боевой', async () => {
     const Ping = httpEndpoint.get('/ping', {
+      output: z.unknown(),
       handler: async () => new Ok({ pong: true }),
     });
 
@@ -690,6 +695,7 @@ describe('buildTest — логгер ядра', () => {
 
   it('незадекларированный отказ — запись error с транспортом, паттерном и кодом', async () => {
     const Boom = httpEndpoint.get('/boom', {
+      output: z.unknown(),
       handler: async () => {
         throw makeFail('not_found:nope', { message: 'nope' })();
       },

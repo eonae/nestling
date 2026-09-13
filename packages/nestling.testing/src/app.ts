@@ -371,6 +371,9 @@ export class TestApp {
       pattern: executable.pattern,
       input: executable.input,
       output: executable.output,
+      // Объявленные исходы едут тем же путём: по ним рантайм ставит
+      // статус ответа и сверяет возвращённый
+      status: executable.status,
       // Объявленные отказы передаются проверке границы только так: из
       // декларации в кадр запроса и оттуда в контекст. Глобального реестра
       // ошибок нет

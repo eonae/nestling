@@ -285,6 +285,7 @@ export {
 export type {
   AnyFail,
   AnyFailDefinition,
+  AnyOk,
   AnyInput,
   AnyOutput,
   AnyPayload,

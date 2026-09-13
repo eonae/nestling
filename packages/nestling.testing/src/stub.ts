@@ -12,7 +12,7 @@
  * тесте, а не в проде.
  */
 
-import type { AnyFail, AnyFailDefinition } from '@nestlingjs/app';
+import type { AnyFail, AnyFailDefinition, AnyOk } from '@nestlingjs/app';
 import {
   BadRequest,
   describeForm,
@@ -63,9 +63,13 @@ export type OperationStub = readonly [
  * Записан развёрткой `Output<…>`, а не самим `Output<…>`: у того параметр
  * отказов ограничен `AnyFail`, а `OperationFailsOf<C>` при неразрешённом `C`
  * остаётся отложенным условным типом и ограничение не удовлетворяет.
+ *
+ * Успешная половина — `Ok` любого статуса: фейк подменяет чужую сторону,
+ * и проверку объявленных исходов делает граница у её реализации, а не
+ * тест.
  */
 export type StubOutput<C extends RequestOperation<any, any, any>> = Promise<
-  Ok<OutputOf<C>> | OperationFailsOf<C> | OutputOf<C>
+  AnyOk<OutputOf<C>> | OperationFailsOf<C> | OutputOf<C>
 >;
 
 /**

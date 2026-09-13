@@ -82,7 +82,7 @@ class KillSubscriptionHandler {
 
   async handle(payload: {
     id: string;
-  }): Output<null, typeof SubscriptionNotFound> {
+  }): Output<void, typeof SubscriptionNotFound, 'no_content'> {
     const killed = this.registry.abort(payload.id, 'administrative kill');
 
     return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
@@ -98,7 +98,8 @@ class KillSubscriptionHandler {
 export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound],
-  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
+  status: 'no_content',
+  doc: { summary: 'Завершить подписку', tags: ['ops'] },
   pipeline: authed,
   handler: KillSubscriptionHandler,
 });

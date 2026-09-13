@@ -100,14 +100,14 @@
 
 ## 7. Примеры
 
-- [ ] 7.1 `examples/microservice/src/api/operations.ts`: `CreateUser`
+- [x] 7.1 `examples/microservice/src/api/operations.ts`: `CreateUser`
       объявляет исходы вместо `doc: { status }` — ветка `dryRun` перестаёт
       расходиться с документом
-- [ ] 7.2 `examples/microservice/src/users/endpoints/create-user.endpoint.ts`:
+- [x] 7.2 `examples/microservice/src/users/endpoints/create-user.endpoint.ts`:
       ветки возвращают `Ok` своего исхода
-- [ ] 7.3 `delete-user.endpoint.ts` и `ops/subscriptions.endpoint.ts`:
+- [x] 7.3 `delete-user.endpoint.ts` и `ops/subscriptions.endpoint.ts`:
       `status: 'no_content'` полем декларации вместо секции `doc`
-- [ ] 7.4 `yarn test` примера зелёный; спеки, проверяющие статус ответа,
+- [x] 7.4 `yarn test` примера зелёный; спеки, проверяющие статус ответа,
       обновлены
 
 ## 8. Документация

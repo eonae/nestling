@@ -64,7 +64,11 @@ describe('CreateUserHandler', () => {
       dryRun: true,
     });
 
-    expect(result).toMatchObject({ id: 'dry-run', name: 'Carol' });
+    // Исход `ok`: записи не было, и код ответа — 200, а не 201
+    expect(result).toMatchObject({
+      status: 'ok',
+      value: { id: 'dry-run', name: 'Carol' },
+    });
     expect(await repo.all()).toHaveLength(1);
   });
 });

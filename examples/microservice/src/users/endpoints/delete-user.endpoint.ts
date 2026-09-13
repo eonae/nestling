@@ -21,7 +21,9 @@ export class DeleteUserHandler {
     private readonly activity: ActivityHub,
   ) {}
 
-  async handle(input: DeleteUserInput): Output<null, typeof UserNotFound> {
+  async handle(
+    input: DeleteUserInput,
+  ): Output<void, typeof UserNotFound, 'no_content'> {
     const removed = await this.users.remove(input.id);
 
     if (!removed) {
@@ -42,11 +44,10 @@ export class DeleteUserHandler {
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
-  doc: {
-    summary: 'Удалить пользователя',
-    tags: ['users'],
-    status: 'no_content',
-  },
+  // Ответа без тела: `output` не объявлен, и умолчание уже даёт
+  // `no_content`. Поле названо вслух, потому что это контракт ответа
+  status: 'no_content',
+  doc: { summary: 'Удалить пользователя', tags: ['users'] },
   pipeline: transactional,
   handler: DeleteUserHandler,
 });
