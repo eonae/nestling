@@ -45,6 +45,7 @@ import {
   TransportClosingError,
 } from '@nestlingjs/app';
 import { factoryProvider } from '@nestlingjs/container';
+import { withZodDefault } from '@nestlingjs/schema.zod';
 import type { HttpServer } from '@nestlingjs/transport.http';
 import {
   HttpServer$,
@@ -104,12 +105,12 @@ export class McpTransport implements ITransport {
   /**
    * @param server - Сервер, к которому транспорт присоединяет обработчик
    * @param options - Опции транспорта после нормализации
-   * @param converters - Конвертеры схем в JSON Schema
+   * @param converters - Разрешённый список конвертеров схем в JSON Schema
    */
   constructor(
     private readonly server: HttpServer,
     private readonly options: McpRuntimeOptions,
-    private readonly converters?: readonly SchemaDocConverter[],
+    private readonly converters: readonly SchemaDocConverter[],
   ) {
     this.#sessions = new McpSessions(options);
   }
@@ -342,8 +343,13 @@ export interface McpTransportOptions {
   /**
    * Конвертеры листовых схем: список — данные вызывающего.
    *
-   * Те же, что у генератора OpenAPI. Отсутствие конвертера для вендора
-   * встреченной схемы — нарушение старта, а не молчаливый пропуск.
+   * Те же, что у генератора OpenAPI, и так же необязательные: конвертер
+   * вендора, на котором написаны схемы фреймворка, подставляется
+   * умолчанием. Список **добавляет** конвертер другого вендора или
+   * **заменяет** умолчание своим.
+   *
+   * Отсутствие конвертера для вендора встреченной схемы — нарушение
+   * старта, а не молчаливый пропуск.
    */
   readonly converters?: readonly SchemaDocConverter[];
 
@@ -422,8 +428,8 @@ function runtimeOptions(options: McpTransportOptions): McpRuntimeOptions {
  * Экземпляров может быть несколько; каждый получает своё имя, а декларация
  * инструмента выбирает свой через `on:`.
  *
- * @param options - Сведения о сервере, сервер, конвертеры схем, путь и
- * опции сессий
+ * @param options - Сведения о сервере, сервер, необязательные конвертеры
+ * схем, путь и опции сессий
  * @returns Объявление транспорта для `transports:` корня
  * @throws {TypeError} Неизвестное поле словаря либо дефектное значение поля
  *
@@ -438,7 +444,6 @@ function runtimeOptions(options: McpTransportOptions): McpRuntimeOptions {
  *     mcp({
  *       server: api,
  *       info: { name: 'users-service', version: '1.0.0' },
- *       converters: [zodConverter()],
  *     }),
  *   ],
  * });
@@ -465,7 +470,8 @@ export const mcp = <const Name extends string = typeof DEFAULT_INSTANCE>(
     server,
     provider: factoryProvider(
       token,
-      (instance: HttpServer) => new McpTransport(instance, runtime, converters),
+      (instance: HttpServer) =>
+        new McpTransport(instance, runtime, withZodDefault(converters)),
       [HttpServer$(server.name)],
     ),
   });

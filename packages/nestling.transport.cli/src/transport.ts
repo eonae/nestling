@@ -33,6 +33,7 @@ import {
 } from '@nestlingjs/app';
 import { factoryProvider } from '@nestlingjs/container';
 import { untilAborted } from '@nestlingjs/operations';
+import { withZodDefault } from '@nestlingjs/schema.zod';
 
 /**
  * Входные данные для CLI транспорта
@@ -95,8 +96,11 @@ export interface CliTransportOptions {
    * Конвертеры схем для команд с политикой `missing: 'prompt'`.
    *
    * Конвертер нужен только таким командам: вопрос выводится из JSON Schema
-   * формы `input`, а Standard Schema интроспекции не даёт. Приложению без
-   * политики список не нужен.
+   * формы `input`, а Standard Schema интроспекции не даёт.
+   *
+   * Поле необязательно: конвертер вендора, на котором написаны схемы
+   * фреймворка, подставляется умолчанием. Список **добавляет** конвертер
+   * другого вендора или **заменяет** умолчание своим.
    */
   converters?: readonly SchemaDocConverter[];
 
@@ -153,8 +157,17 @@ export class CliTransport implements ITransport {
   /** Сигнал команды: `serve`-сигнал ∪ transport-level канал */
   #signal: AbortSignal = this.#closeController.signal;
 
+  /**
+   * Разрешённый список конвертеров: умолчание плюс список вызывающего.
+   *
+   * Считается один раз на транспорт — там же, где список проверяется на
+   * дубли вендора.
+   */
+  readonly #converters: readonly SchemaDocConverter[];
+
   constructor(private readonly options: CliTransportOptions = {}) {
     assertConverters(options.converters);
+    this.#converters = withZodDefault(options.converters);
   }
 
   /**
@@ -181,7 +194,7 @@ export class CliTransport implements ITransport {
         .filter((route) => cliBindingOf(route).missing === 'prompt')
         .map((route) => [
           route.pattern,
-          buildPromptPlan(route, this.options.converters),
+          buildPromptPlan(route, this.#converters),
         ]),
     );
 

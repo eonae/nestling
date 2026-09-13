@@ -1,18 +1,24 @@
 /**
- * Граница пакета: транспорт не знает ни валидатора, ни HTTP-фреймворка.
+ * Граница пакета: транспорт не называет валидатора в типах и не тянет
+ * HTTP-фреймворк.
  *
- * Обещание из предложения — «зависимостей рантайма от валидатора и от SDK
- * у пакета нет» — проверяется, а не декларируется в README. Обход тот же,
- * что у `@nestlingjs/openapi`, и с теми же двумя отличиями:
+ * Граница валидатора проходит по публичному API, а не по составу
+ * зависимостей: транспорт пишет свои отказы на zod и подставляет умолчанием
+ * его конвертер, и приложению это видно только строкой в `node_modules`.
+ * Вендор в **типе** отнял бы у приложения выбор собственного валидатора, и
+ * сторожит его тест по собранным объявлениям.
+ *
+ * Обход импортов остаётся, с теми же двумя отличиями, что у
+ * `@nestlingjs/openapi`:
  *
  * - **обход не спускается в зависимости.** Транспорт зависит от
  *   `@nestlingjs/transport.http`, чья конфиг-секция читает zod. Утверждать
  *   «валидатора нет во всём транзитивном замыкании» было бы неправдой;
  * - **`node:*` не нарушение.** Под браузер пакет не собирается.
  *
- * Плюс вторая половина обещания — на манифесте: ни валидатора, ни
- * HTTP-фреймворка, ни SDK в `dependencies` и `peerDependencies`. SDK стоит
- * в `devDependencies` и работает доказательством: сверкой типов и
+ * Про HTTP-фреймворк и SDK обещание прежнее и держится на манифесте: ни
+ * того, ни другого в `dependencies` и `peerDependencies`. SDK стоит в
+ * `devDependencies` и работает доказательством: сверкой типов и
  * интеграционным прогоном.
  */
 
@@ -23,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import {
   collectForbiddenImports,
   formatViolations,
+  validatorsInTypes,
 } from '../../../scripts/boundary/package-boundary.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -35,19 +42,10 @@ const ALLOW = [
   '@nestlingjs/app',
   '@nestlingjs/container',
   '@nestlingjs/operations',
+  '@nestlingjs/schema.zod',
   '@nestlingjs/transport.http',
-];
-
-/** Валидаторы: их отсутствие в манифесте и есть предмет обещания */
-const VALIDATORS = new Set([
-  '@sinclair/typebox',
-  'arktype',
-  'effect',
-  'joi',
-  'valibot',
-  'yup',
   'zod',
-]);
+];
 
 /** HTTP-фреймворки: их приносит в дерево установки SDK, а не этот пакет */
 const HTTP_FRAMEWORKS = new Set([
@@ -90,8 +88,8 @@ describe('@nestlingjs/mcp: package boundary', () => {
     expect(formatViolations(violations)).toBe('');
   });
 
-  it('не объявляет валидатор ни в dependencies, ни в peerDependencies', () => {
-    expect(runtimeDependencies().filter((n) => VALIDATORS.has(n))).toEqual([]);
+  it('не называет валидатора в собранных объявлениях типов', () => {
+    expect(validatorsInTypes(packageDir)).toEqual([]);
   });
 
   it('не объявляет HTTP-фреймворк зависимостью рантайма', () => {

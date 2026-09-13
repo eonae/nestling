@@ -5,8 +5,9 @@
  * объявленные на транспорте MCP, и второго списка у пакета нет.
  *
  * Схемы переводятся в JSON Schema помощником ядра `leafJsonSchema` — тем
- * же, которым пользуется генератор OpenAPI. Конвертер приходит данными в
- * `converters:`, поэтому зависимости от валидатора у пакета нет.
+ * же, которым пользуется генератор OpenAPI. Список конвертеров приходит
+ * разрешённым: умолчание подставил транспорт, а `converters:` его
+ * дополняет или заменяет.
  *
  * Нарушения копятся в {@link McpDiagnostics} и бросаются одним списком.
  */
@@ -163,11 +164,10 @@ function convertSlot(
   if (resolved.outcome === 'unconvertible') {
     diagnostics.add(
       where,
-      `the '${slot}' schema is a '${resolved.vendor}' schema, and no ` +
-        `converter for that vendor was passed. Either add one to ` +
-        `'converters' (for example zodConverter() from ` +
-        `@nestlingjs/schema.zod), or declare the schema explicitly with ` +
-        `jsonSchema(schema, { … }).`,
+      `its '${slot}' schema comes from vendor '${resolved.vendor}', and ` +
+        `none of the converters translates that vendor. Pass its converter ` +
+        `in 'converters' of mcp({ … }), or declare the schema explicitly ` +
+        `with jsonSchema(schema, { … }).`,
     );
     return { outcome: 'failed' };
   }

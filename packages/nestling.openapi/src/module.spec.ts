@@ -33,6 +33,7 @@ import {
 } from '@nestlingjs/app';
 import {
   factoryProvider,
+  makeSwitch,
   makeToken,
   resourceProvider,
 } from '@nestlingjs/container';
@@ -170,6 +171,46 @@ const BillingModule = makeFeature({
 
 const UsersFeature = UsersModule;
 const BillingFeature = BillingModule;
+
+describe('документ строит объявленный плагин', () => {
+  it('метод строит документ при выключенной ветке переключателя', () => {
+    const Docs = makeSwitch('docs', { default: 'on' });
+    const appOpenapi = openapi({ info, announceHidden: false });
+
+    const app = makeApp({
+      features: [UsersModule],
+      plugins: [Docs.when(appOpenapi)],
+      switches: [Docs],
+      transports: [asHttpTransport(new SpyTransport())],
+    });
+
+    const document = appOpenapi.document(app.discover({ docs: 'off' }));
+
+    expect(document.openapi).toBe('3.1.0');
+    expect(document.info).toEqual(info);
+    expect(Object.keys(document.paths)).toEqual(['/users/{id}']);
+  });
+
+  it('тело GET /openapi.json равно документу, построенному методом', async () => {
+    const appOpenapi = openapi({ info, announceHidden: false });
+    const transport = new SpyTransport();
+
+    const declaration = makeApp({
+      features: [UsersModule],
+      plugins: [appOpenapi],
+      transports: [asHttpTransport(transport)],
+    });
+
+    const app = declaration.assemble();
+    await app.run();
+
+    expect(await serve(transport)).toEqual(
+      appOpenapi.document(declaration.discover()),
+    );
+
+    await app.close();
+  });
+});
 
 describe('openapi(...) — плагин-издатель', () => {
   it('announceHidden пишет info на каждый скрытый endpoint', async () => {
@@ -321,14 +362,49 @@ describe('openapi(...) — плагин-издатель', () => {
     await app.close();
   });
 
-  it('пустой список конвертеров тоже роняет сборку, а не строит документ без схем', async () => {
+  it('без списка конвертеров документ строится: умолчание есть', async () => {
+    const transport = new SpyTransport();
     const app = makeApp({
       features: [UsersModule],
+      plugins: [openapi({ info, announceHidden: false })],
+      transports: [asHttpTransport(transport)],
+    }).assemble();
+
+    await app.run();
+
+    const document = await serve(transport);
+
+    expect(
+      document.paths['/users/{id}']?.get?.responses['200']?.content?.[
+        'application/json'
+      ]?.schema,
+    ).toMatchObject({ type: 'object' });
+
+    await app.close();
+  });
+
+  it('схема чужого вендора роняет сборку, называя вендора', async () => {
+    /** Схема вендора, которого список конвертеров не знает */
+    const foreign: StandardSchemaV1<unknown, { id: string }> = {
+      '~standard': {
+        version: 1,
+        vendor: 'valibot',
+        validate: (value: unknown) => ({ value: value as { id: string } }),
+      },
+    };
+
+    const Foreign = httpEndpoint.get('/foreign', {
+      output: foreign,
+      handler: async () => new Ok({ id: 'x' }),
+    });
+
+    const app = makeApp({
+      features: [makeFeature({ name: 'module:foreign', endpoints: [Foreign] })],
       plugins: [openapi({ info, announceHidden: false })],
       transports: [asHttpTransport(new SpyTransport())],
     }).assemble();
 
-    await expect(app.run()).rejects.toThrow(/no converter for that vendor/);
+    await expect(app.run()).rejects.toThrow(/vendor 'valibot'/);
 
     await app.close();
   });

@@ -1,25 +1,24 @@
 /**
  * `@nestlingjs/openapi` — документ OpenAPI 3.1 из деклараций.
  *
- * Три поверхности и ни одной больше:
+ * Две поверхности и ни одной больше:
  *
- * - `buildOpenApiDocument(endpoints, options)` — чистая функция; её зовёт
- *   CI, чтобы положить `openapi.json` в артефакты, не поднимая приложение.
- *   Вход — `app.discover(args).endpoints`: состав документа задаёт тот же
- *   аргумент сборки, что поднимает процесс;
- * - `openapi(options)` — модуль-издатель: строит документ на фазе ASSEMBLE
- *   и отдаёт его endpoint'ом `GET /openapi.json`;
+ * - `openapi(options)` — плагин-издатель: строит документ на фазе ASSEMBLE
+ *   и отдаёт его endpoint'ом `GET /openapi.json`. Его же метод
+ *   `document(app.discover(args))` кладёт документ в артефакты сборки, не
+ *   поднимая приложение: опции у плагина уже есть, поэтому `info` записан
+ *   ровно в одном месте;
  * - `OpenApiDocument$` — DI-токен готового документа для тех, кому он нужен
  *   значением.
  *
- * Зависимости от валидатора у пакета нет: перевод схемы в JSON Schema
- * приходит **данными** — списком `SchemaDocConverter`, который поставляют
- * отдельные пакеты (`@nestlingjs/schema.zod` и подобные).
+ * Валидатора публичные типы пакета не называют: схема приходит от
+ * приложения, а перевод в JSON Schema — списком `SchemaDocConverter`.
+ * Конвертер вендора, на котором написаны схемы фреймворка, подставляется
+ * умолчанием, поэтому строки в опциях он не требует.
  */
 
-export { buildOpenApiDocument, hiddenEndpoints } from './document.js';
 export { openapi, OpenApiDocument$ } from './module.js';
-export type { OpenApiServeOptions } from './module.js';
+export type { OpenApiPlugin, OpenApiServeOptions } from './module.js';
 export type {
   DocumentedEndpoint,
   JsonValue,

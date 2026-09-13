@@ -47,10 +47,10 @@
   "dependencies": {
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
-    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*"
   },
   "devDependencies": {
-    "@nestlingjs/schema.zod": "workspace:*",
     "zod": "^4.0.0"
   }
 }
