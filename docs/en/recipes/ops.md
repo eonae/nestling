@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `45235d02`.
+> Guide to the current API; verified against `5cd76452`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
