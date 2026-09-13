@@ -25,55 +25,104 @@ type NotFail<T> = [T] extends [AnyFail] ? never : unknown;
 /**
  * Успешный ответ: статус и значение.
  *
+ * Статус входит в тип (`Ok<User, 'created'>`), потому что его ограничивает
+ * декларация: результат хендлера допускает только объявленные исходы.
+ * Литерал статуса выводится в точке создания значения — перегрузкой
+ * конструктора или фабрикой.
+ *
  * Заголовков у `Ok` нет: они принадлежат HTTP, а не результату обработки.
  * Заголовки, cookie и редирект задаёт форма ответа своего транспорта —
  * `HttpResponse` в `@nestlingjs/transport.http`.
  */
-export class Ok<TValue = unknown> {
+export interface Ok<TValue = unknown, TStatus extends SuccessStatus = 'ok'> {
   /**
    * Дискриминант ответа; у `Fail` он равен `true`. Обычное свойство,
    * поэтому переживает сериализацию.
    */
-  public readonly isFail = false as const;
+  readonly isFail: false;
 
-  public readonly status: SuccessStatus;
-  public readonly value: TValue;
+  readonly status: TStatus;
+  readonly value: TValue;
+}
 
+/**
+ * Успешный ответ с любым статусом.
+ *
+ * Нужен там, где статус не важен: рантайм пайплайна, транспорт и тесты
+ * работают с результатом любого исхода, а `Ok<T>` означает ровно `'ok'`.
+ */
+export type AnyOk<TValue = any> = Ok<TValue, SuccessStatus>;
+
+/**
+ * Конструктор `Ok`.
+ *
+ * Интерфейс, а не сигнатуры на классе: статус обязан выводиться из
+ * аргумента, а тип-параметр класса компилятор выводит ещё и из ожидаемого
+ * типа. У декларации с развилкой ожидаемый тип — юнион исходов, и
+ * `new Ok(value)` получал бы оттуда весь набор статусов вместо `'ok'`.
+ */
+export interface OkConstructor {
   /**
    * `new Ok(fail)` не компилируется: тип значения — `TValue &
    * NotFail<TValue>`. Пересечение, а не условный тип: из `TValue` вывод
    * типа работает, из условного типа — нет.
    */
-  constructor(status: SuccessStatus, value: TValue & NotFail<TValue>);
-  constructor(value: TValue & NotFail<TValue>);
-  constructor(statusOrValue: SuccessStatus | TValue, value?: TValue) {
+  new <TValue>(value: TValue & NotFail<TValue>): Ok<TValue, 'ok'>;
+  new <TValue, TStatus extends SuccessStatus>(
+    status: TStatus,
+    value: TValue & NotFail<TValue>,
+  ): Ok<TValue, TStatus>;
+
+  created<T>(value: T & NotFail<T>): Ok<T, 'created'>;
+  accepted<T>(value: T & NotFail<T>): Ok<T, 'accepted'>;
+  noContent(): Ok<null, 'no_content'>;
+
+  readonly prototype: AnyOk;
+}
+
+/** Реализация {@link Ok}; наружу её заменяет {@link OkConstructor} */
+class OkValue<TValue = unknown, TStatus extends SuccessStatus = SuccessStatus>
+  implements Ok<TValue, TStatus>
+{
+  public readonly isFail = false as const;
+
+  public readonly status: TStatus;
+  public readonly value: TValue;
+
+  constructor(statusOrValue: TStatus | TValue, value?: TValue) {
     const isStatus =
       typeof statusOrValue === 'string' &&
       successStatuses.includes(statusOrValue as SuccessStatus);
 
     if (isStatus) {
       // Первая перегрузка: (status, value)
-      this.status = statusOrValue as SuccessStatus;
+      this.status = statusOrValue as TStatus;
       this.value = value as TValue;
     } else {
       // Вторая перегрузка: (value)
-      this.status = 'ok';
+      this.status = 'ok' as TStatus;
       this.value = statusOrValue as TValue;
     }
   }
 
-  static created<T>(value: T & NotFail<T>): Ok<T> {
-    return new Ok('created', value);
+  static created<T>(value: T): Ok<T, 'created'> {
+    return new OkValue('created', value);
   }
 
-  static accepted<T>(value: T & NotFail<T>): Ok<T> {
-    return new Ok('accepted', value);
+  static accepted<T>(value: T): Ok<T, 'accepted'> {
+    return new OkValue('accepted', value);
   }
 
-  static noContent(): Ok<null> {
-    return new Ok('no_content', null);
+  static noContent(): Ok<null, 'no_content'> {
+    return new OkValue('no_content', null);
   }
 }
+
+/**
+ * Успешный ответ: `new Ok(value)`, `new Ok('created', value)` и фабрики
+ * остальных статусов.
+ */
+export const Ok: OkConstructor = OkValue as unknown as OkConstructor;
 
 /**
  * Опции конструктора {@link Fail}: детали и исходная ошибка.

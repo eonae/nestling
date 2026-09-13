@@ -26,6 +26,7 @@ import type {
   InferOutput,
   ValidateOutputForm,
 } from './io/index.js';
+import { assertIoDeclaration, isOutcomes } from './io/index.js';
 import type { DeclarationDoc } from './doc.js';
 import { assertDoc } from './doc.js';
 import type { EmitterToken, PortToken } from './families.js';
@@ -39,7 +40,7 @@ import type {
 import { isFailDefinition } from './make-fail.js';
 import { registerOperation } from './registry.js';
 import type { AnyFail } from './result.js';
-import type { FailCode } from './status.js';
+import type { FailCode, SuccessStatus } from './status.js';
 
 /**
  * Вид операции. Определяет, как доставляется вызов.
@@ -69,12 +70,14 @@ const OPERATION_KINDS: readonly OperationKind[] = [
  * @param O - форма io выхода
  * @param E - объявленные отказы (`errors:`)
  * @param K - вид операции
+ * @param S - статус единственного успешного исхода (`status:`)
  */
 export interface Operation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   K extends OperationKind = OperationKind,
+  S extends SuccessStatus = SuccessStatus,
 > {
   /**
    * Имя операции. Служит адресом: subject шины и ключ discovery.
@@ -89,6 +92,19 @@ export interface Operation<
 
   /** Форма io выхода; у `command` и `event` ответ не доставляется */
   readonly output?: O;
+
+  /**
+   * Статус единственного успешного исхода.
+   *
+   * Контракт ответа в сети: его читают рантайм реализации, генератор
+   * документации и типизированный клиент. Несколько исходов объявляются
+   * развилкой `outputs(...)` в слоте `output`, и тогда поле не
+   * объявляется.
+   *
+   * Не объявлен — действует умолчание: `ok` при объявленном `output`,
+   * `no_content` без него.
+   */
+  readonly status?: S;
 
   /** Объявленные отказы: список определений `makeFail` */
   readonly errors?: E;
@@ -133,12 +149,13 @@ export interface RequestOperation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
-> extends Operation<I, O, E, 'request'> {
+  S extends SuccessStatus = SuccessStatus,
+> extends Operation<I, O, E, 'request', S> {
   /**
    * DI-токен вызывающей стороны: токен семейства `PortFamily` с именем
    * операции в параметре.
    */
-  readonly caller: PortToken<RequestOperation<I, O, E>>;
+  readonly caller: PortToken<RequestOperation<I, O, E, S>>;
 }
 
 /** Операция вида `command`/`event`: у неё есть `.emitter` и нет `.caller` */
@@ -167,23 +184,32 @@ export type EventOperation<
 > = EmittingOperation<I, O, E, 'event'>;
 
 /** Операция любого вида; для мест, где вид не важен */
-export type AnyOperation = Operation<any, any, any, OperationKind>;
+export type AnyOperation = Operation<any, any, any, OperationKind, any>;
 
 /** Форма io входа операции; реализация получает её как `input` */
 export type InputFormOf<C extends AnyOperation> =
-  C extends Operation<infer I, any, any, any> ? I : never;
+  C extends Operation<infer I, any, any, any, any> ? I : never;
 
 /** Форма io выхода операции; реализация получает её как `output` */
 export type OutputFormOf<C extends AnyOperation> =
-  C extends Operation<any, infer O, any, any> ? O : never;
+  C extends Operation<any, infer O, any, any, any> ? O : never;
 
 /** Тип payload вызова, выведенный из формы `input` операции */
 export type InputOf<C extends AnyOperation> =
-  C extends Operation<infer I, any, any, any> ? InferInput<I> : never;
+  C extends Operation<infer I, any, any, any, any> ? InferInput<I> : never;
 
 /** Тип значения успешного ответа, выведенный из формы `output` операции */
 export type OutputOf<C extends AnyOperation> =
-  C extends Operation<any, infer O, any, any> ? InferOutput<O> : never;
+  C extends Operation<any, infer O, any, any, any> ? InferOutput<O> : never;
+
+/**
+ * Статус, объявленный полем `status` операции.
+ *
+ * Умолчание здесь не подставляется: его считает `EffectiveStatus` по
+ * форме `output`. Операция без поля даёт `never`.
+ */
+export type StatusOf<C extends AnyOperation> =
+  C extends Operation<any, any, any, any, infer S> ? S : never;
 
 /**
  * Объединение объявленных отказов операции: множество `E` на стороне
@@ -196,7 +222,7 @@ export type OutputOf<C extends AnyOperation> =
  * списка определений, этот — от операции.
  */
 export type OperationFailsOf<C extends AnyOperation> =
-  C extends Operation<any, any, infer E, any>
+  C extends Operation<any, any, infer E, any, any>
     ? E extends readonly AnyFailDefinition[]
       ? FailsOfDefinitions<E>
       : never
@@ -206,7 +232,7 @@ export type OperationFailsOf<C extends AnyOperation> =
  * Отдаёт объявленные отказы операции тем же значением, без копирования.
  */
 export function errorsOf<E extends readonly AnyFailDefinition[]>(
-  operation: Operation<any, any, E, 'request' | 'command'>,
+  operation: Operation<any, any, E, 'request' | 'command', any>,
 ): E {
   return operation.errors ?? ([] as unknown as E);
 }
@@ -322,6 +348,7 @@ export interface OperationSpec<
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   K extends OperationKind = OperationKind,
   Path extends string = string,
+  S extends SuccessStatus = SuccessStatus,
 > {
   /** Имя операции; служит адресом: subject шины и ключ discovery */
   name: string;
@@ -332,11 +359,23 @@ export interface OperationSpec<
   input?: I;
 
   /**
-   * Форма io выхода. `ValidateOutputForm` проверяет её так же, как в
-   * декларации endpoint'а: `multipart` и шаг цепочки, меняющий тип
-   * элемента, — ошибка компиляции в точке объявления операции.
+   * Форма io выхода или развилка исходов `outputs({ … })`.
+   * `ValidateOutputForm` проверяет её так же, как в декларации
+   * endpoint'а: `multipart`, шаг цепочки, меняющий тип элемента, и
+   * потоковая форма веткой развилки — ошибка компиляции в точке
+   * объявления операции.
    */
   output?: O & ValidateOutputForm<O>;
+
+  /**
+   * Статус единственного успешного исхода: один из `ok`, `created`,
+   * `accepted`, `no_content`.
+   *
+   * Рядом с развилкой `outputs(...)` не объявляется: её ключи уже
+   * называют статусы. Не объявлен — действует умолчание: `ok` при
+   * объявленном `output`, `no_content` без него.
+   */
+  status?: S;
 
   /**
    * Объявленные отказы: список определений `makeFail`. Проверяется при
@@ -560,7 +599,8 @@ type CommonSpec<
   E extends readonly AnyFailDefinition[],
   K extends OperationKind,
   Path extends string,
-> = Omit<OperationSpec<I, O, E, K, Path>, 'kind'>;
+  S extends SuccessStatus = SuccessStatus,
+> = Omit<OperationSpec<I, O, E, K, Path, S>, 'kind'>;
 
 /** Словарь `makeRequest`: `durable` невыразим */
 export type RequestSpec<
@@ -568,41 +608,85 @@ export type RequestSpec<
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   Path extends string = string,
-> = CommonSpec<I, O, E, 'request', Path> & {
+  S extends SuccessStatus = SuccessStatus,
+> = CommonSpec<I, O, E, 'request', Path, S> & {
   /** @internal у запроса вызывающий ждёт ответа: переживать нечего */
   durable?: never;
 };
 
-/** Словарь `makeCommand` */
+/** Словарь `makeCommand`: успешного исхода нет, объявлять его нечем */
 export type CommandSpec<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   Path extends string = string,
-> = CommonSpec<I, O, E, 'command', Path>;
+> = Omit<CommonSpec<I, O, E, 'command', Path>, 'status'> & {
+  /** @internal у указания нет ответа, которому принадлежал бы статус */
+  status?: never;
+};
 
-/** Словарь `makeEvent`: `output` и `errors` невыразимы */
+/** Словарь `makeEvent`: `output`, `errors` и `status` невыразимы */
 export type EventSpec<
   I extends AnyPayload = AnyPayload,
   Path extends string = string,
-> = Omit<CommonSpec<I, undefined, [], 'event', Path>, 'output' | 'errors'> & {
+> = Omit<
+  CommonSpec<I, undefined, [], 'event', Path>,
+  'output' | 'errors' | 'status'
+> & {
   /** @internal у события нет ответа, который можно было бы объявить */
   output?: never;
   /** @internal отказ доставляется вызывающему, а у события его нет */
   errors?: never;
+  /** @internal статус принадлежит ответу, а ответа у события нет */
+  status?: never;
 };
+
+/**
+ * Отвергает объявление успешного исхода у операции без ответа.
+ *
+ * Статус и развилка описывают ответ, а у `command` и `event` его нет —
+ * как нет и `output`. Ошибка при объявлении, а не при доставке: это
+ * дефект самой операции.
+ */
+function assertNoOutcomes(
+  status: unknown,
+  output: unknown,
+  name: string,
+  kind: OperationKind,
+): void {
+  if (kind === 'request') {
+    return;
+  }
+
+  if (status === undefined && !isOutcomes(output)) {
+    return;
+  }
+
+  const declared = status !== undefined ? "'status'" : 'outputs({ … })';
+
+  throw new Error(
+    `Operation '${name}' (kind '${kind}'): ${declared} declares a ` +
+      `successful outcome, and this kind has no reply to carry it. Declare ` +
+      `the operation with makeRequest, or drop the outcome.`,
+  );
+}
 
 /** Общая часть трёх конструкторов: проверки и сборка значения */
 function declare(
   spec: OperationSpec<any, any, readonly AnyFailDefinition[], OperationKind>,
 ): AnyOperation {
-  const { name, kind, input, output, errors, doc, durable, http } = spec;
+  const { name, kind, input, output, status, errors, doc, durable, http } =
+    spec;
 
   assertName(name);
   assertKind(kind, name);
   assertFailDefinitions(errors, name);
   assertDoc(doc, `Operation '${name}'`);
   assertDurable(durable, name, kind);
+  assertNoOutcomes(status, output, name, kind);
+  // Формы io и объявление исходов проверяются теми же правилами, что в
+  // декларации endpoint'а; отличается только адресат в тексте ошибки
+  assertIoDeclaration(`Operation '${name}'`, input, output, status);
 
   const value: Record<string, unknown> = { name, kind };
 
@@ -611,6 +695,9 @@ function declare(
   }
   if (output !== undefined) {
     value.output = output;
+  }
+  if (status !== undefined) {
+    value.status = status;
   }
   if (errors !== undefined) {
     value.errors = errors;
@@ -658,8 +745,9 @@ export function makeRequest<
   O extends AnyOutput = undefined,
   E extends readonly AnyFailDefinition[] = [],
   Path extends string = string,
->(spec: RequestSpec<I, O, E, Path>): RequestOperation<I, O, E> {
-  return declare({ ...spec, kind: 'request' }) as RequestOperation<I, O, E>;
+  S extends SuccessStatus = never,
+>(spec: RequestSpec<I, O, E, Path, S>): RequestOperation<I, O, E, S> {
+  return declare({ ...spec, kind: 'request' }) as RequestOperation<I, O, E, S>;
 }
 
 /**

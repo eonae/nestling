@@ -1,44 +1,44 @@
 ## 1. Формы io: развилка исходов
 
-- [ ] 1.1 `packages/nestling.operations/src/io/forms.ts`: `outputs(map)` и
+- [x] 1.1 `packages/nestling.operations/src/io/forms.ts`: `outputs(map)` и
       `none()` — неизменяемые значения с неперечислимым брендом; описатель
       развилки отдаёт ветки парами «статус — форма», `describeForm` на
       развилке отказывает
-- [ ] 1.2 `io/forms.ts`: `ValidateOutputForm` пропускает развилку и
+- [x] 1.2 `io/forms.ts`: `ValidateOutputForm` пропускает развилку и
       отвергает в ветке потоковую форму, `multipart` и вложенную развилку;
       `none()` вне развилки — ошибка типа
-- [ ] 1.3 `io/summary.ts` (media types): правило применяется к каждой ветке
+- [x] 1.3 `io/summary.ts` (media types): правило применяется к каждой ветке
       отдельно, ветка `none()` media type не имеет
-- [ ] 1.4 `io/capabilities.ts`: `assertFormsSupported` проверяет
+- [x] 1.4 `io/capabilities.ts`: `assertFormsSupported` проверяет
       способности транспорта по каждой ветке развилки
-- [ ] 1.5 Рантайм-спеки `io/forms.spec.ts` и `io/capabilities.spec.ts`:
+- [x] 1.5 Рантайм-спеки `io/forms.spec.ts` и `io/capabilities.spec.ts`:
       бренд развилки, отказ `describeForm`, объект с ключами-статусами не
       считается развилкой, media type ветки
 
 ## 2. Ядро: результат и декларация операции
 
-- [ ] 2.1 `src/result.ts`: `Ok<TValue, TStatus extends SuccessStatus = 'ok'>`;
+- [x] 2.1 `src/result.ts`: `Ok<TValue, TStatus extends SuccessStatus = 'ok'>`;
       `new Ok(value)` даёт `Ok<T, 'ok'>`, `new Ok('created', value)` —
       `Ok<T, 'created'>` (литерал выводится тип-параметром перегрузки),
       `Ok.created`/`Ok.accepted`/`Ok.noContent` возвращают уточнённый тип
-- [ ] 2.2 `src/status.ts`: `assertSuccessStatus(value, where)` для поля
+- [x] 2.2 `src/status.ts`: `assertSuccessStatus(value, where)` для поля
       `status` и для ключей развилки (тексты ошибок называют декларацию,
       поле и допустимые значения)
-- [ ] 2.3 `src/output.ts`: `OutputSync`/`Output` выводят допустимый
+- [x] 2.3 `src/output.ts`: `OutputSync`/`Output` выводят допустимый
       результат из объявленных исходов — `Ok<TValue, S>` для одного исхода
       и дискриминированный юнион `Ok` по статусу для развилки; голое
       значение допустимо только при одном исходе
-- [ ] 2.4 `src/doc.ts`: удалить `status` из `DeclarationDoc`, из `DOC_FIELDS`
+- [x] 2.4 `src/doc.ts`: удалить `status` из `DeclarationDoc`, из `DOC_FIELDS`
       и из `assertDoc`; текст ошибки неизвестного поля называет поле
       `status` верхнего уровня словаря
-- [ ] 2.5 `src/operation.ts`: поле `status` у `makeRequest`, развилка в
+- [x] 2.5 `src/operation.ts`: поле `status` у `makeRequest`, развилка в
       `output`; `makeCommand` и `makeEvent` отвергают оба с текстом «у
       операции нет ответа»; проверки объявления (развилка пустая или из
       одного ключа, `status` вместе с развилкой, `no_content` при
       объявленном `output`)
-- [ ] 2.6 Рантайм-спеки `result.spec.ts` и `operation.spec.ts`: сценарии
+- [x] 2.6 Рантайм-спеки `result.spec.ts` и `operation.spec.ts`: сценарии
       проверок объявления из спеки `declared-success-status`
-- [ ] 2.7 Тип-тесты: `Ok.created` вне объявленных исходов, голое значение
+- [x] 2.7 Тип-тесты: `Ok.created` вне объявленных исходов, голое значение
       при развилке, `Ok.accepted(user)` при ветке `accepted: JobAccepted`,
       сужение `value` по `result.status`
 

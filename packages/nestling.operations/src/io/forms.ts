@@ -1,14 +1,22 @@
 /**
- * Формы io: `stream`, `events`, `multipart` и их описатель.
+ * Формы io: `stream`, `events`, `multipart`, развилка исходов и их
+ * описатели.
  *
  * `input` и `output` декларации — это форма (`value`, `stream`, `events`
  * или `multipart`), а лист формы — Standard Schema или примитив
  * (`'binary'`, `'text'`). Форма описывает, как передаются данные; схема
  * описывает сами данные.
  *
+ * Слот `output` принимает ещё развилку исходов `outputs({ … })`: несколько
+ * успешных исходов, у каждого свой статус и своя форма. Вида формы у
+ * развилки нет — её описывают ветками.
+ *
  * Форма — неизменяемое значение с неперечислимым брендом. Объект с полем
- * `kind`, созданный вручную, формой не считается.
+ * `kind`, созданный вручную, формой не считается; объект с
+ * ключами-статусами не считается развилкой.
  */
+
+import type { SuccessStatus } from '../status.js';
 
 import type { Infer, Optional, Schema } from '@nestlingjs/common.misc';
 
@@ -157,12 +165,46 @@ export type AnyStreamForm = StreamForm<any, any, StreamKind>;
 /** Любая multipart-форма */
 export type AnyMultipartForm = MultipartForm<any, any>;
 
+/**
+ * Исход без тела: ветка развилки, которой нечего отдать.
+ *
+ * Значение с брендом, а не `undefined`: пропущенный ключ и ключ,
+ * объявленный пустым, — разные объявления, и второе видно в диффе. Вне
+ * развилки маркер отвергается: декларация без тела пишется отсутствием
+ * `output`.
+ */
+export interface NoneForm {
+  readonly outcome: 'none';
+}
+
+/** Форма ветки развилки: значение, примитив или `none()` */
+export type OutcomeForm = Schema | IOPrimitive | NoneForm;
+
+/** Исходы по статусам: ключ — статус успеха, значение — форма ветки */
+export type OutcomeMap = Readonly<Partial<Record<SuccessStatus, OutcomeForm>>>;
+
+/**
+ * Развилка успешных исходов слота `output`.
+ *
+ * Ключи — объявленное множество статусов декларации, значения — формы
+ * веток. Вида формы (`FormKind`) у развилки нет: он есть у каждой ветки
+ * отдельно, поэтому `describeForm` на развилке отказывает.
+ */
+export interface OutcomesForm<M extends OutcomeMap = OutcomeMap> {
+  readonly outcomes: M;
+}
+
+/** Любая развилка; для мест, где набор исходов не важен */
+export type AnyOutcomesForm = OutcomesForm<any>;
+
 // ---------------------------------------------------------------------------
 // Бренды
 // ---------------------------------------------------------------------------
 
 const FORM_BRAND = Symbol.for('nestling:io-form');
 const UPLOAD_BRAND = Symbol.for('nestling:io-upload');
+const OUTCOMES_BRAND = Symbol.for('nestling:io-outcomes');
+const NONE_BRAND = Symbol.for('nestling:io-none');
 
 function brand<T extends object>(value: T, symbol: symbol): T {
   Object.defineProperty(value, symbol, {
@@ -184,6 +226,27 @@ export function isForm(value: unknown): value is FormDescriptor {
     typeof value === 'object' &&
     value !== null &&
     (value as Record<symbol, unknown>)[FORM_BRAND] === true
+  );
+}
+
+/**
+ * Проверяет, что значение создано `outputs(...)`. Объект с
+ * ключами-статусами, собранный вручную, развилкой не считается.
+ */
+export function isOutcomes(value: unknown): value is AnyOutcomesForm {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[OUTCOMES_BRAND] === true
+  );
+}
+
+/** Проверяет, что значение создано `none()` */
+export function isNone(value: unknown): value is NoneForm {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[NONE_BRAND] === true
   );
 }
 
@@ -420,6 +483,60 @@ export function multipart<
   >;
 }
 
+/**
+ * Объявляет исход без тела. Допустим только веткой развилки.
+ *
+ * @example
+ * ```typescript
+ * output: outputs({ ok: User, no_content: none() })
+ * ```
+ */
+export function none(): NoneForm {
+  return Object.freeze(brand({ outcome: 'none' as const }, NONE_BRAND));
+}
+
+/**
+ * Объявляет несколько успешных исходов: ключ — статус, значение — форма
+ * ветки.
+ *
+ * Ключи развилки и есть объявленное множество статусов декларации,
+ * поэтому поле `status` рядом с ней не объявляется. Правила объявления
+ * (два исхода и больше, статусы из словаря ядра, ветка без потоковой
+ * формы) проверяет конструктор декларации: его текст ошибки называет
+ * декларацию.
+ *
+ * @example
+ * ```typescript
+ * output: outputs({ ok: User, accepted: JobAccepted, no_content: none() })
+ * ```
+ */
+export function outputs<M extends OutcomeMap>(map: M): OutcomesForm<M> {
+  if (typeof map !== 'object' || map === null || Array.isArray(map)) {
+    throw new TypeError(
+      `outputs({ … }): the argument is a record of outcomes — ` +
+        `'<success status>: <io form>'.`,
+    );
+  }
+
+  const form = { outcomes: Object.freeze({ ...map }) as M };
+
+  return Object.freeze(brand(form, OUTCOMES_BRAND));
+}
+
+/**
+ * Отдаёт ветки развилки парами «статус — форма» в порядке объявления.
+ *
+ * Отдельный описатель, потому что `describeForm` описывает одну форму, а у
+ * развилки их столько же, сколько исходов.
+ */
+export function describeOutcomes(
+  form: AnyOutcomesForm,
+): readonly (readonly [SuccessStatus, OutcomeForm])[] {
+  return Object.entries(
+    form.outcomes as Record<string, OutcomeForm>,
+  ) as (readonly [SuccessStatus, OutcomeForm])[];
+}
+
 // ---------------------------------------------------------------------------
 // Описатель и media types
 // ---------------------------------------------------------------------------
@@ -431,10 +548,27 @@ const VALUE_NONE: FormDescriptor = Object.freeze({ kind: 'value' as const });
  *
  * Схема без обёртки и `undefined` дают `kind: 'value'`: отдельного
  * конструктора `value(...)` нет.
+ *
+ * @throws {TypeError} Значение — развилка исходов или `none()`: вида
+ * формы у них нет, ветки читаются через `describeOutcomes`
  */
 export function describeForm(io?: unknown): FormDescriptor {
   if (io === undefined || io === null) {
     return VALUE_NONE;
+  }
+
+  if (isOutcomes(io)) {
+    throw new TypeError(
+      `describeForm(...): a branching 'output' has no form kind of its own — ` +
+        `each outcome has one. Read the branches with describeOutcomes(...).`,
+    );
+  }
+
+  if (isNone(io)) {
+    throw new TypeError(
+      `describeForm(...): 'none()' declares an outcome without a body, so it ` +
+        `has no form. Check for it with isNone(...) before describing a branch.`,
+    );
   }
 
   if (isPrimitiveLeaf(io)) {
@@ -453,6 +587,8 @@ export function describeForm(io?: unknown): FormDescriptor {
  *
  * Правило одно для всех потребителей: транспорт выбирает по нему
  * кодирование, генератор OpenAPI — `content`, клиент — заголовки запроса.
+ * У развилки исходов правило применяется к каждой ветке отдельно; ветка
+ * `none()` media type не имеет.
  */
 export function mediaTypeOf(io?: unknown): string {
   const form = describeForm(io);
@@ -483,15 +619,39 @@ export function mediaTypeOf(io?: unknown): string {
  * Проверка формы `output` на уровне типов: `multipart` не допускается, а
  * тип элемента цепочки должен совпадать с типом элемента в сети.
  */
-export type ValidateOutputForm<O> = O extends AnyMultipartForm
-  ? {
-      __error: "'multipart' is an input-only form and cannot be declared in 'output'";
-    }
-  : O extends StreamForm<infer TWire, infer TItem, StreamKind>
-    ? SameItem<TWire, TItem> extends true
+export type ValidateOutputForm<O> = O extends AnyOutcomesForm
+  ? ValidateOutcomes<O>
+  : O extends NoneForm
+    ? {
+        __error: "'none()' declares an outcome without a body and is only valid inside outputs({ … })";
+      }
+    : O extends AnyMultipartForm
+      ? {
+          __error: "'multipart' is an input-only form and cannot be declared in 'output'";
+        }
+      : O extends StreamForm<infer TWire, infer TItem, StreamKind>
+        ? SameItem<TWire, TItem> extends true
+          ? unknown
+          : {
+              __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only";
+            }
+        : unknown;
+
+/**
+ * Проверка веток развилки: формой ветки может быть значение или примитив.
+ *
+ * Потоковая форма веткой запрещена правилом дизайна: настройки потокового
+ * ответа привязаны к форме декларации, а у развилки форма исхода известна
+ * только после результата.
+ */
+type ValidateOutcomes<O> =
+  O extends OutcomesForm<infer M>
+    ? [
+        Extract<M[keyof M], AnyStreamForm | AnyMultipartForm | AnyOutcomesForm>,
+      ] extends [never]
       ? unknown
       : {
-          __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only";
+          __error: "A branch of outputs({ … }) is a value, a primitive or none(): 'stream', 'events', 'multipart' and nested outputs({ … }) are not outcomes";
         }
     : unknown;
 

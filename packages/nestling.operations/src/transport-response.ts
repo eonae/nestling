@@ -1,5 +1,6 @@
 import type { OutputSync } from './output.js';
 import type { AnyFail } from './result.js';
+import type { SuccessStatus } from './status.js';
 
 /**
  * Метка конверта транспортного ответа.
@@ -20,8 +21,12 @@ export const TRANSPORT_RESPONSE = Symbol.for('nestling:transport-response');
  * транспорта, вернуть его не может.
  *
  * @param TValue - Тип значения ответа
+ * @param TStatus - Статус исхода, который несёт результат
  */
-export interface TransportResponse<TValue = unknown> {
+export interface TransportResponse<
+  TValue = unknown,
+  TStatus extends SuccessStatus = SuccessStatus,
+> {
   /** Метка конверта; по ней его распознаёт рантайм пайплайна */
   readonly [TRANSPORT_RESPONSE]: true;
 
@@ -32,7 +37,7 @@ export interface TransportResponse<TValue = unknown> {
   readonly meta: unknown;
 
   /** Ответ без метаданных: `Ok` или значение */
-  readonly result: OutputSync<TValue, AnyFail>;
+  readonly result: OutputSync<TValue, AnyFail, TStatus>;
 }
 
 /**

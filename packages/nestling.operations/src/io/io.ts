@@ -1,8 +1,12 @@
 import type {
   AnyMultipartForm,
+  AnyOutcomesForm,
   AnyStreamForm,
   IOPrimitive,
   MultipartForm,
+  NoneForm,
+  OutcomeMap,
+  OutcomesForm,
   StreamForm,
   StreamKind,
   UploadSpec,
@@ -23,16 +27,18 @@ export type AnyPayload<T extends Optional<Schema> = Optional<Schema>> =
   | AnyMultipartForm; // multipart({ fields, files })
 
 /**
- * Конфигурация `output`.
+ * Конфигурация `output`: форма io или развилка исходов.
  *
- * `multipart` входит в объединение только ради диагностики: так ошибка
- * приходит читаемым литералом из `ValidateOutputForm`, а не отказом
+ * `multipart` и `none()` входят в объединение только ради диагностики: так
+ * ошибка приходит читаемым литералом из `ValidateOutputForm`, а не отказом
  * сопоставления с границей тип-параметра.
  */
 export type AnyOutput<T extends Optional<Schema> = Optional<Schema>> =
   | T // Schema
   | IOPrimitive // 'binary' | 'text'
   | AnyStreamForm // stream(T) / events(T)
+  | AnyOutcomesForm // outputs({ ok: User, accepted: Job })
+  | NoneForm // отвергается ValidateOutputForm
   | AnyMultipartForm; // отвергается ValidateOutputForm
 
 /**
@@ -90,28 +96,41 @@ export type InferInput<I> =
               InferSchemaType<I>;
 
 /**
+ * Значение одной ветки развилки: `none()` тела не несёт.
+ */
+export type OutcomeValue<F> = F extends NoneForm ? null : InferOutput<F>;
+
+/** Значения всех веток развилки одним объединением */
+export type OutcomeValues<M extends OutcomeMap> = {
+  [K in keyof M]: OutcomeValue<M[K]>;
+}[keyof M];
+
+/**
  * Выводит тип возврата хендлера из формы `output`.
  */
 export type InferOutput<O> =
-  // Примитивы
-  O extends 'binary'
-    ? Buffer
-    : O extends 'text'
-      ? string
-      : // Потоковые формы: оба конца зафиксированы схемой (см.
-        // ValidateOutputForm), поэтому тип элемента — тип при сериализации
-        O extends StreamForm<any, infer TItem, StreamKind>
-        ? AsyncIterable<TItem>
-        : // Multipart в выходе нелегален — значения у него нет
-          O extends AnyMultipartForm
-          ? never
-          : // Формы `output` нет: значения у ответа нет, и хендлер
-            // компилируется без `return`
-            O extends undefined
-            ? /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` здесь и есть ответ «значения нет»: из него `OutputSync` собирает тип результата хендлера */
-              void
-            : // Схема (по умолчанию)
-              InferSchemaType<O>;
+  // Развилка исходов: значение любой из веток
+  O extends OutcomesForm<infer M>
+    ? OutcomeValues<M>
+    : // Примитивы
+      O extends 'binary'
+      ? Buffer
+      : O extends 'text'
+        ? string
+        : // Потоковые формы: оба конца зафиксированы схемой (см.
+          // ValidateOutputForm), поэтому тип элемента — тип при сериализации
+          O extends StreamForm<any, infer TItem, StreamKind>
+          ? AsyncIterable<TItem>
+          : // Multipart в выходе нелегален — значения у него нет
+            O extends AnyMultipartForm
+            ? never
+            : // Формы `output` нет: значения у ответа нет, и хендлер
+              // компилируется без `return`
+              O extends undefined
+              ? /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` здесь и есть ответ «значения нет»: из него `OutputSync` собирает тип результата хендлера */
+                void
+              : // Схема (по умолчанию)
+                InferSchemaType<O>;
 
 /**
  * Поля, которые можно пометить в `bind`.

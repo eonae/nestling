@@ -6,7 +6,7 @@ import {
 } from './transport-response.js';
 
 /** Конверт транспорта: так его собирает пакет транспорта */
-const envelope: TransportResponse<{ id: number }> = {
+const envelope: TransportResponse<{ id: number }, 'created'> = {
   [TRANSPORT_RESPONSE]: true,
   transport: 'http',
   meta: { headers: { location: '/users/1' } },

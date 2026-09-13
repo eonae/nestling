@@ -27,6 +27,12 @@ const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
 });
 
+/** Проверка типов: взаимная присваиваемость */
+type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+function expectType<T extends true>(assertion?: T): void {
+  void assertion;
+}
+
 describe('Ok/Fail — дискриминант isFail', () => {
   it('Ok несёт false, Fail — true', () => {
     expect(new Ok({ id: 1 }).isFail).toBe(false);
@@ -63,6 +69,24 @@ describe('Ok — статусы успеха', () => {
     expect(Ok.accepted({ id: 1 }).status).toBe('accepted');
     expect(Ok.noContent().status).toBe('no_content');
     expect(Ok.noContent().value).toBeNull();
+  });
+
+  it('статус виден в типе значения', () => {
+    const created = Ok.created({ id: 1 });
+    const accepted = Ok.accepted({ id: 1 });
+    const empty = Ok.noContent();
+    const plain = new Ok({ id: 1 });
+    const explicit = new Ok('accepted', { id: 1 });
+
+    expectType<Equals<typeof created, Ok<{ id: number }, 'created'>>>();
+    expectType<Equals<typeof accepted, Ok<{ id: number }, 'accepted'>>>();
+    expectType<Equals<typeof empty, Ok<null, 'no_content'>>>();
+    expectType<Equals<typeof plain, Ok<{ id: number }, 'ok'>>>();
+    expectType<Equals<typeof explicit, Ok<{ id: number }, 'accepted'>>>();
+
+    // @ts-expect-error статус входит в тип: `created` не подходит слоту `ok`
+    const narrowed: Ok<{ id: number }, 'ok'> = created;
+    expect(narrowed.status).toBe('created');
   });
 
   it('заголовков у Ok нет: второй аргумент не принимается', () => {

@@ -63,6 +63,63 @@ export type FailCode = Category | `${Category}:${string}`;
 /** Формат одного сегмента кода */
 const SEGMENT = /^[_a-z]+$/;
 
+/** Проверяет, что строка — статус успеха из перечня */
+export function isSuccessStatus(value: unknown): value is SuccessStatus {
+  return (
+    typeof value === 'string' &&
+    (successStatuses as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Проверяет успешный статус: одно значение из закрытого словаря ядра.
+ *
+ * Зовётся конструкторами декларации и операции для поля `status` и для
+ * каждого ключа развилки исходов. Список статусов и числовые коды
+ * отвергаются отдельным текстом: первое пишется развилкой `outputs(...)`,
+ * второе выбирает транспорт.
+ *
+ * @param value - Объявленное значение
+ * @param where - Владелец в тексте ошибки: `Endpoint 'POST /users'`
+ * @param field - Как назвать место объявления: поле или ключ развилки
+ * @throws {TypeError} Значение — список или число
+ * @throws {Error} Значение вне словаря успешных статусов
+ */
+export function assertSuccessStatus(
+  value: unknown,
+  where: string,
+  field = "'status'",
+): asserts value is SuccessStatus {
+  if (isSuccessStatus(value)) {
+    return;
+  }
+
+  const known = successStatuses.map((status) => `'${status}'`).join(', ');
+
+  if (Array.isArray(value)) {
+    throw new TypeError(
+      `${where}: ${field} takes one status, not a list. Several outcomes are ` +
+        `declared by the branching 'output': ` +
+        `outputs({ ok: …, accepted: … }).`,
+    );
+  }
+
+  if (typeof value === 'number') {
+    throw new TypeError(
+      `${where}: ${field} takes a status of the kernel dictionary ` +
+        `(${known}), not an HTTP code — the number is chosen by the ` +
+        `transport.`,
+    );
+  }
+
+  throw new Error(
+    `${where}: ${field} must be one of ${known}, got ` +
+      `${JSON.stringify(value)}. The dictionary declares the status of a ` +
+      `**successful** response; failures carry their category in the code of ` +
+      `makeFail(...).`,
+  );
+}
+
 /** Проверяет, что строка — категория из перечня */
 export function isCategory(value: unknown): value is Category {
   return (

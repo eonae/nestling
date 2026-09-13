@@ -2,8 +2,12 @@
  * Секция `doc`: метаданные операции, которых нет в схемах.
  *
  * Схема описывает форму данных, а не операцию: как её назвать в списке, к
- * какой группе отнести, каким статусом отвечает успех, показывать ли её
- * наружу. Всё это объявляется в одной секции `doc`.
+ * какой группе отнести, показывать ли её наружу. Всё это объявляется в
+ * одной секции `doc`.
+ *
+ * Успешного статуса в секции нет: он описывает ответ, уходящий в сеть, а
+ * не текст документации, и объявляется полем `status` верхнего уровня
+ * словаря.
  *
  * Секция не зависит от транспорта (живёт на `EndpointOptions` и
  * `OperationSpec`; ядро её не интерпретирует) и от формата документации
@@ -12,9 +16,6 @@
  *
  * Проверка `assertDoc` одна; её вызывают `makeEndpoint` и `makeRequest`.
  */
-
-import type { SuccessStatus } from './status.js';
-import { successStatuses } from './status.js';
 
 /**
  * Документация операции.
@@ -36,15 +37,6 @@ export interface DeclarationDoc {
   readonly deprecated?: boolean;
 
   /**
-   * Статус успешного ответа из перечня `successStatuses`.
-   *
-   * По умолчанию `ok`; у endpoint'а без `output` — `no_content`. С тем, что
-   * возвращает хендлер, значение не сверяется: успешный статус не выражен
-   * типом (открытый вопрос в `deferred.md`).
-   */
-  readonly status?: SuccessStatus;
-
-  /**
    * Причина, по которой операция не попадает в документацию.
    *
    * Только строка, как у `detached`: отказ от документирования должен быть
@@ -59,7 +51,6 @@ const DOC_FIELDS = [
   'description',
   'tags',
   'deprecated',
-  'status',
   'hidden',
 ] as const;
 
@@ -77,7 +68,7 @@ const DOC_STRINGS = ['summary', 'description'] as const;
  * @param where - Как назвать владельца в тексте ошибки: `Endpoint 'GET /x'`
  * или `Operation 'users.create'`
  * @throws {TypeError} Дефектная форма поля или неизвестное поле секции
- * @throws {Error} Пустая причина `hidden` или статус вне словаря
+ * @throws {Error} Пустая причина `hidden`
  */
 export function assertDoc(
   doc: unknown,
@@ -97,6 +88,16 @@ export function assertDoc(
   const section = doc as Record<string, unknown>;
 
   for (const field of Object.keys(section)) {
+    if (field === 'status') {
+      throw new TypeError(
+        `${where}: 'doc.status' is not a field of the documentation ` +
+          `section. The successful status is the response contract, not a ` +
+          `line of documentation: declare it as 'status' at the top level ` +
+          `of the declaration, or declare several outcomes with ` +
+          `outputs({ ok: …, created: … }) in 'output'.`,
+      );
+    }
+
     if (!(DOC_FIELDS as readonly string[]).includes(field)) {
       throw new TypeError(
         `${where}: 'doc.${field}' is not a field of the documentation ` +
@@ -129,20 +130,6 @@ export function assertDoc(
   const { deprecated } = section;
   if (deprecated !== undefined && typeof deprecated !== 'boolean') {
     throw new TypeError(`${where}: 'doc.deprecated' must be a boolean.`);
-  }
-
-  const { status } = section;
-  if (
-    status !== undefined &&
-    !(successStatuses as readonly string[]).includes(status as string)
-  ) {
-    throw new Error(
-      `${where}: 'doc.status' must be one of ` +
-        `${successStatuses.map((known) => `'${known}'`).join(', ')}, got ` +
-        `${JSON.stringify(status)}. The slot declares the status of a ` +
-        `**successful** response; failures carry their category in the ` +
-        `code of makeFail(...).`,
-    );
   }
 
   const { hidden } = section;
