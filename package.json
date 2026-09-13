@@ -16,8 +16,8 @@
     "examples/*"
   ],
   "scripts": {
-    "verify": "nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs",
-    "verify:fresh": "nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs",
+    "verify": "nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
+    "verify:fresh": "nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
     "bench:http": "tsx scripts/bench/http.ts",
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs",
     "docs:build": "node scripts/site/build.mjs",
