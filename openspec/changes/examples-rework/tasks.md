@@ -34,9 +34,9 @@
 
 ## 4. Удаление старого и обвязка репозитория
 
-- [ ] 4.1 Удалить `examples/app-with-http`, `examples/split-nats`, `examples/simple-cli`, `examples/simple-http-server`, `examples/container`
-- [ ] 4.2 Проверить, что ни один `package.json`, конфиг nx и скрипт не ссылается на удалённые имена; `yarn install` проходит
-- [ ] 4.3 Дать джобе `verify` в `.github/workflows/ci.yml` полную историю (`fetch-depth: 0`) — иначе хэш плашки не разрешается
+- [x] 4.1 Удалить `examples/app-with-http`, `examples/split-nats`, `examples/simple-cli`, `examples/simple-http-server`, `examples/container`
+- [x] 4.2 Проверить, что ни один `package.json`, конфиг nx и скрипт не ссылается на удалённые имена; `yarn install` проходит
+- [x] 4.3 Дать джобе `verify` в `.github/workflows/ci.yml` полную историю (`fetch-depth: 0`) — иначе хэш плашки не разрешается
 
 ## 5. Гайд и рецепты: развязка от примеров
 

@@ -1616,25 +1616,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@examples/app-with-http@workspace:examples/app-with-http":
-  version: 0.0.0-use.local
-  resolution: "@examples/app-with-http@workspace:examples/app-with-http"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/client": "workspace:*"
-    "@nestlingjs/container": "workspace:*"
-    "@nestlingjs/eslint-plugin": "workspace:*"
-    "@nestlingjs/mcp": "workspace:*"
-    "@nestlingjs/openapi": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/schema.zod": "workspace:*"
-    "@nestlingjs/subscriptions": "workspace:*"
-    "@nestlingjs/testing": "workspace:*"
-    "@nestlingjs/transport.http": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
 "@examples/cli@workspace:examples/cli":
   version: 0.0.0-use.local
   resolution: "@examples/cli@workspace:examples/cli"
@@ -1646,16 +1627,6 @@ __metadata:
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/transport.cli": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/container@workspace:examples/container":
-  version: 0.0.0-use.local
-  resolution: "@examples/container@workspace:examples/container"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/container": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1704,43 +1675,6 @@ __metadata:
     drizzle-kit: "npm:^0.31.10"
     drizzle-orm: "npm:^0.45.0"
     pg: "npm:^8.16.0"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/simple-cli@workspace:examples/simple-cli":
-  version: 0.0.0-use.local
-  resolution: "@examples/simple-cli@workspace:examples/simple-cli"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/schema.zod": "workspace:*"
-    "@nestlingjs/transport.cli": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/simple-http-server@workspace:examples/simple-http-server":
-  version: 0.0.0-use.local
-  resolution: "@examples/simple-http-server@workspace:examples/simple-http-server"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/transport.http": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/split-nats@workspace:examples/split-nats":
-  version: 0.0.0-use.local
-  resolution: "@examples/split-nats@workspace:examples/split-nats"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/container": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/testing": "workspace:*"
-    "@nestlingjs/transport.http": "workspace:*"
-    "@nestlingjs/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
