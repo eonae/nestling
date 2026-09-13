@@ -1,6 +1,6 @@
 # 6. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `7e80fcd8`.
+> Гайд по текущему API; сверено с кодом `e2500af3`.
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули

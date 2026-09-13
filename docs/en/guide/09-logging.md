@@ -1,6 +1,6 @@
 # 9. See every request in the log
 
-> Guide to the current API; verified against `cf01387d`.
+> Guide to the current API; verified against `e2500af3`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/container.md](../design/container.md), the "Kernel logger" section.
 > Why: entries [ideas.md](../../decisions/ideas.md)
