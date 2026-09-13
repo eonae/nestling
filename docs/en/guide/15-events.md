@@ -33,13 +33,13 @@ export const UserRegistered = makeEvent({
 already happened. An event has a name and an `input` schema, and no
 `output` or `errors`: a fact has no response. An event may have any
 number of subscribers, including zero, and then `emit` finishes at once.
-The event lies in the same file as the `ClaimQuota` request from
+The event lies in the same file as the `CheckAddress` request from
 [chapter 14](./14-features.md).
 
 ```typescript
-// src/features/quotas/user-registered-in-quotas.endpoint.ts
+// src/features/notifications/welcome-email.endpoint.ts
 @Handler([Logger$.auto])
-class UserRegisteredInQuotasHandler {
+class WelcomeEmailHandler {
   constructor(private readonly logger: Logger) {}
 
   async handle(payload: UserRegisteredInput) {
@@ -50,9 +50,9 @@ class UserRegisteredInQuotasHandler {
   }
 }
 
-export const UserRegisteredInQuotas = implement(UserRegistered, {
-  subscriber: 'quotas',
-  handler: UserRegisteredInQuotasHandler,
+export const WelcomeEmail = implement(UserRegistered, {
+  subscriber: 'welcome-email',
+  handler: WelcomeEmailHandler,
 });
 ```
 
@@ -60,7 +60,7 @@ The subscriber is the same `implement` declaration as a request has,
 with one difference: the `subscriber` field is required for the
 implementation of an event and forbidden for the implementation of a
 request or a command. It gives the subscription a name. Inside a
-process the endpoint's pattern is built as `users.registered@quotas`,
+process the endpoint's pattern is built as `users.registered@welcome-email`,
 and two subscribers of one event are told apart by their names. The
 assembly stops with the same name twice. At a broker the name becomes
 the name of the receiver group, so the author assigns it, not the
@@ -79,23 +79,23 @@ implementation of the request. The list from
 // src/features/users/endpoints/create-user.endpoint.ts
 @Handler([
   UsersRepository$,
-  ClaimQuota.caller,
+  CheckAddress.caller,
   UserRegistered.emitter,
-  SignupRecorded.emitter,
+  ForgetAddress.emitter,
   ActivityHub,
 ])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly addresses: Port<typeof CheckAddress>,
     private readonly registered: Emitter<typeof UserRegistered>,
-    private readonly signup: Emitter<typeof SignupRecorded>,
+    private readonly forget: Emitter<typeof ForgetAddress>,
     private readonly activity: ActivityHub,
   ) {}
 
   async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
+  ): Output<User, typeof EmailTaken | typeof AddressRejected> {
     // …
     const user = await this.users.insert({
       name: payload.name,
@@ -133,16 +133,16 @@ command:
 
 ```typescript
 // src/operations.ts
-export const SignupRecordedInput = z.object({
+export const ForgetAddressInput = z.object({
   userId: z.string(),
   email: z.string(),
 });
 
-export type SignupRecordedInput = z.infer<typeof SignupRecordedInput>;
+export type ForgetAddressInput = z.infer<typeof ForgetAddressInput>;
 
-export const SignupRecorded = makeCommand({
-  name: 'quotas.record-signup',
-  input: SignupRecordedInput,
+export const ForgetAddress = makeCommand({
+  name: 'notifications.forget-address',
+  input: ForgetAddressInput,
 });
 ```
 
@@ -159,7 +159,7 @@ only when the publisher has passed it
     // A command: the caller sets the idempotency key so that a retry
     // after a failure carries the same key. Without a key the port
     // would generate a new one
-    await this.signup.emit(
+    await this.forget.emit(
       { userId: user.id, email: user.email },
       { idempotencyKey: user.id },
     );
@@ -174,26 +174,26 @@ it, and it stays the same for every repeated delivery of one `emit`.
 The command's owner reads the key from the context:
 
 ```typescript
-// src/features/quotas/signup-recorded.endpoint.ts
-@Handler([SignupJournal])
-class SignupRecordedHandler {
-  constructor(private readonly journal: SignupJournal) {}
+// src/features/notifications/forget-address.endpoint.ts
+@Handler([Suppressions])
+class ForgetAddressHandler {
+  constructor(private readonly journal: Suppressions) {}
 
-  async handle(payload: SignupRecordedInput) {
+  async handle(payload: ForgetAddressInput) {
     this.journal.record(payload.userId);
   }
 }
 
-export const SignupRecordedImpl = implement(SignupRecorded, {
+export const ForgetAddressImpl = implement(ForgetAddress, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
-  handler: SignupRecordedHandler,
+  handler: ForgetAddressHandler,
 });
 ```
 
 ```typescript
-// src/features/quotas/signup.journal.ts
+// src/features/notifications/suppressions.ts
 @Component([Logger$.auto, Ctx(IdempotencyKey)])
-export class SignupJournal {
+export class Suppressions {
   constructor(
     private readonly logger: Logger,
     private readonly intent: CtxReader<string>,
@@ -201,7 +201,7 @@ export class SignupJournal {
 
   /** Records the registration together with the idempotency key */
   record(userId: string): void {
-    this.logger.debug('signup recorded', {
+    this.logger.debug('address forgotten', {
       userId,
       intent: this.intent.get(),
     });
@@ -264,8 +264,8 @@ curl -X POST localhost:3000/users \
 
 ```
 2026-09-06T12:00:00.000Z DEBUG DbUsersRepository insert user1@example.com requestId=b7600481-…
-2026-09-06T12:00:00.001Z INFO  UserRegisteredInQuotasHandler quota bookkeeping userId=3 email=user1@example.com
-2026-09-06T12:00:00.002Z DEBUG SignupJournal signup recorded userId=3 intent=3
+2026-09-06T12:00:00.001Z INFO  WelcomeEmailHandler quota bookkeeping userId=3 email=user1@example.com
+2026-09-06T12:00:00.002Z DEBUG Suppressions address forgotten userId=3 intent=3
 2026-09-06T12:00:00.003Z INFO  AuditOutcome POST /users created requestId=b7600481-… outcome=completed
 ```
 
@@ -295,10 +295,10 @@ it('доставляет ключ идемпотентности команды 
 
   // The caller set the user's id as the key, and the log got it
   const recorded = spy.entries.find(
-    (entry) => entry.message === 'signup recorded',
+    (entry) => entry.message === 'address forgotten',
   );
   expect(recorded?.fields).toEqual({
-    scope: 'SignupJournal',
+    scope: 'Suppressions',
     userId: expect.any(String),
     intent: recorded?.fields.userId,
   });

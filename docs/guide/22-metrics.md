@@ -50,7 +50,7 @@ export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
   return makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [metricsPlugin(exporter)],
     transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
@@ -117,9 +117,9 @@ export class OrdersService {
 
 ## Адаптер и endpoint `/metrics`
 
-Куда уходят числа, ядро не знает: формата экспорта у него нет. Пример
-`split-nats` пишет адаптер сам — им и проверяется, что публичной границы
-ядра хватает.
+Куда уходят числа, ядро не знает: формата экспорта у него нет. Адаптер
+пишет приложение — им и проверяется, что публичной границы ядра
+хватает.
 
 ```typescript
 // src/metrics.ts
@@ -158,7 +158,7 @@ export function metricsPlugin(exporter: MetricsExporter): Plugin {
   }
 
   return makePlugin({
-    name: 'split-nats-metrics',
+    name: 'metrics',
     providers: [valueProvider(MetricsExporter$, exporter)],
     endpoints: [
       httpEndpoint.get('/metrics', {
@@ -188,7 +188,7 @@ it('обработка операции попадает в экспорт сч�
   const plugin = metricsPlugin(exporter);
 
   const observed = makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [plugin],
     transports: [http()],
     metrics: exporter,

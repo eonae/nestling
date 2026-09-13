@@ -23,7 +23,7 @@ stays one.
 export const api = server();
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   transports: [
     http({ server: api }),
     mcp({

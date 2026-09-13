@@ -368,7 +368,7 @@ export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
-  node: 'app-with-http',
+  node: 'api-1',
 });
 ```
 

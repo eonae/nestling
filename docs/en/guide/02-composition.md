@@ -28,7 +28,7 @@ makeApp({ endpoints: [ListUsers], providers: [UsersRepository] });
 makeApp({ endpoints: [ListUsers], modules: [UsersModule] });
 
 // several named units
-makeApp({ features: [UsersFeature, QuotasFeature] });
+makeApp({ features: [UsersFeature, NotificationsFeature] });
 ```
 
 Mixing the shapes is not allowed, and the type checks it: `endpoints:` next to

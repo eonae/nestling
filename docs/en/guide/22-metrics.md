@@ -50,7 +50,7 @@ export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
   return makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [metricsPlugin(exporter)],
     transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
@@ -191,7 +191,7 @@ it('обработка операции попадает в экспорт сч�
   const plugin = metricsPlugin(exporter);
 
   const observed = makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [plugin],
     transports: [http()],
     metrics: exporter,

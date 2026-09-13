@@ -6,13 +6,13 @@
 > `[2026-07-31] Версионирование контрактов: снапшот, вердикт по слоту, третий вердикт unknown`.
 
 Features are spread across teams and processes. The schema of
-`quotas.claim` changes in one repository, and the process that calls it
+`notifications.check-address` changes in one repository, and the process that calls it
 deploys separately. An incompatible change to an operation needs to be
 caught in CI, before the deployment, with a clear answer for what to do
 about it.
 
 An operation has no separate version field. An incompatible version
-gets a new name: `quotas.claim.v2`. The operation's name serves as the
+gets a new name: `notifications.check-address.v2`. The operation's name serves as the
 address on the bus, so the old and the new versions can work side by
 side while the consumers move to the new one. The framework neither
 requires nor parses the `.vN` suffix, and a name with no version is
@@ -91,7 +91,7 @@ Every published operation remembers which topologies published it:
   "snapshotVersion": 1,
   "operations": [
     {
-      "name": "quotas.claim",
+      "name": "notifications.check-address",
       "kind": "request",
       "input": {
         "kind": "value",
@@ -117,7 +117,7 @@ Every published operation remembers which topologies published it:
 
 The union matters for the matrix: an operation that is not in the
 `ops` topology belongs to an unselected feature, it was not removed.
-The `topologies` field of `quotas.claim` contains `all` and `users`,
+The `topologies` field of `notifications.check-address` contains `all` and `users`,
 and that of `subscriptions.opened` only `all` and `ops`.
 
 The snapshot lies in the repository as an ordinary file.
@@ -184,7 +184,7 @@ change of vendor, an opaque leaf. `unknown` does not mean "compatible"
 and is not passed over as compatible.
 
 The file's third test edits the baseline, not the code: it adds the
-required field `reservedUntil` to the `output` of the `quotas.claim`
+required field `reservedUntil` to the `output` of the `notifications.check-address`
 operation. This is what the snapshot would look like before the change
 that removed this field:
 
@@ -194,7 +194,7 @@ that removed this field:
 
     expect(report.breaking).toMatchObject([
       {
-        operation: 'quotas.claim',
+        operation: 'notifications.check-address',
         path: 'output.reservedUntil',
         description: 'property removed',
         verdict: 'breaking',
@@ -203,11 +203,11 @@ that removed this field:
     // The hint does not rename anything: the operation is still
     // addressed by its old name
     expect(report.operations).toContainEqual({
-      operation: 'quotas.claim',
+      operation: 'notifications.check-address',
       breaking: 1,
       additive: 0,
       unknown: 0,
-      suggestedName: 'quotas.claim.v2',
+      suggestedName: 'notifications.check-address.v2',
     });
 ```
 
@@ -229,8 +229,8 @@ UPDATE_SNAPSHOT=1 yarn test src/operations.compat.spec.ts
 ```
 
 An incompatible change is made through a new name. Declare
-`quotas.claim.v2` next to `quotas.claim`, implement both operations in
-the `quotas` feature, move the callers to the new one, and remove the
+`notifications.check-address.v2` next to `notifications.check-address`, implement both operations in
+the `notifications` feature, move the callers to the new one, and remove the
 old one once no caller is left. The snapshot updates at every step:
 first the operation appears, then the old one disappears. This
 example's test also treats removing an operation from the snapshot as

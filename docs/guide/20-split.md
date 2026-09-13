@@ -9,15 +9,16 @@
 > фича, плагин, операция» и «Разбор обзоров d/10 и d/13» [2026-09-12],
 > пункт 2.
 
-Фичи `users` и `quotas` работают в одном процессе и общаются операциями.
-Нагрузка на квоты другая, и их хочется развернуть отдельным сервисом.
-Вызовы `quotas.claim` и подписку на `users.registered` переписывать не
-хочется: пусть те же фичи работают в двух процессах, а сообщения между ними
-переносит брокер.
+Фичи `users` и `notifications` работают в одном процессе и общаются
+операциями. Рассылка медленная, ретраится и масштабируется отдельно от
+приёма регистраций, поэтому её хочется развернуть отдельным сервисом.
+Вызовы `notifications.check-address` и подписку на `users.registered`
+переписывать не хочется: пусть те же фичи работают в двух процессах, а
+сообщения между ними переносит брокер.
 
 Обратное направление даёт локальный запуск. Та же декларация с
 `assemble('all')` поднимает все фичи в одном процессе, и операции между
-ними доставляет шина внутри процесса: вызов `quotas.claim` на брокер не
+ними доставляет шина внутри процесса: вызов `notifications.check-address` на брокер не
 выходит. Брокер и несколько процессов нужны стенду, а не разработчику —
 локально приложение запускается одной командой и тогда, когда на стенде
 его фичи разнесены по сервисам.
@@ -30,7 +31,7 @@ export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
   return makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [metricsPlugin(exporter)],
     // Шина приложения — обычный транспорт. `intercom:` назначает ему роль
     // переносчика операций между процессами: вызов операции, владелец
@@ -69,19 +70,19 @@ export const app = declareApp();
 
 ```typescript
 // src/users.ts
-@Component([ClaimQuota.caller, UserRegistered.emitter])
+@Component([CheckAddress.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
-    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly addresses: Port<typeof CheckAddress>,
     private readonly registered: Emitter<typeof UserRegistered>,
   ) {}
 
-  /** Регистрирует пользователя; возвращает `false`, если квота исчерпана */
+  /** Регистрирует пользователя; возвращает `false`, если адрес отвергнут */
   async register(email: string): Promise<boolean> {
-    const claim = await this.quotas.call({ email });
+    const claim = await this.addresses.call({ email });
 
     if (claim.isFail) {
-      // Отказ владельца приходит `Fail` того же определения `QuotaExceeded`
+      // Отказ владельца приходит `Fail` того же определения `AddressRejected`
       // и из соседнего процесса, и из этого
       return false;
     }
@@ -97,9 +98,9 @@ export class RegistrationService {
 зависит от вызывателя и эмиттера, а не от сервисов соседней фичи. Куда
 уходит вызов, решает сборка.
 
-При выборе `'users'` владельца `quotas.claim` в процессе нет. Сборка
-привязывает `ClaimQuota.caller` к удалённому вызывателю: вызов уходит на
-брокер как запрос с ожиданием ответа, а объявленный отказ `QuotaExceeded`
+При выборе `'users'` владельца `notifications.check-address` в процессе нет. Сборка
+привязывает `CheckAddress.caller` к удалённому вызывателю: вызов уходит на
+брокер как запрос с ожиданием ответа, а объявленный отказ `AddressRejected`
 возвращается тем же `Fail`, что и при вызове внутри процесса. Реплики
 владельца образуют queue-group, и каждое сообщение получает одна из них.
 При выборе `'all'` обе фичи работают в одном процессе, запрос
@@ -126,10 +127,10 @@ export const UserRegistered = makeEvent({
 компилируется.
 
 ```typescript
-// src/quotas.ts
-@Handler([QuotaLedger])
+// src/notifications.ts
+@Handler([Suppressions])
 class UserRegisteredInArchiveHandler {
-  constructor(private readonly ledger: QuotaLedger) {}
+  constructor(private readonly ledger: Suppressions) {}
 
   async handle(payload: UserRegisteredInput) {
     this.ledger.archive(payload.id);
@@ -176,7 +177,7 @@ class RegisterUserHandler {
 
     implement(RegisterUser, {
       // Базовый слой возвращает в контекст трассу и арендатора: оба
-      // пришли в конверте сообщения, и вызыватель `quotas.claim`
+      // пришли в конверте сообщения, и вызыватель `notifications.check-address`
       // передаст их дальше
       pipeline: base,
       handler: RegisterUserHandler,
@@ -186,7 +187,7 @@ class RegisterUserHandler {
 На принимающей стороне значение лежит в атрибутах сообщения. Юнит
 `TenantId.propagated()` переносит его в асинхронный контекст запроса. Он
 входит в базовый слой примера, который стоит в пайплайне каждой
-реализации: и `quotas.claim`, и `users.registered` приходят из другого
+реализации: и `notifications.check-address`, и `users.registered` приходят из другого
 процесса.
 
 ```typescript
@@ -197,9 +198,9 @@ export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
 ```
 
 ```typescript
-// src/quotas.ts (фрагмент)
+// src/notifications.ts (фрагмент)
 @Component([Ctx(TenantId), Logger$.auto])
-export class QuotaLedger {
+export class Suppressions {
   readonly limit = 100;
   readonly used = new Map<string, number>();
 
@@ -221,7 +222,7 @@ export class QuotaLedger {
 `requestId` в главе [9](./09-logging.md). Ридер объявляется в
 зависимостях провайдера. Значение прошло два перехода: внешний клиент
 положил его в заголовок, процесс `users` прочитал и передал дальше при
-вызове `quotas.claim`, процесс `quotas` прочитал снова.
+вызове `notifications.check-address`, процесс `notifications` прочитал снова.
 
 ## Сквозная трасса между процессами
 
@@ -231,15 +232,15 @@ export class QuotaLedger {
 
 ```text
 INFO  RegistrationService register traceId=feabb90b363acc5bff69c317824a65ae
-INFO  QuotaLedger         claim    traceId=feabb90b363acc5bff69c317824a65ae
+INFO  Suppressions         claim    traceId=feabb90b363acc5bff69c317824a65ae
 ```
 
-Первая запись сделана в процессе `users`, вторая — в процессе `quotas`.
+Первая запись сделана в процессе `users`, вторая — в процессе `notifications`.
 Значение одно, и по нему запись из любого процесса находится вместе с
 остальными.
 
 Переносится трасса тем же механизмом, что арендатор: переменная `Trace`
-объявлена ядром с `propagate: true`, поэтому вызыватель `quotas.claim`
+объявлена ядром с `propagate: true`, поэтому вызыватель `notifications.check-address`
 кладёт её в конверт сообщения. Отличается только приём: на принимающей
 стороне трассу возвращает в контекст `withTracing()`, а не
 `Trace.propagated()`. Один и тот же юнит продолжает трассу и с шины, и по
@@ -266,12 +267,12 @@ docker run --rm -p 4222:4222 nats:2 -js
 создастся, и сборка остановится.
 
 ```bash
-APP_FEATURES=quotas yarn start:dev
+APP_FEATURES=notifications yarn start:dev
 APP_FEATURES=users yarn start:dev
 ```
 
 Владельца запроса запускайте первым. У брокера нет очереди ожидания для
-запроса с ответом: вызов `quotas.claim` при отсутствующем владельце
+запроса с ответом: вызов `notifications.check-address` при отсутствующем владельце
 завершается отказом доставки. Адрес брокера при необходимости задаёт
 `NATS_SERVERS=nats://127.0.0.1:4222`.
 
@@ -289,8 +290,8 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 каждый вызов операции как сообщение, даже когда владелец работает в этом
 же процессе. На шине внутри процесса это означает асинхронный барьер,
 копию payload и проверку ответа по схеме `output`. Так вызовы проходят
-путь, близкий к сетевому, до появления брокера. Тест на обе политики лежит
-в `examples/app-with-http/src/app.spec.ts`.
+путь, близкий к сетевому, до появления брокера. Тест на обе политики
+пишется рядом с остальными тестами приложения.
 
 Тест поднимает оба процесса в одном jest-процессе поверх двойника брокера
 `NatsDouble`, и сеть не нужна:
@@ -299,7 +300,7 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 // src/split.spec.ts (фрагмент)
   it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
-    const topology = await run(broker, 'quotas', 'users');
+    const topology = await run(broker, 'notifications', 'users');
     const outside = await outsideClient(broker);
 
     await outside.publish(
@@ -309,16 +310,16 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
     );
     await untilPublished(broker, 'users.registered');
 
-    // Вызов `quotas.claim` ушёл на брокер: владельца в процессе `users` нет
+    // Вызов `notifications.check-address` ушёл на брокер: владельца в процессе `users` нет
     expect(broker.published.map(({ subject }) => subject)).toEqual(
       expect.arrayContaining([
         'users.register',
-        'quotas.claim',
+        'notifications.check-address',
         'users.registered',
       ]),
     );
 
-    expect(tenantOf(broker, 'quotas.claim')).toBe('acme');
+    expect(tenantOf(broker, 'notifications.check-address')).toBe('acme');
     expect(tenantOf(broker, 'users.registered')).toBe('acme');
     // …
   });
@@ -330,9 +331,9 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 нему тест проверяет subject'ы и арендатора в `Nl-Ctx`, а через
 `broker.jetstreamManager()` находит поток `nestling_users_registered`.
 Второй тест того же файла поднимает выбор `'all'` и проверяет, что
-`quotas.claim` на брокер не выходит. Третий читает записи логгера обоих
+`notifications.check-address` на брокер не выходит. Третий читает записи логгера обоих
 процессов и сверяет их `traceId`. Четвёртый собирает процесс `users` без
-владельца `quotas.claim` и убеждается, что сборка проходит.
+владельца `notifications.check-address` и убеждается, что сборка проходит.
 
 ```bash
 yarn test

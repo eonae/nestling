@@ -5,8 +5,8 @@
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
 
-The `users` feature calls `quotas.claim` and sends `users.registered`
-and `quotas.record-signup`. The quotas team has not written the
+The `users` feature calls `notifications.check-address` and sends `users.registered`
+and `notifications.forget-address`. The quotas team has not written the
 implementation yet, and the registration tests are needed now. And the
 other way round: the feature needs checking alone, without its
 neighbours, so that the test depends neither on their code nor on the
@@ -19,7 +19,7 @@ The basics from [chapter 8](./08-testing.md) are assumed known:
 
 ```typescript
 // src/isolated.spec.ts (fragment)
-const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
+const isolated = makeApp({ features: [UsersFeature, NotificationsFeature] });
 
 await using testApp = await assembleTest(isolated, { args: 'users' });
 ```
@@ -30,7 +30,7 @@ the selected features remain in the graph
 phase:
 
 ```
-Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
 assembly argument (or close the selection over calls with
@@ -39,7 +39,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
 
-The caller `ClaimQuota.caller` in the `users` feature's dependencies
+The caller `CheckAddress.caller` in the `users` feature's dependencies
 requires an owner of the operation. In an assembly of one feature there
 is no owner, and a stub takes its place.
 
@@ -53,11 +53,11 @@ is no owner, and a stub takes its place.
 
     await using testApp = await assembleTest(isolated, {
       args: 'users',
-      // There is no owner of `quotas.claim` and no subscriber of
+      // There is no owner of `notifications.check-address` and no subscriber of
       // `users.registered` in the assembly: both sides are replaced
       // by stubs
       stubs: [
-        stub(ClaimQuota, async (input) => {
+        stub(CheckAddress, async (input) => {
           claimed.push(input);
 
           return { remaining: 1 };
@@ -70,7 +70,7 @@ is no owner, and a stub takes its place.
 ```
 
 `stub(Operation, impl)` returns a pair of the caller's DI token and a
-fake: for `request` this is `ClaimQuota.caller`, for `command` and
+fake: for `request` this is `CheckAddress.caller`, for `command` and
 `event` this is `.emitter`. The pair is passed in the `stubs:` field.
 The stub's provider takes priority over the production recipe for the
 caller, so the owner check does not fire, and the feature assembles:
@@ -86,7 +86,7 @@ is available as `testApp.stubbed`: the names in alphabetical order.
 
 A stub cannot part ways with the operation at runtime either. The input
 is checked by the `input` shape, a successful response by the `output`
-shape. If the `quotas.claim` stub returns `{ left: 1 }` instead of
+shape. If the `notifications.check-address` stub returns `{ left: 1 }` instead of
 `{ remaining }`, the caller gets a failure, not a wrong value:
 
 ```
@@ -110,7 +110,7 @@ from a real owner:
         // The failure is declared in the operation's `errors:`, so
         // the stub gives it back as is, the same way a real owner
         // would over the network
-        stub(ClaimQuota, async () => QuotaExceeded({ limit: 100 })),
+        stub(CheckAddress, async () => AddressRejected({ limit: 100 })),
         stub(UserRegistered, (input) => {
           registered.push(input);
         }),
@@ -162,7 +162,7 @@ graph stands next to the stubs:
     await using testApp = await assembleTest(isolated, {
       args: 'users',
       stubs: [
-        stub(ClaimQuota, async () => ({ remaining: 1 })),
+        stub(CheckAddress, async () => ({ remaining: 1 })),
         // An event's subscriber returns nothing: an event has no
         // `output`
         // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -172,7 +172,7 @@ graph stands next to the stubs:
 
     // The matrix checks the graph with no overrides: a stub of an
     // operation that no topology implements becomes visible here
-    const topologies = await checkTopologies(app, ['all', 'users', 'quotas']);
+    const topologies = await checkTopologies(app, ['all', 'users', 'notifications']);
 
     const published = new Set(
       topologies.flatMap(({ report }) =>
@@ -181,7 +181,7 @@ graph stands next to the stubs:
     );
 
     expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
-    expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
+    expect(testApp.stubbed).toEqual(['notifications.check-address', 'users.registered']);
   });
 ```
 
@@ -244,7 +244,7 @@ same `overrides` list.
       args: { features: 'users', includeDeps: true },
     });
 
-    expect(testApp.features).toEqual(['users', 'quotas']);
+    expect(testApp.features).toEqual(['users', 'notifications']);
   });
 ```
 

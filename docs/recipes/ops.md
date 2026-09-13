@@ -29,11 +29,11 @@ export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
-  node: 'app-with-http',
+  node: 'api-1',
 });
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -263,7 +263,7 @@ split-развёртывании из [главы 20](../guide/20-split.md) од
 import { http, httpProbes } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [appObservability, appAuth, appSubscriptions, httpProbes(), …],
   transports: [api, http({ server: api }), …],
 });
@@ -344,8 +344,8 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 Подписчик фактов в `ops` записал те же события в лог:
 
 ```
-2026-09-06T12:00:00.000Z INFO  SubscriptionOpenedInOpsHandler subscription opened node=app-with-http id=86cc… transport=http pattern=GET /users/activity
-2026-09-06T12:00:00.001Z INFO  SubscriptionClosedInOpsHandler subscription closed node=app-with-http id=86cc… reason=killed itemsOut=1
+2026-09-06T12:00:00.000Z INFO  SubscriptionOpenedInOpsHandler subscription opened node=api-1 id=86cc… transport=http pattern=GET /users/activity
+2026-09-06T12:00:00.001Z INFO  SubscriptionClosedInOpsHandler subscription closed node=api-1 id=86cc… reason=killed itemsOut=1
 ```
 
 ## Проверка

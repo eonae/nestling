@@ -8,7 +8,7 @@
 > `[2026-09-02] Модель композиции: фича, плагин, операция` and
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки; формы корня без фич`.
 
-The application consists of the `users`, `quotas` and `ops` features.
+The application consists of the `users`, `notifications` and `ops` features.
 Locally it starts as one process. In production the user API and the
 operational endpoints are deployed separately, and each process must
 bring up only its own features. The same code must assemble into all
@@ -90,16 +90,16 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 ```
-[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
-[nestling] selection closed over calls: users + quotas
+[nestling] features: users, notifications; docs=on; transports: http, mcp, bus
+[nestling] selection closed over calls: users + notifications
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
 
 One feature was selected, and there are two in the process.
 `includeDeps: true` closes the selection over the called operations:
-the `users` feature injects `ClaimQuota.caller` and
-`SignupRecorded.emitter`, the owner of both operations lives in
-`quotas`, and it connects on its own. The second line of the output
+the `users` feature injects `CheckAddress.caller` and
+`ForgetAddress.emitter`, the owner of both operations lives in
+`notifications`, and it connects on its own. The second line of the output
 shows what the closure added.
 
 A call counts as a mention of `.caller` or `.emitter` in the
@@ -121,7 +121,7 @@ An assembly with the `'users'` selection and no `includeDeps` stops on
 the ASSEMBLE phase:
 
 ```
-Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
 assembly argument (or close the selection over calls with
@@ -147,7 +147,7 @@ plugin.
 export const Docs = makeSwitch('docs', { default: 'on' });
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -204,7 +204,7 @@ assembled: instead, it is absent from the graph entirely.
 The selection is visible in the start line next to the features:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
+[nestling] features: users, notifications; docs=off; transports: http, mcp, bus
 ```
 
 and in the `check()` report as the `switches` field.
@@ -282,10 +282,10 @@ the configuration section.
       'ops',
     ]);
 
-    // `users` calls `quotas.claim`, so the closure over the operations
+    // `users` calls `notifications.check-address`, so the closure over the operations
     // pulls in the quotas feature. Nobody calls `ops`, and it arrives
     // only by an explicit selection
-    expect(reports[1].report.features).toEqual(['users', 'quotas']);
+    expect(reports[1].report.features).toEqual(['users', 'notifications']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([

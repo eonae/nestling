@@ -5,10 +5,11 @@
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestlingjs/testing`)».
 
-Фича `users` вызывает `quotas.claim` и отправляет `users.registered` и
-`quotas.record-signup`. Команда квот ещё не написала реализацию, а тесты
-регистрации нужны сейчас. И наоборот: фичу нужно проверить одну, без
-соседей, так, чтобы тест не зависел от их кода и от брокера.
+Фича `users` вызывает `notifications.check-address` и отправляет
+`users.registered` и `notifications.forget-address`. Команда рассылки ещё
+не написала реализацию, а тесты регистрации нужны сейчас. И наоборот:
+фичу нужно проверить одну, без соседей, так, чтобы тест не зависел от их
+кода и от брокера.
 
 Основа из главы [8](./08-testing.md) считается известной: `assembleTest`,
 `testApp.call`, `unwrap`, `overrides` и `vars`.
@@ -17,7 +18,7 @@
 
 ```typescript
 // src/isolated.spec.ts (фрагмент)
-const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
+const isolated = makeApp({ features: [UsersFeature, NotificationsFeature] });
 
 await using testApp = await assembleTest(isolated, { args: 'users' });
 ```
@@ -27,7 +28,7 @@ await using testApp = await assembleTest(isolated, { args: 'users' });
 останавливается на фазе ASSEMBLE:
 
 ```
-Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
 assembly argument (or close the selection over calls with
@@ -36,7 +37,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
 
-Вызыватель `ClaimQuota.caller` в зависимостях фичи `users` требует
+Вызыватель `CheckAddress.caller` в зависимостях фичи `users` требует
 владельца операции. В сборке из одной фичи владельца нет, и его место
 занимает стаб.
 
@@ -50,10 +51,10 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 
     await using testApp = await assembleTest(isolated, {
       args: 'users',
-      // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
+      // Ни владельца `notifications.check-address`, ни подписчика `users.registered` в
       // сборке нет: обе стороны заменены стабами
       stubs: [
-        stub(ClaimQuota, async (input) => {
+        stub(CheckAddress, async (input) => {
           claimed.push(input);
 
           return { remaining: 1 };
@@ -66,7 +67,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 ```
 
 `stub(Operation, impl)` возвращает пару из DI-токена вызывателя и фейка:
-для `request` это `ClaimQuota.caller`, для `command` и `event` это
+для `request` это `CheckAddress.caller`, для `command` и `event` это
 `.emitter`. Пара передаётся полем `stubs:`. Провайдер стаба имеет
 приоритет над боевым рецептом вызывателя, поэтому проверка владельца не
 срабатывает, и фича собирается — подмена узла, которого в графе нет,
@@ -80,7 +81,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 `testApp.stubbed`: имена по алфавиту.
 
 Стаб не может разойтись с операцией и в рантайме. Вход проверяется формой
-`input`, успешный ответ формой `output`. Если стаб `quotas.claim` вернёт
+`input`, успешный ответ формой `output`. Если стаб `notifications.check-address` вернёт
 `{ left: 1 }` вместо `{ remaining }`, вызывающий получит отказ, а не
 неверное значение:
 
@@ -103,7 +104,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
         // есть, так же, как настоящий владелец по сети
-        stub(ClaimQuota, async () => QuotaExceeded({ limit: 100 })),
+        stub(CheckAddress, async () => AddressRejected({ limit: 100 })),
         stub(UserRegistered, (input) => {
           registered.push(input);
         }),
@@ -152,7 +153,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
     await using testApp = await assembleTest(isolated, {
       args: 'users',
       stubs: [
-        stub(ClaimQuota, async () => ({ remaining: 1 })),
+        stub(CheckAddress, async () => ({ remaining: 1 })),
         // Подписчик события ничего не возвращает: у события нет `output`
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         stub(UserRegistered, () => {}),
@@ -161,7 +162,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 
     // Матрица проверяет граф без подстановок: стаб операции, которой не
     // реализует ни одна топология, здесь станет виден
-    const topologies = await checkTopologies(app, ['all', 'users', 'quotas']);
+    const topologies = await checkTopologies(app, ['all', 'users', 'notifications']);
 
     const published = new Set(
       topologies.flatMap(({ report }) =>
@@ -170,7 +171,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
     );
 
     expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
-    expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
+    expect(testApp.stubbed).toEqual(['notifications.check-address', 'users.registered']);
   });
 ```
 
@@ -232,7 +233,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
       args: { features: 'users', includeDeps: true },
     });
 
-    expect(testApp.features).toEqual(['users', 'quotas']);
+    expect(testApp.features).toEqual(['users', 'notifications']);
   });
 ```
 
@@ -240,10 +241,10 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 если узла в графе нет. `testApp.features` перечисляет выбранные фичи
 после замыкания по вызовам.
 
-Файл `isolated.spec.ts` целиком состоит из тестов этой главы: сборка
+Тесты этой главы удобно держать одним файлом `isolated.spec.ts`: сборка
 одной фичи, стабы с успехом и с отказом, `testApp.emit` и сверка
-`testApp.stubbed` с матрицей. Тесты `contextValue` и состава графа лежат
-в `app.spec.ts` примера `app-with-http`.
+`testApp.stubbed` с матрицей. Тесты `contextValue` и состава графа
+остаются в `app.spec.ts` рядом с остальными тестами приложения.
 
 ```bash
 yarn test

@@ -110,11 +110,11 @@ do with them.
 ## `providers:` and `modules:` on a feature
 
 ```typescript
-// src/features/quotas/quotas.feature.ts
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  providers: [QuotaService, SignupJournal],
-  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
+// src/features/notifications/notifications.feature.ts
+export const NotificationsFeature = makeFeature({
+  name: 'notifications',
+  providers: [Suppressions, Suppressions],
+  endpoints: [CheckAddressImpl, WelcomeEmail, ForgetAddressImpl],
 });
 ```
 

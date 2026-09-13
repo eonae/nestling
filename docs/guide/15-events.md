@@ -7,16 +7,18 @@
 > общение через контракты» и «[2026-07-31] Порты: бюджет вызова моментом,
 > ключ идемпотентности у команд».
 
-Фича квот должна узнавать о каждом созданном пользователе, но ответ
-клиенту не должен ждать её обработки. Завтра о том же захочет узнать
-рассылка, и код регистрации не должен меняться. Кроме того, квоты ведут
-журнал регистраций, и повторную доставку одного сообщения журнал должен
-отличать от новой регистрации.
+Фича рассылки должна узнавать о каждом созданном пользователе, но ответ
+клиенту не должен ждать отправки письма. Завтра о том же захочет узнать
+аналитика, и код регистрации не должен меняться. Обратное тоже верно:
+удалённого пользователя рассылка обязана забыть, получателя у такой
+просьбы ровно один, и повторную доставку одного сообщения он должен
+отличать от новой просьбы.
 
 ```typescript
 // src/operations.ts
 export const UserRegisteredInput = z.object({
   id: z.string(),
+  name: z.string(),
   email: z.string(),
 });
 
@@ -32,32 +34,32 @@ export const UserRegistered = makeEvent({
 У события есть имя и схема `input`, а `output` и `errors` нет: ответа
 у факта не бывает. Подписчиков у события может быть сколько угодно,
 включая ноль — тогда `emit` завершается сразу. Событие лежит в том же
-файле, что запрос `ClaimQuota` из [главы 14](./14-features.md).
+файле, что запрос `CheckAddress` из [главы 14](./14-features.md).
 
 ```typescript
-// src/features/quotas/user-registered-in-quotas.endpoint.ts
+// src/features/notifications/welcome-email.endpoint.ts
 @Handler([Logger$.auto])
-class UserRegisteredInQuotasHandler {
+class WelcomeEmailHandler {
   constructor(private readonly logger: Logger) {}
 
   async handle(payload: UserRegisteredInput) {
-    this.logger.info('quota bookkeeping', {
+    this.logger.info('welcome email sent', {
       userId: payload.id,
       email: payload.email,
     });
   }
 }
 
-export const UserRegisteredInQuotas = implement(UserRegistered, {
-  subscriber: 'quotas',
-  handler: UserRegisteredInQuotasHandler,
+export const WelcomeEmail = implement(UserRegistered, {
+  subscriber: 'welcome-email',
+  handler: WelcomeEmailHandler,
 });
 ```
 
 Подписчик — та же декларация `implement`, что у запроса, с одним
 отличием: поле `subscriber` обязательно у реализации события и
 запрещено у реализации запроса и команды. Оно даёт подписке имя. Внутри
-процесса паттерн endpoint'а складывается как `users.registered@quotas`,
+процесса паттерн endpoint'а складывается как `users.registered@welcome-email`,
 и два подписчика одного события различаются именами; с одинаковым именем
 сборка остановится. У брокера имя становится именем группы получателей,
 поэтому его задаёт автор, а не фреймворк.
@@ -74,23 +76,23 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 // src/features/users/endpoints/create-user.endpoint.ts
 @Handler([
   UsersRepository$,
-  ClaimQuota.caller,
+  CheckAddress.caller,
   UserRegistered.emitter,
-  SignupRecorded.emitter,
+  ForgetAddress.emitter,
   ActivityHub,
 ])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly addresses: Port<typeof CheckAddress>,
     private readonly registered: Emitter<typeof UserRegistered>,
-    private readonly signup: Emitter<typeof SignupRecorded>,
+    private readonly forget: Emitter<typeof ForgetAddress>,
     private readonly activity: ActivityHub,
   ) {}
 
   async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
+  ): Output<User, typeof EmailTaken | typeof AddressRejected> {
     // …
     const user = await this.users.insert({
       name: payload.name,
@@ -122,20 +124,17 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 
 ## Команда с ключом идемпотентности
 
-Запись в журнал квот делает не событие, а команда:
+Просьбу убрать адрес из рассылок несёт не событие, а команда:
 
 ```typescript
 // src/operations.ts
-export const SignupRecordedInput = z.object({
-  userId: z.string(),
-  email: z.string(),
-});
+export const ForgetAddressInput = z.object({ email: z.string() });
 
-export type SignupRecordedInput = z.infer<typeof SignupRecordedInput>;
+export type ForgetAddressInput = z.infer<typeof ForgetAddressInput>;
 
-export const SignupRecorded = makeCommand({
-  name: 'quotas.record-signup',
-  input: SignupRecordedInput,
+export const ForgetAddress = makeCommand({
+  name: 'notifications.forget-address',
+  input: ForgetAddressInput,
 });
 ```
 
@@ -147,53 +146,57 @@ export const SignupRecorded = makeCommand({
 ([глава 16](./16-durable-events.md)).
 
 ```typescript
-// src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
     // Команда: ключ идемпотентности задаёт вызывающий, чтобы повтор после
     // сбоя нёс тот же ключ. Без ключа порт сгенерировал бы новый
-    await this.signup.emit(
-      { userId: user.id, email: user.email },
-      { idempotencyKey: user.id },
+    await this.forget.emit(
+      { email: removed.email },
+      { idempotencyKey: removed.id },
     );
 ```
 
-Ключ идемпотентности — идентичность намерения. Регистрация одного
+Ключ идемпотентности — идентичность намерения. Удаление одного
 пользователя остаётся одним намерением, даже если процесс упал после
-`insert` и повторил `emit`, поэтому ключом взят `user.id`. Команда без
-явного ключа тоже уходит с ключом: его генерирует эмиттер, и он
-одинаков для всех повторных доставок одного `emit`.
+`delete` и повторил `emit`, поэтому ключом взят его идентификатор.
+Команда без явного ключа тоже уходит с ключом: его генерирует эмиттер, и
+он одинаков для всех повторных доставок одного `emit`.
 
 Владелец команды читает ключ из контекста:
 
 ```typescript
-// src/features/quotas/signup-recorded.endpoint.ts
-@Handler([SignupJournal])
-class SignupRecordedHandler {
-  constructor(private readonly journal: SignupJournal) {}
+// src/features/notifications/forget-address.endpoint.ts
+@Handler([Suppressions])
+class ForgetAddressHandler {
+  constructor(private readonly suppressions: Suppressions) {}
 
-  async handle(payload: SignupRecordedInput) {
-    this.journal.record(payload.userId);
+  async handle(payload: ForgetAddressInput) {
+    this.suppressions.forget(payload.email);
   }
 }
 
-export const SignupRecordedImpl = implement(SignupRecorded, {
+export const ForgetAddressImpl = implement(ForgetAddress, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
-  handler: SignupRecordedHandler,
+  handler: ForgetAddressHandler,
 });
 ```
 
 ```typescript
-// src/features/quotas/signup.journal.ts
+// src/features/notifications/suppressions.ts
 @Component([Logger$.auto, Ctx(IdempotencyKey)])
-export class SignupJournal {
+export class Suppressions {
+  readonly #blocked = new Map<string, string>();
+
   constructor(
     private readonly logger: Logger,
     private readonly intent: CtxReader<string>,
   ) {}
 
-  /** Записывает регистрацию вместе с ключом идемпотентности */
-  record(userId: string): void {
-    this.logger.debug('signup recorded', {
-      userId,
+  /** Убирает адрес из рассылок вместе с ключом идемпотентности */
+  forget(email: string): void {
+    this.#blocked.set(email, 'user asked to be forgotten');
+
+    this.logger.debug('address forgotten', {
+      email,
       intent: this.intent.get(),
     });
   }
@@ -202,20 +205,20 @@ export class SignupJournal {
 
 `withIdempotencyKey()` — готовый pre-юнит из `@nestlingjs/app`: он
 берёт ключ из параметров вызова и объявляет переменную контекста
-`IdempotencyKey`. Журнал читает её через `Ctx(IdempotencyKey)` так же,
+`IdempotencyKey`. Сервис читает её через `Ctx(IdempotencyKey)` так же,
 как хранилище читало `RequestId` в [главе 9](./09-logging.md).
-Дедупликацию по ключу пример не делает: ядро доставляет ключ до
-обработчика, а что с ним делать, решает владелец команды.
+Дедупликации по ключу здесь нет: ядро доставляет ключ до обработчика, а
+что с ним делать, решает владелец команды.
 
 Что юнит стоит в пайплайне реализации, проверяет политика:
 
 ```typescript
 // src/app.ts
-    // Реализация команды регистрации кладёт ключ идемпотентности в
-    // контекст: сервис в глубине графа читает его через `Ctx`
+    // Реализация команды кладёт ключ идемпотентности в контекст: сервис
+    // в глубине графа читает его через `Ctx`
     everyEndpoint({
       transport: BusTransport$,
-      pattern: /^quotas\.record-signup$/,
+      pattern: /^notifications\.forget-address$/,
     }).hasVar(IdempotencyKey, 'idempotencyKey'),
 ```
 
@@ -232,9 +235,9 @@ export class SignupJournal {
 | команда | `makeCommand` | ровно один | нет | есть | допустим |
 | событие | `makeEvent` | любое число подписчиков | нет | нет | допустим |
 
-Запрос подходит, когда без ответа продолжить нельзя: регистрация ждёт,
-займётся ли место в квоте. Событие подходит, когда факт уже случился и
-кому он нужен, решают подписчики. Команда подходит, когда получатель
+Запрос подходит, когда без ответа продолжить нельзя: регистрация ждёт
+ответа, дойдёт ли письмо на этот адрес. Событие подходит, когда факт уже
+случился и кому он нужен, решают подписчики. Команда подходит, когда получатель
 ровно один и повтор доставки нужно отличать от нового намерения.
 
 ## Что видно в логе
@@ -246,18 +249,19 @@ API_TOKEN=secret WEBHOOK_SECRET=hook NESTLING_LOG_LEVEL=debug \
   yarn start:dev
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-  -d '{"name":"User 1","email":"user1@example.com"}'
+  -d '{"name":"Carol","email":"carol@example.com"}'
+curl -X DELETE localhost:3000/users/3 -H 'authorization: Bearer secret'
 ```
 
 ```
-2026-09-06T12:00:00.000Z DEBUG DbUsersRepository insert user1@example.com requestId=b7600481-…
-2026-09-06T12:00:00.001Z INFO  UserRegisteredInQuotasHandler quota bookkeeping userId=3 email=user1@example.com
-2026-09-06T12:00:00.002Z DEBUG SignupJournal signup recorded userId=3 intent=3
-2026-09-06T12:00:00.003Z INFO  AuditOutcome POST /users created requestId=b7600481-… outcome=completed
+2026-09-06T12:00:00.000Z DEBUG DbUsersRepository insert carol@example.com requestId=b7600481-…
+2026-09-06T12:00:00.001Z INFO  WelcomeEmailHandler welcome email sent userId=3 email=carol@example.com
+2026-09-06T12:00:00.002Z INFO  AuditOutcome POST /users created requestId=b7600481-… outcome=completed
+2026-09-06T12:00:01.000Z DEBUG Suppressions address forgotten email=carol@example.com intent=3
 ```
 
-Вторую строку пишет подписчик события, третью пишет журнал: ключом
-пришёл идентификатор пользователя. Подписчик и журнал работают в
+Вторую строку пишет подписчик события, последнюю — владелец команды:
+ключом пришёл идентификатор удалённого пользователя. Оба работают в
 собственном контексте запроса: значения контекста вызывающего, включая
 `requestId`, в реализацию не попадают.
 
@@ -270,33 +274,34 @@ it('доставляет ключ идемпотентности команды 
   await using testApp = await assembleTest(app, {
     ...testConfig,
     overrides: [
-      [UsersRepository$, inMemoryUsersRepo()],
+      [UsersRepository$, inMemoryUsersRepo([alice])],
       [RootLogger$, spy.logger],
     ],
   });
 
-  unwrap(await createUser(testApp, 'signed'));
+  unwrap(await deleteUser(testApp, alice.id));
 
   // `emit` завершается по доставке, а не по обработке
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  // Ключом вызывающий задал id пользователя, и журнал получил его
-  const recorded = spy.entries.find(
-    (entry) => entry.message === 'signup recorded',
+  // Ключом вызывающий задал id пользователя, и владелец команды получил его
+  const forgotten = spy.entries.find(
+    (entry) => entry.message === 'address forgotten',
   );
-  expect(recorded?.fields).toEqual({
-    scope: 'SignupJournal',
-    userId: expect.any(String),
-    intent: recorded?.fields.userId,
+  expect(forgotten?.fields).toEqual({
+    scope: 'Suppressions',
+    email: alice.email,
+    intent: alice.id,
   });
 });
 ```
 
-Тест создаёт пользователя через полный пайплайн и находит запись
-журнала по её `message`. Пауза в один тик нужна, потому что `emit`
-завершается по доставке, а обработчик команды выполняется после неё.
-Поле `intent` записи совпадает с `userId`: значение, которое задал
-вызывающий, дошло до сервиса в глубине графа без параметра.
+Тест удаляет пользователя через полный пайплайн и находит запись
+владельца команды по её `message`. Пауза в один тик нужна, потому что
+`emit` завершается по доставке, а обработчик команды выполняется после
+неё. Поле `intent` записи совпадает с идентификатором пользователя:
+значение, которое задал вызывающий, дошло до сервиса в глубине графа без
+параметра.
 
 О новом пользователе хочет знать не только сосед по процессу, но и
 клиент в браузере: [17. Живая лента для клиента](./17-live-feed.md).

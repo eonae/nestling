@@ -21,12 +21,12 @@ MCP — входящий протокол, поэтому он объявляе�
 export const api = server();
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   transports: [
     http({ server: api }),
     mcp({
       server: api,
-      info: { name: 'users-service', version: '1.0.0' },
+      info: { name: 'users-api', version: '1.0.0' },
       converters: openapiOptions.converters,
     }),
   ],

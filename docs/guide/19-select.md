@@ -8,7 +8,7 @@
 > «[2026-09-06] Переключатели состава: `makeSwitch`, `pick` и `when`,
 > аргумент сборки; формы корня без фич».
 
-Приложение состоит из фич `users`, `quotas` и `ops`. Локально оно
+Приложение состоит из фич `users`, `notifications` и `ops`. Локально оно
 запускается одним процессом. В проде пользовательский API и служебные
 endpoint'ы разворачиваются отдельно, и каждый процесс должен поднимать
 только свои фичи. Один и тот же код должен собираться во все три роли, а
@@ -83,14 +83,14 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 ```
-[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
-[nestling] selection closed over calls: users + quotas
+[nestling] features: users, notifications; docs=on; transports: http, mcp, bus
+[nestling] selection closed over calls: users + notifications
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
 
 Выбрана одна фича, а в процессе две. `includeDeps: true` замыкает выбор
-по вызываемым операциям: фича `users` инжектит `ClaimQuota.caller` и
-`SignupRecorded.emitter`, владелец обеих операций живёт в `quotas`, и
+по вызываемым операциям: фича `users` инжектит `CheckAddress.caller` и
+`ForgetAddress.emitter`, владелец обеих операций живёт в `notifications`, и
 она подключается сама. Вторая строка вывода показывает, что добавило
 замыкание.
 
@@ -112,7 +112,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ASSEMBLE:
 
 ```
-Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
 assembly argument (or close the selection over calls with
@@ -137,7 +137,7 @@ dev-контуре и не нужна за периметром, и это не 
 export const Docs = makeSwitch('docs', { default: 'on' });
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -191,7 +191,7 @@ DI-токена у переключателя нет: инжектировать
 Выбор виден в строке старта рядом с фичами:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
+[nestling] features: users, notifications; docs=off; transports: http, mcp, bus
 ```
 
 и в отчёте `check()` полем `switches`.
@@ -265,9 +265,10 @@ const checked = makeApp({
       'ops',
     ]);
 
-    // `users` зовёт `quotas.claim`, поэтому замыкание по операциям тянет
-    // фичу квот. `ops` никто не вызывает, и она приходит только явным выбором
-    expect(reports[1].report.features).toEqual(['users', 'quotas']);
+    // `users` зовёт `notifications.check-address`, поэтому замыкание по
+    // операциям тянет фичу рассылки. `ops` никто не вызывает, и она
+    // приходит только явным выбором
+    expect(reports[1].report.features).toEqual(['users', 'notifications']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([

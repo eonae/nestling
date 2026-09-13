@@ -25,9 +25,9 @@ same as in `users-service`.
 ## The second feature
 
 ```typescript
-// src/features/quotas/quota.service.ts
+// src/features/notifications/suppressions.ts
 @Component([])
-export class QuotaService {
+export class Suppressions {
   /** The user limit; deliberately small in the example */
   readonly limit = 5;
 
@@ -47,33 +47,33 @@ export class QuotaService {
 ```
 
 ```typescript
-// src/features/quotas/quotas.feature.ts
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  providers: [QuotaService, SignupJournal],
-  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
+// src/features/notifications/notifications.feature.ts
+export const NotificationsFeature = makeFeature({
+  name: 'notifications',
+  providers: [Suppressions, Suppressions],
+  endpoints: [CheckAddressImpl, WelcomeEmail, ForgetAddressImpl],
 });
 ```
 
-The `quotas` feature is declared the same way as `users`: a name,
-providers and endpoints. `QuotaService` is not exported outward and does
+The `notifications` feature is declared the same way as `users`: a name,
+providers and endpoints. `Suppressions` is not exported outward and does
 not end up in the `deps` of other features.
 
 ## The feature boundary
 
 A feature cannot depend on the provider of another feature. If the
 `users` feature declares a `UsersReport` provider with
-`@Component([QuotaService])`, the assembly stops on the ASSEMBLE phase:
+`@Component([Suppressions])`, the assembly stops on the ASSEMBLE phase:
 
 ```
 1 edge(s) cross a feature boundary:
 
-  - Feature 'users' depends on feature 'quotas' by DI token: 'UsersReport'
-    injects 'QuotaService'. Features are connected by operations only — a
+  - Feature 'users' depends on feature 'notifications' by DI token: 'UsersReport'
+    injects 'Suppressions'. Features are connected by operations only — a
     DI token does not survive a process boundary, so this edge breaks the
     moment the two features are deployed apart. Declare the call as an
     operation (makeRequest / makeCommand), inject its '.caller' and
-    implement it in 'quotas'.
+    implement it in 'notifications'.
 ```
 
 The check runs on the assembled graph and tells apart three kinds of
@@ -102,20 +102,20 @@ import {
 import { z } from 'zod';
 
 /** The "quota exhausted" failure. It arrives over the network as a code and is restored into a `Fail` */
-export const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', {
+export const AddressRejected = makeFail('conflict:address_rejected', {
   details: z.object({ limit: z.number() }),
   message: (d) => `User quota of ${d.limit} is exhausted`,
 });
 
-export const ClaimQuotaInput = z.object({ email: z.string() });
+export const CheckAddressInput = z.object({ email: z.string() });
 
-export type ClaimQuotaInput = z.infer<typeof ClaimQuotaInput>;
+export type CheckAddressInput = z.infer<typeof CheckAddressInput>;
 
-export const ClaimQuota = makeRequest({
-  name: 'quotas.claim',
-  input: ClaimQuotaInput,
+export const CheckAddress = makeRequest({
+  name: 'notifications.check-address',
+  input: CheckAddressInput,
   output: z.object({ remaining: z.number() }),
-  errors: [QuotaExceeded],
+  errors: [AddressRejected],
 });
 // …
 ```
@@ -133,30 +133,30 @@ owner.
 ## The implementation in the owning feature
 
 ```typescript
-// src/features/quotas/claim-quota.endpoint.ts
-@Handler([QuotaService, Logger$.auto])
-class ClaimQuotaHandler {
+// src/features/notifications/check-address.endpoint.ts
+@Handler([Suppressions, Logger$.auto])
+class CheckAddressHandler {
   constructor(
-    private readonly quotas: QuotaService,
+    private readonly suppressions: Suppressions,
     private readonly logger: Logger,
   ) {}
 
-  async handle(payload: ClaimQuotaInput) {
-    const claimed = this.quotas.claim();
+  async handle(payload: CheckAddressInput) {
+    const claimed = this.notifications.check-address();
 
     if (!claimed.ok) {
       this.logger.info('quota exhausted', { email: payload.email });
 
-      // The caller gets a `Fail` and recognizes it through `QuotaExceeded.is()`
-      return QuotaExceeded({ limit: this.quotas.limit });
+      // The caller gets a `Fail` and recognizes it through `AddressRejected.is()`
+      return AddressRejected({ limit: this.suppressions.size });
     }
 
     return { remaining: claimed.remaining };
   }
 }
 
-export const ClaimQuotaImpl = implement(ClaimQuota, {
-  handler: ClaimQuotaHandler,
+export const CheckAddressImpl = implement(CheckAddress, {
+  handler: CheckAddressHandler,
 });
 ```
 
@@ -183,24 +183,24 @@ const QUOTA_CALL_BUDGET_MS = 500;
 
 @Handler([
   UsersRepository$,
-  ClaimQuota.caller,
+  CheckAddress.caller,
   // …
 ])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly addresses: Port<typeof CheckAddress>,
     // …
   ) {}
 
   async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
+  ): Output<User, typeof EmailTaken | typeof AddressRejected> {
     if (await this.users.byEmail(payload.email)) {
       return EmailTaken({ email: payload.email });
     }
     // …
-    const claimed = await this.quotas.call(
+    const claimed = await this.addresses.call(
       { email: payload.email },
       { deadline: deadlineIn(QUOTA_CALL_BUDGET_MS) },
     );
@@ -228,9 +228,9 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 });
 ```
 
-`ClaimQuota.caller` is the DI token of the caller. It is listed in the
+`CheckAddress.caller` is the DI token of the caller. It is listed in the
 role decorator as an ordinary dependency, and the handler gets an object
-of type `Port<typeof ClaimQuota>` with a `call(input, meta?)` method. The
+of type `Port<typeof CheckAddress>` with a `call(input, meta?)` method. The
 call is always asynchronous and always returns `Ok` or `Fail`, even when
 the implementation runs in the same process. The caller parses the
 failure: the set of its responses is closed — the declared failures plus
@@ -243,8 +243,8 @@ moment from milliseconds. There is no budget by default. An exhausted
 budget arrives as a failure with the kernel code `timeout`; it is not
 declared in `errors:`, and neither is `internal_error`.
 
-The neighbour's `QuotaExceeded` failure reaches the client, because the
-`users.create` operation folds the failures of `ClaimQuota` in through
+The neighbour's `AddressRejected` failure reaches the client, because the
+`users.create` operation folds the failures of `CheckAddress` in through
 `errorsOf` alongside its own; a failure not listed in the `errors:` of
 the calling endpoint is replaced with `InternalError` on the way out of
 the pipeline. `Unauthorized` stays in the list of the operation even
@@ -259,14 +259,14 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
-  errors: [EmailTaken, ...errorsOf(ClaimQuota), Unauthorized],
+  errors: [EmailTaken, ...errorsOf(CheckAddress), Unauthorized],
   // …
 });
 ```
 
-`errorsOf(ClaimQuota)` returns the `errors:` of the `ClaimQuota`
-operation as the same value: the spread `...errorsOf(ClaimQuota)`
-replaces the manual import and listing of `QuotaExceeded`, and the
+`errorsOf(CheckAddress)` returns the `errors:` of the `CheckAddress`
+operation as the same value: the spread `...errorsOf(CheckAddress)`
+replaces the manual import and listing of `AddressRejected`, and the
 handler's type stays the same as with the failure listed directly.
 
 `httpEndpoint.implement` checks two sets against each other: every failure
@@ -282,7 +282,7 @@ The sixth registration in a row gets `429`:
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"User 6","email":"user6@example.com"}'
-# {"error":"User quota of 5 is exhausted","code":"too_many_requests:quota_exceeded","details":{"limit":5}}
+# {"error":"User quota of 5 is exhausted","code":"conflict:address_rejected","details":{"limit":5}}
 ```
 
 ## What is shared goes into plugins
@@ -379,7 +379,7 @@ A feature accepts providers two ways: as a `providers:` list or as a
 `modules:` list of modules. A module groups providers under a name, and
 the `dependsOn` field lists the modules it cannot work without. A module
 fits a feature with many providers, or one already assembled into a
-module for another application. The `quotas` feature gets by with
+module for another application. The `notifications` feature gets by with
 `providers:`: it has two services. In both cases the feature, not the
 module, lists the endpoints.
 
@@ -388,7 +388,7 @@ module, lists the endpoints.
 ```typescript
 // src/app.ts
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -439,14 +439,14 @@ it('возвращает отказ соседней фичи при исчер�
   expect(await createUser(testApp, 'sixth')).toMatchObject({
     isSuccess: false,
     status: 'too_many_requests',
-    value: { code: QuotaExceeded.code, details: { limit: 5 } },
+    value: { code: AddressRejected.code, details: { limit: 5 } },
   });
 });
 ```
 
 The implementation of an operation is called in the test the same way as
-an HTTP endpoint: `testApp.call(ClaimQuotaImpl, { email })`. A separate
-test gets the caller through `testApp.get(ClaimQuota.caller)` and calls it
+an HTTP endpoint: `testApp.call(CheckAddressImpl, { email })`. A separate
+test gets the caller through `testApp.get(CheckAddress.caller)` and calls it
 with an expired `deadline`: the response arrives with the `timeout` code,
 and the implementation is not called.
 
@@ -465,7 +465,7 @@ done
 ```
 
 The same run with `NESTLING_PORTS_DISPATCH=always-remote` sends the
-`quotas.claim` call through the in-process bus.
+`notifications.check-address` call through the in-process bus.
 
 Quotas learn about a new user not by a request, but by an event:
 [15. Tell the neighbours what happened](./15-events.md).

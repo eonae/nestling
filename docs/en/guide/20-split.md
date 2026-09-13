@@ -9,9 +9,9 @@
 > `Модель композиции: фича, плагин, операция` and
 > `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 
-The `users` and `quotas` features work in one process and talk through
+The `users` and `notifications` features work in one process and talk through
 operations. The load on quotas is different, and there is a wish to
-deploy it as a separate service. Rewriting the calls to `quotas.claim`
+deploy it as a separate service. Rewriting the calls to `notifications.check-address`
 and the subscription to `users.registered` is not wanted: let the same
 features work in two processes, with a broker carrying the messages
 between them.
@@ -19,7 +19,7 @@ between them.
 The opposite direction gives the local run. The same declaration with
 `assemble('all')` brings up every feature in one process, and the
 in-process bus delivers the operations between them: the call to
-`quotas.claim` does not go out to the broker. A broker and several
+`notifications.check-address` does not go out to the broker. A broker and several
 processes are needed by a staging environment, not by a developer: the
 application starts locally with one command even when its features are
 spread across services on staging.
@@ -32,7 +32,7 @@ export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
   return makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [metricsPlugin(exporter)],
     // The application's bus is an ordinary transport. `intercom:`
     // assigns it the role of carrying operations between processes:
@@ -76,20 +76,20 @@ reads from `APP_FEATURES` before the assembly, as in chapter
 
 ```typescript
 // src/users.ts
-@Component([ClaimQuota.caller, UserRegistered.emitter])
+@Component([CheckAddress.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
-    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly addresses: Port<typeof CheckAddress>,
     private readonly registered: Emitter<typeof UserRegistered>,
   ) {}
 
   /** Registers a user: returns `false` if the quota is exhausted */
   async register(email: string): Promise<boolean> {
-    const claim = await this.quotas.call({ email });
+    const claim = await this.addresses.call({ email });
 
     if (claim.isFail) {
       // The owner's failure arrives as a `Fail` of the same
-      // `QuotaExceeded` definition, both from the neighbouring
+      // `AddressRejected` definition, both from the neighbouring
       // process and from this one
       return false;
     }
@@ -105,10 +105,10 @@ This class is no different from the one that worked in one process. It
 depends on the caller and the emitter, not on the services of the
 neighbouring feature. The assembly decides where the call goes.
 
-At the `'users'` selection, there is no owner of `quotas.claim` in the
-process. The assembly binds `ClaimQuota.caller` to a remote caller: the
+At the `'users'` selection, there is no owner of `notifications.check-address` in the
+process. The assembly binds `CheckAddress.caller` to a remote caller: the
 call goes out to the broker as a request waiting for a response, and
-the declared `QuotaExceeded` failure comes back as the same `Fail` as a
+the declared `AddressRejected` failure comes back as the same `Fail` as a
 call inside the process would give. The owner's replicas form a queue
 group, and each message reaches one of them. At the `'all'` selection
 both features work in one process, the request runs directly, and the
@@ -136,10 +136,10 @@ accept the field: for a `request` the caller waits for the response,
 and `durable: true` does not compile for it.
 
 ```typescript
-// src/quotas.ts
-@Handler([QuotaLedger])
+// src/notifications.ts
+@Handler([Suppressions])
 class UserRegisteredInArchiveHandler {
-  constructor(private readonly ledger: QuotaLedger) {}
+  constructor(private readonly ledger: Suppressions) {}
 
   async handle(payload: UserRegisteredInput) {
     this.ledger.archive(payload.id);
@@ -189,7 +189,7 @@ class RegisterUserHandler {
     implement(RegisterUser, {
       // The base layer returns the trace and the tenant into the
       // context: both arrived in the message envelope, and the
-      // `quotas.claim` caller will pass them on
+      // `notifications.check-address` caller will pass them on
       pipeline: base,
       handler: RegisterUserHandler,
     }),
@@ -198,7 +198,7 @@ class RegisterUserHandler {
 On the receiving side the value lies in the message's attributes. The
 `TenantId.propagated()` unit carries it into the request's
 asynchronous context. It is part of the example's base layer, which
-stands in the pipeline of every implementation: both `quotas.claim` and
+stands in the pipeline of every implementation: both `notifications.check-address` and
 `users.registered` arrive from another process.
 
 ```typescript
@@ -209,9 +209,9 @@ export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
 ```
 
 ```typescript
-// src/quotas.ts (fragment)
+// src/notifications.ts (fragment)
 @Component([Ctx(TenantId), Logger$.auto])
-export class QuotaLedger {
+export class Suppressions {
   readonly limit = 100;
   readonly used = new Map<string, number>();
 
@@ -233,8 +233,8 @@ The service reads the tenant with the `Ctx(TenantId)` reader, the way
 the repository read `requestId` in chapter [9](./09-logging.md). The
 reader is declared in the provider's dependencies. The value crossed
 two hops: the external client put it into the header, the `users`
-process read it and passed it on when calling `quotas.claim`, and the
-`quotas` process read it again.
+process read it and passed it on when calling `notifications.check-address`, and the
+`notifications` process read it again.
 
 ## The trace across process boundaries
 
@@ -244,16 +244,16 @@ it is the one that makes the records of both processes line up:
 
 ```text
 INFO  RegistrationService register traceId=feabb90b363acc5bff69c317824a65ae
-INFO  QuotaLedger         claim    traceId=feabb90b363acc5bff69c317824a65ae
+INFO  Suppressions         claim    traceId=feabb90b363acc5bff69c317824a65ae
 ```
 
 The first record is written by the `users` process, the second by the
-`quotas` process. The value is the same, so searching by it finds the
+`notifications` process. The value is the same, so searching by it finds the
 record from any process together with the rest.
 
 The trace is carried by the same mechanism as the tenant: the kernel
 declares the `Trace` variable with `propagate: true`, so the
-`quotas.claim` caller puts it into the message envelope. Only the
+`notifications.check-address` caller puts it into the message envelope. Only the
 receiving side differs: `withTracing()`, not `Trace.propagated()`,
 returns the trace into the context there. The same unit continues the
 trace both from the bus and from the HTTP `traceparent` header, so the
@@ -281,12 +281,12 @@ The `-js` flag turns on JetStream. Without it the stream under
 `users.registered` is not created, and the assembly stops.
 
 ```bash
-APP_FEATURES=quotas yarn start:dev
+APP_FEATURES=notifications yarn start:dev
 APP_FEATURES=users yarn start:dev
 ```
 
 Start the request's owner first. The broker has no waiting queue for a
-request with a response: a call to `quotas.claim` with no owner
+request with a response: a call to `notifications.check-address` with no owner
 present fails with a delivery failure. The broker's address, if
 needed, is set by `NATS_SERVERS=nats://127.0.0.1:4222`.
 
@@ -315,7 +315,7 @@ The test brings up both processes in one jest process on top of the
 // src/split.spec.ts (fragment)
   it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
-    const topology = await run(broker, 'quotas', 'users');
+    const topology = await run(broker, 'notifications', 'users');
     const outside = await outsideClient(broker);
 
     await outside.publish(
@@ -325,17 +325,17 @@ The test brings up both processes in one jest process on top of the
     );
     await untilPublished(broker, 'users.registered');
 
-    // The call to `quotas.claim` went out to the broker: there is no
+    // The call to `notifications.check-address` went out to the broker: there is no
     // owner in the `users` process
     expect(broker.published.map(({ subject }) => subject)).toEqual(
       expect.arrayContaining([
         'users.register',
-        'quotas.claim',
+        'notifications.check-address',
         'users.registered',
       ]),
     );
 
-    expect(tenantOf(broker, 'quotas.claim')).toBe('acme');
+    expect(tenantOf(broker, 'notifications.check-address')).toBe('acme');
     expect(tenantOf(broker, 'users.registered')).toBe('acme');
     // …
   });
@@ -347,10 +347,10 @@ a connection to the double, then `assemble(select)` for each role.
 checks the subjects and the tenant in `Nl-Ctx` against it, and finds
 the `nestling_users_registered` stream through
 `broker.jetstreamManager()`. The second test of the same file brings
-up the `'all'` selection and checks that `quotas.claim` does not go
+up the `'all'` selection and checks that `notifications.check-address` does not go
 out to the broker. The third reads the logger records of both
 processes and matches their `traceId`. The fourth assembles the `users`
-process with no owner of `quotas.claim` and makes sure the assembly
+process with no owner of `notifications.check-address` and makes sure the assembly
 goes through.
 
 ```bash
