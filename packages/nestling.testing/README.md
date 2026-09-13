@@ -4,7 +4,9 @@ A test composition root. `buildTest(app, options)` builds the same
 `makeApp` declaration that `main.ts` starts, takes the application
 through the phases `0 BOOTSTRAP`, `1 BUILD`, `2 INIT`, `3 WIRE` and
 stops: `dispatch` is created, the sockets are not open, no signal
-handlers are set, and nothing is printed to stdout.
+handlers are set, and nothing is printed to stdout. The run is silent:
+the logger level is `silent` until a test sets its own through `config:`
+or substitutes `[RootLogger$, spy.logger]`.
 
 > 🚧 Active development, the API may change. The package introduces no
 > runner, no matchers and no snapshot mechanics: jest stays jest.

@@ -86,6 +86,12 @@ the logger arrives already named after the class that asked for it.
 stay singletons and request data is not threaded through arguments. Read it
 with `peek()` when the same method may also run outside a request.
 
+The root logger and the fields it adds are set by one option,
+`makeApp({ logging: { logger, fields } })`. Without `logger` the standard
+one is used; `fields` lists context variables whose values land in every
+record inside a request, `[RequestId, Trace]` by default. The kernel mixes
+them in, so any implementation gets `requestId` and `traceId`.
+
 <!-- snippet: database.ts -->
 ```typescript
 import type { User } from './api-operations.js';

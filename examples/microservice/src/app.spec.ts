@@ -193,10 +193,16 @@ describeWithDatabase('microservice', () => {
 
     unwrap(await testApp.call(GetUser, { id: '1' }));
 
+    // Поле `requestId` в записи — поле корреляции: его подмешивает ядро,
+    // и шпион получает его так же, как штатный логгер
     expect(spy.entries).toContainEqual({
       level: 'info',
       message: 'GET /users/:id ok',
-      fields: { scope: 'AuditOutcome', outcome: 'completed' },
+      fields: {
+        scope: 'AuditOutcome',
+        outcome: 'completed',
+        requestId: expect.any(String),
+      },
     });
   });
 

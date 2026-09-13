@@ -153,6 +153,7 @@ design-доки описывают **только целевое V1** (как б
 |---|---|
 | [`@nestlingjs/app`](../packages/nestling.app/) | Ядро одним пакетом: пайплайн, конфигурация, порты, абстракция транспорта и composition root (`build`, фичи и плагины, `select`, фазы жизненного цикла, политики) |
 | [`@nestlingjs/container`](../packages/nestling.container/) | Контейнер зависимостей: DI-токены, провайдеры, семейства DI-токенов, модули, хуки жизненного цикла |
+| [`@nestlingjs/logging`](../packages/nestling.logging/) | Интерфейс логгера и штатная реализация: уровни, привязки, вывод в `stderr` текстом или JSON |
 | [`@nestlingjs/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io, `Topic` и комбинаторы потоков |
 | [`@nestlingjs/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
 | [`@nestlingjs/testing`](../packages/nestling.testing/) | Тестовый composition root: `buildTest`, `overrides`, стабы операций, `checkTopologies` |

@@ -799,7 +799,8 @@ interface from `@nestlingjs/logging` ([container.md](./container.md),
 the interface is there too). The root sets it through the
 `logging: { logger?, fields? }` option. `logger` is a ready value, the
 kernel logger by default. `fields` are context variables whose values
-land in every record, `[RequestId, Trace]` by default. The build
+land in every record, `[RequestId, logField(Trace, 'traceId', (t) => t.traceId)]`
+by default. The build
 wraps the passed logger in a correlation decorator: it reads the
 declared variables from the ambient context and adds them as fields,
 so any implementation gets `requestId` and `traceId` with no knowledge
@@ -811,10 +812,11 @@ a build error. A missing value leaves out the field. Static
 process fields (`node`, `version`) are added through
 `logger.child({...})` at creation. The level and the format of the
 kernel logger are set by the `nestlingLog` kernel section:
-`NESTLING_LOG_LEVEL` (`debug` | `info` | `warn` | `error`, `info` by
-default) and `NESTLING_LOG_FORMAT` (`text` | `json`, `text` by
-default). Records go to `stderr`: for a CLI transport, `stdout` is
-taken by the result of the command.
+`NESTLING_LOG_LEVEL` (`debug` | `info` | `warn` | `error` | `silent`,
+`info` by default) and `NESTLING_LOG_FORMAT` (`text` | `json`, `text` by
+default). The `silent` threshold cuts off all four levels; a test run is
+brought up with it ([testing.md](./testing.md)). Records go to `stderr`:
+for a CLI transport, `stdout` is taken by the result of the command.
 
 `Logger$(scope)` is a family with the recipe `root.child({ scope })`.
 `Logger$.auto` gives a member named after the consumer. Replacing the
@@ -830,16 +832,17 @@ visible in the visualization.
 | short-lived operations, an idle intercom, configuration and container warnings | `warn` |
 | undeclared failures, port failures, bus and NATS delivery failures | `error`, the original in `err` |
 
-The kernel has no separate output hooks: it does not touch `console`
-outside `ConsoleLogger`. The warnings of the configuration reader pile
+The kernel has no separate output hooks: it does not touch `console` at
+all, and the only thing that writes into a stream is the standard logger
+from `@nestlingjs/logging`. The warnings of the configuration reader pile
 up until the logger appears and go into it right after `build()`; the
 build takes the container warnings from
 `BuiltContainer.warnings`. Standalone paths with no `App`
-(`makeDispatch`, `new InProcessBus()`) use `ConsoleLogger` with its
+(`makeDispatch`, `new InProcessBus()`) use the standard logger with its
 defaults, so an undeclared failure is not swallowed silently. In a
 test, `spyLogger()` intercepts the records by substituting `RootLogger$`
 ([testing.md](./testing.md)). `@nestlingjs/logging.pino` gives
-`pinoLogger(options)` for the `logger` option: it writes to `stderr`,
+`pinoLogger(options)` for the `logging.logger` field: it writes to `stderr`,
 in a human-readable format with no `pino-pretty`. A script outside the
 application creates the kernel logger through the
 `makeConsoleLogger(options)` factory from `@nestlingjs/logging`.

@@ -69,38 +69,38 @@
 
 ## 6. Замер горячего пути
 
-- [ ] 6.1 `yarn bench:http` под Node 24 до и после change'а; порог —
+- [x] 6.1 `yarn bench:http` под Node 24 до и после change'а; порог —
   отсутствие регрессии на `GET` и `POST`, число в отчёте задачи
 
 ## 7. Документация
 
-- [ ] 7.1 `docs/guide/09-logging.md` и `docs/en/guide/09-logging.md`: опция
+- [x] 7.1 `docs/guide/09-logging.md` и `docs/en/guide/09-logging.md`: опция
   `logging`, поля корреляции, `logField`, `logFields` плагина; плашка
   «сверено с кодом» с новой датой и коммитом
-- [ ] 7.2 `docs/design/container.md` и английская пара, раздел «Логгер
+- [x] 7.2 `docs/design/container.md` и английская пара, раздел «Логгер
   ядра»: декоратор, границы пакета `@nestlingjs/logging`
-- [ ] 7.3 README пакетов: новый `packages/nestling.logging/README.md` и
+- [x] 7.3 README пакетов: новый `packages/nestling.logging/README.md` и
   `README.ru.md`, обновлённые README `nestling.app` и `nestling.testing`,
   плашки статуса
-- [ ] 7.4 `docs/README.md`: строка нового пакета в разделе «Пакеты»
-- [ ] 7.5 `docs/glossary.md` и `docs/en/glossary.md`: термин «поле
+- [x] 7.4 `docs/README.md`: строка нового пакета в разделе «Пакеты»
+- [x] 7.5 `docs/glossary.md` и `docs/en/glossary.md`: термин «поле
   корреляции», если он не определён в главе
-- [ ] 7.6 Скилл агента (`packages/nestling.agent-skill`): опция `logging`
+- [x] 7.6 Скилл агента (`packages/nestling.agent-skill`): опция `logging`
   в справочниках и сниппетах, `yarn test` пакета зелёный
-- [ ] 7.7 `node .claude/skills/docs-style/scripts/lint.mjs` на все
+- [x] 7.7 `node .claude/skills/docs-style/scripts/lint.mjs` на все
   изменённые тексты — 0 запрещённых слов
 
 ## 8. Definition of Done
 
-- [ ] 8.1 Все задачи выше отмечены
-- [ ] 8.2 `yarn verify` зелёный
-- [ ] 8.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 8.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
-- [ ] 8.5 Запись `ideas.md` [2026-09-13] «Логгер: опция `logging`, пакет
+- [x] 8.1 Все задачи выше отмечены
+- [x] 8.2 `yarn verify` зелёный
+- [x] 8.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 8.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
+- [x] 8.5 Запись `ideas.md` [2026-09-13] «Логгер: опция `logging`, пакет
   `@nestlingjs/logging`, поля-декларации, pino сателлитом» несёт пометку
   «РЕАЛИЗОВАНО» с тем, что вышло целиком, что уехало в строку 94 и чем
   реализация уточнила решение
-- [ ] 8.6 `yarn docs:audit` — 0 ERROR
-- [ ] 8.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
+- [x] 8.6 `yarn docs:audit` — 0 ERROR
+- [x] 8.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
   обновлённой датой в плашке «сверено с кодом»
-- [ ] 8.8 `main` не тронут: слияние делает Merger после `/opsx:archive`
+- [x] 8.8 `main` не тронут: слияние делает Merger после `/opsx:archive`
