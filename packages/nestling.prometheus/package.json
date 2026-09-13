@@ -1,0 +1,70 @@
+{
+  "name": "@nestlingjs/prometheus",
+  "version": "0.1.0",
+  "description": "Экспозиция метрик Nestling в формате Prometheus: endpoint /metrics читает store ядра",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "prometheus",
+    "metrics",
+    "observability",
+    "exposition"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.prometheus"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.prometheus#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*"
+  },
+  "devDependencies": {
+    "@nestlingjs/openapi": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
+  }
+}

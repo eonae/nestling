@@ -66,18 +66,18 @@
 
 ## 5. Пакет `@nestlingjs/prometheus`
 
-- [ ] 5.1 `packages/nestling.prometheus`: манифест по образцу
+- [x] 5.1 `packages/nestling.prometheus`: манифест по образцу
   `nestling.mcp`, `LICENSE`, `tsconfig.json`, `tsconfig.build.json`,
   `eslint.config.js`, `jest.config.js`
-- [ ] 5.2 `yarn install`, пакет виден соседям, пустые `yarn build` и
+- [x] 5.2 `yarn install`, пакет виден соседям, пустые `yarn build` и
   `yarn typecheck` зелёные
-- [ ] 5.3 `src/serialize.ts`: имя ряда, метки в устойчивом порядке, `# HELP`
+- [x] 5.3 `src/serialize.ts`: имя ряда, метки в устойчивом порядке, `# HELP`
   и `# TYPE`, корзины `_bucket`, `_sum` и `_count`
-- [ ] 5.4 `src/plugin.ts`: `prometheus(options?)`, endpoint `output: 'text'`
+- [x] 5.4 `src/plugin.ts`: `prometheus(options?)`, endpoint `output: 'text'`
   с пометкой `detached`, чтение `MetricsStore$`
-- [ ] 5.5 `src/index.ts` — барель поимённым экспортом; `boundary.spec.ts` по
+- [x] 5.5 `src/index.ts` — барель поимённым экспортом; `boundary.spec.ts` по
   образцу `nestling.mcp`
-- [ ] 5.6 Спеки пакета: нули до трафика, описание метрики в экспозиции,
+- [x] 5.6 Спеки пакета: нули до трафика, описание метрики в экспозиции,
   гистограмма корзинами, отсутствие пути в документе OpenAPI
 
 ## 6. Примеры
