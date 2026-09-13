@@ -61,9 +61,10 @@ export const handled: { subscriber: string; id: string }[] = [];
 /** Хендлер подписчика: считает доставки и может упасть по просьбе payload'а */
 export const makeSubscriberHandler =
   (subscriber: string) =>
-  async (
-    payload: { id: string; email: string },
-  ): Output<void, never, 'no_content'> => {
+  async (payload: {
+    id: string;
+    email: string;
+  }): Output<void, never, 'no_content'> => {
     handled.push({ subscriber, id: payload.id });
 
     if (payload.email === 'fail@example.com') {
