@@ -12,14 +12,18 @@ export interface User {
   name: string;
 }
 
-export const authenticate = async (): Promise<User> => ({
-  id: '1',
-  name: 'John Doe',
-});
+export const testUser: User = { id: '1', name: 'John Doe' };
 
 /** Pre-юнит, добавляющий в input ровно указанные поля */
 export function addField<T extends Record<string, unknown>>(
   value: T,
 ): PreUnitFn<AnyInput, T> {
+  return async () => value;
+}
+
+/** Pre-юнит, требующий `identity` во входе и добавляющий указанные поля */
+export function needsIdentity<T extends Record<string, unknown>>(
+  value: T,
+): PreUnitFn<{ identity: User }, T> {
   return async () => value;
 }

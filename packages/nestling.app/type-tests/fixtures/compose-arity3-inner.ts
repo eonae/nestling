@@ -5,20 +5,14 @@
  * ни один из них. Диагностика обязана указывать на третий аргумент.
  */
 
-import {
-  compose,
-  makePipeline,
-  withIdentity,
-  withRequestId,
-} from '@nestlingjs/app';
+import { compose, makePipeline, withRequestId } from '@nestlingjs/app';
 
-import type { User } from '../support/fixture-kit.js';
-import { authenticate } from '../support/fixture-kit.js';
+import { addField, testUser } from '../support/fixture-kit.js';
 
 const base = makePipeline().pre(withRequestId());
 
 const authed = makePipeline<{ requestId: string }>().pre(
-  withIdentity<User>(authenticate),
+  addField({ identity: testUser }),
 );
 
 const tenantScoped = makePipeline<{ tenantId: string }>();
