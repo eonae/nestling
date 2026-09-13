@@ -198,7 +198,7 @@ describe('запросы, которые транспорт берёт', () => {
 
     expect(answer.status).toBe(404);
     expect(JSON.parse(answer.body)).toMatchObject({
-      code: 'not_found:mcp_session',
+      type: 'urn:error:not_found:mcp_session',
     });
   });
 
