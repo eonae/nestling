@@ -295,7 +295,7 @@ for (const file of [
   ...guideFiles.map((f) => join(GUIDE, f)),
   recipesTocPath,
   ...recipeFiles.map((f) => join(RECIPES, f)),
-  ...['guarantees.md', 'from-nestjs.md']
+  ...['guarantees.md', 'compatibility.md', 'from-nestjs.md']
     .map((f) => join(DOCS, f))
     .filter((f) => existsSync(f)),
   ...mdFiles(join(DOCS, 'decisions')).map((f) => join(DOCS, 'decisions', f)),

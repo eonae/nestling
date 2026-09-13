@@ -96,6 +96,11 @@ export const SECTIONS = [
   },
   {
     kind: 'page',
+    path: 'docs/compatibility.md',
+    group: { en: 'References', ru: 'Справочники' },
+  },
+  {
+    kind: 'page',
     path: 'docs/from-nestjs.md',
     group: { en: 'References', ru: 'Справочники' },
   },

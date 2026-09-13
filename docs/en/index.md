@@ -47,6 +47,9 @@ each one rests on the code of the previous one.
   the sidebar.
 - [What is checked before the first request](./guarantees.md) — a table of
   the checks, the moment each one fires and the chapter that introduces it.
+- [Compatibility](./compatibility.md) — the Node version, the module
+  format, the state of other runtimes and the protocols the framework
+  serves itself.
 - [Target state of V1](./design/README.md) — the full description of the
   target API by subsystem.
 - [Glossary](./glossary.md) and [naming conventions](./conventions.md) —
