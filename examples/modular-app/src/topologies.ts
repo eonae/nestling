@@ -7,6 +7,7 @@
  */
 
 import type { CheckOptions } from '@nestlingjs/app';
+import { bind } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { vars } from '@nestlingjs/testing';
 
@@ -18,12 +19,14 @@ export const TOPOLOGIES = ['all', 'users', 'notifications'] as const;
  *
  * `check()` строит граф, но не открывает ни базы, ни брокера, поэтому
  * адрес здесь любой непустой: секция обязана прочитаться, соединение по
- * ней не устанавливается. `vars` заменяет привязки декларации целиком —
+ * ней не устанавливается. Список заменяет `defaultSources` целиком —
  * проверка обходится без источников и без `process.env`.
  */
 export const CHECK_OPTIONS: CheckOptions = {
   converters: [zodConverter()],
-  config: vars({
-    DATABASE_URL: 'postgresql://check:check@localhost:5432/check',
-  }),
+  config: [
+    bind(
+      vars({ DATABASE_URL: 'postgresql://check:check@localhost:5432/check' }),
+    ),
+  ],
 };

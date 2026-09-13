@@ -1,13 +1,13 @@
 import { createHmac } from 'node:crypto';
 
+import { HttpClient } from './helpers/http-client.js';
 import {
   closeTestApp,
   createTestApp,
   describeWithDatabase,
   E2E_WEBHOOK_SECRET,
   type TestAppContext,
-} from './helpers/create-test-app.js';
-import { HttpClient } from './helpers/http-client.js';
+} from './helpers/test-app.js';
 
 import { afterAll, beforeAll, beforeEach, expect, it } from '@jest/globals';
 

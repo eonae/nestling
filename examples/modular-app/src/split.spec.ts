@@ -7,7 +7,13 @@
  */
 
 import { declareApp } from './app.js';
-import { describeWithDatabase, TEST_DATABASE_URL, waitFor } from './testing.js';
+import {
+  describeWithDatabase,
+  ephemeralHttp,
+  TEST_DATABASE_URL,
+  testConfig,
+  waitFor,
+} from './testing.js';
 
 import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
 import type { BuiltApp } from '@nestlingjs/app';
@@ -55,17 +61,13 @@ async function run(
   ...args: string[]
 ): Promise<{ close: () => Promise<void> }> {
   const apps: BuiltApp[] = args.map((selection) =>
-    // Порт `0` — эфемерный: два процесса одного теста поднимают по
-    // серверу проб, и фиксированный порт занял бы первый из них
-    declareApp({
-      nats: { connect: natsDouble(broker) },
-      httpPort: 0,
-      databaseUrl: TEST_DATABASE_URL,
-    }).build(selection),
+    declareApp({ nats: { connect: natsDouble(broker) } }).build(selection),
   );
 
   for (const app of apps) {
-    await app.run();
+    // Порт `0` — эфемерный: два процесса одного теста поднимают по
+    // серверу проб, и фиксированный порт занял бы первый из них
+    await app.run({ config: [...testConfig, ephemeralHttp()] });
   }
 
   return {

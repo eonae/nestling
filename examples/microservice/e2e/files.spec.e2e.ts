@@ -1,10 +1,10 @@
+import { HttpClient } from './helpers/http-client.js';
 import {
   closeTestApp,
   createTestApp,
   describeWithDatabase,
   type TestAppContext,
-} from './helpers/create-test-app.js';
-import { HttpClient } from './helpers/http-client.js';
+} from './helpers/test-app.js';
 
 import { afterAll, beforeAll, beforeEach, expect, it } from '@jest/globals';
 

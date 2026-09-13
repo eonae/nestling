@@ -27,7 +27,7 @@ import { users } from './schema.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { RootLogger$ } from '@nestlingjs/app';
+import { bind, RootLogger$ } from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
 
@@ -42,11 +42,15 @@ const describeWithDatabase: (title: string, suite: () => void) => void =
   TEST_DATABASE_URL ? describe : describe.skip;
 
 /** Конфиг теста: объект вместо `process.env` */
-const testConfig = vars({
-  API_TOKEN: 'test-token',
-  WEBHOOK_SECRET: 'test-hook',
-  DATABASE_URL: TEST_DATABASE_URL ?? '',
-});
+const testConfig = [
+  bind(
+    vars({
+      API_TOKEN: 'test-token',
+      WEBHOOK_SECRET: 'test-hook',
+      DATABASE_URL: TEST_DATABASE_URL ?? '',
+    }),
+  ),
+];
 
 /**
  * Убирает данные прошлого теста и кладёт нужные этому.
@@ -110,12 +114,16 @@ describeWithDatabase('microservice', () => {
 
   it('читает размер страницы из конфига', async () => {
     await using testApp = await buildTest(app, {
-      config: vars({
-        API_TOKEN: 'test-token',
-        WEBHOOK_SECRET: 'test-hook',
-        APP_PAGE_SIZE: '1',
-        DATABASE_URL: TEST_DATABASE_URL ?? '',
-      }),
+      config: [
+        bind(
+          vars({
+            API_TOKEN: 'test-token',
+            WEBHOOK_SECRET: 'test-hook',
+            APP_PAGE_SIZE: '1',
+            DATABASE_URL: TEST_DATABASE_URL ?? '',
+          }),
+        ),
+      ],
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
     });
 
