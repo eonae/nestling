@@ -8,6 +8,7 @@
  */
 
 import { vars } from './config.js';
+import { TestMetrics } from './metrics.js';
 import type { TestOverride, ValidatedOverrides } from './overrides.js';
 import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
@@ -37,6 +38,7 @@ import {
   isApp,
   logConfigKeys,
   makeEmptyContext,
+  MetricsStore$,
   profileAttributes,
   transportNameOf,
 } from '@nestlingjs/app';
@@ -271,6 +273,16 @@ export class TestApp {
     }
 
     return this.#resolveBaseUrl(listener, name);
+  }
+
+  /**
+   * Метрики прогона: снимок store и адресация ряда членом группы.
+   *
+   * Подмены корня не нужно: записи и приложения, и ядра лежат в store
+   * этого приложения.
+   */
+  get metrics(): TestMetrics {
+    return new TestMetrics(this.#wired.container.getOrThrow(MetricsStore$));
   }
 
   /**

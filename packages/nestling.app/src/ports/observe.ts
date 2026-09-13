@@ -8,8 +8,7 @@
  * атрибут `binding`.
  */
 
-import type { MetricAttributes, Metrics } from '../metrics/index.js';
-import { KERNEL_METRICS } from '../metrics/index.js';
+import type { CallAttributes, KernelMetricsWriter } from '../metrics/index.js';
 
 import type { AnyOperation, Emitter, Port } from '@nestlingjs/operations';
 import { isFail } from '@nestlingjs/operations';
@@ -21,7 +20,7 @@ export type PortBinding = 'local' | 'remote';
 const attributesOf = (
   operation: AnyOperation,
   binding: PortBinding,
-): MetricAttributes => ({
+): Omit<CallAttributes, 'outcome'> => ({
   operation: operation.name,
   kind: operation.kind,
   binding,
@@ -29,15 +28,15 @@ const attributesOf = (
 
 /** Пишет счётчик и длительность одного вызова */
 function record(
-  metrics: Metrics,
-  base: MetricAttributes,
-  outcome: 'completed' | 'failed',
+  metrics: KernelMetricsWriter,
+  base: Omit<CallAttributes, 'outcome'>,
+  outcome: CallAttributes['outcome'],
   durationMs: number,
 ): void {
   const attributes = { ...base, outcome };
 
-  metrics.counter(KERNEL_METRICS.portCalls, 1, attributes);
-  metrics.histogram(KERNEL_METRICS.portDuration, durationMs, attributes);
+  metrics['port.calls'].add(1, attributes);
+  metrics['port.duration'].record(durationMs, attributes);
 }
 
 /**
@@ -50,7 +49,7 @@ export function observePort(
   port: Port<any>,
   operation: AnyOperation,
   binding: PortBinding,
-  metrics: Metrics,
+  metrics: KernelMetricsWriter,
 ): Port<any> {
   const base = attributesOf(operation, binding);
 
@@ -89,7 +88,7 @@ export function observeEmitter(
   emitter: Emitter<any>,
   operation: AnyOperation,
   binding: PortBinding,
-  metrics: Metrics,
+  metrics: KernelMetricsWriter,
 ): Emitter<any> {
   const base = attributesOf(operation, binding);
 

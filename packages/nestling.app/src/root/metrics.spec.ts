@@ -1,15 +1,26 @@
 /**
- * Корень метрик приложения: опция корня, токены семейства и запрет второго
- * объявления.
+ * Метрики приложения: каталог сборки, store узлом графа и вклад
+ * `metrics:`.
  *
- * Проверяется та же схема, что у логгера, — и это предмет проверки:
- * приложение узнаёт метрики по уже знакомой форме.
+ * Проверяется сборка целиком: группа подключается вкладом, писателя
+ * раздаёт граф, а накопленное лежит в store — без единой опции корня.
  */
 
-import { spyMetrics } from '../metrics/__fixtures__/spy.js';
-import type { Metrics } from '../metrics/index.js';
-import { Metrics$, RootMetrics$ } from '../metrics/index.js';
+import type { MetricsOf } from '../metrics/index.js';
+import {
+  counter,
+  findSeries,
+  findSeriesOne,
+  histogram,
+  KernelMetrics,
+  makeMetrics,
+  MetricsStore$,
+  open,
+} from '../metrics/index.js';
 import { Ok } from '../pipeline/index.js';
+import type { Port } from '../ports/index.js';
+import { implement } from '../ports/index.js';
+import { wireApp } from '../testing/index.js';
 import { transportValue } from '../transport/index.js';
 
 import {
@@ -18,16 +29,40 @@ import {
   VALUE_ONLY,
 } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
+import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import {
   Component,
   factoryProvider,
+  makeSwitch,
   makeToken,
   valueProvider,
 } from '@nestlingjs/container';
+import { makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
+
+const ChargeCard = makeRequest({
+  name: 'billing.charge',
+  input: z.object({ amount: z.number() }),
+  output: z.object({ chargeId: z.string() }),
+});
+
+const Caller$ = makeToken<{ port: Port<typeof ChargeCard> }>('Caller');
+
+const OrdersMetrics = makeMetrics('orders', {
+  created: counter({
+    help: 'Created orders',
+    attributes: { tier: ['free', 'paid'] },
+  }),
+
+  'checkout.duration': histogram({ unit: 'ms', buckets: [10, 100] }),
+
+  received: counter({ attributes: { queue: open } }),
+});
+
+const QuotasMetrics = makeMetrics('quotas', { claims: counter() });
 
 const asTransport = (transport: MockTransport) =>
   transportValue(TestTransport$('default'), transport, {
@@ -42,92 +77,192 @@ const ping = () =>
     handler: async () => new Ok({ ok: true }),
   });
 
-const Service$ = makeToken<unknown>('Service');
+/** Сервис, который пишет свою метрику при создании экземпляра */
+@Component([OrdersMetrics])
+class OrdersService {
+  constructor(metrics: MetricsOf<typeof OrdersMetrics>) {
+    metrics.created.add(2, { tier: 'paid' });
+    metrics.received.add({ queue: 'mail' });
+  }
+}
 
-/** Провайдер, который пишет счётчик из названного токена семейства */
-const writerOf = (scope: string) =>
-  factoryProvider(
-    Service$,
-    (metrics: Metrics) => {
-      metrics.counter('created');
-
-      return {};
-    },
-    [Metrics$(scope)] as const,
-  );
-
-describe('корень метрик', () => {
-  it('токен семейства добавляет область к записи', async () => {
-    const spy = spyMetrics();
-
-    const app = makeApp({
-      endpoints: [ping()],
-      transports: [asTransport(new MockTransport())],
-      providers: [writerOf('users')],
-      metrics: spy.metrics,
-    }).build();
-
-    await app.run();
-    await app.close();
-
-    expect(spy.records).toContainEqual({
-      kind: 'counter',
-      name: 'created',
-      value: 1,
-      attributes: { scope: 'users' },
-    });
-  });
-
-  it('.auto даёт токена семейства по имени класса-потребителя', async () => {
-    const spy = spyMetrics();
-
-    @Component([Metrics$.auto])
-    class OrdersService {
-      constructor(metrics: Metrics) {
-        metrics.counter('created');
-      }
-    }
-
-    const app = makeApp({
-      endpoints: [ping()],
-      transports: [asTransport(new MockTransport())],
+describe('метрики приложения — вклад и каталог', () => {
+  it('группа фичи попадает в каталог, а писателя даёт граф', async () => {
+    const Orders = makeFeature({
+      name: 'orders',
+      metrics: [OrdersMetrics],
       providers: [OrdersService],
-      metrics: spy.metrics,
-    }).build();
-
-    await app.run();
-    await app.close();
-
-    expect(spy.records).toContainEqual({
-      kind: 'counter',
-      name: 'created',
-      value: 1,
-      attributes: { scope: 'OrdersService' },
+      endpoints: [ping()],
     });
+
+    const app = makeApp({
+      features: [Orders],
+      transports: [asTransport(new MockTransport())],
+    });
+
+    const wired = await wireApp(app);
+    const snapshot = wired.container.getOrThrow(MetricsStore$).snapshot();
+
+    expect(
+      findSeriesOne(snapshot, OrdersMetrics.members.created, { tier: 'paid' }),
+    ).toMatchObject({ value: 2 });
+
+    expect(
+      findSeriesOne(snapshot, OrdersMetrics.members.received, {
+        queue: 'mail',
+      }),
+    ).toMatchObject({ value: 1 });
+
+    await wired.close();
   });
 
-  it('без опции запись проходит и никуда не уходит', async () => {
+  it('группа корня подключается полем makeApp', async () => {
     const app = makeApp({
       endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
-      providers: [writerOf('users')],
-    }).build();
+      metrics: [QuotasMetrics],
+    });
 
-    await expect(app.run()).resolves.toBeUndefined();
-    await app.close();
+    const wired = await wireApp(app);
+
+    expect(
+      wired.container.getOrThrow(MetricsStore$).catalog.metric('quotas.claims'),
+    ).toMatchObject({ kind: 'counter' });
+
+    await wired.close();
   });
 
-  it('провайдер под RootMetrics$ отвергается, называя опцию корня', async () => {
-    const spy = spyMetrics();
+  it('группа невыбранной фичи в каталог не попадает', async () => {
+    const Orders = makeFeature({
+      name: 'orders',
+      metrics: [OrdersMetrics],
+      endpoints: [ping()],
+    });
+    const Quotas = makeFeature({
+      name: 'quotas',
+      metrics: [QuotasMetrics],
+      endpoints: [],
+    });
 
     const app = makeApp({
-      endpoints: [ping()],
+      features: [Orders, Quotas],
       transports: [asTransport(new MockTransport())],
-      providers: [valueProvider(RootMetrics$, spy.metrics)],
-    }).build();
+    });
 
-    await expect(app.run()).rejects.toThrow(
-      /metrics root is set by the 'metrics' option of makeApp/,
+    const wired = await wireApp(app, { args: { features: ['orders'] } });
+    const { catalog } = wired.container.getOrThrow(MetricsStore$);
+
+    expect(catalog.metric('orders.created')).toBeDefined();
+    expect(catalog.metric('quotas.claims')).toBeUndefined();
+
+    await wired.close();
+  });
+
+  it('ветка переключателя меняет каталог', async () => {
+    const Tier = makeSwitch('tier', ['free', 'paid']);
+
+    const Orders = makeFeature({
+      name: 'orders',
+      metrics: [Tier.pick({ free: [], paid: [QuotasMetrics] })],
+      endpoints: [ping()],
+    });
+
+    const app = makeApp({
+      features: [Orders],
+      switches: [Tier],
+      transports: [asTransport(new MockTransport())],
+    });
+
+    const wired = await wireApp(app, { args: { tier: 'free' } });
+
+    expect(
+      wired.container.getOrThrow(MetricsStore$).catalog.metric('quotas.claims'),
+    ).toBeUndefined();
+
+    await wired.close();
+  });
+
+  it('группа запрошена, но не подключена — отказ сборки', async () => {
+    const Orders = makeFeature({
+      name: 'orders',
+      providers: [OrdersService],
+      endpoints: [ping()],
+    });
+
+    const app = makeApp({
+      features: [Orders],
+      transports: [asTransport(new MockTransport())],
+    });
+
+    await expect(wireApp(app)).rejects.toThrow(
+      /Metrics:orders.*declare the group in 'metrics:'/s,
     );
+  });
+});
+
+describe('метрики приложения — store в графе', () => {
+  it('store есть без единой настройки, и метрики ядра в нём', async () => {
+    const app = makeApp({
+      endpoints: [ping()],
+      transports: [asTransport(new MockTransport())],
+    });
+
+    const wired = await wireApp(app);
+    const snapshot = wired.container.getOrThrow(MetricsStore$).snapshot();
+
+    expect(findSeries(snapshot, KernelMetrics.members.requests)).toHaveLength(
+      4,
+    );
+
+    await wired.close();
+  });
+
+  it('ряды вызова порта есть до первого вызова', async () => {
+    const Billing = makeFeature({
+      name: 'billing',
+      endpoints: [
+        implement(ChargeCard, {
+          handler: async () => new Ok({ chargeId: 'c-1' }),
+        }),
+      ],
+      providers: [
+        factoryProvider(
+          Caller$,
+          (port: Port<typeof ChargeCard>) => ({ port }),
+          [ChargeCard.caller],
+        ),
+      ],
+    });
+
+    const app = makeApp({
+      features: [Billing],
+      transports: [asTransport(new MockTransport())],
+    });
+
+    const wired = await wireApp(app);
+    const snapshot = wired.container.getOrThrow(MetricsStore$).snapshot();
+
+    expect(
+      findSeries(snapshot, KernelMetrics.members['port.calls'], {
+        operation: 'billing.charge',
+      }),
+    ).toHaveLength(4);
+    expect(
+      findSeries(snapshot, KernelMetrics.members['port.calls']).every(
+        (series) => series.kind === 'counter' && series.value === 0,
+      ),
+    ).toBe(true);
+
+    await wired.close();
+  });
+
+  it('провайдер под MetricsStore$ отвергается, называя владельца узла', async () => {
+    const app = makeApp({
+      endpoints: [ping()],
+      transports: [asTransport(new MockTransport())],
+      providers: [valueProvider(MetricsStore$, null as never)],
+    });
+
+    await expect(wireApp(app)).rejects.toThrow(/store belongs to the kernel/);
   });
 });

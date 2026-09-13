@@ -13,6 +13,7 @@
  */
 
 import type { LogFieldSpec } from '../logger/index.js';
+import type { AnyMetricsGroup } from '../metrics/index.js';
 import type { AnyEndpointDefinition } from '../pipeline/index.js';
 import { handlerClassOf } from '../pipeline/index.js';
 
@@ -25,6 +26,18 @@ import type {
   SwitchValues,
 } from '@nestlingjs/container';
 import { dependenciesOf, resolveBranches } from '@nestlingjs/container';
+
+/**
+ * Модуль приложения: модуль контейнера плюс вклады слоя приложения.
+ *
+ * Контейнер о метриках не знает и знать не должен, поэтому поле
+ * `metrics:` объявлено здесь: группы читает сборка, а провайдеры модуля
+ * достаются контейнеру без изменений.
+ */
+export interface AppModule extends Module {
+  /** Группы метрик, которые подключает модуль */
+  readonly metrics?: readonly Branchable<AnyMetricsGroup>[];
+}
 
 /**
  * Состав фичи или плагина: не больше одной из двух форм.
@@ -42,7 +55,7 @@ export type BundleComposition =
     }
   | {
       /** Модули единицы; их узлы несут метки своих модулей */
-      readonly modules?: readonly Branchable<Module>[];
+      readonly modules?: readonly Branchable<AppModule>[];
       readonly providers?: undefined;
     };
 
@@ -60,6 +73,15 @@ export interface BundleOptionsBase {
    * обычные провайдеры единицы.
    */
   readonly endpoints?: readonly Branchable<AnyEndpointDefinition>[];
+
+  /**
+   * Группы метрик единицы: их метрики попадают в каталог сборки.
+   *
+   * Вклад, а не саморегистрация: каталог принадлежит сборке, и группы
+   * невыбранной фичи выпадают из него тем же механизмом, что убирает её
+   * провайдеры.
+   */
+  readonly metrics?: readonly Branchable<AnyMetricsGroup>[];
 }
 
 /** Словарь объявления фичи */
@@ -110,10 +132,13 @@ export interface Feature {
    * Ветки переключателей раскрывает фаза BUILD — значения известны ей,
    * а не объявлению.
    */
-  readonly modules: readonly Branchable<Module>[];
+  readonly modules: readonly Branchable<AppModule>[];
 
   /** Endpoint'ы фичи в порядке объявления, возможно с ветками */
   readonly endpoints: readonly Branchable<AnyEndpointDefinition>[];
+
+  /** Группы метрик фичи в порядке объявления, возможно с ветками */
+  readonly metrics: readonly Branchable<AnyMetricsGroup>[];
 }
 
 /**
@@ -130,10 +155,13 @@ export interface Plugin {
   readonly name: string;
 
   /** Модули плагина, возможно с ветками переключателей */
-  readonly modules: readonly Branchable<Module>[];
+  readonly modules: readonly Branchable<AppModule>[];
 
   /** Endpoint'ы плагина в порядке объявления, возможно с ветками */
   readonly endpoints: readonly Branchable<AnyEndpointDefinition>[];
+
+  /** Группы метрик плагина в порядке объявления, возможно с ветками */
+  readonly metrics: readonly Branchable<AnyMetricsGroup>[];
 
   /** Плагины, без которых этот не работает */
   readonly dependsOn: readonly Plugin[];
@@ -160,10 +188,13 @@ export interface ResolvedBundle {
   readonly name: string;
 
   /** Модули единицы после раскрытия веток */
-  readonly modules: readonly Module[];
+  readonly modules: readonly AppModule[];
 
   /** Endpoint'ы единицы после раскрытия веток */
   readonly endpoints: readonly AnyEndpointDefinition[];
+
+  /** Группы метрик единицы после раскрытия веток */
+  readonly metrics: readonly AnyMetricsGroup[];
 
   /** Поля корреляции; объявляет их только плагин */
   readonly logFields: readonly LogFieldSpec[];
@@ -191,6 +222,7 @@ export function resolveBundle(
     name: bundle.name,
     modules: resolveBranches(bundle.modules, values, missing),
     endpoints: resolveBranches(bundle.endpoints, values, missing),
+    metrics: resolveBranches(bundle.metrics, values, missing),
     logFields: bundle.role === 'plugin' ? bundle.logFields : [],
   };
 }
@@ -200,14 +232,15 @@ function normalize(
   constructorName: 'makeFeature' | 'makePlugin',
   options: BundleOptionsBase & {
     readonly providers?: readonly Branchable<ModuleProvider>[];
-    readonly modules?: readonly Branchable<Module>[];
+    readonly modules?: readonly Branchable<AppModule>[];
   },
 ): {
   name: string;
-  modules: readonly Branchable<Module>[];
+  modules: readonly Branchable<AppModule>[];
   endpoints: readonly Branchable<AnyEndpointDefinition>[];
+  metrics: readonly Branchable<AnyMetricsGroup>[];
 } {
-  const { name, providers, modules, endpoints = [] } = options;
+  const { name, providers, modules, endpoints = [], metrics = [] } = options;
 
   if (typeof name !== 'string' || name.trim().length === 0) {
     throw new Error(
@@ -229,14 +262,26 @@ function normalize(
     );
   }
 
+  if (!Array.isArray(metrics)) {
+    throw new TypeError(
+      `${constructorName}({ name: '${name}' }): 'metrics' must be an array of ` +
+        `metric groups — values returned by makeMetrics(), not their names.`,
+    );
+  }
+
   // Плоская форма нормализуется в один модуль с именем единицы: дальше
   // состав однороден, и карта «модуль → владелец» строится одинаково.
   // Ветки остаются в списке провайдеров: их раскроет контейнер
-  const own: readonly Branchable<Module>[] = providers
+  const own: readonly Branchable<AppModule>[] = providers
     ? [{ name, providers: [...providers] }]
     : [...(modules ?? [])];
 
-  return { name, modules: own, endpoints: [...endpoints] };
+  return {
+    name,
+    modules: own,
+    endpoints: [...endpoints],
+    metrics: [...metrics],
+  };
 }
 
 /**
@@ -257,13 +302,17 @@ function normalize(
  * @throws {Error} Пустое имя или не ровно одна форма состава
  */
 export function makeFeature(options: FeatureOptions): Feature {
-  const { name, modules, endpoints } = normalize('makeFeature', options);
+  const { name, modules, endpoints, metrics } = normalize(
+    'makeFeature',
+    options,
+  );
 
   return Object.freeze({
     role: 'feature' as const,
     name,
     modules: Object.freeze(modules),
     endpoints: Object.freeze(endpoints),
+    metrics: Object.freeze(metrics),
   });
 }
 
@@ -290,7 +339,10 @@ export function makeFeature(options: FeatureOptions): Feature {
  * `dependsOn`
  */
 export function makePlugin(options: PluginOptions): Plugin {
-  const { name, modules, endpoints } = normalize('makePlugin', options);
+  const { name, modules, endpoints, metrics } = normalize(
+    'makePlugin',
+    options,
+  );
   const dependsOn = options.dependsOn ?? [];
   const logFields = options.logFields ?? [];
 
@@ -323,6 +375,7 @@ export function makePlugin(options: PluginOptions): Plugin {
     name,
     modules: Object.freeze(modules),
     endpoints: Object.freeze(endpoints),
+    metrics: Object.freeze(metrics),
     dependsOn: Object.freeze([...dependsOn]),
     logFields: Object.freeze([...logFields]),
   });
@@ -445,9 +498,9 @@ export function resolveSelection(
  * ошибка. Молчаливый пропуск одноимённого модуля потерял бы его
  * провайдеры, и «обнаружено» разошлось бы с «собрано».
  */
-export function modulesOf(bundles: readonly ResolvedBundle[]): Module[] {
-  const byName = new Map<string, Module>();
-  const modules: Module[] = [];
+export function modulesOf(bundles: readonly ResolvedBundle[]): AppModule[] {
+  const byName = new Map<string, AppModule>();
+  const modules: AppModule[] = [];
 
   for (const bundle of bundles) {
     for (const module of bundle.modules) {
@@ -489,11 +542,11 @@ export function modulesOf(bundles: readonly ResolvedBundle[]): Module[] {
 export function reachableModules(
   bundle: ResolvedBundle,
   values: SwitchValues,
-): Module[] {
-  const seen = new Set<Module>();
-  const found: Module[] = [];
+): AppModule[] {
+  const seen = new Set<AppModule>();
+  const found: AppModule[] = [];
 
-  const visit = (module: Module): void => {
+  const visit = (module: AppModule): void => {
     if (seen.has(module)) {
       return;
     }

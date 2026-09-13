@@ -11,7 +11,7 @@
 
 import type { Binding } from '../config/index.js';
 import type { LogFieldSpec } from '../logger/index.js';
-import type { Metrics } from '../metrics/index.js';
+import type { AnyMetricsGroup } from '../metrics/index.js';
 import type {
   AnyEndpointDefinition,
   Policy,
@@ -28,7 +28,7 @@ import type {
 
 import type { BuildArgs } from './args.js';
 import { RESERVED_ARG_FIELDS } from './args.js';
-import type { Feature, Plugin, ResolvedBundle } from './feature.js';
+import type { AppModule, Feature, Plugin, ResolvedBundle } from './feature.js';
 import { resolveSelection } from './feature.js';
 
 import type {
@@ -36,7 +36,6 @@ import type {
   Branchable,
   BuiltContainer,
   FamilyOverrideEntry,
-  Module,
   ModuleProvider,
   Provider,
   TokenOverride,
@@ -125,16 +124,6 @@ export interface AppSpecCommon<
   logging?: LoggingOptions;
 
   /**
-   * Корень метрик приложения — готовое значение.
-   *
-   * Единственный способ заменить пустую реализацию ядра: провайдер под
-   * `RootMetrics$` в `providers:` становится ошибкой дубля. Опция и
-   * включает инструментовку ядра: без неё рантайм не снимает время и не
-   * вызывает методы записи, а токены семейства `Metrics$(scope)` пишут в никуда.
-   */
-  metrics?: Metrics;
-
-  /**
    * Транспорты корня — объявления экземпляров (`http()`, `cli()`,
    * `nats({ name: 'events' })`).
    *
@@ -162,6 +151,14 @@ export interface AppSpecCommon<
    * без инвариантов собирается ровно как прежде.
    */
   policies?: readonly Policy[];
+
+  /**
+   * Группы метрик корня: их метрики попадают в каталог сборки.
+   *
+   * Поле того же смысла, что `metrics:` у фичи, модуля и плагина.
+   * Приложение, у которого метрики принадлежат фиче, объявляет их там.
+   */
+  metrics?: readonly Branchable<AnyMetricsGroup>[];
 }
 
 /**
@@ -197,7 +194,7 @@ export type AppSpec<
       endpoints: readonly Branchable<AnyEndpointDefinition>[];
 
       /** Модули корня; их узлы несут метки своих модулей */
-      modules?: readonly Branchable<Module>[];
+      modules?: readonly Branchable<AppModule>[];
 
       providers?: never;
       features?: never;
@@ -261,8 +258,8 @@ export interface NormalizedAppSpec {
   /** Логирование корня; без опции — штатный логгер и умолчание полей */
   readonly logging?: LoggingOptions;
 
-  /** Корень метрик; без него им служит пустая реализация ядра */
-  readonly metrics?: Metrics;
+  /** Группы метрик корня, возможно с ветками переключателей */
+  readonly metrics: readonly Branchable<AnyMetricsGroup>[];
 }
 
 /**
@@ -594,7 +591,7 @@ function normalizeSwitches(values: unknown): readonly AnySwitch[] {
 function normalizeRoot(spec: {
   endpoints?: readonly Branchable<AnyEndpointDefinition>[];
   providers?: readonly Branchable<ModuleProvider>[];
-  modules?: readonly Branchable<Module>[];
+  modules?: readonly Branchable<AppModule>[];
 }): Feature | undefined {
   if (spec.endpoints === undefined) {
     return undefined;
@@ -606,7 +603,7 @@ function normalizeRoot(spec: {
     );
   }
 
-  const modules: readonly Branchable<Module>[] = spec.providers
+  const modules: readonly Branchable<AppModule>[] = spec.providers
     ? [{ name: ROOT_STEP_NAME, providers: [...spec.providers] }]
     : [...(spec.modules ?? [])];
 
@@ -615,6 +612,7 @@ function normalizeRoot(spec: {
     name: ROOT_STEP_NAME,
     modules: Object.freeze(modules),
     endpoints: Object.freeze([...spec.endpoints]),
+    metrics: Object.freeze([]),
   });
 }
 
@@ -665,7 +663,7 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
     ...(intercom ? { intercom } : {}),
     policies: [...(spec.policies ?? [])],
     ...(spec.logging ? { logging: spec.logging } : {}),
-    ...(spec.metrics ? { metrics: spec.metrics } : {}),
+    metrics: [...(spec.metrics ?? [])],
   };
 }
 

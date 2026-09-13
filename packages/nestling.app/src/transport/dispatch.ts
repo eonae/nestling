@@ -10,7 +10,8 @@
  */
 
 import { defaultLogger } from '../logger/standalone.js';
-import type { Metrics } from '../metrics/interface.js';
+import type { KernelMetricsWriter } from '../metrics/index.js';
+import { defaultMetrics } from '../metrics/standalone.js';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -52,9 +53,9 @@ export interface DispatchOptions {
 /**
  * Опции `makeDispatch`: то, что принадлежит таблице маршрутов, а не вызову.
  *
- * Логгер и метрики хранятся здесь, а не передаются в `call`: у сборки они
- * есть по одному разу, а транспорту ради одного вызова не нужна
- * зависимость ни от того, ни от другого.
+ * Логгер и писатель метрик хранятся здесь, а не передаются в `call`: у
+ * сборки они есть по одному разу, а транспорту ради одного вызова не
+ * нужна зависимость ни от того, ни от другого.
  */
 export interface MakeDispatchOptions {
   /**
@@ -65,11 +66,10 @@ export interface MakeDispatchOptions {
   logger?: Logger;
 
   /**
-   * Метрики обработки запроса. Поле заполняет корень, и только когда
-   * приложение задало реализацию опцией `makeApp({ metrics })`: без неё
-   * рантайм пайплайна инструментовку не включает.
+   * Писатель метрик ядра. Заполняет его корень; без него рантайм пишет в
+   * standalone-store — инструментовка условной не бывает.
    */
-  metrics?: Metrics;
+  metrics?: KernelMetricsWriter;
 }
 
 /**
@@ -158,7 +158,7 @@ const emptyPipeline = makePipeline() as Pipeline<AnyInput, AnyInput, never>;
  * `endpoint.resolve(resolver)` (под `App` это делает фаза WIRE).
  *
  * @param endpoints - Исполнимые декларации одного транспорта
- * @param options - Логгер незадекларированных отказов и метрики ядра
+ * @param options - Логгер незадекларированных отказов и писатель метрик
  * @returns Диспетчер: проекции маршрутов и исполнение по паттерну
  *
  * @example
@@ -174,20 +174,19 @@ export function makeDispatch(
   const table = new Map<string, AnyEndpointDefinition>();
   const routes: RouteDeclaration[] = [];
   const logger = options.logger ?? defaultLogger;
-  const { metrics } = options;
+  const metrics = options.metrics ?? defaultMetrics();
 
   // Опции рантайма собраны заранее: горячий путь не создаёт объект на
-  // каждый вызов, а политика раскрытия ошибок принимает два значения.
-  // Поля `metrics` нет вовсе, пока приложение не задало реализацию
+  // каждый вызов, а политика раскрытия ошибок принимает два значения
   const exposing: ExecuteOptions = {
     exposeErrorDetails: true,
     logger,
-    ...(metrics === undefined ? {} : { metrics }),
+    metrics,
   };
   const concealing: ExecuteOptions = {
     exposeErrorDetails: false,
     logger,
-    ...(metrics === undefined ? {} : { metrics }),
+    metrics,
   };
 
   for (const definition of endpoints) {

@@ -1,87 +1,98 @@
 /**
- * `spyMetrics()`: записи значениями и подмена корня в тестовом прогоне.
+ * Метрики тестового прогона: тест читает снимок store.
  *
- * Подмена делает две вещи сразу — перехватывает записи приложения и
- * включает инструментовку ядра: под корнем оказывается не пустая
- * реализация.
+ * Подмены корня нет и не нужно: записи приложения и записи ядра лежат в
+ * одном store, а ряд адресуется членом группы.
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { buildTest } from './app.js';
-import { spyMetrics } from './metrics.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { ITransport, Metrics } from '@nestlingjs/app';
+import type { ITransport, MetricsOf } from '@nestlingjs/app';
 import {
+  counter,
+  histogram,
+  KernelMetrics,
   makeApp,
   makeFeature,
-  Metrics$,
+  makeMetrics,
   Ok,
-  RootMetrics$,
+  open,
   transportValue,
 } from '@nestlingjs/app';
 import { Component } from '@nestlingjs/container';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
+const UsersMetrics = makeMetrics('users', {
+  created: counter({
+    help: 'Created users',
+    attributes: { tier: ['free', 'paid'], source: open },
+  }),
+
+  'create.duration': histogram({ unit: 'ms', buckets: [10, 100] }),
+});
+
 const asHttpTransport = (transport: ITransport) =>
   transportValue(HttpTransport$('default'), transport, {
     capabilities: HTTP_LIKE,
   });
 
-describe('spyMetrics — записи значениями', () => {
-  it('копит обе формы записи', () => {
-    const spy = spyMetrics();
+@Component([UsersMetrics])
+class UsersService {
+  constructor(private readonly metrics: MetricsOf<typeof UsersMetrics>) {}
 
-    spy.metrics.counter('orders.created');
-    spy.metrics.counter('orders.created', 3, { tenant: 'acme' });
-    spy.metrics.histogram('db.query', 12, { table: 'users' });
+  create(): void {
+    this.metrics.created.add({ tier: 'paid', source: 'web' });
+    this.metrics['create.duration'].record(42);
+  }
+}
 
-    expect(spy.records).toEqual([
-      { kind: 'counter', name: 'orders.created', value: 1, attributes: {} },
-      {
-        kind: 'counter',
-        name: 'orders.created',
-        value: 3,
-        attributes: { tenant: 'acme' },
-      },
-      {
-        kind: 'histogram',
-        name: 'db.query',
-        value: 12,
-        attributes: { table: 'users' },
-      },
-    ]);
+const usersApp = () =>
+  makeApp({
+    features: [
+      makeFeature({
+        name: 'users',
+        metrics: [UsersMetrics],
+        providers: [UsersService],
+      }),
+    ],
   });
-});
 
-describe('spyMetrics — подмена корня', () => {
-  it('перехватывает записи токена семейства вместе с областью', async () => {
-    @Component([Metrics$.auto])
-    class UsersService {
-      constructor(private readonly metrics: Metrics) {}
-
-      create(): void {
-        this.metrics.counter('created');
-      }
-    }
-
-    const app = makeApp({
-      features: [makeFeature({ name: 'users', providers: [UsersService] })],
-    });
-
-    const spy = spyMetrics();
-    await using testApp = await buildTest(app, {
-      overrides: [[RootMetrics$, spy.metrics]],
-    });
+describe('метрики тестового приложения', () => {
+  it('запись сервиса видна тесту', async () => {
+    await using testApp = await buildTest(usersApp());
 
     testApp.get(UsersService)?.create();
 
-    expect(spy.records).toContainEqual({
-      kind: 'counter',
-      name: 'created',
-      value: 1,
-      attributes: { scope: 'UsersService' },
+    expect(
+      testApp.metrics.counter(UsersMetrics.members.created, { tier: 'paid' }),
+    ).toBe(1);
+  });
+
+  it('ряд, в который не писали, читается нулём', async () => {
+    await using testApp = await buildTest(usersApp());
+
+    expect(
+      testApp.metrics.counter(UsersMetrics.members.created, { tier: 'free' }),
+    ).toBe(0);
+  });
+
+  it('гистограмма читается агрегатом', async () => {
+    await using testApp = await buildTest(usersApp());
+
+    testApp.get(UsersService)?.create();
+
+    expect(
+      testApp.metrics.histogram(UsersMetrics.members['create.duration']),
+    ).toMatchObject({
+      count: 1,
+      sum: 42,
+      buckets: [
+        { le: 10, count: 0 },
+        { le: 100, count: 1 },
+      ],
     });
   });
 
@@ -96,23 +107,33 @@ describe('spyMetrics — подмена корня', () => {
       transports: [asHttpTransport(new SpyTransport())],
     });
 
-    const spy = spyMetrics();
-    await using testApp = await buildTest(app, {
-      overrides: [[RootMetrics$, spy.metrics]],
-    });
+    await using testApp = await buildTest(app);
 
     await testApp.call(Ping);
 
-    expect(spy.records).toContainEqual(
-      expect.objectContaining({
-        kind: 'counter',
-        name: 'nestling.requests',
-        attributes: expect.objectContaining({
-          transport: 'http',
-          pattern: 'GET /ping',
-          outcome: 'completed',
-        }),
+    expect(
+      testApp.metrics.counter(KernelMetrics.members.requests, {
+        transport: 'http',
+        pattern: 'GET /ping',
+        outcome: 'completed',
       }),
-    );
+    ).toBe(1);
+  });
+
+  it('снимок несёт ряды прогона: заведённые сборкой и появившиеся записью', async () => {
+    await using testApp = await buildTest(usersApp());
+
+    const namesOf = () =>
+      testApp.metrics
+        .snapshot()
+        .map(({ name }) => name)
+        .filter((name) => name.startsWith('users.'));
+
+    // У `created` есть открытый атрибут, поэтому её рядов до записи нет
+    expect(namesOf()).toEqual(['users.create.duration']);
+
+    testApp.get(UsersService)?.create();
+
+    expect(namesOf()).toEqual(['users.created', 'users.create.duration']);
   });
 });
