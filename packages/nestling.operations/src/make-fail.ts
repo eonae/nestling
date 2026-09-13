@@ -11,7 +11,7 @@ import { validateSync } from '@nestlingjs/common.misc';
  *
  * Это структурный тип, а не `ResponseContext` из `@nestlingjs/app`:
  * пакет операций не импортирует серверный код. `ResponseContext`
- * удовлетворяет этому типу, поэтому сужение в `.catch`-юните работает.
+ * удовлетворяет этому типу, поэтому сужение в `.catch`-шаге работает.
  *
  * Тип принимает обе ветки `isSuccess`. Иначе перегрузка `is` не подошла бы
  * под `ResponseContext`, и вызов ушёл бы в вариант с `unknown`.
@@ -81,7 +81,7 @@ export interface FailDefinitionProps<
    *
    * Две перегрузки: код отказа приходит либо значением `Fail` (в том числе
    * разобранным из JSON, без прототипа), либо контекстом ответа-ошибки,
-   * который видит `.catch`-юнит.
+   * который видит `.catch`-шаг.
    */
   is(value: ResponseLike): value is FailResponseOf<TCode, TDetails>;
   is(value: unknown): value is DeclaredFail<TCode, TDetails>;

@@ -1,7 +1,7 @@
 # @nestlingjs/container
 
 A dependency container on standard ECMAScript decorators, with a full
-check of the graph at assembly. `build()` builds the graph and stops on a
+check of the graph at build. `build()` builds the graph and stops on a
 missing dependency, a cycle or a class of the wrong role. `init()`
 creates the instances, as a whole and in topological order. It is the
 basis of the other Nestling packages, and it also works on its own.
@@ -58,7 +58,7 @@ await container.destroy();
 - **DI tokens and common** ([design](../../docs/en/design/container.md)) —
   `Constructor`, `InjectionToken`, `isToken`, `makeToken`, `Token`,
   `tokenId`, `UnwrapInjectionTokens`.
-- **Container assembly** — `BuiltContainer`, `ContainerBuilder`,
+- **Container build** — `BuiltContainer`, `ContainerBuilder`,
   `ContainerBuilderOptions`, `FamilyOverrideEntry`, `HealthResource`,
   `TokenOverride`.
 - **Providers** — `asFamilyMember`, `classProvider`, `Component`,

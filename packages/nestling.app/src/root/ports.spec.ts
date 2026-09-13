@@ -2,7 +2,7 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
- * Порты под `assemble`: две фичи, общающиеся операцией, шаг связывания в
+ * Порты под `build`: две фичи, общающиеся операцией, шаг связывания в
  * WIRE и обе политики диспатча — переключаемые конфигом, а не кодом.
  */
 
@@ -167,7 +167,7 @@ const portsConfig = (dispatch?: 'local-first' | 'always-remote') =>
     ],
   ] as const;
 
-describe('assemble — порты', () => {
+describe('build — порты', () => {
   beforeEach(() => {
     charged = [];
     notified = [];
@@ -182,7 +182,7 @@ describe('assemble — порты', () => {
       features: [OrdersFeature, BillingFeature],
       transports: [asTransport(transport)],
       config: portsConfig(dispatch),
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -241,9 +241,9 @@ describe('assemble — порты', () => {
 
     expect(report.transports).toEqual(['test']);
 
-    const assembled = app.assemble();
-    await assembled.run();
-    await assembled.close();
+    const built = app.build();
+    await built.run();
+    await built.close();
   });
 
   it('`select` без фичи-владельца роняет сборку на WIRE', async () => {
@@ -253,7 +253,7 @@ describe('assemble — порты', () => {
       features: [LonelyFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /'app\.lonely\.request'.*no selected feature implements it/s,
@@ -302,7 +302,7 @@ describe('assemble — порты', () => {
       features: [WarmupFeature, BillingFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -358,7 +358,7 @@ describe('assemble — порты', () => {
       features: [NotifierFeature, BillingFeature],
       transports: [asTransport(transport)],
       config: portsConfig(),
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -383,7 +383,7 @@ describe('assemble — порты', () => {
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
       logger: degradedProbe.logger,
-    }).assemble();
+    }).build();
 
     await degraded.run();
     await degraded.close();
@@ -404,7 +404,7 @@ describe('assemble — порты', () => {
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
       logger: plainProbe.logger,
-    }).assemble();
+    }).build();
 
     await plain.run();
     await plain.close();
@@ -426,7 +426,7 @@ describe('assemble — порты', () => {
       ],
       intercom: 'events',
       config: portsConfig(),
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -454,7 +454,7 @@ describe('assemble — порты', () => {
       ],
       intercom: 'events',
       config: portsConfig(),
-    }).assemble();
+    }).build();
 
     // Ни одной реализации операции в сборке нет, а вызыватель есть:
     // владелец живёт в другом процессе, и это больше не ошибка сборки
@@ -468,7 +468,7 @@ describe('assemble — порты', () => {
       features: [LonelyFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /'app\.lonely\.request'.*no selected feature implements it/s,

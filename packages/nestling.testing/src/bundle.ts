@@ -1,9 +1,9 @@
 /**
- * `testUnit` — одна фича или один плагин в изоляции.
+ * `testBundle` — одна фича или один плагин в изоляции.
  */
 
 import type { TestApp, TestStub } from './app.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 
 import type {
   Bundle,
@@ -12,8 +12,8 @@ import type {
 } from '@nestlingjs/app';
 import { makeApp } from '@nestlingjs/app';
 
-/** Словарь `testUnit` */
-export interface TestUnitOptions {
+/** Словарь `testBundle` */
+export interface TestBundleOptions {
   /**
    * Поставка недостающего: пары `DI-токен → значение` и стабы операций.
    *
@@ -42,7 +42,7 @@ export interface TestUnitOptions {
  * Регистрируются: сама единица (с её модулями и их `dependsOn`),
  * kernel-модуль конфига (его корень регистрирует всегда) и перечисленные
  * стабы. Дальше — те же фазы 0–3 и тот же {@link TestApp}, что у
- * `assembleTest`.
+ * `buildTest`.
  *
  * Живёт внутри пакета единицы, поэтому её внутренние DI-токены видны тесту
  * без добавления в публичный экспорт.
@@ -51,29 +51,31 @@ export interface TestUnitOptions {
  * ошибкой, перечисляющей **все** недостающие DI-токены с потребителем
  * каждого, а не первый попавшийся.
  *
- * @param unit - Фича или плагин под тестом
+ * @param bundle - Фича или плагин под тестом
  * @param options - Стабы, конфиг и транспорты
  * @returns Приложение с `call`/`get`/`close`
  *
  * @example
  * ```typescript
- * await using app = await testUnit(UsersFeature, {
+ * await using app = await testBundle(UsersFeature, {
  *   stubs: [[ILogger, noopLogger], stub(ChargeCard, async () => ({ id: 'c1' }))],
  *   transports: [http()],
  * });
  * ```
  */
-export async function testUnit(
-  unit: Bundle,
-  options: TestUnitOptions = {},
+export async function testBundle(
+  bundle: Bundle,
+  options: TestBundleOptions = {},
 ): Promise<TestApp> {
   // Мини-декларация вокруг единицы: тот же `makeApp`, что и в бою
   const app = makeApp({
-    ...(unit.role === 'plugin' ? { plugins: [unit] } : { features: [unit] }),
+    ...(bundle.role === 'plugin'
+      ? { plugins: [bundle] }
+      : { features: [bundle] }),
     transports: options.transports ?? [],
   });
 
-  return await assembleTest(app, {
+  return await buildTest(app, {
     stubs: options.stubs,
     config: options.config,
   });

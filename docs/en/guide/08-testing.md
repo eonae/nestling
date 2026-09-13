@@ -1,6 +1,6 @@
 # 8. Make sure it works without starting a server
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/testing.md](../design/testing.md). Why: entry
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
@@ -19,10 +19,10 @@ export const app = makeApp({
 });
 ```
 
-The test must assemble the same application as `main.ts` — its whole
+The test must build the same application as `main.ts` — its whole
 composition. The declaration therefore lives in a separate file, and
 `main.ts` and the tests import the same `app` value. The test does not copy
-the composition dictionary: `assembleTest` accepts the declaration itself.
+the composition dictionary: `buildTest` accepts the declaration itself.
 
 ```typescript
 // src/app.spec.ts
@@ -36,7 +36,7 @@ const testConfig = vars({
 ```
 
 The test sets only what belongs to the run: overrides, the feature selection
-and the config. There is no need to replace transports: the test assembly
+and the config. There is no need to replace transports: the test build
 does not run START, so the socket does not open and the port stays free.
 
 The database in this suite is real. The pool opens on the INIT phase, and
@@ -73,7 +73,7 @@ the condition with the `--conditions=testing` flag.
 ```typescript
 // src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
@@ -83,12 +83,12 @@ it('отдаёт пользователя через полный пайплай
 });
 ```
 
-`assembleTest(app, options)` assembles the same declaration and runs the
+`buildTest(app, options)` builds the same declaration and runs the
 application through the phases up to `WIRE`: the graph is built, the
 policies are checked the same way as at start, the instances are created,
-the resources are acquired, the routing table is built. The test assembly
-does not relax them: an application that does not assemble in production
-does not assemble in the test either. The socket does not open, and no
+the resources are acquired, the routing table is built. The test build
+does not relax them: an application that does not build in production
+does not build in the test either. The socket does not open, and no
 signal handlers are set. `await using` closes the application at the end of
 the test. The variable is named `testApp` so that it does not shadow `app`
 from `app.ts`.
@@ -137,7 +137,7 @@ compiling in the same commit.
 ```typescript
 // src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
@@ -151,7 +151,7 @@ it('не создаёт узлы, которые нужны только под�
 
 `overrides` replaces a graph node by DI token. The pair in it is typed, so a
 fake that does not match the type of the DI token does not compile, and an
-override of a DI token missing from the graph stops the assembly. The
+override of a DI token missing from the graph stops the build. The
 override happens before the instances are created, so a subtree that nobody
 needs anymore falls out of the graph. Only the production repository
 depends on the logger and the `Ctx(RequestId)` reader: after the override
@@ -165,7 +165,7 @@ only consumer falls out — and this is visible as a value, not a guess.
 ```typescript
 // src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: vars({
       API_TOKEN: 'test-token',
       APP_PAGE_SIZE: '1',

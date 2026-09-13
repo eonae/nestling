@@ -91,7 +91,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature],
       transports: [asTransport(new MockTransport())],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -107,7 +107,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -124,7 +124,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
       transports: [asTransport(new MockTransport())],
-    }).assemble('discovery-users');
+    }).build('discovery-users');
 
     await app.run();
 
@@ -137,7 +137,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
       transports: [asTransport(new MockTransport())],
-    }).assemble('all');
+    }).build('all');
 
     await app.run();
 
@@ -150,7 +150,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature],
       transports: [asTransport(new MockTransport())],
-    }).assemble();
+    }).build();
 
     await app.run();
     const discovery = observed();

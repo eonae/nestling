@@ -13,7 +13,7 @@
 > [deferred](../../decisions/deferred.md).
 > `[2026-09-03] Код отказа: категория и уточнение; makeFail`,
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`,
-> `[2026-09-03] Декларация приложения: makeApp, assemble(select), AssembledApp`.
+> `[2026-09-03] Декларация приложения: makeApp, build(select), BuiltApp`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 An operation is the unit of communication between features: a name, a
@@ -141,7 +141,7 @@ package keeps module-level state: the DI token family members of the
 callers and the registry of operation names. Two copies give two
 registries and two DI token identities, and an operation declared
 through the first copy is not recognized by the second one. The
-assembly reports this with a duplicate-name error. In a monorepo with
+build reports this with a duplicate-name error. In a monorepo with
 the workspace protocol, there is one copy by construction; outside it,
 the consumer pins the version of the package.
 
@@ -273,7 +273,7 @@ graph node appears only for operations that someone injects.
 
 The nature of the bus affects binding this way. On a remote bus, a
 `request`/`command` with no implementation in this process binds
-remote, and the assembly does not fail. There is no check of the
+remote, and the build does not fail. There is no check of the
 cluster composition: an unreachable owner at runtime is an ordinary
 delivery failure. An `event` on a remote bus always goes through the
 bus: the set of subscribers is open, and part of it lives in other
@@ -315,9 +315,9 @@ validated on both paths. Consistency between features is provided by
 events plus an outbox (§2.6) or a saga
 ([deferred](../../decisions/deferred.md)), not by a shared transaction.
 
-### 2.5. Assembly errors
+### 2.5. Build errors
 
-The assembly fails when: a `request`/`command` has no implementation in
+The build fails when: a `request`/`command` has no implementation in
 the process and no remote binding; an operation has two owners; an
 event has two subscribers with the same name; a port operation declares
 a `stream` or `events` shape. An event with no subscribers is allowed.
@@ -369,7 +369,7 @@ reason is in the driver: the adapter and the transaction must be on the
 same connection, and the package that carries the transaction layer
 must carry the driver.
 
-The absence of a transaction is caught on the ASSEMBLE phase: the
+The absence of a transaction is caught on the BUILD phase: the
 plugin gives out a policy as a value, the predicate is `hasVar` over
 the passed variable ([pipeline.md](./pipeline.md)). `emit` outside a
 transaction ends with an error; there is no mode of "send directly if
@@ -400,7 +400,7 @@ deliveries of the same message and would always look new. A message
 with no key in the envelope ends with an error.
 
 The precondition is the same as for the outbox: the transaction
-variable of the application and the policy on the ASSEMBLE phase. The
+variable of the application and the policy on the BUILD phase. The
 predicate of the policy here is `hasLayer`: the layer belongs to the
 package, and the endpoint is checked for descent from this value. For
 an effect outside the transaction, the layer only narrows the retry
@@ -442,7 +442,7 @@ with `durable` operations on such a bus starts, but prints a line at
 start with the list of operations served without durability, the same
 way as the list of `detached` endpoints.
 
-The dispatch policy is chosen at assembly:
+The dispatch policy is chosen at build:
 
 - `local-first` — an implementation from the same process is called
   directly, the rest go through the bus;
@@ -499,10 +499,10 @@ without being one. The key is stable across repeated deliveries of one
 in the envelope of the bus (a header, in NATS). A satellite package on
 the handler's side does the deduplication
 ([`@nestlingjs/inbox`](../../../packages/nestling.inbox/), §2.6); the
-kernel only guarantees delivering the key to the handler and the units.
+kernel only guarantees delivering the key to the handler and the steps.
 
 The channel through which such a layer answers "already handled" is
-given by the kernel as a shared one: a pre-unit finishes the endpoint
+given by the kernel as a shared one: a pre-step finishes the endpoint
 with an early success ([pipeline.md §2](./pipeline.md)). There is no
 key, no storage and no retry in this channel itself, it belongs to the
 pipeline.
@@ -533,7 +533,7 @@ The first channel, unconditional, is `ctx.raw.attributes` (next to
 `subject`). The second is the asynchronous context variables `Deadline`
 and `IdempotencyKey`, with the standard writers `withDeadline()` and
 `withIdempotencyKey()`. The variables are exported as values, so the
-presence of the profile is checked at assembly:
+presence of the profile is checked at build:
 `everyEndpoint(…).hasVar(IdempotencyKey)`. A nested call does not
 inherit the budget, the same way it does not inherit `meta.signal`; a
 handler that hands the remainder further on passes it explicitly.
@@ -555,9 +555,9 @@ The trace is propagated by the same mechanism: the kernel variable
 `Trace` is declared with `{ propagate: true }`, and its value travels in
 the `trace` field of the envelope. On receipt, the standard writer
 `withTracing()` ([pipeline.md §3](./pipeline.md)) returns it into the
-context, not `Trace.propagated()`: the same unit continues the trace
+context, not `Trace.propagated()`: the same step continues the trace
 over HTTP too, so the implementation of an operation and an HTTP
-endpoint are assembled from one layer.
+endpoint are built from one layer.
 
 ## 5. The external client: `makeClient`
 
@@ -580,7 +580,7 @@ const result = await api.createUser({ ... });
 
 - The type of the call is the same as for a port: `Ok | Fail`, the
   closed set `E ∪ InternalError`.
-- The request is assembled by the bind map of the operation (path,
+- The request is built by the bind map of the operation (path,
   query, body). The response is checked against the `output` schema
   through `~standard.validate`; the consumer brings the validator.
 - Failures are restored by `code` from `errors:`; an unfamiliar code

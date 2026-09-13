@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты: политика проверяет происхождение слоя, а не его эффект */
+ * noop-шаги: политика проверяет происхождение слоя, а не его эффект */
 /**
- * Инварианты в тестовом корне: `assembleTest` и матрица топологий гоняют
+ * Инварианты в тестовом корне: `buildTest` и матрица топологий гоняют
  * те же политики, что бой.
  *
  * Тестовый прогон инварианты не ослабляет — приложение, которое не
@@ -9,7 +9,7 @@
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -50,7 +50,7 @@ const Unauthed = httpEndpoint.get('/admin/users', {
   handler: async () => new Ok({ users: [] }),
 });
 
-describe('assembleTest — инварианты', () => {
+describe('buildTest — инварианты', () => {
   it('нарушение отклоняет сборку тем же сообщением, что и в бою', async () => {
     const events: string[] = [];
 
@@ -62,7 +62,7 @@ describe('assembleTest — инварианты', () => {
     }
 
     await expect(
-      assembleTest(
+      buildTest(
         makeApp({
           features: [
             makeFeature({
@@ -75,13 +75,13 @@ describe('assembleTest — инварианты', () => {
           policies: [hasAuth()],
         }),
       ),
-    ).rejects.toThrow(/assembly policies[\S\s]*GET \/admin\/users/);
+    ).rejects.toThrow(/build policies[\S\s]*GET \/admin\/users/);
 
     expect(events).toEqual([]);
   });
 
   it('приложение под соблюдёнными политиками собирается', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({ name: 'module:profile', endpoints: [Authed] }),

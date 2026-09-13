@@ -9,13 +9,13 @@
 > Deferred (`header()`, typed response headers):
 > [deferred](../../decisions/deferred.md),
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
-> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-юнитов`,
+> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-шагов`,
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`,
 > `[2026-09-04] Две формы хендлера: функция без зависимостей и класс`,
-> `[2026-09-04] Отказы слоя: объявление в .pre(unit, { errors }), канал return у pre-юнита, эффективное множество errors`,
+> `[2026-09-04] Отказы слоя: объявление в .pre(step, { errors }), канал return у pre-шага, эффективное множество errors`,
 > `[2026-09-06] Ресурсы и роли классов: @Component, @Resource, @Handler; экземпляры на INIT`,
-> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; юниты транспорта`,
-> `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server }); дубликат паттерна на ASSEMBLE`.
+> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; шаги транспорта`,
+> `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server }); дубликат паттерна на BUILD`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. Three levels of declarations
@@ -55,7 +55,7 @@ operation and export it.
 There are no decorator declarations (`@Endpoint`, `@HttpEndpoint`), no
 `IEndpoint` interface and no global registry of endpoints. The canonical
 style of declaration is functional (`make*`). Classes are used where DI
-is needed: providers, units, handlers.
+is needed: providers, steps, handlers.
 
 ## 2. Declaration: a value created by a transport constructor
 
@@ -84,7 +84,7 @@ dependencies from the container, the brand, `errors:`, `doc:`,
 `detached`. A transport constructor adds only its own fields.
 
 **Checks at creation time.** Fields are checked at the moment the
-declaration is created, not when the application is assembled. These
+declaration is created, not when the application is built. These
 give an error right away: an empty path, a path with no leading `/`, a
 repeated path parameter, an empty command name. The `errors:` list is
 checked there too: an element not created by `makeFail`, and a repeated
@@ -106,7 +106,7 @@ operation, or the declaration does not compile. Transport constructors
 only pass the field through.
 
 **`detached: '<reason>'`.** This mark takes an endpoint out from under
-every assembly invariant ([pipeline.md §7](./pipeline.md)). The field
+every build invariant ([pipeline.md §7](./pipeline.md)). The field
 does not depend on the transport and lives in the kernel. Its type is
 `string`: `detached: true` does not compile, and the runtime rejects a
 non-string and an empty string when the declaration is created. The
@@ -133,7 +133,7 @@ skipped silently.
 **Reference to the transport** is the DI token of an **instance**. A
 declaration picks its instance with the `on:` field (`on: 'admin'`);
 without it, this is `'default'`. An endpoint whose instance is not in
-the graph drops the assembly on the ASSEMBLE phase.
+the graph drops the build on the BUILD phase.
 
 **Several transports.** The canon is a named operation with several
 bindings and one `implement`. Several thin declarations sharing a
@@ -143,7 +143,7 @@ sets. Every declaration knows its own transport.
 **Graph node.** An endpoint is an ordinary graph node with a synthetic
 id (`endpoint:POST /orders`). The dependency edges of the handler are
 visible in the visualization and in `explain()`; cycles are checked as
-for any node. The node appears in the graph on the ASSEMBLE phase, the
+for any node. The node appears in the graph on the BUILD phase, the
 pattern is registered on the WIRE phase.
 
 **Order of declarations.** Endpoints have no order: the order in
@@ -151,7 +151,7 @@ pattern is registered on the WIRE phase.
 HTTP transport looks up a route through a tree of patterns, and a
 static segment wins over a parameter regardless of which declaration
 was registered first. Two declarations with the same pattern on the
-same transport instance are an ASSEMBLE error naming both units
+same transport instance are a BUILD error naming both units
 ([transports.md](./transports.md)).
 
 ## 3. The `handler` field: shapes and interfaces
@@ -159,7 +159,7 @@ same transport instance are an ASSEMBLE error naming both units
 Everything about execution lives in the `handler` field. The
 declaration describes the address, the schemas, the failures and the
 pipeline; the dependencies belong to the handler, not to the
-declaration. The rule matches the rule for pipeline units: the class
+declaration. The rule matches the rule for pipeline steps: the class
 gets the dependencies from the container.
 
 | Shape | When |
@@ -170,7 +170,7 @@ gets the dependencies from the container.
 
 In both shapes, `meta` contains the reserved key `signal: AbortSignal`
 (request cancellation) and the context fields accumulated by `.pre`
-units; the type of this object is `HandlerMeta`. If a pre-unit added a
+steps; the type of this object is `HandlerMeta`. If a pre-step added a
 `signal` field, the injection overrides it. The return type is checked
 against both the `output` schema and the `errors:` list, at the
 declaration site ([errors.md](./errors.md)). A failure is returned by
@@ -242,10 +242,10 @@ is a 3xx response with a `Location` header.
 
 **Unresolved dependencies in the type.** The type of an endpoint
 contains everything not yet obtained from the container: the handler
-class and the classes of the pipeline units. `server.route()` accepts
+class and the classes of the pipeline steps. `server.route()` accepts
 only an endpoint with none of them, the same way as `Pipeline<any,
 never>`. The dependencies are obtained in one step,
-`endpoint.resolve(resolver)`; the same call connects the pipeline units
+`endpoint.resolve(resolver)`; the same call connects the pipeline steps
 with the same resolver. `App` does this on the WIRE phase for every
 discovered declaration.
 
@@ -294,7 +294,7 @@ typed client read the map; the client gets it from one import of the
 operation, with no server code. The map cannot list every field (there
 is no schema introspection), but every field has exactly one place.
 
-**Strict acceptance.** The payload is assembled only from the canonical
+**Strict acceptance.** The payload is built only from the canonical
 places. A field sent to the wrong place does not reach the payload and
 does not go through ordinary validation. There is no merging "a field
 is accepted from everywhere", and no source-conflict errors. The
@@ -320,7 +320,7 @@ it is required. Converting query strings to numbers and booleans
 (`?page=2`) is done by the schema (`z.coerce`), not by the transport.
 
 **Context headers.** `Authorization`, `traceparent` and similar headers
-are request context; they reach `meta` through pre-units. `Accept` and
+are request context; they reach `meta` through pre-steps. `Accept` and
 `Content-Type` are handled by the transport; they do not reach the
 handler.
 
@@ -432,9 +432,9 @@ declarations with this mark.
 
 ### Checking a shape against the transport
 
-An operation can declare any shape. On the ASSEMBLE phase, the binding
+An operation can declare any shape. On the BUILD phase, the binding
 is checked against the capabilities of the transport, and a mismatch
-drops the assembly with an error naming the operation, the transport
+drops the build with an error naming the operation, the transport
 and the shape. HTTP supports streams and multipart; the bus and the
 ports in V1 support only value shapes.
 

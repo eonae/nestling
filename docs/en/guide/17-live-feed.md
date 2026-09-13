@@ -1,6 +1,6 @@
 # 17. A live feed for the client
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/streaming.md](../design/streaming.md), the
 > "`stream(T)` and `events(T)` " and "Event sources" sections. Why: entry
 > [ideas.md](../../decisions/ideas.md)
@@ -169,7 +169,7 @@ registers the subscription in the registry and gives the handler
 with the administrative cancel from the registry, so the handler
 listens only to it.
 
-For a streamed response the `.finally` units of the `observability`
+For a streamed response the `.finally` steps of the `observability`
 layer run after the stream has ended, broken off, or been closed, so
 the outcome is honest: a client's disconnect gives `disconnected`, a
 source that ended on its own gives `completed`, a failure gives

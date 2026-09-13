@@ -2,16 +2,14 @@
 
 ## Purpose
 
-Единственная публичная точка сборки приложения — функция `assemble`. Она
+Единственная публичная точка сборки приложения — функция `build`. Она
 принимает фичи с выбором, плагины, провайдеры, транспорты, роль интеркома,
 привязки конфига и инварианты, нормализует их во внутренний план сборки и
 возвращает `App` с методами `run()`, `check()` и `close()`. Конструктор
 приложения публичной поверхностью не является: невыразимость `new App({ … })`
 держится типами, а не проверками в рантайме. Корень прогрессивен —
 приложение уровня «фича + транспорт» не упоминает ни выбора, ни конфига.
-
 ## Requirements
-
 ### Requirement: `makeApp` — единственный публичный composition root
 
 `@nestlingjs/app` SHALL экспортировать функцию `makeApp(spec): App` —
@@ -45,34 +43,34 @@
 переключателей, форма состава, закрытый перечень полей. Поля `select` в
 словаре SHALL NOT существовать: выбор фич — часть аргумента сборки.
 
-`App` SHALL предоставлять два метода: `assemble(args?)`, синхронно
-возвращающий `AssembledApp`, и `check(args?, options?)` (capability
-`structural-check`). `assemble` SHALL NOT читать конфиг и SHALL NOT
+`App` SHALL предоставлять два метода: `build(args?)`, синхронно
+возвращающий `BuiltApp`, и `check(args?, options?)` (capability
+`structural-check`). `build` SHALL NOT читать конфиг и SHALL NOT
 строить граф: фазы 0–5 выполняет `run()` собранного приложения. Ошибки
-аргумента сборки (неизвестное имя фичи, пустой выбор, выбор без
+аргумента сборки `BuildArgs` (неизвестное имя фичи, пустой выбор, выбор без
 `features`, значение переключателя не из словаря) SHALL бросаться на фазе
-ASSEMBLE из `run()` или `check()`.
+BUILD из `run()` или `check()`.
 
 Поле `policies?` SHALL принимать список значений-политик — инвариантов,
-проверяемых на собранном приложении (capability `assembly-policies`). Оно
+проверяемых на собранном приложении (capability `build-policies`). Оно
 SHALL оставаться опциональным: приложение без инвариантов собирается ровно
 как прежде.
 
-Публичного конструктора приложения SHALL NOT существовать: `AssembledApp`
+Публичного конструктора приложения SHALL NOT существовать: `BuiltApp`
 SHALL оставаться экспортированным типом результата с методами `run()` и
 `close()`, а его конструктор SHALL принимать внутренний нормализованный
-план сборки, тип которого не экспортируется, — так `new AssembledApp({ … })`
+план сборки, тип которого не экспортируется, — так `new BuiltApp({ … })`
 невыразим по типам без рантайм-проверок.
 
 #### Scenario: L0 — endpoint'ы и транспорт без фичи
 
-- **WHEN** написано `await makeApp({ endpoints: [CreateOrder], providers: [OrdersService], transports: [http({ port: 3000 })] }).assemble().run()`
+- **WHEN** написано `await makeApp({ endpoints: [CreateOrder], providers: [OrdersService], transports: [http({ port: 3000 })] }).build().run()`
 - **THEN** приложение поднимается, HTTP-endpoint'ы обслуживаются, и
   `makeFeature` в коде не встречается
 
 #### Scenario: L2 — фичи и выбор
 
-- **WHEN** написано `await makeApp({ features: [OrdersFeature], transports: [http()] }).assemble().run()`
+- **WHEN** написано `await makeApp({ features: [OrdersFeature], transports: [http()] }).build().run()`
 - **THEN** приложение поднимается, а состав выбирается аргументом сборки
 
 #### Scenario: Смешанная форма не компилируется
@@ -95,30 +93,30 @@ SHALL оставаться экспортированным типом резу�
 
 #### Scenario: Приложение нельзя собрать конструктором
 
-- **WHEN** код пишет `new AssembledApp({ features: [OrdersFeature] })`
+- **WHEN** код пишет `new BuiltApp({ features: [OrdersFeature] })`
 - **THEN** это ошибка компиляции: тип плана сборки не экспортируется
 
 #### Scenario: Пустая сборка легальна
 
-- **WHEN** вызвано `makeApp({}).assemble()` и затем `run()`
+- **WHEN** вызвано `makeApp({}).build()` и затем `run()`
 - **THEN** приложение собирается и поднимается без транспортов и endpoint'ов
 
 #### Scenario: Инварианты объявлены полем декларации
 
 - **WHEN** написано `makeApp({ features: [UsersFeature], transports: [http()], policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)] })`
-- **THEN** политики проверяются на фазе ASSEMBLE того же прогона, отдельной
+- **THEN** политики проверяются на фазе BUILD того же прогона, отдельной
   функции запуска проверок не существует
 
-#### Scenario: `assemble` ничего не читает
+#### Scenario: `build` ничего не читает
 
-- **WHEN** вызвано `app.assemble('orders')` без последующего `run()`
+- **WHEN** вызвано `app.build('orders')` без последующего `run()`
 - **THEN** `process.env` не прочитан, граф не построен, экземпляры не созданы
 
 #### Scenario: `select` в словаре не компилируется
 
 - **WHEN** написано `makeApp({ features: [OrdersFeature], select: 'orders' })`
 - **THEN** это ошибка компиляции: перечень полей закрыт, выбор передаётся
-  в `assemble`
+  в `build`
 
 ### Requirement: Корень перечисляет фичи, плагины и транспорты
 
@@ -126,7 +124,7 @@ SHALL оставаться экспортированным типом резу�
 `providers`, `switches`, `transports`, `intercom`, `config`, `policies` и
 `logger`.
 
-Аргумент сборки SHALL передаваться в `assemble(args?)` и `check(args?)` в
+Аргумент сборки SHALL передаваться в `build(args?)` и `check(args?)` в
 трёх формах: строка (`'all'`, `'orders,billing'`), массив имён фич и
 объект `{ features?, includeDeps?, …значения переключателей }`. Тип
 объектной формы SHALL выводиться из `switches:` (capability
@@ -155,7 +153,7 @@ SHALL оставаться экспортированным типом резу�
 
 - **WHEN** написано `makeApp({ features: [UsersFeature], transports: [http()], logger: pinoAdapter })`
 - **THEN** записи всех фаз, включая предупреждения сборки, уходят в
-  `pinoAdapter`, а члены `Logger$(scope)` строятся от него
+  `pinoAdapter`, а токены семейства `Logger$(scope)` строятся от него
 
 #### Scenario: Без опции работает умолчание ядра
 
@@ -184,14 +182,14 @@ SHALL оставаться экспортированным типом резу�
 #### Scenario: Выбор — аргумент сборки
 
 - **WHEN** декларация объявляет `features: [OrdersFeature, BillingFeature]`,
-  а процесс вызывает `app.assemble('orders').run()`
+  а процесс вызывает `app.build('orders').run()`
 - **THEN** собрана только фича `orders`, а декларация не изменилась и
-  пригодна для `app.assemble('all')` в другом процессе
+  пригодна для `app.build('all')` в другом процессе
 
 #### Scenario: Значения переключателей идут тем же аргументом
 
 - **WHEN** декларация объявляет `switches: [Storage]`, а процесс вызывает
-  `app.assemble({ features: 'all', storage: 'local' })`
+  `app.build({ features: 'all', storage: 'local' })`
 - **THEN** собраны все фичи, а из ветки `Storage.pick({ … })` в граф вошли
   провайдеры `local`
 
@@ -207,7 +205,7 @@ SHALL оставаться экспортированным типом резу�
 
 #### Scenario: Плагин рядом с фичами
 
-- **WHEN** `makeApp({ plugins: [appLogging], features: [OrdersFeature] }).assemble('orders')`
+- **WHEN** `makeApp({ plugins: [appLogging], features: [OrdersFeature] }).build('orders')`
 - **THEN** контейнер содержит и модули `appLogging`, и модули `OrdersFeature`
 
 #### Scenario: Один модуль в плагине и в фиче
@@ -219,7 +217,7 @@ SHALL оставаться экспортированным типом резу�
 
 - **WHEN** модули плагина и модули выбранной фичи содержат два **разных**
   значения с одним `name`
-- **THEN** сборка падает на фазе ASSEMBLE с диагностикой о коллизии имён;
+- **THEN** сборка падает на фазе BUILD с диагностикой о коллизии имён;
   «первый выиграл» SHALL NOT происходить
 
 ### Requirement: Привязки конфига объявляются в `makeApp`
@@ -243,16 +241,16 @@ SHALL оставаться экспортированным типом резу�
 - **WHEN** поле `config` отсутствует
 - **THEN** секции читаются из `process.env`, и приложение собирается штатно
 
-#### Scenario: Привязку нельзя передать в `assemble`
+#### Scenario: Привязку нельзя передать в `build`
 
-- **WHEN** написано `app.assemble({ select: 'orders', config: [[fileSource, ['*']]] })`
-- **THEN** это ошибка компиляции: `assemble` принимает только выбор фич
+- **WHEN** написано `app.build({ select: 'orders', config: [[fileSource, ['*']]] })`
+- **THEN** это ошибка компиляции: `build` принимает только выбор фич
 
 ### Requirement: `run()` и `close()` — публичная поверхность запуска
 
-`AssembledApp.run()` SHALL проводить приложение по фазам 0–5 и устанавливать
+`BuiltApp.run()` SHALL проводить приложение по фазам 0–5 и устанавливать
 обработчики `SIGTERM`/`SIGINT`, переводящие приложение в SHUTDOWN.
-`AssembledApp.close()` SHALL выполнять фазу SHUTDOWN. Оба метода SHALL быть
+`BuiltApp.close()` SHALL выполнять фазу SHUTDOWN. Оба метода SHALL быть
 идемпотентны: повторный вызов SHALL NOT приводить ни к повторному старту,
 ни к повторному разрушению.
 
@@ -263,27 +261,27 @@ SHALL писаться записью `info` с полем `signal`.
 
 #### Scenario: Повторный `run()`
 
-- **WHEN** `assembled.run()` вызван дважды
+- **WHEN** `built.run()` вызван дважды
 - **THEN** второй вызов не строит контейнер заново и не поднимает транспорты
   повторно
 
 #### Scenario: Повторный `close()`
 
-- **WHEN** `assembled.close()` вызван дважды
+- **WHEN** `built.close()` вызван дважды
 - **THEN** второй вызов завершается без ошибки, `release` ресурсов
   выполняются один раз
 
 #### Scenario: Состав сборки виден в логе
 
-- **WHEN** приложение поднято через `app.assemble('orders').run()` с
+- **WHEN** приложение поднято через `app.build('orders').run()` с
   HTTP-транспортом и подменой `RootLogger$`
 - **THEN** среди записей есть `info` с полями `features` и `transports`,
   называющая выбранные фичи и поднятые транспорты
 
 #### Scenario: Две сборки одной декларации независимы
 
-- **WHEN** из одной декларации получены `app.assemble('orders')` и
-  `app.assemble('billing')`
+- **WHEN** из одной декларации получены `app.build('orders')` и
+  `app.build('billing')`
 - **THEN** каждая собирает свой граф; `close()` одной не влияет на другую
 
 ### Requirement: Корень регистрирует kernel-модуль портов и передаёт ему топологию
@@ -307,7 +305,7 @@ kernel-модулями конфига и ambient-контекста, — и SHA
 
 #### Scenario: Топология считается по выбранным фичам
 
-- **WHEN** приложение собрано `app.assemble('orders')`, а реализация
+- **WHEN** приложение собрано `app.build('orders')`, а реализация
   операции живёт в невыбранной фиче
 - **THEN** топология её не содержит, и вызыватель этой операции строится
   так, как предписывает отсутствие местной реализации
@@ -317,3 +315,4 @@ kernel-модулями конфига и ambient-контекста, — и SHA
 - **WHEN** приложение не использует операции вовсе
 - **THEN** состав его графа, отчёт `check()` и строка состава на старте
   не меняются
+

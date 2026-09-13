@@ -2,9 +2,9 @@
  * Kernel-модуль портов: рецепты вызывателей, шина и держатель исполнителей.
  *
  * Корень регистрирует его **всегда** — как kernel-модули конфига и
- * ambient-контекста: иначе в `assemble({ … })` пришлось бы писать про
+ * ambient-контекста: иначе в `build({ … })` пришлось бы писать про
  * порты, которых в приложении может и не быть. «Всегда» ничего не стоит:
- * вызыватели и держатель — члены семейств, поэтому без единого
+ * вызыватели и держатель — токены семейств, поэтому без единого
  * `deps: [C.caller]` в графе не появляется ни одного узла, а шина
  * регистрируется только когда в приложении есть хоть одна реализация
  * операции.
@@ -53,7 +53,7 @@ import {
 } from '@nestlingjs/operations';
 
 /**
- * Семейство DI-токенов держателя исполнителей с единственным членом.
+ * Семейство DI-токенов держателя исполнителей с единственным DI-токеном.
  *
  * Семейство, а не обычный провайдер, нужно ради цены «всегда»: узел
  * держателя появляется в графе только тогда, когда на него в `deps`
@@ -87,7 +87,7 @@ export interface PortsKernelOptions {
   rootSuppliesBus?: boolean;
 }
 
-/** Операция по имени члена семейства или понятная ошибка */
+/** Операция по имени токена семейства или понятная ошибка */
 function requireOperation(name: string): AnyOperation {
   const operation = lookupOperation(name);
 
@@ -134,9 +134,9 @@ function assertReachable(
   throw new Error(
     `Operation '${operation.name}' (kind '${operation.kind}') is injected as ` +
       `'.${invoker}', but no selected feature implements it and this ` +
-      `assembly has no intercom, so the call has nowhere to go. Either add ` +
-      `the feature that implements it to the assembly argument (or close ` +
-      `the selection over calls with 'assemble({ features, includeDeps: ` +
+      `build has no intercom, so the call has nowhere to go. Either add ` +
+      `the feature that implements it to the build argument (or close ` +
+      `the selection over calls with 'build({ features, includeDeps: ` +
       `true })'), or ` +
       `assign the intercom role to a bus transport ('transports: ` +
       `[nats({ name: "events" })]' with 'intercom: "events"') when the owner ` +

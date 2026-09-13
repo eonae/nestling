@@ -40,13 +40,13 @@ const HEADER = `/* СГЕНЕРИРОВАНО type-tests/bench/generate.ts — �
 import type {
   AnyInput,
   FailDefinitionWithoutDetails,
-  PreUnitFn,
-  UnitResolver,
+  PreStepFn,
+  StepResolver,
 } from '@nestlingjs/app';
 import { compose, makePipeline, Ok } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-declare const resolve: UnitResolver;
+declare const resolve: StepResolver;
 `;
 
 /**
@@ -89,7 +89,7 @@ export function generateGraph({
     const options =
       i === 0 ? `{ errors: [${fail}], done: true }` : `{ errors: [${fail}] }`;
     lines.push(
-      `declare const u${i}: PreUnitFn<AnyInput, { f${i}: string }>;`,
+      `declare const u${i}: PreStepFn<AnyInput, { f${i}: string }>;`,
       `declare const ${fail}: FailDefinitionWithoutDetails<'conflict:bench_${codeSuffix(i)}'>;`,
       i === 0
         ? `const l${i} = makePipeline().pre(u${i}, ${options});`

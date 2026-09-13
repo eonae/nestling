@@ -11,7 +11,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 
 | NestJS | Nestling | Чем отличается | Глава |
 |---|---|---|---|
-| `NestFactory.create(AppModule)` и `app.listen()` | `makeApp({ features, transports }).assemble().run()` | `run()` проводит приложение по фазам и сам устанавливает остановку по `SIGTERM` | [1](./guide/01-first-service.md) |
+| `NestFactory.create(AppModule)` и `app.listen()` | `makeApp({ features, transports }).build().run()` | `run()` проводит приложение по фазам и сам устанавливает остановку по `SIGTERM` | [1](./guide/01-first-service.md) |
 | `@Module({ providers, imports })` | `makeModule({ providers, dependsOn })` | модуль это объект, а не класс; хуков жизненного цикла у модуля нет | [14](./guide/14-features.md) |
 | `@Module({ controllers })` | `makeFeature({ providers, endpoints })` | endpoint'ы перечисляет фича, а не модуль; фича может быть вынесена в отдельный процесс | [1](./guide/01-first-service.md), [14](./guide/14-features.md) |
 | `exports` модуля | нет | видимость держат ES-модули: DI-токен, который не экспортирован из файла, нельзя инжектировать | [6](./guide/06-repository.md) |
@@ -27,7 +27,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 | `@Inject(TOKEN)` | DI-токен в списке `deps` и позиция в конструкторе | интерфейс получает DI-токен `Name$` через `makeToken` | [6](./guide/06-repository.md) |
 | `forwardRef()` | нет | цикл зависимостей это ошибка `build()` | [6](./guide/06-repository.md) |
 | `Scope.REQUEST` | `Ctx(Var)` и слой пайплайна, который кладёт значение | провайдеры остаются синглтонами, а данные запроса читаются из асинхронного контекста | [9](./guide/09-logging.md) |
-| `Scope.TRANSIENT` с `INQUIRER` | `Family.auto` | член семейства с именем потребителя создаётся при сборке, а не на каждый инжект | [рецепт](./recipes/token-families.md) |
+| `Scope.TRANSIENT` с `INQUIRER` | `Family.auto` | токен семейства с именем потребителя создаётся при сборке, а не на каждый инжект | [рецепт](./recipes/token-families.md) |
 | провайдер с `useFactory` и `inject` | `factoryProvider(token, factory, deps)` | тот же смысл, зависимости позиционные | [6](./guide/06-repository.md) |
 | `OnModuleInit`, `OnApplicationBootstrap`, `OnModuleDestroy` | `static acquire` и `release` ресурса, `@OnStart()` на методе провайдера | захват идёт в топологическом порядке графа, освобождение — в обратном; хук старта один | [6](./guide/06-repository.md) |
 | `ModuleRef.get()` | нет | контейнер наружу не отдаётся; инстансы получают через `deps` или в `@OnStart` | [6](./guide/06-repository.md) |
@@ -38,10 +38,10 @@ NestJS я делал вот так». В колонке «Чем отличае�
 |---|---|---|---|
 | `@Param()`, `@Query()`, `@Body()` | схема `input` и правило размещения полей | поле берётся из пути по имени параметра, из query для методов без тела, из тела для остальных; `bind` меняет место | [3](./guide/03-input.md) |
 | `ValidationPipe` с class-validator | схема `input` | вход проверяется всегда, до хендлера, по Standard Schema: zod, valibot, arktype | [3](./guide/03-input.md) |
-| `Middleware` | юнит `.pre` | юнит дополняет контекст типизированными полями и не вызывает `next()` | [9](./guide/09-logging.md) |
-| `Guard` | юнит `.pre`, который возвращает отказ | отказ объявляется в `errors:` endpoint'а; хендлер не вызывается | [10](./guide/10-auth.md) |
-| `Interceptor` | юниты `.pre`, `.ok`, `.finally` | вместо обёртки вокруг вызова три отдельные фазы | [9](./guide/09-logging.md) |
-| `ExceptionFilter` | юнит `.catch` | заменяет один отказ другим; превратить отказ в успех нельзя | [рецепт](./recipes/alternatives.md) |
+| `Middleware` | шаг `.pre` | шаг дополняет контекст типизированными полями и не вызывает `next()` | [9](./guide/09-logging.md) |
+| `Guard` | шаг `.pre`, который возвращает отказ | отказ объявляется в `errors:` endpoint'а; хендлер не вызывается | [10](./guide/10-auth.md) |
+| `Interceptor` | шаги `.pre`, `.ok`, `.finally` | вместо обёртки вокруг вызова три отдельные фазы | [9](./guide/09-logging.md) |
+| `ExceptionFilter` | шаг `.catch` | заменяет один отказ другим; превратить отказ в успех нельзя | [рецепт](./recipes/alternatives.md) |
 | `HttpException` | `makeFail` и список `errors:` | отказ это значение с машинным кодом; отказ вне списка становится `internal_error` | [4](./guide/04-errors.md) |
 | `@HttpCode(201)` | `Ok.created(value)` | статус успеха задаётся на значении ответа и от транспорта не зависит | [4](./guide/04-errors.md) |
 | `@Header()`, `@Res().cookie()`, `@Redirect()` | `HttpResponse.of(ok, { headers, cookies })`, `HttpResponse.redirect(location)` | заголовок, cookie и редирект — HTTP-форма ответа; она допустима там, где адрес объявлен транспортом | [10](./guide/10-auth.md) |
@@ -65,7 +65,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 |---|---|---|---|
 | `ConfigModule.forRoot()` и `ConfigService.get('X')` | `makeConfig(prefix, fields)` и инжект секции | секция типизирована схемой и проверяется на старте; регистрировать её не нужно | [7](./guide/07-config.md) |
 | `ConfigModule` с `load` и `validationSchema` | `config: [[источник, Section.keys]]` в корне | источник привязывается к ключам, а не к модулю | [рецепт](./recipes/config-sources.md) |
-| `Test.createTestingModule()` с `overrideProvider()` | `assembleTest(app, { overrides })` | тест собирает то же приложение по тем же фазам; сокет не открывается | [8](./guide/08-testing.md) |
+| `Test.createTestingModule()` с `overrideProvider()` | `buildTest(app, { overrides })` | тест собирает то же приложение по тем же фазам; сокет не открывается | [8](./guide/08-testing.md) |
 | `supertest` против `app.getHttpServer()` | `testApp.call(Endpoint, payload)` | запрос идёт через полный пайплайн без сети; e2e на порту `0` остаётся отдельным уровнем | [8](./guide/08-testing.md), [18](./guide/18-testing-features.md) |
 | мок сервиса соседнего модуля | `stubs: [stub(Operation, impl)]` | ответ заглушки проверяется схемой операции | [18](./guide/18-testing-features.md) |
 
@@ -75,6 +75,6 @@ NestJS я делал вот так». В колонке «Чем отличае�
 - Скоупов `REQUEST` и `TRANSIENT`: данные запроса живут в асинхронном
   контексте, экземпляр на потребителя даёт семейство DI-токенов.
 - `exports` у модуля: границу видимости держат ES-модули.
-- `next()` в обработке запроса: юниты пайплайна не оборачивают друг
+- `next()` в обработке запроса: шаги пайплайна не оборачивают друг
   друга.
 - Отдельного слоя контроллеров: endpoint это декларация с хендлером.

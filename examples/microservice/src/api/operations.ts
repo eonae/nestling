@@ -13,7 +13,7 @@ import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 import { body, makeRequest, query } from '@nestlingjs/operations';
 import { z } from 'zod';
 
-// Схемы и отказы уезжают вместе с операциями: потребитель API импортирует
+// Схемы и отказы лежат рядом с операциями: потребитель API импортирует
 // один файл
 export { CreateUserInput, User } from '../users/user.js';
 export { EmailTaken, UserNotFound } from '../users/users.errors.js';

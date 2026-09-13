@@ -1,13 +1,13 @@
 ---
 name: nestling
-description: How to write application code for Nestling, a TypeScript backend framework where declarations are plain values, dependencies are listed explicitly and failures are returned instead of thrown. Use when writing or reviewing code that imports @nestlingjs/*, when explaining a compile-time or assemble-time error from a Nestling application, or when porting a service from NestJS.
+description: How to write application code for Nestling, a TypeScript backend framework where declarations are plain values, dependencies are listed explicitly and failures are returned instead of thrown. Use when writing or reviewing code that imports @nestlingjs/*, when explaining a compile-time or build-time error from a Nestling application, or when porting a service from NestJS.
 ---
 
 # Nestling
 
 Nestling reads like NestJS from a distance and differs everywhere it
 matters. Habits from Nest produce code here that either does not compile or
-stops the ASSEMBLE phase. Read parts 1 and 4 before writing anything; the
+stops the BUILD phase. Read parts 1 and 4 before writing anything; the
 rest is reference.
 
 ## What is different from NestJS
@@ -30,7 +30,7 @@ rest is reference.
 - **Features talk through operations.** A feature never injects a service
   of another feature. It calls an operation through `Operation.caller` or
   emits an event through `Operation.emitter`; the answer is `Ok | Fail`
-  even inside one process. A direct edge between features is an assembly
+  even inside one process. A direct edge between features is a build
   error.
 - **The whole graph is checked before the first request.** Config sections
   are read, the container is built, endpoints are discovered and the
@@ -45,7 +45,7 @@ framework conventions, and the linter and the guide follow them.
 
 ```
 src/
-├── main.ts                — reads the root config and runs `app.assemble(…).run()`
+├── main.ts                — reads the root config and runs `app.build(…).run()`
 ├── app.ts                 — `makeApp({ features, plugins, transports, policies })`
 ├── app.config.ts          — `makeConfig('app', { … })`
 ├── errors.ts              — failures shared by the whole service
@@ -109,20 +109,20 @@ const GetUser = httpEndpoint.get('/users/:id', {
 /** A feature owns endpoints and providers. An app is a list of features */
 const UsersFeature = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-// `assemble()` picks what this process runs; `run()` builds the graph,
+// `build()` picks what this process runs; `run()` builds the graph,
 // walks the phases, opens the socket and stops on SIGTERM
 await makeApp({ features: [UsersFeature], transports: [http()] })
-  .assemble()
+  .build()
   .run();
 ```
 
-## Rules the compiler or ASSEMBLE catches
+## Rules the compiler or BUILD catches
 
 1. **The dependency list matches the constructor.**
    `@Component([Database, Logger$.auto])` next to
    `constructor(db: Database, logger: Logger)`. A wrong order, a wrong
    length or a missing token is a compile error; a token nobody provides
-   stops `assemble()`. `@Injectable()` does not exist. With
+   stops `build()`. `@Injectable()` does not exist. With
    `@nestlingjs/eslint-plugin` installed the editor shows the expected
    list, and `--fix` fills an empty one in (`references/setup.md`).
 2. **A failure is returned, never thrown.** `return UserNotFound({ id })`,
@@ -133,9 +133,9 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 3. **A neighbouring feature is reached through an operation.** Inject
    `ClaimQuota.caller` and `await port.call(input)`, or
    `UserRegistered.emitter` and `await emitter.emit(input)`. Injecting
-   `QuotaService` from another feature is an assembly error, and it would
+   `QuotaService` from another feature is a build error, and it would
    also make the two features impossible to deploy apart.
-4. **Assembly is synchronous.** A provider factory returns a value and does
+4. **Build is synchronous.** A provider factory returns a value and does
    no I/O; anything that opens a connection is a `@Resource` with
    `static acquire` and `release`. Config sources are read before the
    container is built, so `process.env` is never read from a factory.
@@ -152,7 +152,7 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
    names that layer in `pipeline:` — `httpEndpoint.implement` and
    `implement` included, where it is often the only field they add — or
    opts out with
-   `detached: '<reason>'`. ASSEMBLE names the ones that did neither and
+   `detached: '<reason>'`. BUILD names the ones that did neither and
    stops the process before a socket is open.
 7. **A redirect is declared, not only returned.** `redirect: 302` in the
    declaration and `HttpResponse.redirect(url)` in the handler. Without the
@@ -172,9 +172,9 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 | define a failure, return it, read it, map it to a status | `references/errors.md` |
 | config sections, secrets, derived fields, sources | `references/config.md` |
 | features, operations, callers, emitters, subscribers, split | `references/features.md` |
-| assemble an app in a test, override, stub, check topologies | `references/testing.md` |
+| build an app in a test, override, stub, check topologies | `references/testing.md` |
 | the NestJS name for a thing and its Nestling counterpart | `references/from-nest.md` |
-| read a diagnostic the compiler or ASSEMBLE printed | `references/diagnostics.md` |
+| read a diagnostic the compiler or BUILD printed | `references/diagnostics.md` |
 
 Every reference points at the README of the package that owns the names it
 mentions. Read that README for the full list of exports; the reference only

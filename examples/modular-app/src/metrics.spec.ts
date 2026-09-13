@@ -15,7 +15,7 @@ import { describeWithDatabase, TEST_DATABASE_URL } from './testing.js';
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { makeApp } from '@nestlingjs/app';
-import { assembleTest } from '@nestlingjs/testing';
+import { buildTest } from '@nestlingjs/testing';
 import { http } from '@nestlingjs/transport.http';
 
 describe('адаптер Prometheus', () => {
@@ -67,7 +67,7 @@ describe('адаптер Prometheus', () => {
 
     exporter.counter('orders.created', 7);
 
-    await using testApp = await assembleTest(observed);
+    await using testApp = await buildTest(observed);
 
     const [endpoint] = plugin.endpoints as readonly AnyEndpointDefinition[];
     const response = await testApp.call(endpoint);
@@ -87,7 +87,7 @@ describeWithDatabase('метрики ядра в экспорте примера
       databaseUrl: TEST_DATABASE_URL,
     });
 
-    await using testApp = await assembleTest(declared, { args: 'all' });
+    await using testApp = await buildTest(declared, { args: 'all' });
 
     await testApp.emit(RegisterUser, {
       name: 'Alice',

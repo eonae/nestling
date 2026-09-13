@@ -78,12 +78,12 @@ export type { HttpHandler, HttpHandlerMeta, HttpRequest } from './request.js';
 export { HttpResponse } from './response.js';
 export type { Cookie, HttpOutput, HttpOutputSync } from './response.js';
 
-// ./units.js — 3
-export { httpAccessLog, withClientIp, withHeader } from './units.js';
+// ./steps.js — 3
+export { httpAccessLog, withClientIp, withHeader } from './steps.js';
 
 // ./binding.js — 4
 export {
-  assemblePayload,
+  buildPayload,
   bindingNeedsBody,
   httpBindingOf,
   readQuery,

@@ -16,7 +16,7 @@ import { http } from './transport.js';
 
 import type {
   AnyEndpointDefinition,
-  AssembledApp,
+  BuiltApp,
   HealthCheck,
   HealthStatus,
 } from '@nestlingjs/app';
@@ -79,13 +79,13 @@ const socket = objectSource(
 /** Собирает приложение с пробами на эфемерном порту */
 const start = async (
   plugin = httpProbes(),
-): Promise<{ app: AssembledApp; port: number }> => {
+): Promise<{ app: BuiltApp; port: number }> => {
   const app = makeApp({
     features: [makeFeature({ name: 'db', modules: [DbModule] })],
     plugins: [plugin],
     transports: [http()],
     config: [[socket, serverKeys()]],
-  }).assemble();
+  }).build();
 
   await app.run();
 

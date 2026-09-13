@@ -54,7 +54,7 @@ declaration, including `multipart`, are described in
 ### The moment of finalization
 
 For a streaming `output`, the outcome is known only after delivery, so
-`.finally` units run after the delivery of the stream is finished:
+`.finally` steps run after the delivery of the stream is finished:
 when the stream ended, broke with an error, or was closed by the
 consumer. For a non-streaming response, the moment stays the same —
 right after the response phase.
@@ -92,7 +92,7 @@ framing:
 
 In both cases `.finally` gets `failed`, and an undeclared failure is
 normalized into `InternalError` the same way as on the ordinary path
-([errors.md](./errors.md)). `.catch` units are not called mid-stream:
+([errors.md](./errors.md)). `.catch` steps are not called mid-stream:
 the response phase has already finished, and the response cannot be
 replaced.
 
@@ -191,7 +191,7 @@ interface StreamSummary {
 ```
 
 The object is created together with the context and is available as
-`ctx.summary` to any unit, not only `.finally`. The chain runtime
+`ctx.summary` to any step, not only `.finally`. The chain runtime
 counts items: `itemsIn` counts what reached the handler, so `.filter`
 reduces it. The transport fills in the bytes, if it knows them. For a
 non-streaming endpoint, the counters stay at zero: the field exists on
@@ -249,7 +249,7 @@ The subscription registry is the `@nestlingjs/subscriptions` package,
 a satellite of the kernel. It shows the active subscriptions, ends a
 specific one and gives out a feed of changes. The package is built
 entirely on public primitives: the `.pre`/`.finally` phases, the class
-shape of a unit, `AbortSignal`, DI, `Topic` and operations. The kernel
+shape of a step, `AbortSignal`, DI, `Topic` and operations. The kernel
 does not know about it.
 
 The surface of the package:

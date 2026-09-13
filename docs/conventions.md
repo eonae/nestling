@@ -98,7 +98,7 @@
 
 - Слой — значение в lowerCamelCase с суффиксом `Layer`, основа
   существительным: `authLayer`, `observabilityLayer`.
-- Класс-юнит называется по действию: `Authenticate`, `AuditOutcome`.
+- Класс-шаг называется по действию: `Authenticate`, `AuditOutcome`.
 
 ## Файлы
 

@@ -21,7 +21,8 @@ there too.
 | endpoint | `endpoint` | route, handle, path handler |
 | handler | `хендлер` | endpoint function, controller method |
 | pipeline | `пайплайн` | middleware chain, conveyor |
-| unit | `юнит` | step, middleware |
+| step | `шаг` | unit, middleware |
+| pre-step | `pre-шаг` | pre-unit |
 | layer (of a pipeline) | `слой (пайплайна)` | tier, level |
 | feature | `фича` | module (of an application), slice |
 | plugin | `плагин` | extension, addon |
@@ -36,6 +37,7 @@ there too.
 | resource | `ресурс` | connection holder, managed object |
 | switch | `переключатель` | flag, toggle |
 | DI token family | `семейство DI-токенов` | parametrised token, token factory |
+| member of a family | `токен семейства` | family token, member token |
 | module | `модуль` | package (of an application), namespace |
 | caller, emitter | `вызыватель, эмиттер` | port, client, publisher |
 | implementation (of an operation) | `реализация (операции)` | handler of an operation, consumer |
@@ -74,7 +76,7 @@ there too.
   (`@Handler`). The role limits positions: a component does not go into
   the `handler:` slot, and the handler class of an endpoint is not written
   in `providers:` — the endpoint registers it itself. The shape of the
-  class is checked by the compiler, the role in a position by the assembly.
+  class is checked by the compiler, the role in a position by the build.
 - **Component** (`компонент`) — a class with a synchronous constructor and
   no input-output; created on INIT through `new`.
 - **Resource** (`ресурс`) — a class or a provider with asynchronous
@@ -84,16 +86,16 @@ there too.
   recipe for many DI tokens that differ by a parameter: `Logger$('users')`,
   `Logger$('orders')`. A member of the family is requested as an ordinary
   dependency; the container creates a node for every requested parameter
-  at assembly.
+  at build.
 - **Module** (`модуль`) — a plain object (`makeModule`) that groups
   providers under a name. Not a class; a module has neither lifecycle
   hooks nor endpoints. `dependsOn` lists the modules without which it does
   not work.
 - **Dependency graph** (`граф зависимостей`) — all providers and the links
   between them. Built and checked as a whole in `build()`.
-- **Eager assembly** (`жадная сборка`) — the graph is checked as a whole in
+- **Eager build** (`жадная сборка`) — the graph is checked as a whole in
   `build()`, and the instances are created as a whole on INIT, not at
-  first use. A cycle and a missing dependency are assembly errors.
+  first use. A cycle and a missing dependency are build errors.
 - **Topological order** (`топологический порядок`) — the order in which a
   dependency comes before the one that depends on it. Instances are
   created and `@OnStart` is called in this order, `release` in the
@@ -106,17 +108,17 @@ there too.
 
 - **Composition root** (`composition root`) — the single place where the
   application is put together from parts: the `makeApp({ … })` declaration
-  in `app.ts` and the `app.assemble(args)` call in `main.ts`.
+  in `app.ts` and the `app.build(args)` call in `main.ts`.
 - **Application declaration** (`декларация приложения`, `makeApp`) — a
   value with the composition of the application: the endpoints of the root
   or the features, plugins, switches, transports, policies, the logger.
-  The methods are `assemble(args?)`, `check(args?, options?)` and
+  The methods are `build(args?)`, `check(args?, options?)` and
   `discover(args?)`.
-- **Assembly argument** (`аргумент сборки`, `AssembleArgs`) — what to
-  assemble in this process: the feature selection and the values of the
+- **Build argument** (`аргумент сборки`, `BuildArgs`) — what to
+  build in this process: the feature selection and the values of the
   switches. The shapes are the object
   `{ features?, includeDeps?, …switch values }` or the
-  `argv(process.argv)` marker, which the assembly parses by the schema
+  `argv(process.argv)` marker, which the build parses by the schema
   of the declaration.
 - **Root composition shape** (`форма состава корня`) — one of the three
   records of `makeApp`: `{ endpoints, providers? }`,
@@ -125,18 +127,18 @@ there too.
   attributed to the unit named `app`.
 - **Composition switch** (`переключатель состава`, `makeSwitch`) — a value
   that chooses one of the declared composition branches by a value known
-  before assembly. It is declared in `switches:` of the root; it has no DI
+  before build. It is declared in `switches:` of the root; it has no DI
   token, so the choice is not injected.
 - **Composition branch** (`ветка состава`, `Switch.pick`, `Switch.when`) —
   the elements that go into the list at one of the values of a switch:
   `Storage.pick({ s3: […], local: […] })`, `Audit.when(…)`. A value, not
   a function: both branches are read without running code. It is expanded
-  on the ASSEMBLE phase, before discovery.
-- **Assembled application** (`собранное приложение`, `AssembledApp`) — the
-  result of `assemble`: the methods `run(options?)` and `close()`.
+  on the BUILD phase, before discovery.
+- **Built application** (`собранное приложение`, `BuiltApp`) — the
+  result of `build`: the methods `run(options?)` and `close()`.
   `options.config` carries the bindings of the configuration sources.
 - **Phase** (`фаза`) — a stage of the application lifecycle: `0 BOOTSTRAP`,
-  `1 ASSEMBLE`, `2 INIT`, `3 WIRE`, `4 START`, `5 RUN`, `6 SHUTDOWN`.
+  `1 BUILD`, `2 INIT`, `3 WIRE`, `4 START`, `5 RUN`, `6 SHUTDOWN`.
 - **Feature** (`фича`, `makeFeature`) — a unit of the application that may
   end up in another process: a name, a composition (`providers` or
   `modules`) and its endpoints. A feature is addressed only by operations.
@@ -148,18 +150,18 @@ there too.
   selection. The name matches the name of the npm package.
 - **Feature boundary** (`граница фичи`) — the rule «features are linked
   only by operations». An edge of the graph between two features and an
-  edge from a plugin into a feature are assembly errors.
+  edge from a plugin into a feature are build errors.
 - **Feature selection** (`выбор фич`) — which features to include in this
-  assembly: the `features` field of the assembly argument, `'all'`, a
+  build: the `features` field of the build argument, `'all'`, a
   list of names, or `--features` from the command line. It is read
-  before the container is assembled. `includeDeps` closes the selection
+  before the container is built. `includeDeps` closes the selection
   over the called operations.
 - **Discovery** (`discovery`) — a flat pass over the selected features and
   the connected plugins that collects their endpoints, transports and
   operation implementations. In the graph the result lies under the DI
   token `Discovery$`, and from the outside it is returned by
   `app.discover(args?)` — the single entry into discovery, because the
-  assembly argument belongs to the declaration only.
+  build argument belongs to the declaration only.
 - **Transport** (`транспорт`) — a node of the graph that accepts requests
   from the outside (HTTP, CLI, NATS) and passes them into `dispatch`. The
   root declares **instances**: `http()`, `http({ name: 'admin' })`. A
@@ -175,11 +177,11 @@ there too.
 - **`dispatch`** — the «pattern → handler» table of one transport together
   with the calling function. It is created on the WIRE phase and passed to
   the transport in `serve(dispatch, signal)` on the START phase.
-- **Policy** (`политика`, `policies`) — an invariant over the assembled
+- **Policy** (`политика`, `policies`) — an invariant over the built
   graph, for example «every HTTP endpoint has the `authed` layer». It is
-  checked on the ASSEMBLE phase. `detached: '<reason>'` takes an endpoint
+  checked on the BUILD phase. `detached: '<reason>'` takes an endpoint
   out of every policy.
-- **Kernel** (`ядро`) — the modules that the assembly always registers:
+- **Kernel** (`ядро`) — the modules that the build always registers:
   configuration, asynchronous context, ports, probes, logger. The DI
   tokens of the kernel are exported, the implementations are not.
   **User code** (`пользовательский код`) is everything else.
@@ -214,7 +216,7 @@ there too.
   is allowed only in the constructors by HTTP method.
 - **Transport start context** (`стартовый контекст транспорта`) — the type
   of the context that the transport gives to the pipeline before the first
-  unit: for HTTP it is `HttpStartContext`. A unit typed by it is allowed
+  step: for HTTP it is `HttpStartContext`. A step typed by it is allowed
   only in the declarations of that transport.
 - **Schema** (`схема`) — any value that implements
   [Standard Schema v1](https://standardschema.dev): zod, valibot, arktype.
@@ -231,19 +233,19 @@ there too.
 
 ## Pipeline (`@nestlingjs/app`)
 
-- **Pipeline** (`пайплайн`) — the sequence of units around the handler:
+- **Pipeline** (`пайплайн`) — the sequence of steps around the handler:
   `.pre` before it, `.ok` and `.catch` after it, `.finally` at the very
   end. It is declared by `makePipeline()`.
-- **Unit** (`юнит`) — one function or class in the pipeline.
+- **Step** (`шаг`) — one function or class in the pipeline.
 - **Layer** (`слой`) — one `makePipeline()` call with a chain of methods.
   `compose(outer, inner)` puts layers together.
 - **Context** (`контекст`, `ctx`) — the typed object of the request.
-  `.pre` units extend it, the handler and the other units read it.
+  `.pre` steps extend it, the handler and the other steps read it.
 - **Response** (`ответ`) — the result of an endpoint: `Ok<T>` or `Fail`.
-- **Early success** (`досрочный успех`) — the third outcome of a pre-unit:
+- **Early success** (`досрочный успех`) — the third outcome of a pre-step:
   the value returned by `done()` finishes the endpoint with a success and
-  no value, calling neither the following pre-units nor the handler. It is
-  declared when the unit is connected (`.pre(unit, { done: true })`); a
+  no value, calling neither the following pre-steps nor the handler. It is
+  declared when the step is connected (`.pre(step, { done: true })`); a
   declaration with such a layer must have no `output`.
 - **Outcome** (`исход`, `outcome`) — how the request finished; `.finally`
   sees it: `completed`, `disconnected`, `aborted`, `failed`.
@@ -254,12 +256,12 @@ there too.
 ## Observability (`@nestlingjs/app`)
 
 - **Trace** (`трасса`, `Trace`, `traceId`) — the chain of processing of
-  one request across every process it touched. The `withTracing()` unit
+  one request across every process it touched. The `withTracing()` step
   puts it into the context; the trace identifier reaches every log
   record inside the request as the `traceId` field.
 - **Span** (`участок трассы`, `spanId`) — the processing of the request by
   one process. A span is created for every request, and the span of the
-  caller goes into the `parentSpanId` field. The trace assembles into a
+  caller goes into the `parentSpanId` field. The trace builds into a
   tree from them.
 - **W3C trace-context** — the format for carrying the trace over HTTP: the
   `traceparent` header of the shape `00-<traceId>-<spanId>-<flags>`. Over
@@ -298,8 +300,8 @@ there too.
   the failures declared by the layers of its pipeline. The failure type of
   the handler is derived from it, the response is checked against it at
   the boundary, and the responses in OpenAPI are built from it.
-- **Layer failure** (`отказ слоя`) — a failure declared when a pre-unit is
-  connected (`.pre(unit, { errors })`). The unit may return it as a value;
+- **Layer failure** (`отказ слоя`) — a failure declared when a pre-step is
+  connected (`.pre(step, { errors })`). The step may return it as a value;
   a failure outside this list is a compilation error.
 
 ## Operations and callers (`@nestlingjs/operations`, `@nestlingjs/app`)
@@ -380,7 +382,7 @@ there too.
   computed from its other fields. It inherits the secrecy of its
   dependencies and is recomputed on a reload.
 - **Snapshot** (`снимок`) — the values of all sources read on the phase
-  0 BOOTSTRAP; the sections are computed from it on ASSEMBLE.
+  0 BOOTSTRAP; the sections are computed from it on BUILD.
 
 ## Streaming (`@nestlingjs/operations`)
 
@@ -397,10 +399,10 @@ there too.
 
 ## Testing (`@nestlingjs/testing`)
 
-- **App test** (`App-тест`) — a test that assembles the application
-  through `assembleTest(app, …)` and calls the endpoints directly:
+- **App test** (`App-тест`) — a test that builds the application
+  through `buildTest(app, …)` and calls the endpoints directly:
   `testApp.call(Endpoint, payload)`. The socket is not opened.
-- **`overrides`** — the replacement of graph nodes in a test assembly:
+- **`overrides`** — the replacement of graph nodes in a test build:
   `[[Token, value]]`.
 - **`check(args?)`** — a method of the application declaration: check the
   graph, go through the phases 0–1 and return the report on the features,

@@ -29,7 +29,7 @@ import type { TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
- * Семейство DI-токенов транспорта-фейка: один член на экземпляр.
+ * Семейство DI-токенов транспорта-фейка: один DI-токен на экземпляр.
  *
  * Устроено как у настоящего транспорта: короткое имя выводится из id
  * (`transport:test` → `'test'`), экземпляр по умолчанию называется как вид.

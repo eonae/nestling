@@ -10,7 +10,7 @@ import { declareApp } from './app.js';
 import { describeWithDatabase, TEST_DATABASE_URL, waitFor } from './testing.js';
 
 import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
-import type { AssembledApp } from '@nestlingjs/app';
+import type { BuiltApp } from '@nestlingjs/app';
 import { spyLogger } from '@nestlingjs/testing';
 import { NatsBus } from '@nestlingjs/transport.nats';
 import { NatsDouble, natsDouble } from '@nestlingjs/transport.nats/testing';
@@ -54,14 +54,14 @@ async function run(
   broker: NatsDouble,
   ...args: string[]
 ): Promise<{ close: () => Promise<void> }> {
-  const apps: AssembledApp[] = args.map((selection) =>
+  const apps: BuiltApp[] = args.map((selection) =>
     // Порт `0` — эфемерный: два процесса одного теста поднимают по
     // серверу проб, и фиксированный порт занял бы первый из них
     declareApp({
       nats: { connect: natsDouble(broker) },
       httpPort: 0,
       databaseUrl: TEST_DATABASE_URL,
-    }).assemble(selection),
+    }).build(selection),
   );
 
   for (const app of apps) {
@@ -147,7 +147,7 @@ describeWithDatabase('split-развёртывание через NATS', () => {
     );
 
     // Арендатор прошёл два перехода: процесс `users` прочитал его из
-    // конверта юнитом `propagated()`, а вызыватель положил в следующий
+    // конверта шагом `propagated()`, а вызыватель положил в следующий
     expect(tenantOf(broker, 'notifications.check-address')).toBe('acme');
     expect(tenantOf(broker, 'users.registered')).toBe('acme');
 

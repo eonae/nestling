@@ -24,7 +24,7 @@ describe('серверы по ссылке `server` — регистрация',
 
     const app = makeApp({
       transports: [testTransport({ server, marks })],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -47,7 +47,7 @@ describe('серверы по ссылке `server` — регистрация',
         testTransport({ name: 'first', server, marks }),
         testTransport({ name: 'second', server, marks }),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -78,7 +78,7 @@ describe('серверы по ссылке `server` — регистрация',
     ).toThrow(/Two different server declarations are named 'default'/);
   });
 
-  it('объявление сервера в `transports:` отвергается на ASSEMBLE', () => {
+  it('объявление сервера в `transports:` отвергается на BUILD', () => {
     const marks: string[] = [];
     const server = testServer({ name: 'api', marks });
 
@@ -102,7 +102,7 @@ describe('серверы по ссылке `server` — регистрация',
 
     const app = makeApp({
       transports: [testTransport({ server, marks })],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -137,7 +137,7 @@ describe('START — сокет открывается последним', () =>
       endpoints: [],
       providers: [Pool],
       transports: [testTransport({ server, marks })],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -160,7 +160,7 @@ describe('START — сокет открывается последним', () =>
         testTransport({ name: 'first', server, marks }),
         testTransport({ name: 'second', server, marks }),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -180,7 +180,7 @@ describe('START — сокет открывается последним', () =>
 
     const app = makeApp({
       transports: [testTransport({ server, marks })],
-    }).assemble();
+    }).build();
 
     // Прогон до RUN не остановить снаружи, поэтому наблюдаем то же по
     // журналу: `listen` идёт после `serve`, а не при захвате ресурса
@@ -223,7 +223,7 @@ describe('SHUTDOWN — строгий реверс', () => {
         testTransport({ name: 'first', server: first, marks }),
         testTransport({ name: 'second', server: second, marks }),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
     marks.length = 0;
@@ -251,7 +251,7 @@ describe('SHUTDOWN — строгий реверс', () => {
 
     const app = makeApp({
       transports: [testTransport({ server, marks })],
-    }).assemble();
+    }).build();
 
     await app.run();
     const listener = app.servers.get('default');
@@ -277,7 +277,7 @@ describe('транспорт без сервера', () => {
           { capabilities: VALUE_ONLY },
         ),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
 

@@ -1,9 +1,9 @@
 /**
- * `testUnit` — модуль в изоляции и требование явных стабов.
+ * `testBundle` — модуль в изоляции и требование явных стабов.
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
-import { testUnit } from './unit.js';
+import { testBundle } from './bundle.js';
 import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -70,9 +70,9 @@ const ReportsModule = makeFeature({
   endpoints: [Report],
 });
 
-describe('testUnit', () => {
+describe('testBundle', () => {
   it("поднимает модуль без соседей и исполняет его endpoint'ы", async () => {
-    await using app = await testUnit(ReportsModule, {
+    await using app = await testBundle(ReportsModule, {
       stubs: [
         [ILogger, { log: (): void => undefined }],
         [IClock, { now: () => 42 }],
@@ -90,7 +90,7 @@ describe('testUnit', () => {
   it('настоящий `http()` собирается без порта и не открывает сокет', async () => {
     // Тестовая сборка останавливается на WIRE, поэтому `listen` не
     // вызывается вовсе: порт в `vars` нужен только боевому прогону
-    await using app = await testUnit(ReportsModule, {
+    await using app = await testBundle(ReportsModule, {
       stubs: [
         [ILogger, { log: (): void => undefined }],
         [IClock, { now: () => 42 }],
@@ -109,7 +109,7 @@ describe('testUnit', () => {
   });
 
   it('называет все недостающие DI-токены, а не первый', async () => {
-    const error = await testUnit(ReportsModule, {
+    const error = await testBundle(ReportsModule, {
       stubs: [[ILogger, { log: (): void => undefined }]],
       transports: [asHttpTransport(new SpyTransport())],
     }).catch((error_: Error) => error_);

@@ -119,9 +119,9 @@ SHALL давать `true` для значения, потерявшего про
 `instanceof` SHALL NOT быть требуемым способом различения отказов ни в
 одном месте публичного API.
 
-#### Scenario: Матчинг в catch-юните
+#### Scenario: Матчинг в catch-шаге
 
-- **WHEN** `.catch`-юнит проверяет `if (OrderNotFound.is(res))`
+- **WHEN** `.catch`-шаг проверяет `if (OrderNotFound.is(res))`
 - **THEN** ветка исполняется для отказа с кодом `not_found:order`,
   и внутри неё тип сужен (в том числе `details`)
 

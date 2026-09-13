@@ -37,21 +37,21 @@ const app = makeApp({
 
 /** Поле переключателя без умолчания обязательно */
 // @ts-expect-error 'storage' не имеет умолчания и обязано быть передано
-const missingRequired = app.assemble({ tier: 'pro' });
+const missingRequired = app.build({ tier: 'pro' });
 
 /** Поля с умолчанием необязательны */
-const onlyRequired = app.assemble({ storage: 's3' });
+const onlyRequired = app.build({ storage: 's3' });
 
 /** Значение вне словаря не компилируется */
 // @ts-expect-error 'gcs' не значение переключателя 'storage'
-const wrongValue = app.assemble({ storage: 'gcs' });
+const wrongValue = app.build({ storage: 'gcs' });
 
 /** Перечень полей закрыт: опечатка не компилируется */
 // @ts-expect-error поля 'storag' у аргумента сборки нет
-const typo = app.assemble({ storage: 's3', storag: 'local' });
+const typo = app.build({ storage: 's3', storag: 'local' });
 
 /** Выбор фич и замыкание едут тем же аргументом */
-const full = app.assemble({
+const full = app.build({
   features: 'users',
   includeDeps: true,
   storage: 'local',
@@ -60,10 +60,10 @@ const full = app.assemble({
 });
 
 /** Строковая форма задаёт только выбор фич */
-const stringForm = app.assemble('users');
+const stringForm = app.build('users');
 
 /** Массив имён — та же форма */
-const arrayForm = app.assemble(['users']);
+const arrayForm = app.build(['users']);
 
 /** `check` принимает те же формы */
 const checked = app.check({ storage: 's3' });
@@ -72,9 +72,9 @@ const checked = app.check({ storage: 's3' });
 const plain = makeApp({ features: [Users] });
 
 // @ts-expect-error переключателей у приложения нет
-const noSwitches = plain.assemble({ storage: 's3' });
+const noSwitches = plain.build({ storage: 's3' });
 
-const plainObject = plain.assemble({ features: 'users', includeDeps: true });
+const plainObject = plain.build({ features: 'users', includeDeps: true });
 
 /** Смешанная форма состава не компилируется */
 const mixed = makeApp({

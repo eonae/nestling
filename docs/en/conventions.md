@@ -86,7 +86,7 @@
 
 - A multi-valued switch is named after what it chooses, in PascalCase:
   `Storage = makeSwitch('storage', ['s3', 'local'])`. Its lower-case
-  string name matches the flag of the assembly argument:
+  string name matches the flag of the build argument:
   `--storage s3`.
 - A two-position switch is named as a predicate:
   `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapiPlugin)`.
@@ -107,7 +107,7 @@
 
 - A layer is a value in lowerCamelCase with the `Layer` suffix. Its
   base is a noun: `authLayer`, `observabilityLayer`.
-- A unit class is named after the action: `Authenticate`,
+- A step class is named after the action: `Authenticate`,
   `AuditOutcome`.
 
 ## Files

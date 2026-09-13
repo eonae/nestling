@@ -209,7 +209,7 @@ describe('makeEndpoint — resolve', () => {
     ).toThrow(/resolve takes a resolver.*container\.getOrThrow/s);
   });
 
-  it('связывает классы-юниты пайплайна тем же резолвером', async () => {
+  it('связывает классы-шаги пайплайна тем же резолвером', async () => {
     class WithTracing {
       handle(): { traceId: string } {
         return { traceId: 'trace' };
@@ -428,7 +428,7 @@ describe('makeEndpoint — типы', () => {
     expect(DepsFree.pattern).toBe('GET /ping');
   });
 
-  it('классы-юниты пайплайна попадают в TNeeds декларации', () => {
+  it('классы-шаги пайплайна попадают в TNeeds декларации', () => {
     class WithTracing {
       handle(): { traceId: string } {
         return { traceId: 'trace' };

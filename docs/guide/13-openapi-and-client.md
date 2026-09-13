@@ -1,6 +1,6 @@
 # 13. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `3ea8ea87`.
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -49,7 +49,7 @@ export const app = makeApp({
   тому, кому нужен свой `zodConverter({ … })` с другими опциями: конвертер
   того же вендора умолчание **заменяет**. Схема, которую не перевёл ни
   один конвертер, останавливает запуск: документ строится на фазе
-  ASSEMBLE, а не при первом запросе к `/openapi.json`.
+  BUILD, а не при первом запросе к `/openapi.json`.
 
 ```bash
 curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
@@ -96,7 +96,7 @@ writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
 поднимаются, граф не строится, транспорты не создаются. Поэтому вызов
 синхронный, и `await` ему не нужен.
 
-Аргумент сборки нужен ему по той же причине, по какой нужен `assemble`:
+Аргумент сборки нужен ему по той же причине, по какой нужен `build`:
 без аргумента документ описывал бы все объявленные фичи, а процесс
 поднимал бы выбранные. Приложение с двумя фичами и переключателем `docs`
 показывает разницу сразу:
@@ -339,7 +339,7 @@ API_TOKEN=secret yarn client
 import { OpenApiDocument$ } from '@nestlingjs/openapi';
 
 it('описывает каждый публичный endpoint и скрывает служебный', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });

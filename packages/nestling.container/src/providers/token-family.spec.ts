@@ -19,14 +19,14 @@ interface ILoggerService {
 const makeLogger = (scope: string): ILoggerService => ({ scope });
 
 describe('makeTokenFamily', () => {
-  it('создаёт DI-токены членов с идентификатором "<family>:<param>"', () => {
+  it('создаёт токены семейства с идентификатором "<family>:<param>"', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Logger');
 
     expect(ILogger('users').id).toBe('Logger:users');
     expect(ILogger.familyName).toBe('Logger');
   });
 
-  it('мемоизирует членов: один параметр даёт один DI-токен', () => {
+  it('мемоизирует токенов семейства: один параметр даёт один DI-токен', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'MemoLogger',
     );
@@ -49,7 +49,7 @@ describe('makeTokenFamily', () => {
     expect(familyOf(member)).toBe(ILogger);
   });
 
-  it('DI-токен, лишь похожий на члена, членом не является', () => {
+  it('DI-токен, лишь похожий на токен семейства, им не является', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'LookalikeLogger',
     );
@@ -85,7 +85,7 @@ describe('DI-токен Family.all', () => {
     expect(IHealthCheck.all.id).toBe('HealthCheck.all');
   });
 
-  it('типизирован как DI-токен массива readonly членов', () => {
+  it('типизирован как DI-токен массива readonly токенов семейства', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'TypedAllLogger',
     );
@@ -103,7 +103,7 @@ describe('DI-токен Family.all', () => {
     expect(readRoleMeta(Aggregator)?.dependencies).toEqual([ILogger.all]);
   });
 
-  it('не является членом семейства', () => {
+  it('не является токеном семейства', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'DistinctAllLogger',
     );
@@ -124,7 +124,7 @@ describe('DI-токен Family.all', () => {
   });
 });
 
-describe('член семейства как обычный DI-токен', () => {
+describe('токен семейства как обычный DI-токен', () => {
   it('инжектируется в класс и читается из контейнера', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'PlainLogger',
@@ -171,7 +171,7 @@ describe('член семейства как обычный DI-токен', () =
     expect(container.getOrThrow(IReporter)).toBe('db');
   });
 
-  it('записывает DI-токен члена в метаданные @Component', () => {
+  it('записывает токен семейства в метаданные @Component', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'MetaLogger',
     );

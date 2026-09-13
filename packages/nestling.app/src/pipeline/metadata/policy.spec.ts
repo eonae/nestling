@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты: предмет проверки — идентичность слоя, а не его эффект */
+ * noop-шаги: предмет проверки — идентичность слоя, а не его эффект */
 /**
  * Словарь политик: фильтры, `hasLayer` и исключение detached-endpoint'ов.
  *
@@ -252,7 +252,7 @@ describe('hasVar — присутствие ambient-переменной', () =>
     ).toEqual([]);
   });
 
-  it('юнит, кладущий поле вручную, политику не удовлетворяет', () => {
+  it('шаг, кладущий поле вручную, политику не удовлетворяет', () => {
     const manual = makePipeline().pre(async () => ({ requestId: 'req-1' }));
 
     const [violation] = policy.check([

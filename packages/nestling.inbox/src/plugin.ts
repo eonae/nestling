@@ -6,7 +6,7 @@
  * правило «к плагину обращаются DI-токенами».
  */
 
-import { InboxClaimUnit, makeInboxLayer } from './claim.js';
+import { InboxClaimStep, makeInboxLayer } from './claim.js';
 import type { InboxConfigValues } from './config.js';
 import { InboxConfig, inboxConfigKeys } from './config.js';
 import { InboxSweeper, InboxSweeper$ } from './sweeper.js';
@@ -31,11 +31,11 @@ import type {
 } from '@nestlingjs/container';
 import { factoryProvider } from '@nestlingjs/container';
 
-/** Слой приёма: пайплайн, которому ещё нужен инстанс юнита отметки */
+/** Слой приёма: пайплайн, которому ещё нужен инстанс шага отметки */
 export type InboxLayer = Pipeline<
   EmptyInput,
   EmptyInput & { idempotencyKey: string },
-  typeof InboxClaimUnit
+  typeof InboxClaimStep
 >;
 
 /** Словарь объявления плагина */
@@ -69,7 +69,7 @@ export interface InboxPlugin extends Plugin {
   /**
    * Политика: каждый endpoint под фильтром композирован от слоя приёма.
    *
-   * Нарушение останавливает сборку на фазе ASSEMBLE — до фазы INIT и до
+   * Нарушение останавливает сборку на фазе BUILD — до фазы INIT и до
    * открытия сокета. Какие endpoint'ы обязаны дедуплицировать, знает
    * приложение, поэтому фильтр задаёт корень.
    *
@@ -127,9 +127,9 @@ export function inbox(options: InboxOptions): InboxPlugin {
   const layer = makeInboxLayer();
 
   const claim = factoryProvider(
-    InboxClaimUnit,
+    InboxClaimStep,
     (store: InboxStore, transaction: CtxReader<unknown>, logger: Logger) =>
-      new InboxClaimUnit(store, transaction, logger),
+      new InboxClaimStep(store, transaction, logger),
     [options.store, Ctx(options.transaction), Logger$('nestling:inbox')],
   );
 

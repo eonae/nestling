@@ -4,7 +4,7 @@
 > [ideas.md](../../decisions/ideas.md):
 > `[2026-07-13] Схемы: Standard Schema вместо привязки к zod; OpenAPI через явные конвертеры`,
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
-> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-юнитов`,
+> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-шагов`,
 > `[2026-09-06] Документ OpenAPI без запуска: buildOpenApiDocument(app, args)`,
 > `[2026-09-06] Конфиг: derived, env({ prefix }), описания полей через конвертеры`,
 > `[2026-09-13] Схемы: Standard Schema на границе, zod внутри; один пакет schema.zod`.
@@ -29,7 +29,7 @@ framework itself writes (the configuration sections of packages, the
 records of facts, the field helpers) are written in it, and the packages
 that need JSON Schema take the zod converter by default (§2). For an
 application this is an implementation choice, not a requirement: an
-application on another validator assembles and works, and passes its own
+application on another validator builds and works, and passes its own
 converter wherever a document is needed.
 
 **The boundary runs along the public API.** No exported type, parameter
@@ -53,7 +53,7 @@ configuration section fields. There are no direct calls to
 `schema.parse(...)` and no duck typing of the `{ parse(data): T }`
 shape in the kernel, so the shape of a failure is the same on every
 path. Transports have no validation branch of their own: the transport
-assembles the value, the runtime checks it.
+builds the value, the runtime checks it.
 
 `SchemaValidationError` carries `issues` in the standard format
 `{ message, path? }[]`. The format is guaranteed by the specification,
@@ -190,9 +190,9 @@ gets the composition of the application.
 
 | Surface | What it does |
 |---|---|
-| `openapi(options)` | the publisher plugin: it builds the document on phase 1 ASSEMBLE and serves it through an endpoint (`GET /openapi.json`). Its own `document(discovery)` method builds the document from the result of `app.discover(args)` — with no container, no transports and no running application |
+| `openapi(options)` | the publisher plugin: it builds the document on phase 1 BUILD and serves it through an endpoint (`GET /openapi.json`). Its own `document(discovery)` method builds the document from the result of `app.discover(args)` — with no container, no transports and no running application |
 | `OpenApiDocument$` | the DI token of the ready document; the endpoint is a way to serve it, not the place where it comes into being |
-| `app.discover(args?)` | the input of the generator: phase 0 of the declaration gives out the composition by value, with no graph and no sources. The document for the artifacts is built with the same assembly argument that starts the process ([composition.md](./composition.md)) |
+| `app.discover(args?)` | the input of the generator: phase 0 of the declaration gives out the composition by value, with no graph and no sources. The document for the artifacts is built with the same build argument that starts the process ([composition.md](./composition.md)) |
 
 - `@nestlingjs/openapi` accepts the same `SchemaDocConverter` as the
   snapshot of operations, and introduces no type of its own. It takes
@@ -201,8 +201,8 @@ gets the composition of the application.
 - A converter for another validator is a separate package, built on
   the pattern of `schema.zod`; the major versions of a converter
   follow the major versions of the validator.
-- The document is built by a provider factory on phase ASSEMBLE. Any
-  diagnostic fails the assembly before INIT and before the socket
+- The document is built by a provider factory on phase BUILD. Any
+  diagnostic fails the build before INIT and before the socket
   opens. There is no lazy build. The check is exhaustive: the
   violations of every endpoint are gathered into one message.
 - `openapi(...)` returns an ordinary plugin value with parameters; the
@@ -221,7 +221,7 @@ gets the composition of the application.
   the selected topology with no duplication of `select`. The CI script
   takes the same composition from `app.discover(args)`, and the
   document options come from the plugin itself: `info` is written once.
-- Besides JSON Schema, the document is assembled from the
+- Besides JSON Schema, the document is built from the
   declarations: the `doc:` slot (§2.2); `errors:` become `responses`,
   with `InternalError` as the default response
   ([errors.md](./errors.md)); io shapes decide the media types
@@ -288,4 +288,4 @@ generator reads the same slot, so it has no `operationId`,
 The section is checked when the value is created. A non-string, `tags`
 not shaped as an array of strings, a status outside the list of
 successful ones, `hidden: true` and an unknown field all give an error
-at declaration, not at the assembly of the application.
+at declaration, not at the build of the application.

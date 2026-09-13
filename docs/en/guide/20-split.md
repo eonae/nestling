@@ -1,6 +1,6 @@
 # 20. Spread the features across processes
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/composition.md](../design/composition.md) "L4",
 > [design/operations.md](../design/operations.md) §3 and §4.4,
 > [design/transports.md](../design/transports.md) §7. Why: entries
@@ -18,7 +18,7 @@ work in two processes, with a broker carrying the messages between
 them.
 
 The opposite direction gives the local run. The same declaration with
-`assemble('all')` brings up every feature in one process, and the
+`build('all')` brings up every feature in one process, and the
 in-process bus delivers the operations between them: the call to
 `notifications.check-address` does not go out to the broker. A broker and several
 processes are needed by a staging environment, not by a developer: the
@@ -38,7 +38,7 @@ export function declareApp(options: DeclareOptions = {}): App {
     // The application's bus is an ordinary transport. `intercom:`
     // assigns it the role of carrying operations between processes:
     // a call to an operation whose owner is not selected in this
-    // assembly goes out through this transport
+    // build goes out through this transport
     transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
     metrics: exporter,
@@ -50,7 +50,7 @@ export const app = declareApp();
 ```
 
 There is one declaration for every process of the deployment: only the
-`app.assemble(select)` argument changes between them. The `declareApp`
+`app.build(select)` argument changes between them. The `declareApp`
 function is needed by the test: it passes the transport a connection to
 the broker's double, and the metrics server an ephemeral port. Metrics
 and the `/metrics` endpoint are covered in [chapter
@@ -63,14 +63,14 @@ section: the `NATS_SERVERS` key, `nats://127.0.0.1:4222` by default.
 operations. While the role is not assigned, the in-process bus
 delivers the operations between features. After the assignment, the
 broker takes its place: an application has one bus. A declared bus
-with no assigned role stops the assembly, and only transports that
+with no assigned role stops the build, and only transports that
 carry operations can take the intercom role: `http()` in `intercom:`
 does not compile. With no carrier role, a call to an operation whose
-owner is not selected stops the assembly, as in chapter
+owner is not selected stops the build, as in chapter
 [19](./19-select.md).
 
 The process's role is set by the feature selection that `main.ts`
-reads from `APP_FEATURES` before the assembly, as in chapter
+reads from `APP_FEATURES` before the build, as in chapter
 [19](./19-select.md).
 
 ## Leave the feature's code as is
@@ -104,10 +104,10 @@ export class RegistrationService {
 
 This class is no different from the one that worked in one process. It
 depends on the caller and the emitter, not on the services of the
-neighbouring feature. The assembly decides where the call goes.
+neighbouring feature. The build decides where the call goes.
 
 At the `'users'` selection, there is no owner of `notifications.check-address` in the
-process. The assembly binds `CheckAddress.caller` to a remote caller: the
+process. The build binds `CheckAddress.caller` to a remote caller: the
 call goes out to the broker as a request waiting for a response, and
 the declared `AddressRejected` failure comes back as the same `Fail` as a
 call inside the process would give. The owner's replicas form a queue
@@ -196,7 +196,7 @@ export const RegisterUserImpl = implement(RegisterUser, {
 ```
 
 On the receiving side the value lies in the message's attributes. The
-`TenantId.propagated()` unit carries it into the request's
+`TenantId.propagated()` step carries it into the request's
 asynchronous context. It is part of the example's base layer, which
 stands in the pipeline of every implementation: both `notifications.check-address` and
 `users.registered` arrive from another process.
@@ -255,16 +255,16 @@ The trace is carried by the same mechanism as the tenant: the kernel
 declares the `Trace` variable with `propagate: true`, so the
 `notifications.check-address` caller puts it into the message envelope. Only the
 receiving side differs: `withTracing()`, not `Trace.propagated()`,
-returns the trace into the context there. The same unit continues the
+returns the trace into the context there. The same step continues the
 trace both from the bus and from the HTTP `traceparent` header, so the
 implementation of an operation and an HTTP endpoint are built from the
 same layer.
 
 `traceId` is shared by the two processes, while `spanId` is its own for
 each: the span of the caller goes into the `parentSpanId` of the
-callee. From this pair the trace assembles into a tree of calls.
+callee. From this pair the trace builds into a tree of calls.
 
-That the trace is declared on every route is checked by the assembly
+That the trace is declared on every route is checked by the build
 policy:
 
 ```typescript
@@ -278,7 +278,7 @@ docker run --rm -p 4222:4222 nats:2 -js
 ```
 
 The `-js` flag turns on JetStream. Without it the stream under
-`users.registered` is not created, and the assembly stops.
+`users.registered` is not created, and the build stops.
 
 ```bash
 APP_FEATURES=notifications yarn start:dev
@@ -342,15 +342,15 @@ The test brings up both processes in one jest process on top of the
 ```
 
 `run` creates one application per feature selection: `declareApp` with
-a connection to the double, then `assemble(select)` for each role.
+a connection to the double, then `build(select)` for each role.
 `broker.published` keeps every sent message with its headers: the test
 checks the subjects and the tenant in `Nl-Ctx` against it, and finds
 the `nestling_users_registered` stream through
 `broker.jetstreamManager()`. The second test of the same file brings
 up the `'all'` selection and checks that `notifications.check-address` does not go
 out to the broker. The third reads the logger records of both
-processes and matches their `traceId`. The fourth assembles the `users`
-process with no owner of `notifications.check-address` and makes sure the assembly
+processes and matches their `traceId`. The fourth builds the `users`
+process with no owner of `notifications.check-address` and makes sure the build
 goes through.
 
 ```bash

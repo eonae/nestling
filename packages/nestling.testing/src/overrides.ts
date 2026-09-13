@@ -52,17 +52,17 @@ export const isFamilyOverride = (
  *
  * Единственный способ выразить cross-cutting: `familyOverride(ILogger, () =>
  * noop)` делает no-op'ом каждый инжект `ILogger('users')`,
- * `ILogger('orders')` и любой другой — включая члены, о существовании
+ * `ILogger('orders')` и любой другой — включая токены семейства, о существовании
  * которых тест не знает. Подмена применяется **до** создания узла графа,
  * поэтому боевой рецепт не вызывается ни разу.
  *
  * @param family - Семейство, созданное `makeTokenFamily`
- * @param make - Значение члена по его параметру
+ * @param make - Значение токена семейства по его параметру
  * @returns Значение для списка `overrides:`
  *
  * @example
  * ```typescript
- * await using app = await assembleTest({
+ * await using app = await buildTest({
  *   features: [UsersFeature],
  *   overrides: [familyOverride(ILogger, () => noopLogger)],
  * });

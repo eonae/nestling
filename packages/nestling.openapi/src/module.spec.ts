@@ -201,7 +201,7 @@ describe('документ строит объявленный плагин', ()
       transports: [asHttpTransport(transport)],
     });
 
-    const app = declaration.assemble();
+    const app = declaration.build();
     await app.run();
 
     expect(await serve(transport)).toEqual(
@@ -220,7 +220,7 @@ describe('openapi(...) — плагин-издатель', () => {
       plugins: [openapi({ info, converters: [zodConverter()] })],
       transports: [asHttpTransport(new SpyTransport())],
       logger: spy.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -264,7 +264,7 @@ describe('openapi(...) — плагин-издатель', () => {
       ],
       transports: [asHttpTransport(new SpyTransport())],
       logger: spy.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -285,7 +285,7 @@ describe('openapi(...) — плагин-издатель', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -348,7 +348,7 @@ describe('openapi(...) — плагин-издатель', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/cannot be documented/);
 
@@ -368,7 +368,7 @@ describe('openapi(...) — плагин-издатель', () => {
       features: [UsersModule],
       plugins: [openapi({ info, announceHidden: false })],
       transports: [asHttpTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -402,7 +402,7 @@ describe('openapi(...) — плагин-издатель', () => {
       features: [makeFeature({ name: 'module:foreign', endpoints: [Foreign] })],
       plugins: [openapi({ info, announceHidden: false })],
       transports: [asHttpTransport(new SpyTransport())],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/vendor 'valibot'/);
 
@@ -417,7 +417,7 @@ describe('openapi(...) — плагин-издатель', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    }).assemble('module:openapi-users');
+    }).build('module:openapi-users');
 
     await app.run();
 
@@ -460,7 +460,7 @@ describe('endpoint документации подчиняется полити�
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
@@ -474,7 +474,7 @@ describe('endpoint документации подчиняется полити�
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/GET \/openapi\.json/);
     await app.close();
@@ -493,7 +493,7 @@ describe('endpoint документации подчиняется полити�
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
@@ -527,11 +527,11 @@ describe('документ доступен значением', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
-    // Документ построен на ASSEMBLE и лежит в графе значением: endpoint —
+    // Документ построен на BUILD и лежит в графе значением: endpoint —
     // способ его отдать, а не место, где он появляется
     expect(injected).toEqual(await serve(transport));
     expect(Object.keys(injected?.paths ?? {})).toEqual(['/users/{id}']);

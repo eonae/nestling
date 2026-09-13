@@ -32,7 +32,7 @@ framework owns the code, not the build.
   compiler check it: a missing extension is TS2835. With
   `moduleResolution: "bundler"` the same file compiles and the build then
   fails on its first import.
-- **`esnext.disposable` in `lib`.** `assembleTest` returns a value held by
+- **`esnext.disposable` in `lib`.** `buildTest` returns a value held by
   `await using`; without the library the disposal protocol has no types.
 - **No `experimentalDecorators`, no `emitDecoratorMetadata`.** Nestling uses
   standard decorators and reads nothing from metadata: a dependency list is

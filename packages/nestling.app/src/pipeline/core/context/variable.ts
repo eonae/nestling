@@ -3,15 +3,15 @@
  *
  * Отдельного хранилища у переменных нет: переменная называет поле, которое
  * пайплайн и так накапливает, поэтому значение из `Ctx` всегда совпадает с
- * контекстом. Записывает переменную только юнит `Var.provide` — формой
+ * контекстом. Записывает переменную только шаг `Var.provide` — формой
  * `provide(compute)` или `provide(deps, compute)`: добавку строит сама
  * переменная, и объявление совпадает с записью.
  */
 
-import type { DeferredPreUnitFn } from '../deferred.js';
-import { deferUnit } from '../deferred.js';
+import type { DeferredPreStepFn } from '../deferred.js';
+import { deferStep } from '../deferred.js';
 import type { ExtendableContext } from '../types/context.js';
-import type { PreUnitFn } from '../types/unit.js';
+import type { PreStepFn } from '../types/step.js';
 
 import { currentCell } from './store.js';
 
@@ -33,7 +33,7 @@ export const SIGNAL_KEY = 'signal';
 /**
  * Ключ, зарезервированный под встроенную переменную `Trace`.
  *
- * Трассировку кладёт штатный юнит `withTracing()`, и политика адресует
+ * Трассировку кладёт штатный шаг `withTracing()`, и политика адресует
  * именно эту переменную, поэтому одноимённое объявление из прикладного
  * кода запрещено.
  */
@@ -78,12 +78,12 @@ export interface ContextVar<T, K extends string = string>
   /** Провозится ли переменная через границу порта */
   readonly propagate?: boolean;
   /**
-   * Создаёт обычный `.pre`-юнит, который кладёт значение переменной в
+   * Создаёт обычный `.pre`-шаг, который кладёт значение переменной в
    * `input`. Типизация, проверка требований и конфликтов — те же, что у
-   * любого `.pre`-юнита.
+   * любого `.pre`-шага.
    *
-   * @param compute - Вычисляет значение переменной по контексту юнита
-   * @returns `.pre`-юнит, добавляющий в `input` поле `key`
+   * @param compute - Вычисляет значение переменной по контексту шага
+   * @returns `.pre`-шаг, добавляющий в `input` поле `key`
    *
    * @example
    * ```typescript
@@ -96,13 +96,13 @@ export interface ContextVar<T, K extends string = string>
    */
   provide<TReq extends AnyInput = EmptyInput>(
     compute: (ctx: ExtendableContext<TReq>) => T | Promise<T>,
-  ): PreUnitFn<TReq, Record<K, T>>;
+  ): PreStepFn<TReq, Record<K, T>>;
 
   /**
    * Вторая форма: писатель с зависимостями из контейнера.
    *
    * Значения DI-токенов резолвятся один раз на `bind()` пайплайна тем же
-   * резолвером, что и классы-юниты, и приходят в `compute` следом за
+   * резолвером, что и классы-шаги, и приходят в `compute` следом за
    * контекстом. Класса-моста, который кладёт значение из контейнера в
    * `ctx.input`, не требуется.
    *
@@ -111,11 +111,11 @@ export interface ContextVar<T, K extends string = string>
    * вывода тип-аргументов в TypeScript нет.
    *
    * `Family.auto` в списке отвергается: у писателя нет класса-потребителя,
-   * по имени которого выбирается член семейства.
+   * по имени которого выбирается токен семейства.
    *
    * @param deps - DI-токены, значения которых получает `compute`
    * @param compute - Вычисляет значение по контексту и зависимостям
-   * @returns `.pre`-юнит с непустым `TNeeds`: исполним после `bind()`
+   * @returns `.pre`-шаг с непустым `TNeeds`: исполним после `bind()`
    *
    * @example
    * ```typescript
@@ -140,7 +140,7 @@ export interface ContextVar<T, K extends string = string>
       ctx: ExtendableContext<TReq>,
       ...deps: UnwrapInjectionTokens<[...D]>
     ) => T | Promise<T>,
-  ): DeferredPreUnitFn<TReq, Record<K, T>, D[number]>;
+  ): DeferredPreStepFn<TReq, Record<K, T>, D[number]>;
 }
 
 /**
@@ -153,7 +153,7 @@ export interface PropagatedContextVar<T, K extends string = string>
   readonly propagate: true;
 
   /**
-   * Создаёт `.pre`-юнит, который кладёт в `input` значение, полученное от
+   * Создаёт `.pre`-шаг, который кладёт в `input` значение, полученное от
    * вызывающего (`ctx.raw.attributes[key]`), вместо вычисленного.
    *
    * Значение не валидируется: схемы у переменной нет. Провоз пересекает
@@ -164,30 +164,30 @@ export interface PropagatedContextVar<T, K extends string = string>
    * const scoped = makePipeline().pre(TenantId.propagated());
    * ```
    */
-  propagated(): PreUnitFn<EmptyInput, Record<K, T>>;
+  propagated(): PreStepFn<EmptyInput, Record<K, T>>;
 }
 
 /** Переменная с любым ключом: форма аргумента `Ctx` и предиката `hasVar` */
 export type AnyContextVar<T = unknown> = ReadonlyContextVar<T, string>;
 
 /**
- * Symbol-метка на юните: какую переменную он кладёт.
+ * Symbol-метка на шаге: какую переменную он кладёт.
  *
- * Неперечислимая: юнит остаётся обычной функцией, и ни спред, ни
+ * Неперечислимая: шаг остаётся обычной функцией, и ни спред, ни
  * `Object.keys`, ни сериализация метку не видят.
  */
 const DECLARED_VAR = Symbol('nestling:contextVar');
 
 /**
- * Возвращает переменную, которую объявляет юнит, или `undefined` для
- * любого другого юнита (включая функцию, кладущую то же поле вручную).
+ * Возвращает переменную, которую объявляет шаг, или `undefined` для
+ * любого другого шага (включая функцию, кладущую то же поле вручную).
  *
  * @internal По этой функции пайплайн собирает множество объявленных
  * переменных для политики `hasVar`
  */
-export const declaredVarOf = (unit: unknown): AnyContextVar | undefined =>
-  typeof unit === 'function'
-    ? (unit as { [DECLARED_VAR]?: AnyContextVar })[DECLARED_VAR]
+export const declaredVarOf = (step: unknown): AnyContextVar | undefined =>
+  typeof step === 'function'
+    ? (step as { [DECLARED_VAR]?: AnyContextVar })[DECLARED_VAR]
     : undefined;
 
 /**
@@ -251,7 +251,7 @@ function assertKey(key: string, reserved: boolean): void {
  *
  * Список принимает только DI-токены: объектные и классы. `Family.auto`
  * отвергается отдельно, с починкой: у писателя нет класса-потребителя, по
- * имени которого семейство выбрало бы члена.
+ * имени которого семейство выбрало бы DI-токен.
  */
 function assertWriterDeps(
   key: string,
@@ -410,19 +410,19 @@ function makeDeclarator<T>(reserved: boolean): ContextVarDeclarator<T> {
 
     const propagate = options.propagate === true;
 
-    /** Ставит на юнит метку переменной, которую он кладёт */
+    /** Ставит на шаг метку переменной, которую он кладёт */
     const mark = <U extends (...args: never[]) => unknown>(
-      unit: U,
+      step: U,
       variable: ContextVar<T, K>,
     ): U => {
       // Метка одна и та же у `provide` и `propagated`, поэтому `hasVar`
-      // засчитывает оба юнита: способ получить значение политике не важен
-      Object.defineProperty(unit, DECLARED_VAR, {
+      // засчитывает оба шага: способ получить значение политике не важен
+      Object.defineProperty(step, DECLARED_VAR, {
         value: variable,
         enumerable: false,
       });
 
-      return unit;
+      return step;
     };
 
     const provide = ((first: unknown, second?: unknown) => {
@@ -444,9 +444,9 @@ function makeDeclarator<T>(reserved: boolean): ContextVarDeclarator<T> {
         ...values: unknown[]
       ) => unknown;
 
-      // Значения зависимостей подставит `bind()`; до него юнит — заглушка
+      // Значения зависимостей подставит `bind()`; до него шаг — заглушка
       return mark(
-        deferUnit({
+        deferStep({
           name: `${key}.provide`,
           deps,
           make: (values) => async (ctx: ExtendableContext<AnyInput>) => ({
@@ -512,7 +512,7 @@ export interface ContextVarDeclarator<T> {
 
 /**
  * Объявляет переменную только для чтения: её значение даёт рантайм
- * запроса, а не `.pre`-юнит.
+ * запроса, а не `.pre`-шаг.
  *
  * @internal Единственный потребитель — встроенная переменная `Signal`
  */
@@ -523,7 +523,7 @@ export function readonlyContextVar<T, K extends string>(
     throw new TypeError(
       `Context variable '${key}' is read-only: its value comes from the ` +
         `request runtime, not from the accumulated input, so there is nothing ` +
-        `for a pre-unit to provide.`,
+        `for a pre-step to provide.`,
     );
   };
 

@@ -22,7 +22,7 @@ export interface SpyMetrics {
   readonly records: readonly SpyRecord[];
 }
 
-/** Создаёт метрики-шпион: записи всех членов семейства идут в один список */
+/** Создаёт метрики-шпион: записи всех токенов семейства идут в один список */
 export function spyMetrics(): SpyMetrics {
   const records: SpyRecord[] = [];
 

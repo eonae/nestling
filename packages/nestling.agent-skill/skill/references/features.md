@@ -187,7 +187,7 @@ travel back.
 
 ## Choosing what to run
 
-- `app.assemble('users')` starts only that feature, and
+- `app.build('users')` starts only that feature, and
   `{ features: 'users', includeDeps: true }` adds the features whose
   operations it calls. The selection comes from the root config, so one
   image serves every role.
@@ -196,4 +196,4 @@ travel back.
   values. Both branches stay visible to the compiler.
 - Splitting across processes changes one field: `intercom: 'events'` next
   to `transports: [nats({ name: 'events' })]`. A call whose owner is not in
-  this assembly then goes over the bus, and the calling code stays as it is.
+  this build then goes over the bus, and the calling code stays as it is.

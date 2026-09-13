@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
@@ -54,9 +54,9 @@ export const app = makeApp({
 `subscriptions(options)` returns a plugin. The value is created once
 and listed in `plugins:`, like the parametrized plugin from
 [chapter 14](../guide/14-features.md). This exact plugin registers the
-subscription layer's class units: an endpoint with the `tracked` layer
-in an assembly without `appSubscriptions` stops the start at the
-ASSEMBLE phase, because an unregistered class unit is not created.
+subscription layer's class steps: an endpoint with the `tracked` layer
+in a build without `appSubscriptions` stops the start at the
+BUILD phase, because an unregistered class step is not created.
 
 The options describe composition decisions. `identity` names the
 subscriber with a context variable: here it is `RequestId` of the
@@ -68,12 +68,12 @@ the shape of the accumulated input.
 The pipeline is what puts the variable in, so on an endpoint without it
 the entry would appear without `identity` — silently. The
 `everyEndpoint({ … }).hasVar(RequestId)` policy catches that: a miss
-stops the assembly instead of giving out an empty column in the list of
+stops the build instead of giving out an empty column in the list of
 subscriptions.
 
 The second shape of `identity` is a function of the context. The
 accumulated input is out of its reach: a key made of several variables
-is assembled by `computed([TenantId, UserId], (_ctx, tenant, user) =>
+is built by `computed([TenantId, UserId], (_ctx, tenant, user) =>
 …)` — it reads the values by the keys of the variables and passes them
 to the computation as arguments. The same shape works in `labels`,
 which adds labels to the record.
@@ -113,9 +113,9 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
 });
 ```
 
-`tracked` is a pipeline layer from the package. Its `.pre` unit
+`tracked` is a pipeline layer from the package. Its `.pre` step
 registers the subscription in the registry before the handler is
-called, and its `.finally` unit removes the record when the stream has
+called, and its `.finally` step removes the record when the stream has
 closed — regardless of how many items the client managed to read. The
 layer is added through `compose`, like any cross-cutting layer from
 [chapter 9](../guide/09-logging.md).
@@ -330,7 +330,7 @@ A contribution to the report is an ordinary provider of a
 [Dependencies by name and contributions collected from
 modules](./token-families.md)); a resource needs only the
 `health(signal)` method. An application with not a single contribution
-assembles, and the list of checks is empty.
+builds, and the list of checks is empty.
 
 There is no separate startup probe: a failure in INIT ends the
 process, and nobody is left to tell "still starting" apart from
@@ -395,7 +395,7 @@ The fact subscriber in `ops` wrote the same events to the log:
 ```typescript
 // src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });

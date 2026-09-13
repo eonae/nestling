@@ -5,7 +5,7 @@
  * Модуль **не** реэкспортируется из `index.ts`: наружу попадают только
  * `AppSpec` и `AppDeclaration` (через `app.ts`). План, символ шва и его
  * типы остаются внутренними — публичной точкой сборки остаётся
- * `makeApp(...).assemble(...)`, а способа остановить приложение на WIRE в
+ * `makeApp(...).build(...)`, а способа остановить приложение на WIRE в
  * поверхности пакета нет.
  */
 
@@ -25,7 +25,7 @@ import type {
   TransportDeclaration,
 } from '../transport/index.js';
 
-import type { AssembleArgs } from './args.js';
+import type { BuildArgs } from './args.js';
 import { RESERVED_ARG_FIELDS } from './args.js';
 import type { Feature, Plugin, ResolvedBundle } from './feature.js';
 import { resolveSelection } from './feature.js';
@@ -90,7 +90,7 @@ export interface AppSpecCommon<
    * `RootLogger$` в `providers:` становится ошибкой дубля. Значение
    * обязано быть готовым: корень существует раньше графа и потому не может
    * зависеть от его узлов. Записи всех фаз, включая предупреждения
-   * сборки, уходят сюда, а члены `Logger$(scope)` строятся от него.
+   * сборки, уходят сюда, а токены семейства `Logger$(scope)` строятся от него.
    */
   logger?: Logger;
 
@@ -100,7 +100,7 @@ export interface AppSpecCommon<
    * Единственный способ заменить пустую реализацию ядра: провайдер под
    * `RootMetrics$` в `providers:` становится ошибкой дубля. Опция и
    * включает инструментовку ядра: без неё рантайм не снимает время и не
-   * вызывает методы записи, а члены `Metrics$(scope)` пишут в никуда.
+   * вызывает методы записи, а токены семейства `Metrics$(scope)` пишут в никуда.
    */
   metrics?: Metrics;
 
@@ -110,7 +110,7 @@ export interface AppSpecCommon<
    *
    * Только транспорты. Сокет держит отдельный узел — сервер, — и в сборку
    * он попадает по ссылке: `http({ server: api })`. Объявление сервера,
-   * попавшее в список, отвергается на фазе ASSEMBLE.
+   * попавшее в список, отвергается на фазе BUILD.
    */
   transports?: T;
 
@@ -137,7 +137,7 @@ export interface AppSpecCommon<
    * Инварианты приложения — значения словаря политик
    * (`everyEndpoint({ … }).hasLayer(…)`).
    *
-   * Проверяются на фазе 1 ASSEMBLE, последними из fail-fast'ов сборки: до
+   * Проверяются на фазе 1 BUILD, последними из fail-fast'ов сборки: до
    * INIT не доходит ни одно нарушение. Поле опционально — приложение
    * без инвариантов собирается ровно как прежде.
    */
@@ -152,7 +152,7 @@ export interface AppSpecCommon<
  * `{ features }`. Первые две — состав одной фичи без имени; их endpoint'ы
  * атрибутируются единице с именем `app`. Выбора фич здесь нет: он меняет
  * состав процесса, а не приложения, и передаётся в
- * `app.assemble(args)`.
+ * `app.build(args)`.
  *
  * @template T - Объявленные транспорты; из них выводится словарь `intercom`
  * @template S - Объявленные переключатели; из них выводится аргумент сборки
@@ -250,7 +250,7 @@ export interface NormalizedAppSpec {
 /**
  * Подстановки тестового корня.
  *
- * Их принимает только шов `@nestlingjs/app/testing`; `assemble` о них не
+ * Их принимает только шов `@nestlingjs/app/testing`; `build` о них не
  * знает и не пробрасывает — подстановка есть свойство тестового прогона,
  * а не боевого.
  */
@@ -258,7 +258,7 @@ export interface TestSubstitutions {
   /** Пары «DI-токен → фейк»: узел графа заменяется до инстанциации */
   overrides?: readonly TokenOverride<any>[];
 
-  /** Подмены рецептов семейств — до создания членов */
+  /** Подмены рецептов семейств — до создания DI-токенов */
   familyOverrides?: readonly FamilyOverrideEntry<any, any>[];
 
   /** Поставка недостающего: провайдеры, добавленные к провайдерам корня */
@@ -276,17 +276,17 @@ export interface TestSubstitutions {
 /**
  * Нормализованный план сборки: декларация плюс аргумент и подстановки.
  *
- * Тип не покидает пакет: так `new AssembledApp({ … })` невыразим по
+ * Тип не покидает пакет: так `new BuiltApp({ … })` невыразим по
  * типам, и единственной публичной точкой сборки остаётся
- * `makeApp(...).assemble(...)`.
+ * `makeApp(...).build(...)`.
  *
  * @internal
  */
-export interface AssemblyPlan {
+export interface BuildPlan {
   readonly spec: NormalizedAppSpec;
 
   /** Аргумент сборки; отсутствует — выбраны все фичи и умолчания */
-  readonly args?: AssembleArgs<any>;
+  readonly args?: BuildArgs<any>;
 
   readonly overrides: readonly TokenOverride<any>[];
   readonly familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -454,7 +454,7 @@ function assertKnownFields(spec: Record<string, unknown>): void {
     if (field === 'select') {
       throw new TypeError(
         `makeApp({ … }): 'select' is not a field of the declaration. The ` +
-          `selection is part of the assembly argument: app.assemble(args) or ` +
+          `selection is part of the build argument: app.build(args) or ` +
           `app.check(args).`,
       );
     }
@@ -462,7 +462,7 @@ function assertKnownFields(spec: Record<string, unknown>): void {
     if (field === 'overrides' || field === 'stubs') {
       throw new TypeError(
         `makeApp({ … }): '${field}' is not a field of the declaration. ` +
-          `Substitutions belong to the test root: assembleTest(app, { ${field} }).`,
+          `Substitutions belong to the test root: buildTest(app, { ${field} }).`,
       );
     }
 
@@ -474,7 +474,7 @@ function assertKnownFields(spec: Record<string, unknown>): void {
 }
 
 /** Имя внутренней единицы, в которую нормализуется корень плоских форм */
-export const ROOT_UNIT_NAME = 'app';
+export const ROOT_STEP_NAME = 'app';
 
 /** Три допустимые формы состава — для сообщения о смешанной записи */
 const COMPOSITION_FORMS = `{ endpoints, providers? }, { endpoints, modules? } or { features }`;
@@ -511,7 +511,7 @@ function assertComposition(spec: Record<string, unknown>): void {
 
     throw new TypeError(
       `makeApp({ … }): '${field}' needs 'endpoints:' beside it — it is the ` +
-        `composition of the root unit. A provider shared by several features ` +
+        `composition of the root step. A provider shared by several features ` +
         `is declared by a plugin (makePlugin), so that the edge 'feature → ` +
         `provider' has an owner. Declare exactly one of ${COMPOSITION_FORMS}.`,
     );
@@ -546,7 +546,7 @@ function normalizeSwitches(values: unknown): readonly AnySwitch[] {
 
     if ((RESERVED_ARG_FIELDS as readonly string[]).includes(declared.name)) {
       throw new Error(
-        `Switch '${declared.name}' cannot be declared: the assembly argument ` +
+        `Switch '${declared.name}' cannot be declared: the build argument ` +
           `already has a field with that name. Rename the switch.`,
       );
     }
@@ -556,7 +556,7 @@ function normalizeSwitches(values: unknown): readonly AnySwitch[] {
     if (seen && seen !== declared) {
       throw new Error(
         `Two different switches are named '${declared.name}'. The name is the ` +
-          `field of the assembly argument, so it must be unique.`,
+          `field of the build argument, so it must be unique.`,
       );
     }
 
@@ -588,12 +588,12 @@ function normalizeRoot(spec: {
   }
 
   const modules: readonly Branchable<Module>[] = spec.providers
-    ? [{ name: ROOT_UNIT_NAME, providers: [...spec.providers] }]
+    ? [{ name: ROOT_STEP_NAME, providers: [...spec.providers] }]
     : [...(spec.modules ?? [])];
 
   return Object.freeze({
     role: 'feature' as const,
-    name: ROOT_UNIT_NAME,
+    name: ROOT_STEP_NAME,
     modules: Object.freeze(modules),
     endpoints: Object.freeze([...spec.endpoints]),
   });
@@ -654,16 +654,16 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
 /**
  * Строит план сборки: декларация, аргумент и подстановки.
  *
- * Аргумент здесь не разбирается: его ошибки — ошибки фазы ASSEMBLE, их
- * бросает `run()` или `check()`, а `assemble()` ничего не читает.
+ * Аргумент здесь не разбирается: его ошибки — ошибки фазы BUILD, их
+ * бросает `run()` или `check()`, а `build()` ничего не читает.
  *
  * @internal
  */
 export function makePlan(
   spec: NormalizedAppSpec,
-  args?: AssembleArgs<any>,
+  args?: BuildArgs<any>,
   substitutions: TestSubstitutions = {},
-): AssemblyPlan {
+): BuildPlan {
   return {
     spec,
     ...(args === undefined ? {} : { args }),
@@ -677,7 +677,7 @@ export function makePlan(
 }
 
 /**
- * Ключ внутреннего шва: метод `AssembledApp`, проводящий приложение по
+ * Ключ внутреннего шва: метод `BuiltApp`, проводящий приложение по
  * фазам 0–3 и останавливающийся.
  *
  * Символ, а не имя метода: `index.ts` его не экспортирует, поэтому у
@@ -688,7 +688,7 @@ export function makePlan(
 export const TEST_SEAM: unique symbol = Symbol('nestling:app:test-seam');
 
 /**
- * Ключ структурной проверки: метод `AssembledApp`, выполняющий фазы 0–1
+ * Ключ структурной проверки: метод `BuiltApp`, выполняющий фазы 0–1
  * и отдающий отчёт. Публично проверку зовут через `App.check()`.
  *
  * @internal

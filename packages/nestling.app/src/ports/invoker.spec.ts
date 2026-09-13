@@ -97,7 +97,7 @@ const shippedKeys: (string | undefined)[] = [];
 
 const ShipOrderImpl = implement(ShipOrder, {
   // Тот же канал, что и по сети: ключ лежит в транспортных атрибутах
-  // рядом с `subject`, и юнит видит его без всякой композиции — на обоих
+  // рядом с `subject`, и шаг видит его без всякой композиции — на обоих
   // путях биндинга
   pipeline: makePipeline().pre((ctx) => {
     shippedKeys.push(ctx.raw.attributes.idempotencyKey as string | undefined);

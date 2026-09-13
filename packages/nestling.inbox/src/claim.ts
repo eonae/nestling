@@ -1,7 +1,7 @@
 /**
- * Юнит отметки и слой приёма.
+ * Шаг отметки и слой приёма.
  *
- * Юнит ставит отметку транзакцией вызывающего и завершает endpoint
+ * Шаг ставит отметку транзакцией вызывающего и завершает endpoint
  * досрочным успехом, если сообщение уже обработано. Слой — значение:
  * политика `requiresInbox` сравнивает его по ссылке.
  */
@@ -19,7 +19,7 @@ import type {
 } from '@nestlingjs/app';
 import { done, makePipeline } from '@nestlingjs/app';
 
-/** Контекст, который юнит отметки видит: ключ положил писатель перед ним */
+/** Контекст, который шаг отметки видит: ключ положил писатель перед ним */
 type ClaimContext = ExtendableContext<EmptyInput & { idempotencyKey: string }>;
 
 /**
@@ -30,7 +30,7 @@ type ClaimContext = ExtendableContext<EmptyInput & { idempotencyKey: string }>;
  * собирает плагин: список зависимостей известен только там, где объявлен
  * словарь `inbox({ transaction, store })`.
  */
-export class InboxClaimUnit {
+export class InboxClaimStep {
   constructor(
     private readonly store: InboxStore,
     private readonly transaction: CtxReader<unknown>,
@@ -70,7 +70,7 @@ export class InboxClaimUnit {
 }
 
 /**
- * Слой приёма: писатель ключа и юнит отметки.
+ * Слой приёма: писатель ключа и шаг отметки.
  *
  * Значение создаётся один раз на вызов `inbox(...)`. Функцией слой не
  * делается: `hasLayer` сравнивает по ссылке, и новый пайплайн на каждый
@@ -79,6 +79,6 @@ export class InboxClaimUnit {
 export const makeInboxLayer = (): Pipeline<
   EmptyInput,
   EmptyInput & { idempotencyKey: string },
-  typeof InboxClaimUnit
+  typeof InboxClaimStep
 > =>
-  makePipeline().pre(readIdempotencyKey()).pre(InboxClaimUnit, { done: true });
+  makePipeline().pre(readIdempotencyKey()).pre(InboxClaimStep, { done: true });

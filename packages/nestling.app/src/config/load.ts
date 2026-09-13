@@ -37,7 +37,7 @@ import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
  * const RootConfig = makeConfig('app', { features: z.string().default('all') });
  *
  * const cfg = load(RootConfig);
- * await app.assemble({ features: cfg.features }).run();
+ * await app.build({ features: cfg.features }).run();
  * ```
  */
 export const load = <Values>(

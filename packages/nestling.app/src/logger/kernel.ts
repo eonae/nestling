@@ -1,5 +1,5 @@
 /**
- * Kernel-модуль логгера: рецепт семейства областей и члены ядра.
+ * Kernel-модуль логгера: рецепт семейства областей и DI-токены ядра.
  *
  * Корень регистрирует его **всегда**. Корневого логгера здесь нет: он
  * живёт вне графа и создаётся раньше — на фазе 0, потому что ядро пишет
@@ -18,7 +18,7 @@ import { Logger$, RootLogger$ } from './tokens.js';
 import type { Module } from '@nestlingjs/container';
 import { factoryProvider, familyProvider } from '@nestlingjs/container';
 
-/** Член семейства как дочерний логгер корня с привязкой области */
+/** Токен семейства как дочерний логгер корня с привязкой области */
 const memberOf = (scope: string) =>
   factoryProvider(Logger$(scope), (root: Logger) => root.child({ scope }), [
     RootLogger$,
@@ -44,8 +44,8 @@ export const makeKernelLogger = (reader: ConfigReader): Logger =>
 /**
  * Собирает kernel-модуль логгера.
  *
- * Члены `Logger$('nestling')` и `Logger$('nestling:config')` зарегистрированы
- * явно: член семейства становится узлом, только когда его кто-то
+ * Токены семейства `Logger$('nestling')` и `Logger$('nestling:config')` зарегистрированы
+ * явно: токен семейства становится узлом, только когда его кто-то
  * запрашивает в `deps`, а ядру они нужны и тогда, когда прикладной код
  * логгер не инжектит.
  *

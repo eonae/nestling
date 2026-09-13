@@ -95,7 +95,7 @@ export interface Feature {
   /**
    * Модули фичи: они попадут в контейнер, если фича выбрана.
    *
-   * Ветки переключателей раскрывает фаза ASSEMBLE — значения известны ей,
+   * Ветки переключателей раскрывает фаза BUILD — значения известны ей,
    * а не объявлению.
    */
   readonly modules: readonly Branchable<Module>[];
@@ -131,7 +131,7 @@ export interface Plugin {
 export type Bundle = Feature | Plugin;
 
 /**
- * Единица состава с раскрытыми ветками: то, с чем работает фаза ASSEMBLE.
+ * Единица состава с раскрытыми ветками: то, с чем работает фаза BUILD.
  *
  * Раскрытие делается один раз на сборку и запоминается по исходной
  * единице: discovery, карта владельцев и атрибуция endpoint'ов сверяют
@@ -159,7 +159,7 @@ export interface ResolvedBundle {
  * регистрации.
  *
  * @param bundle - Фича или плагин
- * @param values - Значения переключателей фазы ASSEMBLE
+ * @param values - Значения переключателей фазы BUILD
  * @param missing - Ошибка на ветке переключателя вне `switches:`
  * @returns Единица с раскрытыми списками
  */
@@ -344,7 +344,7 @@ export interface NormalizedSelection {
 /**
  * Резолвит выбор фич: имена → значения.
  *
- * Все проверки — fail-fast на фазе ASSEMBLE, до построения контейнера.
+ * Все проверки — fail-fast на фазе BUILD, до построения контейнера.
  * Транзитивного замыкания по объявленному полю здесь нет: у фичи такого
  * поля нет. Замыкание по вызовам делает `closeOverCalls` — оно требует
  * discovery и потому живёт в `App`.
@@ -369,7 +369,7 @@ export function resolveSelection(
     if (requested !== undefined) {
       throw new Error(
         `A selection is given, but no features are declared. ` +
-          `Declare them in 'features:' of makeApp({ … }) or assemble without ` +
+          `Declare them in 'features:' of makeApp({ … }) or build without ` +
           `a selection.`,
       );
     }
@@ -455,7 +455,7 @@ export function modulesOf(bundles: readonly ResolvedBundle[]): Module[] {
  * как их читает контейнер.
  *
  * @param bundle - Единица с раскрытыми списками
- * @param values - Значения переключателей фазы ASSEMBLE
+ * @param values - Значения переключателей фазы BUILD
  * @returns Модули в порядке обхода
  */
 export function reachableModules(

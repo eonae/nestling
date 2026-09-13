@@ -6,7 +6,7 @@ import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
 import {
-  assembleTest,
+  buildTest,
   checkTopologies,
   stub,
   unwrap,
@@ -24,7 +24,7 @@ const inMemoryUsers = (): UsersRepository => ({
 
 describe('users', () => {
   it('calls an endpoint through the whole pipeline, without a socket', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       // The same declaration `main.ts` runs, with two substitutions
       overrides: [[UsersRepository$, inMemoryUsers()]],
       config: vars({ API_TOKEN: 'test-token' }),
@@ -34,10 +34,10 @@ describe('users', () => {
   });
 
   it('returns a declared failure with its status and code', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       overrides: [[UsersRepository$, inMemoryUsers()]],
       config: vars({ API_TOKEN: 'test-token' }),
-      // A stub answers for an operation this assembly does not implement;
+      // A stub answers for an operation this build does not implement;
       // its answer is validated against the operation schema
       stubs: [stub(ClaimQuota, async () => QuotaExceeded({ limit: 5 }))],
     });
@@ -51,7 +51,7 @@ describe('users', () => {
     ).toMatchObject({ isSuccess: false, status: 'too_many_requests' });
   });
 
-  it('assembles every deployment topology', async () => {
+  it('builds every deployment topology', async () => {
     // Structural only: no instance is created, so `config` binds the
     // required keys instead of substituting values
     const reports = await checkTopologies(app, ['all', 'users', 'quotas'], {

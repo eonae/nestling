@@ -28,10 +28,10 @@ const Rejected = makeFail('bad_request:done_type_test', {
   message: 'Rejected',
 });
 
-/** Юнит возвращает досрочный успех вместо добавки */
+/** Шаг возвращает досрочный успех вместо добавки */
 const claiming = makePipeline().pre(() => done(), { done: true });
 
-/** Досрочный успех в `input` не попадает: добавки у такого юнита нет */
+/** Досрочный успех в `input` не попадает: добавки у такого шага нет */
 const accumulated = makePipeline()
   .pre(() => ({ tenant: 'acme' }))
   .pre(() => done(), { done: true })

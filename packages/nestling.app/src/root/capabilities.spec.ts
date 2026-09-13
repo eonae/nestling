@@ -3,7 +3,7 @@
  * транспорта. Проверка обязана срабатывать **на сборке**, до приёма
  * запросов.
  *
- * Транспорт здесь фейковый: предмет проверки — фаза ASSEMBLE, а не работа
+ * Транспорт здесь фейковый: предмет проверки — фаза BUILD, а не работа
  * конкретного транспорта. Ту же проверку на своём `serve` каждый транспорт
  * проверяет собственными спеками.
  */
@@ -39,7 +39,7 @@ const asTransport = (
   capabilities = VALUE_ONLY,
 ) => transportValue(token, transport, { capabilities });
 
-describe('capability-валидация через assemble', () => {
+describe('capability-валидация через build', () => {
   it('форма вне способностей падает на сборке, называя endpoint, единицу, слот и форму', async () => {
     const Watch = testEndpoint({
       method: 'GET',
@@ -51,14 +51,14 @@ describe('capability-валидация через assemble', () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:watch', endpoints: [Watch] })],
       transports: [asTransport(TestTransport$('default'), new MockTransport())],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /Endpoint 'GET \/watch' declared in 'module:watch': transport 'test' does not support form 'events' in 'output'/,
     );
   });
 
-  it('multipart на транспорте без него падает и через assemble', async () => {
+  it('multipart на транспорте без него падает и через build', async () => {
     const Upload = testEndpoint({
       method: 'POST',
       path: '/upload',
@@ -69,7 +69,7 @@ describe('capability-валидация через assemble', () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:upload', endpoints: [Upload] })],
       transports: [asTransport(TestTransport$('default'), new MockTransport())],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /does not support form 'multipart' in 'input' \(supported: value\)/,
@@ -91,7 +91,7 @@ describe('capability-валидация через assemble', () => {
       transports: [
         asTransport(TestTransport$('default'), transport, ALL_FORMS),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -114,7 +114,7 @@ describe('capability-валидация через assemble', () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:live', endpoints: [Live] })],
       transports: [asTransport(TestTransport$('default'), bus)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/does not support form 'events'/);
     expect(bus.serving).toBe(false);

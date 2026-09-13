@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars --
  * блок типовых проверок объявляет значения ради компилятора, не ради рантайма */
 /* eslint-disable unicorn/consistent-function-scoping --
- * юниты и фабрики вызова замыкают фикстуры своего теста */
+ * шаги и фабрики вызова замыкают фикстуры своего теста */
 /* eslint-disable unicorn/no-useless-undefined --
- * `undefined` из юнита — часть формы API: он значит «добавки нет» */
+ * `undefined` из шага — часть формы API: он значит «добавки нет» */
 /**
  * Отказы, объявленные слоем: второй аргумент `.pre`, множество отказов на
- * значении пайплайна и канал `return` у pre-юнита.
+ * значении пайплайна и канал `return` у pre-шага.
  *
  * Эффективное множество декларации проверяет
  * `metadata/endpoint-errors.spec.ts`; здесь — сам пайплайн.
@@ -80,7 +80,7 @@ async function run(
 /** Логгер, глушащий умолчание ядра в выводе тестов */
 const silent = spyLogger().logger;
 
-describe('.pre(unit, { errors }) — проверка списка', () => {
+describe('.pre(step, { errors }) — проверка списка', () => {
   it('объявленные отказы попадают на значение пайплайна', () => {
     const authed = makePipeline().pre(() => Unauthorized(), {
       errors: [Unauthorized],
@@ -95,7 +95,7 @@ describe('.pre(unit, { errors }) — проверка списка', () => {
     expect(declaredFailsOf(base)).toEqual([]);
   });
 
-  it('не-определение в списке → ошибка с позицией элемента и именем юнита', () => {
+  it('не-определение в списке → ошибка с позицией элемента и именем шага', () => {
     function Authenticate() {
       return undefined;
     }
@@ -157,7 +157,7 @@ describe('множество отказов на значении пайплай
     expect(declaredFailsOf(authed)).toEqual([Unauthorized]);
   });
 
-  it('ответные юниты сохраняют множество', () => {
+  it('ответные шаги сохраняют множество', () => {
     const authed = makePipeline()
       .pre(() => Unauthorized(), { errors: [Unauthorized] })
       .catch(() => undefined)
@@ -198,7 +198,7 @@ describe('множество отказов на значении пайплай
   });
 });
 
-describe('канал return у pre-юнита', () => {
+describe('канал return у pre-шага', () => {
   it('объявленный отказ останавливает пайплайн и не пишет поле в input', async () => {
     const seen: string[] = [];
 

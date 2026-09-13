@@ -167,7 +167,7 @@ describe('словарь switches: корня', () => {
   });
 });
 
-describe('ветки состава на фазе ASSEMBLE', () => {
+describe('ветки состава на фазе BUILD', () => {
   const storageModule = makeModule({
     name: 'module:storage',
     providers: [
@@ -424,7 +424,7 @@ describe('выбор в отчёте и на старте', () => {
       switches: [Storage, Debug],
       transports: [asTransport()],
       logger: probe.logger,
-    }).assemble({ storage: 's3' });
+    }).build({ storage: 's3' });
 
     await app.run();
 
@@ -442,7 +442,7 @@ describe('выбор в отчёте и на старте', () => {
       endpoints: [ping()],
       transports: [asTransport()],
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 

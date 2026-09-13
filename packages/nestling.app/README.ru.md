@@ -2,7 +2,7 @@
 
 Ядро Nestling одним пакетом: пайплайн обработки запроса, конфигурация, порты
 между фичами, абстракция транспорта и композиционный корень. `makeApp(spec)`
-объявляет приложение значением, `app.assemble(select)` собирает его для этого
+объявляет приложение значением, `app.build(select)` собирает его для этого
 процесса, а `run()` строит контейнер, находит endpoint'ы обходом фич и
 плагинов, проводит приложение по фазам жизненного цикла и останавливает его
 по `SIGTERM` и `SIGINT`.
@@ -40,13 +40,13 @@ export const app = makeApp({
 });
 
 // main.ts — что запускает этот процесс
-await app.assemble().run();
+await app.build().run();
 ```
 
 ## Экспорты
 
 - **Композиционный корень** ([design](../../docs/design/composition.md)) —
-  `App`, `AssembleArgs`, `AssembledApp`, `Bundle`, `CheckOptions`,
+  `App`, `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`,
   `CheckReport`, `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`,
   `Feature`, `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`,
   `Plugin`, `PluginOptions`.
@@ -65,17 +65,17 @@ await app.assemble().run();
   `ClientDisconnectedError`, `collectPropagatedContext`, `compose`,
   `contextKernel`, `contextVar`, `ContextVar`, `ContextVarDeclarator`,
   `ContextVarOptions`, `ContextVarUnavailableError`, `Ctx`, `CtxReader`,
-  `DeferredPreUnitFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
+  `DeferredPreStepFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
   `EndpointMeta`, `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`,
-  `everyEndpoint`, `ExtendableContext`, `FinallyUnitFn`, `HandlerClass`,
+  `everyEndpoint`, `ExtendableContext`, `FinallyStepFn`, `HandlerClass`,
   `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isContextVar`, `isDone`,
   `isEndpointDefinition`, `isMidStreamFailure`, `makeEmptyContext`,
   `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
-  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreUnitFn`,
+  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreStepFn`,
   `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
   `ResponseContext`, `Signal`, `SuccessResponseContext`, `Trace`,
   `TraceContext`, `traceparent`, `TransportClosingError`, `transportNameOf`,
-  `UndeclaredDoneError`, `UnitResolver`, `withRequestId`, `withTracing`.
+  `UndeclaredDoneError`, `StepResolver`, `withRequestId`, `withTracing`.
 - **Порты и шина** ([design](../../docs/design/operations.md)) —
   `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
   `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,

@@ -15,7 +15,7 @@ import { mcp } from './transport.js';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { AssembledApp } from '@nestlingjs/app';
+import type { BuiltApp } from '@nestlingjs/app';
 import {
   makeApp,
   makeFail,
@@ -103,12 +103,12 @@ const spec = makeApp({
   config: [[socket, serverKeys()]],
 });
 
-let app: AssembledApp;
+let app: BuiltApp;
 let baseUrl: string;
 let client: Client;
 
 beforeAll(async () => {
-  app = spec.assemble();
+  app = spec.build();
   await app.run();
 
   const instance = app.servers.get('default') as HttpServer | undefined;

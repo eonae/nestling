@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Тестовый composition root `assembleTest(spec)` из `@nestlingjs/testing` — та же
+Тестовый composition root `buildTest(spec)` из `@nestlingjs/testing` — та же
 сборка, что боевая, остановленная после фазы `3 WIRE`: граф собран,
 экземпляры созданы, ресурсы захвачены, `dispatch` рождён, но START не
 наступает — транспорты не в эфире,
 обработчики сигналов процесса не ставятся. Это середина, которой раньше не
-было: между юнитом на голых классах и e2e с сокетом появляется app-тест,
+было: между шагом на голых классах и e2e с сокетом появляется app-тест,
 гоняющий запрос через **полный пайплайн** in-proc (`testApp.call`) и факт через
 пайплайны всех co-located подписчиков (`testApp.emit`). Словарь сборки
 пополняется двумя ключами, которых у боевого корня нет и не будет:
@@ -18,20 +18,18 @@
 Конфиг теста задаётся объектом
 (`vars()`), а не `process.env`, поэтому тесты изолированы и параллелимы;
 `await using` завершает прогон честным SHUTDOWN'ом.
-
 ## Requirements
-
-### Requirement: `assembleTest` — тестовый composition root
+### Requirement: `buildTest` — тестовый composition root
 
 `@nestlingjs/testing` SHALL экспортировать
-`assembleTest(app, options?): Promise<TestApp>`, принимающую декларацию
+`buildTest(app, options?): Promise<TestApp>`, принимающую декларацию
 приложения `makeApp` первым аргументом и словарь опций вторым: `args`,
 `overrides`, `stubs`, `config`, `contextValue`. Функция SHALL проводить
-приложение по фазам `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE` и
+приложение по фазам `0 BOOTSTRAP → 1 BUILD → 2 INIT → 3 WIRE` и
 остановиться.
 
 Опция `args` SHALL принимать аргумент сборки в тех же формах, что
-`app.assemble(args?)`: строку, массив имён фич и объект с `features`,
+`app.build(args?)`: строку, массив имён фич и объект с `features`,
 `includeDeps` и значениями переключателей (capability
 `composition-switches`). Опции `select` SHALL NOT существовать: топология
 теста описывается тем же значением, что топология процесса.
@@ -42,15 +40,15 @@
 заменять привязку источников декларации целиком: тест изолирован от
 источников приложения так же, как от `process.env`.
 
-Тестовый прогон SHALL выполнять те же проверки фазы ASSEMBLE, что и боевой:
+Тестовый прогон SHALL выполнять те же проверки фазы BUILD, что и боевой:
 раскрытие веток переключателей, сверку требуемых транспортов с графом,
 проверку форм io против способностей объявленных транспортов, проверку
 ацикличности и проверку объявленных политик (capability
-`assembly-policies`). Тестовый корень SHALL NOT ослаблять инварианты.
+`build-policies`). Тестовый корень SHALL NOT ослаблять инварианты.
 
 #### Scenario: Приложение собрано, но запросов не принимает
 
-- **WHEN** `await assembleTest(app)`, где `app = makeApp({ features: [UsersFeature], transports: [http()] })`
+- **WHEN** `await buildTest(app)`, где `app = makeApp({ features: [UsersFeature], transports: [http()] })`
 - **THEN** экземпляры созданы, ресурсы захвачены, `dispatch` построен,
   `@OnStart` не выполнен, `serve` ни на одном транспорте не вызван и сокет
   не открыт
@@ -65,13 +63,13 @@
 
 - **WHEN** выбранная фича объявляет HTTP-endpoint, а `transports:`
   декларации пуст
-- **THEN** `assembleTest` отклоняется той же ошибкой, что и боевая сборка,
+- **THEN** `buildTest` отклоняется той же ошибкой, что и боевая сборка,
   и ни один конструктор не выполняется
 
 #### Scenario: Инвариант проверяется и в тесте
 
 - **WHEN** декларация несёт `policies: [everyEndpoint().hasLayer(authedBase)]`,
-  а `assembleTest(app, …)` собирает приложение с endpoint'ом без требуемого
+  а `buildTest(app, …)` собирает приложение с endpoint'ом без требуемого
   слоя
 - **THEN** вызов отклоняется тем же нарушением политики, что и боевая
   сборка
@@ -79,7 +77,7 @@
 #### Scenario: Та же декларация, что у `main.ts`
 
 - **WHEN** тест импортирует `app` из `app.ts` и вызывает
-  `assembleTest(app, { overrides: [[UsersRepository$, fake]] })`
+  `buildTest(app, { overrides: [[UsersRepository$, fake]] })`
 - **THEN** словарь сборки не копируется и не спредится; состав совпадает с
   боевым
 
@@ -92,22 +90,22 @@
 
 #### Scenario: Выбор фич в тесте
 
-- **WHEN** `assembleTest(app, { args: 'orders' })`
-- **THEN** собрана только фича `orders`, как при `app.assemble('orders')`
+- **WHEN** `buildTest(app, { args: 'orders' })`
+- **THEN** собрана только фича `orders`, как при `app.build('orders')`
 
 #### Scenario: Ветка переключателя в тесте
 
-- **WHEN** `assembleTest(app, { args: { storage: 'local' } })`
+- **WHEN** `buildTest(app, { args: { storage: 'local' } })`
 - **THEN** в графе провайдеры ветки `local`, и ни один провайдер ветки
   `s3` не создан
 
 ### Requirement: `overrides` существует только у тестового корня
 
-Поле `overrides: [[Token, fake], …]` SHALL приниматься `assembleTest` и
+Поле `overrides: [[Token, fake], …]` SHALL приниматься `buildTest` и
 SHALL передаваться контейнеру как подстановка узла графа. Право override
 SHALL быть позиционным: подменяется только тот токен, ссылка на который есть
 у теста. Строковой формы доступа к токену (`overrideByName('…')`)
-SHALL NOT существовать. Ни `makeApp`, ни `assemble` подстановок SHALL NOT
+SHALL NOT существовать. Ни `makeApp`, ни `build` подстановок SHALL NOT
 принимать.
 
 Пара `[Token, fake]` SHALL быть типизирована: значение, не совместимое с
@@ -115,7 +113,7 @@ SHALL NOT существовать. Ни `makeApp`, ни `assemble` подста
 
 #### Scenario: Подстановка вместо боевого узла
 
-- **WHEN** `assembleTest(app, { overrides: [[UsersRepository, inMemoryUsersRepo()]] })`
+- **WHEN** `buildTest(app, { overrides: [[UsersRepository, inMemoryUsersRepo()]] })`
 - **THEN** все потребители `UsersRepository` получают фейк, а боевой
   провайдер не инстанцируется
 
@@ -138,7 +136,7 @@ SHALL NOT существовать. Ни `makeApp`, ни `assemble` подста
 
 ### Requirement: `stubs:` — поставка недостающего в тестовом корне
 
-Опции `assembleTest` SHALL принимать поле `stubs: [[Token, value], …]` —
+Опции `buildTest` SHALL принимать поле `stubs: [[Token, value], …]` —
 пары «токен → значение», регистрируемые обычными провайдерами. Поле SHALL
 принимать значения `stub(Contract, impl)` наравне с обычными парами:
 стаб операции — такая же пара, и отдельного поля под него SHALL NOT
@@ -149,13 +147,13 @@ SHALL NOT существовать. Ни `makeApp`, ни `assemble` подста
 
 #### Scenario: Пара «токен → значение»
 
-- **WHEN** `assembleTest(app, { stubs: [[IClock, fixedClock]] })`, где
+- **WHEN** `buildTest(app, { stubs: [[IClock, fixedClock]] })`, где
   декларация объявляет `features: [ReportsFeature]`
 - **THEN** `IClock` разрешается переданным значением
 
 #### Scenario: Стаб операции в том же поле
 
-- **WHEN** `assembleTest(app, { select: 'orders', stubs: [stub(ClaimQuota, async () => ({ granted: 1 }))] })`
+- **WHEN** `buildTest(app, { select: 'orders', stubs: [stub(ClaimQuota, async () => ({ granted: 1 }))] })`
 - **THEN** сборка проходит без реализации `ClaimQuota` и без брокера, а
   потребитель получает фейк
 
@@ -309,7 +307,7 @@ co-located.
 
 #### Scenario: Канонический вид теста
 
-- **WHEN** `await using testApp = await assembleTest({ … })` и блок теста
+- **WHEN** `await using testApp = await buildTest({ … })` и блок теста
   завершился
 - **THEN** `release` всех ресурсов выполнены в реверсе, ресурсы отпущены
 
@@ -349,7 +347,7 @@ co-located.
 `@nestlingjs/testing` SHALL экспортировать
 `familyOverride(Family, (param) => value)`, значение которого принимается в
 том же списке `overrides`. Подмена SHALL применяться **до** материализации
-членов, поэтому ни один член SHALL NOT создаваться боевым рецептом.
+DI-токенов, поэтому ни один токен семейства SHALL NOT создаваться боевым рецептом.
 
 #### Scenario: Логгер во всём приложении — no-op
 
@@ -388,3 +386,4 @@ ambient-переменную, SHALL NOT требоваться.
 - **WHEN** тест не подменял ридер и зовёт `testApp.call`
 - **THEN** сервис читает значение, положенное пайплайном, а вне вызова
   `peek()` возвращает `undefined`
+

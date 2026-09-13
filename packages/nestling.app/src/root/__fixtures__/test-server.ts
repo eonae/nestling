@@ -30,7 +30,7 @@ import {
   valueProvider,
 } from '@nestlingjs/container';
 
-/** Семейство DI-токенов слушателя-фейка: один член на экземпляр */
+/** Семейство DI-токенов слушателя-фейка: один DI-токен на экземпляр */
 export const TestServer$: TokenFamily<TestListener, [instance: string]> =
   makeTokenFamily<TestListener, [instance: string]>('server:test');
 

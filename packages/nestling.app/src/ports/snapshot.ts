@@ -154,7 +154,7 @@ export function snapshotOperations(
               .map((name) => `'${name}'`)
               .join(', ')} and '${topology}'. One name is one operation: ` +
             `either the topologies implement different operations under the ` +
-            `same name, or one of them was assembled with a different set ` +
+            `same name, or one of them was built with a different set ` +
             `of schema converters.`,
         );
       }

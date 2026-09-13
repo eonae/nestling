@@ -35,7 +35,7 @@ import type {
   PhasedPipeline,
   Plugin,
   Policy,
-  PreUnitFn,
+  PreStepFn,
 } from '@nestlingjs/app';
 import {
   contextVar,
@@ -86,16 +86,16 @@ export type TxLayerInput<S extends PgSchema, N extends string> = Record<
  * `.ok`, `.catch` и `.finally`, а выдаёт её соединение из контейнера.
  */
 export type TxBridgeClass<S extends PgSchema, N extends string> = Constructor<{
-  handle: PreUnitFn<EmptyInput, Record<SessionKey<N>, PgSession<S>>>;
+  handle: PreStepFn<EmptyInput, Record<SessionKey<N>, PgSession<S>>>;
 }>;
 
 /**
  * Добавка моста в терминах ключей соединения по умолчанию.
  *
- * Замер границы ядра: `.pre` не принимает юнит, ключ добавки которого —
- * параметр типа. Проверка юнита сводит добавку через `Awaited` и
+ * Замер границы ядра: `.pre` не принимает шаг, ключ добавки которого —
+ * параметр типа. Проверка шага сводит добавку через `Awaited` и
  * `Exclude`, а шаблонный ключ от параметра типа не сводится, и верный
- * юнит не проходит по типу. Поэтому слой собирается на литеральных
+ * шаг не проходит по типу. Поэтому слой собирается на литеральных
  * ключах, а имя экземпляра подставляет объявленный тип {@link TxLayer}:
  * в рантайме ключ считает `sessionKeyOf(name)`.
  */
@@ -137,7 +137,7 @@ export interface DrizzlePgPlugin<S extends PgSchema, N extends string>
    * откатывается на отказе, и соединение возвращается в пул на любом
    * исходе.
    *
-   * К потоковому ответу слой не применяется: юнит `.ok` выполняется в
+   * К потоковому ответу слой не применяется: шаг `.ok` выполняется в
    * начале ответной фазы, поэтому коммит у форм `stream` и `events`
    * прошёл бы раньше, чем хендлер дочитал курсор.
    *
@@ -153,7 +153,7 @@ export interface DrizzlePgPlugin<S extends PgSchema, N extends string>
   /**
    * Политика: каждый endpoint под фильтром объявил переменную транзакции.
    *
-   * Нарушение останавливает сборку на фазе ASSEMBLE — до фазы INIT и до
+   * Нарушение останавливает сборку на фазе BUILD — до фазы INIT и до
    * открытия сокета.
    *
    * @param filter - Сужение множества endpoint'ов; без него — все
@@ -295,7 +295,7 @@ export function drizzlePg<
         await sessionOf(ctx.input).commit();
       })
       /* eslint-disable-next-line unicorn/catch-error-name --
-       * Это не catch-клауза, а `.catch`-юнит пайплайна: первый параметр —
+       * Это не catch-клауза, а `.catch`-шаг пайплайна: первый параметр —
        * контекст ответа-отказа, и называть его `error` было бы неверно. */
       .catch(async (_res, ctx) => {
         await peekSession(ctx.input)?.rollback();

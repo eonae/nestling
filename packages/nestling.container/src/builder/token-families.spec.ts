@@ -20,7 +20,7 @@ interface IMetricsService {
   name: string;
 }
 
-describe('создание членов семейства', () => {
+describe('создание токенов семейства', () => {
   it('вызывает рецепт один раз на параметр и разделяет экземпляр', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Dedup');
     const calls: string[] = [];
@@ -131,7 +131,7 @@ describe('создание членов семейства', () => {
     expect(container.getOrThrow(IMetrics('users')).name).toBe('users');
   });
 
-  it('не создаёт членов, от которых никто не зависит', async () => {
+  it('не создаёт токенов семейства, от которых никто не зависит', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Orphan');
 
     @Component([ILogger('used')])
@@ -158,7 +158,7 @@ describe('создание членов семейства', () => {
   });
 });
 
-describe('ошибки создания членов', () => {
+describe('ошибки создания токенов семейства', () => {
   it('отклоняет рецепт, вернувший провайдер другого DI-токена', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Wrong');
 
@@ -180,7 +180,7 @@ describe('ошибки создания членов', () => {
     );
   });
 
-  it('сообщает о члене, запрошенном без рецепта', async () => {
+  it('сообщает о токене семейства, запрошенном без рецепта', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'NoRecipe',
     );
@@ -260,7 +260,7 @@ describe('ошибки создания членов', () => {
     );
   });
 
-  it('останавливает рецепт, который порождает членов бесконечно', async () => {
+  it('останавливает рецепт, который порождает токенов семейства бесконечно', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Endless');
 
     @Component([ILogger('a')])
@@ -302,7 +302,7 @@ describe('ошибки создания членов', () => {
       )
       .register(ServiceA);
 
-    // Членство читается полем DI-токена, поэтому похожий `id` семейство не
+    // Токенство семейства читается полем DI-токена, поэтому похожий `id` семейство не
     // задевает: это обычная недостающая зависимость
     expect(() => builder.build()).toThrow(
       /Unsatisfied dependencies \(1\):[\S\s]*'LookAlike:users' required by 'ServiceA'/,
@@ -310,8 +310,8 @@ describe('ошибки создания членов', () => {
   });
 });
 
-describe('члены семейства — обычные узлы графа', () => {
-  it('находит цикл, проходящий через члена семейства', async () => {
+describe('токены семейства — обычные узлы графа', () => {
+  it('находит цикл, проходящий через токена семейства', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Cyclic');
     const IServiceB = makeToken<{ id: string }>('CyclicServiceB');
 
@@ -339,7 +339,7 @@ describe('члены семейства — обычные узлы графа',
     );
   });
 
-  it('захватывает и освобождает члена ровно один раз', async () => {
+  it('захватывает и освобождает токена семейства ровно один раз', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Hooked');
     const calls: string[] = [];
 
@@ -378,7 +378,7 @@ describe('члены семейства — обычные узлы графа',
     expect(calls).toEqual(['acquire', 'release']);
   });
 
-  it('привязывает члена к модулю, зарегистрировавшему рецепт', async () => {
+  it('привязывает токена семейства к модулю, зарегистрировавшему рецепт', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'Attributed',
     );
@@ -408,7 +408,7 @@ describe('члены семейства — обычные узлы графа',
     expect(member?.metadata.module).toBe('module:logging');
   });
 
-  it('оставляет члена без модуля, если рецепт зарегистрирован напрямую', async () => {
+  it('оставляет токена семейства без модуля, если рецепт зарегистрирован напрямую', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'Moduleless',
     );

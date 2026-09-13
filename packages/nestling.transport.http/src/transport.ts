@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { DEFAULT_SSE_HEARTBEAT, sendResponse } from './adapter.js';
-import { assemblePayload, readQuery } from './binding.js';
+import { buildPayload, readQuery } from './binding.js';
 import {
   JsonParseError,
   MultipartFieldError,
@@ -53,7 +53,7 @@ import { PROBLEM_MEDIA_TYPE, problemOf } from '@nestlingjs/operations';
  *
  * Класс, а не литерал: адрес сокета читается по требованию, а аксессор
  * живёт на прототипе и создание объекта не удорожает. `remoteAddress`
- * идёт в libuv, нужен он только юниту `withClientIp`, а платил бы за него
+ * идёт в libuv, нужен он только шагу `withClientIp`, а платил бы за него
  * каждый запрос.
  *
  * Часов на запросе нет по той же причине: `Date.now()` на каждый запрос
@@ -120,7 +120,7 @@ export interface HttpTransportOptions {
  * входная.
  *
  * Одна константа на пакет и два её потребителя: объявление `http()` — его
- * читает проверка форм на фазе ASSEMBLE — и `serve`, который сверяет
+ * читает проверка форм на фазе BUILD — и `serve`, который сверяет
  * маршруты на standalone-пути. Транспорт поверх другого HTTP-сервера
  * объявляет свои формы ею же, а не повторяет литерал: копия разошлась бы с
  * пакетом при следующей правке.
@@ -190,7 +190,7 @@ export class HttpTransport implements ITransport {
    * Маршруты берутся из `dispatch.routes`, endpoint исполняет
    * `dispatch.call`. Формы io сверяются с поддерживаемыми здесь же: без
    * `App` это та же проверка с тем же текстом ошибки, что на фазе
-   * ASSEMBLE.
+   * BUILD.
    *
    * Сокет при этом не открывается: его открывает сервер следующим шагом
    * START, когда обработчики присоединили все транспорты.
@@ -339,7 +339,7 @@ export class HttpTransport implements ITransport {
 
           // Поля формы играют роль источника «остальное». Path-параметры и
           // помеченные query-поля добавляются к ним до валидации схемой
-          const fields = assemblePayload(binding, {
+          const fields = buildPayload(binding, {
             query,
             body: multipart.fields,
             params,
@@ -380,7 +380,7 @@ export class HttpTransport implements ITransport {
             body = parseJsonBuffer(raw);
           }
 
-          payload = assemblePayload(binding, { query, body, params });
+          payload = buildPayload(binding, { query, body, params });
         }
       }
 
@@ -547,7 +547,7 @@ export class HttpTransport implements ITransport {
  *
  * @example Один транспорт и его сервер
  * ```typescript
- * await makeApp({ features: [Users], transports: [http()] }).assemble().run();
+ * await makeApp({ features: [Users], transports: [http()] }).build().run();
  * ```
  *
  * @example Публичный и админский сокеты
@@ -555,7 +555,7 @@ export class HttpTransport implements ITransport {
  * await makeApp({
  *   features: [Users, Ops],
  *   transports: [http(), http({ name: 'admin' })],
- * }).assemble().run();
+ * }).build().run();
  * ```
  */
 export const http = <const Name extends string = typeof DEFAULT_INSTANCE>(

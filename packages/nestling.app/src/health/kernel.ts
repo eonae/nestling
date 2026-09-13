@@ -40,10 +40,10 @@ export interface HealthKernelOptions {
   readonly phase: () => AppPhase;
 
   /**
-   * Зарегистрированные вклады: члены семейства `HealthCheck$`.
+   * Зарегистрированные вклады: токены семейства `HealthCheck$`.
    *
    * Приходят перечнем, а не агрегатом `HealthCheck$.all`, потому что имя
-   * проверки живёт в DI-токене члена, а агрегат отдаёт только значения.
+   * проверки живёт в токене семейства, а агрегат отдаёт только значения.
    * Перечень даёт `ContainerBuilder.familyMembers(HealthCheck$)`.
    */
   readonly checks: readonly { readonly param: string }[];
@@ -103,10 +103,10 @@ export const healthKernel = (options: HealthKernelOptions): Module => {
  *
  * Вклад ресурса критичен: ресурс — внешнее соединение, без которого его
  * потребитель не работает. Некритичная проверка объявляется обычным
- * провайдером члена с `critical: false`.
+ * провайдером токена семейства с `critical: false`.
  *
  * @param resources - Перечень `ContainerBuilder.healthResources()`
- * @returns Провайдеры членов `HealthCheck$` под идентификаторами узлов
+ * @returns Провайдеры токенов семейства `HealthCheck$` под идентификаторами узлов
  *
  * @example
  * ```typescript

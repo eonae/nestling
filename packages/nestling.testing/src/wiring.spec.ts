@@ -6,7 +6,7 @@
  * узнать об этом надо здесь, а не в чужом падении через три change'а.
  */
 
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestlingjs/app';
@@ -44,7 +44,7 @@ describe('условие "testing" в тест-раннере', () => {
     }
 
     {
-      await using app = await assembleTest(
+      await using app = await buildTest(
         makeApp({
           features: [
             makeFeature({

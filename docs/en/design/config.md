@@ -79,10 +79,10 @@ export class OrdersService {
   }));
   ```
 
-  The value is computed when the section is validated on ASSEMBLE, and
+  The value is computed when the section is validated on BUILD, and
   again on a reload if at least one dependency changed. The field is
   secret if at least one dependency is secret. The field has no key,
-  and it is not part of `.keys`. An error from `fn` at assembly is a
+  and it is not part of `.keys`. An error from `fn` at build is a
   configuration error naming the section, the field and the list of
   dependencies.
 
@@ -155,22 +155,22 @@ A source is a `ConfigSource { get; init?; close?; watch?; needs? }`
 object, not a provider. One private reader in the kernel reads every
 source. It brings up the sources on phase 0 BOOTSTRAP and puts the
 values into a snapshot. The sections are computed from the snapshot on
-ASSEMBLE, synchronously ([composition.md §1](./composition.md)).
+BUILD, synchronously ([composition.md §1](./composition.md)).
 
 `run()` takes the list of bindings: where the values come from is a
 property of the process, not of the application. `check(args, {
-config })` and the test root `assembleTest(app, { config })` accept
+config })` and the test root `buildTest(app, { config })` accept
 the same list. `discover()` reads no configuration. The `makeApp`
-declaration has no field for sources: only the assembly argument
+declaration has no field for sources: only the build argument
 determines the composition of the application, and the configuration
 has no effect on the composition.
 
 ```typescript
 // default: write nothing about configuration
-await app.assemble(argv(process.argv)).run();
+await app.build(argv(process.argv)).run();
 
 // the same thing written explicitly: the environment above the local file
-await app.assemble(argv(process.argv)).run({
+await app.build(argv(process.argv)).run({
   config: [
     bind(env()),
     bind(dotenv('.env'), { optional: true }),
@@ -178,7 +178,7 @@ await app.assemble(argv(process.argv)).run({
 });
 
 // staging: Vault on top of the default
-await app.assemble(argv(process.argv)).run({
+await app.build(argv(process.argv)).run({
   config: [bind(vault(VaultConfig), { timeout: 3000 }), ...defaultSources],
 });
 ```
@@ -198,8 +198,8 @@ source that returns a value wins.
 | `optional` | the source did not come up — the reader skips it instead of failing; this is how `dotenv('.env')`, which is not in the container, is declared |
 | `timeout` | the wait limit for `init()`, 10 seconds by default; a failure names the source |
 
-A binding addresses keys, not DI tokens. The assembly creates every
-section injected in the selected features on ASSEMBLE, and validates
+A binding addresses keys, not DI tokens. The build creates every
+section injected in the selected features on BUILD, and validates
 them there too. An invalid configuration stops the start (fail-fast).
 
 The kernel has two sources. `env({ prefix? })` reads environment
@@ -257,7 +257,7 @@ be aimed at the unbound keys of families. The warnings go to the
 kernel logger `Logger$('nestling:config')` at the `warn` level. The
 reader is created before the logger and cannot depend on it: the
 implementation of the logger reads the configuration section. So
-warnings accumulate before `build()`; right after it, the assembly
+warnings accumulate before `build()`; right after it, the build
 connects the logger to the reader and hands over what accumulated, and
 after that the entries go straight through. In a test, `spyLogger()`
 intercepts them by substituting `RootLogger$`
@@ -290,7 +290,7 @@ class RateLimiter {
 }
 
 // the root: a reloadable source is what turns reload on
-await makeApp({ config: [[reloadableFile('runtime.yaml'), [Runtime]]], /* ... */ }).assemble().run();
+await makeApp({ config: [[reloadableFile('runtime.yaml'), [Runtime]]], /* ... */ }).build().run();
 ```
 
 A source with observation (`watch`) tells the reader about a new
@@ -344,21 +344,21 @@ is no "the key is already taken" error.
 - Every section validates the raw value with its own schema
   independently: two sections may see a key differently (`z.string()`
   and `z.coerce.number()`). Any failed validation stops the start.
-- The only assembly conflict is a mismatched `reloadable`: one section
-  declared the key reloadable, another did not. This is an assembly
+- The only build conflict is a mismatched `reloadable`: one section
+  declared the key reloadable, another did not. This is a build
   error: every reader of the key must agree on whether the value can
   change on the fly. The error names the key, both sections, both
   fields and both fixes; its text does not depend on the order the
   sections were created in.
-- The check covers one assembly and only the created sections. A
+- The check covers one build and only the created sections. A
   declaration that did not make it into the selected topology creates
-  no conflict; the state of one assembly does not affect the next one
+  no conflict; the state of one build does not affect the next one
   in the same process.
 - The secrecy of a shared key is decided over every declared section,
   not only the created ones: if at least one section declared
   `secret()`, the key is hidden everywhere. The asymmetry with the
   previous point is deliberate: hiding too much is safe, failing the
-  assembly too often is not.
+  build too often is not.
 - `describeConfig()` shows every reader of a key. The index by keys,
   `keys: [{ key, secret, readers: [{ section, field, exact, reloadable,
   secret }] }]`, is built from the declared sections, so it also
@@ -368,7 +368,7 @@ is no "the key is already taken" error.
 
 `GrpcClient(server)` is a family member that transitively depends on
 `Config(addressKey(server))`. Whoever injects the client gets the
-address from the environment with no extra code; eager assembly
+address from the environment with no extra code; eager build
 creates everything at `build()`. Unbound patterns export their globs
 the same way sections export `.keys` (`'*_GRPC_ADDRESS'`). A parameter
 known only at runtime (an address from the database) cannot be

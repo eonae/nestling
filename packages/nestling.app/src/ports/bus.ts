@@ -87,14 +87,14 @@ export type BusHandler = (
 ) => /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type --
  * `void` в объединении типов возврата нужен: подписчик без ответа
  * пишется обычной функцией без `return`, и требовать от него `undefined`
- * нельзя. Так же устроены юниты пайплайна. */
+ * нельзя. Так же устроены шаги пайплайна. */
 Promise<ResponseContext | void> | ResponseContext | void;
 
 /** Опции подписки */
 export interface SubscribeOptions {
   /**
    * Группа доставки, аналог queue-group у брокера: сообщение получает
-   * ровно один член группы. Подписки без группы независимы и получают
+   * ровно один токен семейства группы. Подписки без группы независимы и получают
    * каждое сообщение.
    */
   group?: string;
@@ -280,10 +280,10 @@ interface Envelope {
 }
 
 /**
- * Группа доставки: сообщение получает ровно один её член.
+ * Группа доставки: сообщение получает ровно один её токен семейства.
  *
  * У группы один подписчик темы — насос (`#pump`), который раздаёт
- * сообщения членам по кругу. Буфер и политика медленного подписчика
+ * сообщения токенам семейства по кругу. Буфер и политика медленного подписчика
  * остаются у `Topic`.
  */
 class DeliveryGroup {
@@ -291,7 +291,7 @@ class DeliveryGroup {
 
   #cursor = 0;
 
-  /** Насос уже запущен: новый член группы второй насос не создаёт */
+  /** Насос уже запущен: новый токен семейства группы второй насос не создаёт */
   pumping = false;
 
   next(): Entry | undefined {
@@ -421,7 +421,7 @@ export class InProcessBus implements IMessageBus, ITransport {
       throw new Error('Bus transport is already routing another dispatch');
     }
 
-    // Формы io проверяются до первой доставки: без `assemble` это
+    // Формы io проверяются до первой доставки: без `build` это
     // единственная точка проверки, текст ошибки тот же, что при сборке
     for (const route of dispatch.routes) {
       assertFormsSupported(route, BUS_CAPABILITIES);
@@ -680,7 +680,7 @@ export class InProcessBus implements IMessageBus, ITransport {
       transport: BUS_TRANSPORT_NAME,
       pattern: route.pattern,
       payload,
-      // Параметры вызова кладутся в атрибуты рядом с `subject`; юнит
+      // Параметры вызова кладутся в атрибуты рядом с `subject`; шаг
       // читает их без дополнительных слоёв. Полей, которых не было в
       // конверте, в атрибутах тоже нет
       attributes: profileAttributes(meta),

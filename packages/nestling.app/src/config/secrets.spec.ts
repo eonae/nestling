@@ -286,7 +286,7 @@ describe('редактирование при печати проекции', ()
     expect(JSON.stringify({ ...cfg })).toContain('sk-live-42');
   });
 
-  it('секция без секретных полей не получила ни одного нового члена', async () => {
+  it('секция без секретных полей не получила ни одного нового токена семейства', async () => {
     const { cfg } = await project({}, 'plain');
 
     expect('toJSON' in cfg).toBe(false);
@@ -349,7 +349,7 @@ describe('снимок реестра', () => {
 });
 
 describe('секция без secret() через компонент DI', () => {
-  it('без единого secret() объект не получает служебных членов сериализации', async () => {
+  it('без единого secret() объект не получает служебных токенов семейства сериализации', async () => {
     const container = await build({}, (builder) => {
       builder.register(PlainService);
     });

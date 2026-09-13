@@ -127,7 +127,7 @@ beforeEach(() => {
   phases.length = 0;
 });
 
-describe('привязка конфига в assemble', () => {
+describe('привязка конфига в build', () => {
   it('прогрессивность: без поля config секции читаются из process.env', async () => {
     await withEnv({ ROOTAPP_RETRIES: '3' }, async () => {
       const transport = new MockTransport();
@@ -138,7 +138,7 @@ describe('привязка конфига в assemble', () => {
             capabilities: VALUE_ONLY,
           }),
         ],
-      }).assemble();
+      }).build();
 
       await app.run();
 
@@ -170,7 +170,7 @@ describe('привязка конфига в assemble', () => {
               '*',
             ],
           ],
-        }).assemble();
+        }).build();
 
         await app.run();
 
@@ -193,7 +193,7 @@ describe('привязка конфига в assemble', () => {
         }),
       ],
       config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
-    }).assemble();
+    }).build();
 
     // Секция — провайдер значения: сборка вычисляет её сразу, и ошибка
     // валидации доходит наружу как есть
@@ -212,7 +212,7 @@ describe('привязка конфига в assemble', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);
     expect(transport.serving).toBe(false);
@@ -231,7 +231,7 @@ describe('фаза 0 BOOTSTRAP', () => {
         }),
       ],
       config: [[source, '*']],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -257,7 +257,7 @@ describe('фаза 0 BOOTSTRAP', () => {
         }),
       ],
       config: [[source, '*']],
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.close();
@@ -284,7 +284,7 @@ describe('фаза 0 BOOTSTRAP', () => {
         }),
       ],
       config: [[failing, '*']],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/Config source 'vault'/);
 

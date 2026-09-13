@@ -1,6 +1,6 @@
 # Конфиг из файла и без перезапуска
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `3ea8ea87`.
 > Целевое описание: [design/config.md](../design/config.md), разделы 2–8.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Конфиг:
 > keys-capability вместо `configs:`-владения» [2026-07-10], «Конфиг:
@@ -28,7 +28,7 @@ const app = makeApp({
     [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
     [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
   ],
-}).assemble();
+}).build();
 
 await app.run();
 await app.close();
@@ -79,7 +79,7 @@ export const makeContainer = async (
     // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
     // регистрирует значением сам, здесь это делает вызывающий код
     .register(valueProvider(RootLogger$, makeKernelLogger(config)))
-    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+    // Kernel-модули, которые `build` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
     // Веток переключателей у примера нет, поэтому карта значений пуста

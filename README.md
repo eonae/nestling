@@ -13,21 +13,21 @@ production at your own risk. Requires Node 24.
 
 ## What it is
 
-Nestling assembles an application from declarative values: endpoints,
+Nestling builds an application from declarative values: endpoints,
 operations, pipelines, features and modules are plain constants, and the
 dependency container verifies the whole graph at startup.
 
 - **A container with no magic.** Dependencies are declared as an explicit
   token list on standard ES decorators, without `reflect-metadata`. The
   graph is built eagerly: a cycle or a missing dependency stops the
-  assembly, not a request.
+  build, not a request.
 - **Schema-first.** The `input`, `output` and `errors` schemas of an endpoint
   drive validation, handler types, the typed client and the OpenAPI
   document. Any validator that implements
   [Standard Schema](https://standardschema.dev) works: zod, valibot, arktype.
 - **A pipeline without `next()`.** Request handling is a flat sequence of
   `.pre`, `.ok`, `.catch` and `.finally` phases; layers are combined with
-  `compose`, and an assembly policy verifies that every endpoint carries the
+  `compose`, and a build policy verifies that every endpoint carries the
   required layer.
 - **Errors as values.** A handler returns `Ok` or `Fail`; the list of
   possible failures is part of the endpoint declaration and reaches the
@@ -36,8 +36,8 @@ dependency container verifies the whole graph at startup.
   operation, not through its service. The same code runs in one process and
   in several, over NATS.
 - **One composition root.** `makeApp({ features, plugins, transports,
-  config, policies })` declares the application; `assemble(select)` builds it
-  for this process and `run()` drives it through the lifecycle phases.
+  config, policies })` declares the application; `build(select)` builds what
+  this process runs and `run()` drives it through the lifecycle phases.
 
 The principles behind the design are described in
 [docs/en/design/principles.md](./docs/en/design/principles.md).
@@ -78,7 +78,7 @@ const app = makeApp({
   transports: [http({ port: 3000 })],
 });
 
-await app.assemble().run();
+await app.build().run();
 ```
 
 The application answers `GET /users/42`, validates the input against the

@@ -21,7 +21,7 @@ const namesOf = (checks: readonly HealthCheck[]): string[] =>
   checks.map((check) => check.name);
 
 describe('состав агрегата', () => {
-  it('собирает членов, зарегистрированных разными модулями', async () => {
+  it('собирает токенов семейства, зарегистрированных разными модулями', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'ComposedCheck',
     );
@@ -68,7 +68,7 @@ describe('состав агрегата', () => {
     );
   });
 
-  it('включает членов, созданных рецептом и через .auto', async () => {
+  it('включает токенов семейства, созданных рецептом и через .auto', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'MaterializedCheck',
     );
@@ -113,7 +113,7 @@ describe('состав агрегата', () => {
     );
   });
 
-  it('отдаёт всем потребителям один массив, где каждый член один раз', async () => {
+  it('отдаёт всем потребителям один массив, где каждый токен семейства один раз', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'SharedCheck',
     );
@@ -199,7 +199,7 @@ describe('состав агрегата', () => {
   });
 });
 
-describe('порядок членов агрегата', () => {
+describe('порядок токенов семейства агрегата', () => {
   it('следует порядку регистрации модулей', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'OrderedCheck',
@@ -230,7 +230,7 @@ describe('порядок членов агрегата', () => {
     ]);
   });
 
-  it('ставит явные провайдеры раньше членов, созданных рецептом', async () => {
+  it('ставит явные провайдеры раньше токенов семейства, созданных рецептом', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'MixedOrderCheck',
     );
@@ -286,7 +286,7 @@ describe('агрегат — обычный узел графа', () => {
     );
   });
 
-  it('захватывает членов раньше потребителя и освобождает их позже', async () => {
+  it('захватывает токенов семейства раньше потребителя и освобождает их позже', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'HookedCheck',
     );
@@ -339,7 +339,7 @@ describe('агрегат — обычный узел графа', () => {
     ]);
   });
 
-  it('появляется в графе с рёбрами к членам', async () => {
+  it('появляется в графе с рёбрами к токенам семейства', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'GraphCheck',
     );

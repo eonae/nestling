@@ -4,7 +4,7 @@
 > [ideas.md](../../decisions/ideas.md):
 > `[2026-09-07] Транзакционный outbox: точка врезки, предпосылка транзакции и результат замера границы`,
 > `[2026-09-11] Соединение с базой: сателлит drizzle.pg`,
-> `[2026-09-12] Транзакционный приём: отметка в базе, слой подписчика, досрочный успех pre-юнита`.
+> `[2026-09-12] Транзакционный приём: отметка в базе, слой подписчика, досрочный успех pre-шага`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 The kernel does not pull in a database driver. The connection, the
@@ -65,7 +65,7 @@ the password.
 ## 3. The pool — a resource with a probe
 
 The pool opens on phase INIT and closes on SHUTDOWN: there is no I/O
-on the assembly phase. Acquisition checks the pool with a first query,
+on the build phase. Acquisition checks the pool with a first query,
 so an unreachable database stops the start with a message naming the
 connection and the configuration key with the address.
 
@@ -133,7 +133,7 @@ layer.
 
 The `db.requiresTransaction(filter?, label?)` policy requires every
 endpoint under the filter to declare the transaction variable. A
-violation stops the assembly on phase ASSEMBLE — before phase INIT and
+violation stops the build on phase BUILD — before phase INIT and
 before the socket opens.
 
 ## 6. The storage adapter of the outbox
@@ -213,6 +213,6 @@ two-phase commit: consistency across databases rests on events and the
 outbox.
 
 The transaction layer does not apply to the `stream` and `events`
-output shapes: the `.ok` unit runs at the start of the response phase,
+output shapes: the `.ok` step runs at the start of the response phase,
 so the commit would run before the handler finished reading the
 cursor ([streaming.md](./streaming.md)).

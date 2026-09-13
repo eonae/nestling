@@ -3,25 +3,25 @@
  * Типовые тесты для Pipeline v2: фазы, слои, compose, TNeeds.
  *
  * Проверяют, что:
- * 1. input-поля корректно накапливаются pre-юнитами (монотонно).
+ * 1. input-поля корректно накапливаются pre-шагами (монотонно).
  * 2. Неправильные комбинации вызывают ошибки компиляции.
  * 3. Type-state билдера: pre недоступен после ответных методов.
  * 4. Ctx по фазам типизирован честно: полный или Partial.
  * 5. compose проверяет требования слоёв в точке композиции.
- * 6. TNeeds: класс-юнит блокирует исполнение до bind().
+ * 6. TNeeds: класс-шаг блокирует исполнение до bind().
  */
 
-// Публичная поверхность пакета: `AfterUnitFn` удалён вместе с фазой `.after`
+// Публичная поверхность пакета: `AfterStepFn` удалён вместе с фазой `.after`
 // (change pipeline-drop-after). Если тип вернётся в экспорт — директива
 // станет неиспользованной и tsc сообщит об этом.
-// @ts-expect-error: AfterUnitFn больше не экспортируется из @nestlingjs/app
-import type { AfterUnitFn } from '../index.js';
+// @ts-expect-error: AfterStepFn больше не экспортируется из @nestlingjs/app
+import type { AfterStepFn } from '../index.js';
 import { withRequestId } from '../middlewares/meta.js';
 
 import { withTiming } from './__test-helpers__/middleware.js';
 import { contextVar } from './context/variable.js';
 import type { ExtendableContext } from './types/context.js';
-import type { PreUnitFn } from './types/unit.js';
+import type { PreStepFn } from './types/step.js';
 import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
@@ -45,17 +45,17 @@ const mockAuthenticator = async (): Promise<User> => ({
 });
 
 // `withIdentity`/`withPermissions` не публичный API (change
-// pipeline-stale-units): локальные версии с тем же типовым эффектом —
-// зависимость pre-юнита от поля, добавленного предыдущим.
+// pipeline-stale-steps): локальные версии с тем же типовым эффектом —
+// зависимость pre-шага от поля, добавленного предыдущим.
 function withIdentity<TUser>(
   authenticate: () => Promise<TUser> | TUser,
-): PreUnitFn<EmptyInput, { identity: TUser }> {
+): PreStepFn<EmptyInput, { identity: TUser }> {
   return async () => ({ identity: await authenticate() });
 }
 
 function withPermissions<TPermissions, TIdentity>(
   getPermissions: (identity: TIdentity) => Promise<TPermissions> | TPermissions,
-): PreUnitFn<{ identity: TIdentity }, { permissions: TPermissions }> {
+): PreStepFn<{ identity: TIdentity }, { permissions: TPermissions }> {
   return async (ctx) => ({
     permissions: await getPermissions(ctx.input.identity),
   });
@@ -95,10 +95,10 @@ type Equal<A, B> =
     : false;
 type Expect<T extends true> = T;
 
-// Создаёт типизированный inline pre-юнит
+// Создаёт типизированный inline pre-шаг
 function addField<T extends Record<string, unknown>>(
   value: T | (() => T | Promise<T>),
-): PreUnitFn<AnyInput, T> {
+): PreStepFn<AnyInput, T> {
   return async () => {
     if (typeof value === 'function') {
       return await value();
@@ -112,18 +112,18 @@ function acceptsExecutable(_p: Pipeline<any, any, never>): void {
   /* проверка на уровне типов */
 }
 
-// Юнит, подменяющий кандидата проверки входа: рантайм проверит по схеме
+// Шаг, подменяющий кандидата проверки входа: рантайм проверит по схеме
 // `input` именно его значение, а в мету хендлера ключ не попадёт
-const withPayload: PreUnitFn<AnyInput, { payload: unknown }> = async (ctx) => ({
+const withPayload: PreStepFn<AnyInput, { payload: unknown }> = async (ctx) => ({
   payload: ctx.raw.payload,
 });
 
 // ============================================================================
-// Накопление input `.pre`-юнитами
+// Накопление input `.pre`-шагами
 // ============================================================================
 
-describe('Pipeline v2 — накопление input pre-юнитами', () => {
-  it('накапливает поля через цепочку pre-юнитов', () => {
+describe('Pipeline v2 — накопление input pre-шагами', () => {
+  it('накапливает поля через цепочку pre-шагов', () => {
     const pipeline = makePipeline()
       .pre(withTiming)
       .pre(withIdentity<User>(mockAuthenticator))
@@ -141,7 +141,7 @@ describe('Pipeline v2 — накопление input pre-юнитами', () => 
     >;
   });
 
-  it('юнит может использовать поле, добавленное предыдущим юнитом', () => {
+  it('шаг может использовать поле, добавленное предыдущим шагом', () => {
     const pipeline = makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
       .pre(withPermissions<string[], User>(() => ['read']));
@@ -152,18 +152,18 @@ describe('Pipeline v2 — накопление input pre-юнитами', () => 
     >;
   });
 
-  it('отклоняет юнит, чьи требования ещё не выполнены', () => {
+  it('отклоняет шаг, чьи требования ещё не выполнены', () => {
     const pipeline = makePipeline();
 
     // identity ещё не добавлена — withPermissions требует её
-    // @ts-expect-error: Input is not assignable to pre-unit input
+    // @ts-expect-error: Input is not assignable to pre-step input
     pipeline.pre(withPermissions<string[], User>(() => ['read']));
   });
 
   it('отклоняет переопределение поля другим типом', () => {
     const pipeline = makePipeline().pre(addField({ userId: 'abc' }));
 
-    // @ts-expect-error: pre-юнит переопределяет поле input другим типом
+    // @ts-expect-error: pre-шаг переопределяет поле input другим типом
     pipeline.pre(addField({ userId: 42 }));
   });
 
@@ -287,7 +287,7 @@ describe('Pipeline v2 — типизация ctx по фазам', () => {
   it('ok не может вернуть ответ с ошибкой, catch не может вернуть успех', () => {
     makePipeline()
       .pre(withTiming)
-      // @ts-expect-error: ok-юнит не может вернуть ошибку
+      // @ts-expect-error: ok-шаг не может вернуть ошибку
       .ok(() => ({
         isSuccess: false as const,
         status: 'internal_error' as const,
@@ -296,7 +296,7 @@ describe('Pipeline v2 — типизация ctx по фазам', () => {
 
     makePipeline()
       .pre(withTiming)
-      // @ts-expect-error: catch-юнит не может вернуть успех
+      // @ts-expect-error: catch-шаг не может вернуть успех
       .catch(() => ({
         isSuccess: true as const,
         status: 'ok' as const,
@@ -403,7 +403,7 @@ describe('Pipeline v2 — compose', () => {
     type Needs = InferNeeds<typeof composed>;
     type _Needs = Expect<Equal<Needs, typeof WithTracing>>;
 
-    // @ts-expect-error: композиция с нерезолвленным классом-юнитом не исполнима
+    // @ts-expect-error: композиция с нерезолвленным классом-шагом не исполнима
     acceptsExecutable(composed);
 
     type BoundNeeds = InferNeeds<ReturnType<(typeof composed)['bind']>>;
@@ -458,7 +458,7 @@ describe('Pipeline v2 — compose', () => {
 });
 
 // ============================================================================
-// TNeeds: классы-юниты
+// TNeeds: классы-шаги
 // ============================================================================
 
 class WithTracing {
@@ -477,7 +477,7 @@ describe('Pipeline v2 — TNeeds', () => {
     acceptsExecutable(pipeline);
   });
 
-  it('класс-юнит добавляет свой конструктор в TNeeds и блокирует исполнение', () => {
+  it('класс-шаг добавляет свой конструктор в TNeeds и блокирует исполнение', () => {
     const pipeline = makePipeline().pre(WithTracing);
 
     type Needs = InferNeeds<typeof pipeline>;

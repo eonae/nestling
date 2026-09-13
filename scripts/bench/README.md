@@ -31,7 +31,7 @@ BENCH_ROUNDS=3 yarn bench:http --markdown   # медиана из трёх, св
 | `nestling` | маршрут, `AbortController`, область `AsyncLocalStorage`, проверка path-параметра схемой, хендлер, проверка ответа по `errors:`, `.finally` |
 | `fastify`, `hono`, `express` | маршрут, область `AsyncLocalStorage` через хук или middleware, проверка path-параметра той же zod-схемой, хендлер |
 | `fastify-bare`, `hono-bare`, `express-bare` | маршрут и хендлер; параметр читается как есть |
-| `nestling-layers`, `fastify-layers` | поверх первого яруса: идентификатор запроса из заголовка или `randomUUID`, арендатор из `x-tenant`, счётчик исходов после ответа; у Nestling слой из двух pre-юнитов и `.finally`, у Fastify хуки `onRequest` и `onResponse` |
+| `nestling-layers`, `fastify-layers` | поверх первого яруса: идентификатор запроса из заголовка или `randomUUID`, арендатор из `x-tenant`, счётчик исходов после ответа; у Nestling слой из двух pre-шагов и `.finally`, у Fastify хуки `onRequest` и `onResponse` |
 
 Первый ярус отвечает на вопрос «сколько стоит фреймворк при равных
 обязанностях», второй — «какова нижняя граница цены самого фреймворка»,
@@ -90,7 +90,7 @@ CPU-профиль сервера Nestling под этой нагрузкой (N
 
 | Доля | Что | У Fastify |
 |---|---|---|
-| 3.6% | `@nestlingjs/transport.http`: `sendResponse`, `handle`, `assemblePayload` | 2.4% собственного кода на те же обязанности |
+| 3.6% | `@nestlingjs/transport.http`: `sendResponse`, `handle`, `buildPayload` | 2.4% собственного кода на те же обязанности |
 | 1.7% | `@nestlingjs/app`: `execute`, проверка `errors:`, `normalizeResponse` | нет: маршрут вызывает хендлер напрямую |
 | 2.4% | микротаски: четыре `await` на запрос против двух | около 1% |
 | 0.7% | `find-my-way` | 0.5%: тот же маршрутизатор |
@@ -104,7 +104,7 @@ CPU-профиль сервера Nestling под этой нагрузкой (N
 1. **Гарантии, которых у Fastify нет и в варианте с теми же
    обязанностями.** Проверка ответа по `errors:`, `.finally` с исходом
    запроса, сигнал отмены и слушатель `'close'` на каждый запрос, счётчик
-   байтов в `summary`, объекты контекста для юнитов. Около 1 µs, и они
+   байтов в `summary`, объекты контекста для шагов. Около 1 µs, и они
    остаются: без них нет ни закрытого множества отказов, ни исхода запроса
    для наблюдателей, ни отмены по дисконнекту.
 2. **Микротаски.** Запрос проходит `handle`, `dispatch.call`, `execute` и
@@ -112,7 +112,7 @@ CPU-профиль сервера Nestling под этой нагрузкой (N
    путь на синхронный для формы `value` и асинхронный для потоков.
 
 Слои стоят Nestling больше, чем Fastify: `nestling-layers` теряет против
-`nestling` 8%, `fastify-layers` против `fastify` 3%. Каждый pre-юнит
+`nestling` 8%, `fastify-layers` против `fastify` 3%. Каждый pre-шаг
 ждётся через `await`, а хук Fastify вызывает `done()` синхронно.
 Проверка `then` на значении вместо `await` — кандидат на следующий замер.
 

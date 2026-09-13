@@ -86,7 +86,7 @@ ruleTester.run('dependency-list', dependencyList, {
         }`,
     },
     {
-      name: "Logger при явном члене семейства Logger$('db')",
+      name: "Logger при явном токене семейства Logger$('db')",
       code: `${prelude}
         @Component([Logger$('db')])
         class AppService {
@@ -103,7 +103,7 @@ ruleTester.run('dependency-list', dependencyList, {
         }`,
     },
     {
-      name: "член семейства Counter$('users') для типа Counter",
+      name: "токен семейства Counter$('users') для типа Counter",
       code: `${prelude}
         @Component([Counter$('users')])
         class UserService {
@@ -454,7 +454,7 @@ ruleTester.run('dependency-list', dependencyList, {
       errors: [{ messageId: 'length' }],
     },
     {
-      name: 'написанный член семейства автофикс не трогает',
+      name: 'написанный токен семейства автофикс не трогает',
       code: `${prelude}
         @Component([Logger$('db')])
         class UsersService {

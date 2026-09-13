@@ -4,16 +4,16 @@ import { test } from 'node:test';
 import { app } from './app.js';
 import { GetUser } from './get-user.endpoint.js';
 
-import { assembleTest, unwrap, vars } from '@nestlingjs/testing';
+import { buildTest, unwrap, vars } from '@nestlingjs/testing';
 
 /**
- * The same assembly under the runner built into Node. Nothing about the
+ * The same build under the runner built into Node. Nothing about the
  * framework changes: only the names of the test function and of the
  * assertion, and `--conditions=testing` on the command line instead of a
  * field in a config.
  */
 test('calls an endpoint through the whole pipeline, without a socket', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: vars({ API_TOKEN: 'test-token' }),
   });
 

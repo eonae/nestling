@@ -24,8 +24,8 @@ export type ReadinessStatus = 'ready' | 'not_ready';
 /**
  * Вклад в пробы: одна проверка одной зависимости.
  *
- * Регистрируется обычным провайдером члена семейства `HealthCheck$`.
- * Имя проверки задаёт член (`HealthCheck$('db')`), поэтому в самом вкладе
+ * Регистрируется обычным провайдером токена семейства `HealthCheck$`.
+ * Имя проверки задаёт токен семейства (`HealthCheck$('db')`), поэтому в самом вкладе
  * его нет: два разных имени у одного вклада разошлись бы.
  *
  * @example
@@ -71,7 +71,7 @@ export interface HealthCheck {
  * `Logger$('nestling:health')`.
  */
 export interface HealthCheckResult {
-  /** Имя проверки — параметр члена `HealthCheck$` */
+  /** Имя проверки — параметр токена семейства `HealthCheck$` */
   readonly name: string;
 
   /** Признак критичности, объявленный вкладом */

@@ -15,7 +15,7 @@ export type TransportToken = Token<ITransport>;
  *
  * Способностей здесь нет: формы io — данные **объявления**
  * (`TransportDeclaration.capabilities`), потому что проверка форм идёт на
- * фазе ASSEMBLE, где экземпляров ещё нет.
+ * фазе BUILD, где экземпляров ещё нет.
  */
 export interface ITransport {
   /**

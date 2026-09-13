@@ -3,7 +3,7 @@ import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
- * Семейство DI-токенов HTTP-транспорта: один член на экземпляр.
+ * Семейство DI-токенов HTTP-транспорта: один DI-токен на экземпляр.
  *
  * Экземпляров в сборке может быть несколько — публичный и админский
  * слушают разные порты, — поэтому DI-токен параметризован именем экземпляра.

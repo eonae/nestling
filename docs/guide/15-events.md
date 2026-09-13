@@ -1,6 +1,6 @@
 # 15. Оповещать соседей о случившемся
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `3ea8ea87`.
 > Целевое описание: [design/operations.md](../design/operations.md),
 > разделы «Три вида» и «Профиль вызова». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Порты: межфичевое
@@ -203,14 +203,14 @@ export class Suppressions {
 }
 ```
 
-`withIdempotencyKey()` — готовый pre-юнит из `@nestlingjs/app`: он
+`withIdempotencyKey()` — готовый pre-шаг из `@nestlingjs/app`: он
 берёт ключ из параметров вызова и объявляет переменную контекста
 `IdempotencyKey`. Сервис читает её через `Ctx(IdempotencyKey)` так же,
 как хранилище читало `RequestId` в [главе 9](./09-logging.md).
 Дедупликации по ключу здесь нет: ядро доставляет ключ до обработчика, а
 что с ним делать, решает владелец команды.
 
-Что юнит стоит в пайплайне реализации, проверяет политика:
+Что шаг стоит в пайплайне реализации, проверяет политика:
 
 ```typescript
 // src/app.ts
@@ -271,7 +271,7 @@ curl -X DELETE localhost:3000/users/3 -H 'authorization: Bearer secret'
 // src/app.spec.ts
 it('доставляет ключ идемпотентности команды до сервиса в глубине', async () => {
   const spy = spyLogger();
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     ...testConfig,
     overrides: [
       [UsersRepository$, inMemoryUsersRepo([alice])],

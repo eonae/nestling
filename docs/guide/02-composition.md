@@ -1,10 +1,10 @@
 # 2. Из чего состоит приложение
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `3ea8ea87`.
 > Целевое описание: [design/composition.md](../design/composition.md).
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-09-02]
 > Модель композиции: фича, плагин, операция», «[2026-09-03] Декларация
-> приложения: `makeApp`, `assemble(select)`, `AssembledApp`» и
+> приложения: `makeApp`, `build(select)`, `BuiltApp`» и
 > «[2026-09-06] Переключатели состава: `makeSwitch`, `pick` и `when`,
 > аргумент сборки; формы корня без фич».
 
@@ -102,7 +102,7 @@ export const app = makeApp({
   transports: [http()],
 });
 
-await app.assemble({ features: 'all', storage: 's3' }).run();
+await app.build({ features: 'all', storage: 's3' }).run();
 ```
 
 Инжектировать выбор нельзя: DI-токена у переключателя нет, и состав не
@@ -123,7 +123,7 @@ await app.assemble({ features: 'all', storage: 's3' }).run();
 ```typescript
 const cfg = load(RootConfig); // { features: 'all', storage: 's3' }
 
-await app.assemble(cfg).run();
+await app.build(cfg).run();
 ```
 
 ## Split: следствие, а не отдельный механизм

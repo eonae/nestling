@@ -28,7 +28,7 @@ export const UsersModule = makeModule({
     Database,
     // An interface token is bound to the class that implements it
     classProvider(UsersRepository$, DbUsersRepository),
-    // A factory runs during assembly and must not do any I/O
+    // A factory runs during the build and must not do any I/O
     factoryProvider(
       Clock$,
       (_config: Config<typeof AppConfig>) => ({ now: () => new Date() }),

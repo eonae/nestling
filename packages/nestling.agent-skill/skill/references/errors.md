@@ -142,7 +142,7 @@ from an exhausted call budget, `internal_error` from a thrown error —
 belong to `Output` without being declared. Do not list them in `errors:`
 and do not try to produce them by hand.
 
-Failures of a layer are declared once, next to the unit:
+Failures of a layer are declared once, next to the step:
 `makePipeline().pre(Authenticate, { errors: [Unauthorized] })`. Every
 endpoint that takes the layer answers with them, and none of them repeats
 the failure in its own `errors:`.

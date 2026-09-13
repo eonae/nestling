@@ -1,6 +1,6 @@
 /**
  * Уникальность пары «экземпляр транспорта, паттерн»: дубликат — ошибка
- * фазы ASSEMBLE, до создания экземпляров и захвата ресурсов.
+ * фазы BUILD, до создания экземпляров и захвата ресурсов.
  */
 
 import { Ok } from '../pipeline/index.js';
@@ -136,7 +136,7 @@ describe('дубликат падает до захвата ресурсов', (
           capabilities: ALL_FORMS,
         }),
       ],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/declared more than once/);
     expect(acquired).toEqual([]);

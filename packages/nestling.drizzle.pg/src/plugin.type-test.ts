@@ -18,7 +18,7 @@ import type { PgSession, PgTx } from './connection.js';
 import type { SessionKey, TxKey } from './naming.js';
 import { drizzlePg } from './plugin.js';
 
-import type { CtxReader, EmptyInput, PreUnitFn } from '@nestlingjs/app';
+import type { CtxReader, EmptyInput, PreStepFn } from '@nestlingjs/app';
 import { makePipeline } from '@nestlingjs/app';
 
 const db = drizzlePg({ schema });
@@ -54,29 +54,29 @@ const report = analyticsTx.get().query.reports.findMany();
 const crossed = analyticsTx.get().query.users.findMany();
 
 /**
- * Замер границы, находка №4: `.pre` не принимает юнит, ключ добавки
+ * Замер границы, находка №4: `.pre` не принимает шаг, ключ добавки
  * которого — параметр типа.
  *
- * Проверка юнита сводит добавку через `Awaited` и `Exclude`, а шаблонный
- * ключ от параметра типа не сводится, и верный юнит не проходит по типу.
+ * Проверка шага сводит добавку через `Awaited` и `Exclude`, а шаблонный
+ * ключ от параметра типа не сводится, и верный шаг не проходит по типу.
  * Поэтому слой собирается на литеральных ключах, а имя экземпляра
  * подставляет объявленный тип слоя.
  */
-function deferredKeyUnit<N extends string>(
-  unit: PreUnitFn<EmptyInput, Record<SessionKey<N>, PgSession<typeof schema>>>,
+function deferredKeyStep<N extends string>(
+  step: PreStepFn<EmptyInput, Record<SessionKey<N>, PgSession<typeof schema>>>,
 ): void {
   // @ts-expect-error ключ добавки — параметр типа, и `.pre` его не сводит
-  makePipeline().pre(unit);
+  makePipeline().pre(step);
 }
 
-/** Тот же юнит с литеральным ключом проходит */
-function literalKeyUnit(
-  unit: PreUnitFn<
+/** Тот же шаг с литеральным ключом проходит */
+function literalKeyStep(
+  step: PreStepFn<
     EmptyInput,
     Record<SessionKey<'default'>, PgSession<typeof schema>>
   >,
 ): void {
-  makePipeline().pre(unit);
+  makePipeline().pre(step);
 }
 
 /** Ключ переменной — литерал и в типе, и в значении */

@@ -1,6 +1,6 @@
 # 11. Write to the database in the request transaction
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/persistence.md](../design/persistence.md). Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-09-11] Соединение с базой: сателлит drizzle.pg`.
@@ -85,14 +85,14 @@ the pipeline puts it there:
 export const transactional = compose(authed, db.transaction());
 ```
 
-Four units live inside the layer. The first takes the connection from the
+Four steps live inside the layer. The first takes the connection from the
 container and sends `BEGIN` on a client issued by the pool. The second
 puts a drizzle instance bound to this transaction into the context. `.ok`
 commits, `.catch` rolls back, and `.finally` returns the client to the
 pool — on any outcome, including a dropped connection to the client and an
 application stop.
 
-The first unit is a class, because it puts a session, not the value of a
+The first step is a class, because it puts a session, not the value of a
 variable, into the context: `.ok`, `.catch` and `.finally` all read it, and
 the connection that issues it comes from the container. Earlier the
 application wrote such a bridge by hand (recipe ["Extend the kernel with
@@ -175,7 +175,7 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 `transactional` is composed from `authed`, so the Bearer token check comes
 along with it, and the endpoint does not connect it a second time.
 
-## The prerequisite is checked at assembly
+## The prerequisite is checked at build
 
 A write without a transaction would fail on the first request in
 production — an unacceptable failure mode for a framework that checks its
@@ -193,7 +193,7 @@ policies: [
 
 The predicate is the same `hasVar` from [chapter 10](./10-auth.md), only
 the connection names the variable. An endpoint that changes data and is
-not composed from the transaction layer stops the assembly on the ASSEMBLE
+not composed from the transaction layer stops the build on the BUILD
 phase — before the socket opens and before the first request.
 
 ## The schema is rolled out outside the process
@@ -232,7 +232,7 @@ DATABASE_POOL_MAX=5 yarn start:dev
 ```typescript
 // src/app.spec.ts
 it('создаёт пользователя по Bearer-токену из конфига', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
@@ -259,7 +259,7 @@ stays green on a machine without a database, and CI brings up PostgreSQL
 as a service. The variable has its own name, not `DATABASE_URL`: a test
 run must not depend on what lies in the environment under the name of the
 production key. The `seed(testApp)` seeding takes the connection from the
-assembled graph: this is the same connection the endpoints work with.
+built graph: this is the same connection the endpoints work with.
 
 A rollback is checked the same way: a request with the wrong Bearer token
 gets a failure, the layer rolls back the transaction, and no records of
@@ -268,7 +268,7 @@ this request remain in the database.
 ## What is left out of the picture
 
 The transaction layer does not apply to a streamed response: the `.ok`
-unit runs at the start of the response phase, so for the `stream` and
+step runs at the start of the response phase, so for the `stream` and
 `events` output forms the commit would pass before the handler finished
 reading the cursor.
 

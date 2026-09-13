@@ -1,6 +1,6 @@
 # 6. Where the handler gets the repository from
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -10,7 +10,7 @@
 Users must be stored in one place, not in the file of every endpoint. The
 handlers need a repository, the repository needs a database connection. The
 connection must open at start and close at stop, and an endpoint must not
-assemble all of this by hand.
+build all of this by hand.
 
 ```typescript
 // src/users/users.repository.ts
@@ -147,7 +147,7 @@ database, `inMemoryUsersRepo` for the fake
 the request identifier from the context.
 
 The feature lists the providers that the container creates — the services and
-the pipeline unit classes:
+the pipeline step classes:
 
 ```typescript
 // src/users.feature.ts
@@ -175,9 +175,9 @@ There are no handler classes here: the endpoints register them themselves.
 ## A dependency of a dependency, and resources
 
 The repository needs the database, the database needs the configuration and the
-logger. No consumer assembles any of this: the container builds the whole graph
+logger. No consumer builds any of this: the container builds the whole graph
 and checks the whole of it at start. A DI token without a provider stops the
-assembly with a list of all the missing DI tokens, and a dependency cycle stops
+build with a list of all the missing DI tokens, and a dependency cycle stops
 it too. While requests are being processed, the container resolves nothing.
 
 The database holds a connection pool, and the pool must be opened and closed.

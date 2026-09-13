@@ -12,7 +12,7 @@ import { app } from '../snippets/app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestlingjs/app';
-import { assembleTest, spyLogger, vars } from '@nestlingjs/testing';
+import { buildTest, spyLogger, vars } from '@nestlingjs/testing';
 
 describe('сниппеты скилла', () => {
   it('блоки кода совпадают с файлами snippets/ в обе стороны', () => {
@@ -28,11 +28,11 @@ describe('сниппеты скилла', () => {
     // который получит читатель, скопировав сниппеты. Конфигурация —
     // потому что `apiToken` объявлен без умолчания, логгер — потому что
     // иначе сборка пишет в консоль теста
-    await using assembled = await assembleTest(app, {
+    await using built = await buildTest(app, {
       config: vars({ API_TOKEN: 'test-token' }),
       overrides: [[RootLogger$, spyLogger().logger]],
     });
 
-    expect(assembled).toBeDefined();
+    expect(built).toBeDefined();
   });
 });

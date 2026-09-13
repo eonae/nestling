@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты — легитимная часть тестов порядка исполнения */
+ * noop-шаги — легитимная часть тестов порядка исполнения */
 /**
  * Провенанс композиции: ссылки на значения, из которых произошёл пайплайн.
  *
  * Предмет проверки — идентичность слоя, на которой стоит policy-check
  * (`everyEndpoint(...).hasLayer(...)`): она ссылочная, транзитивная и не
- * зависит ни от имён, ни от состава юнитов. Плюс контрольный тест
+ * зависит ни от имён, ни от состава шагов. Плюс контрольный тест
  * неизменности исполнения: провенанс не участвует в рантайме.
  */
 
@@ -36,8 +36,8 @@ function makeCtx(): ExtendableContext<EmptyInput> {
   return makeEmptyContext(raw, endpoint);
 }
 
-/** Один и тот же юнит в двух разных слоях: идентичность у слоя, не у юнита */
-const sharedUnit = (): void => {};
+/** Один и тот же шаг в двух разных слоях: идентичность у слоя, не у шага */
+const sharedStep = (): void => {};
 
 /** Исполняет пайплайн так же, как это делает транспорт */
 async function run(pipeline: AnyPipeline, handler: () => unknown) {
@@ -98,24 +98,24 @@ describe('провенанс композиции', () => {
   });
 
   it('bind сохраняет несвязанный оригинал', () => {
-    class TrackUnit {
+    class TrackStep {
       handle(): void {}
     }
 
-    const authed = makePipeline().pre(TrackUnit);
+    const authed = makePipeline().pre(TrackStep);
     const composed = compose(makePipeline(), authed);
 
     const bound = (composed as unknown as Pipeline<EmptyInput>).bind(
-      () => new TrackUnit(),
+      () => new TrackStep(),
     );
 
     expect(derivesFrom(bound, composed)).toBe(true);
     expect(derivesFrom(bound, authed)).toBe(true);
   });
 
-  it('чужой слой с тем же составом юнитов не содержится', () => {
-    const authed = makePipeline().pre(sharedUnit);
-    const lookalike = makePipeline().pre(sharedUnit);
+  it('чужой слой с тем же составом шагов не содержится', () => {
+    const authed = makePipeline().pre(sharedStep);
+    const lookalike = makePipeline().pre(sharedStep);
 
     const pipeline = compose(makePipeline(), authed);
 

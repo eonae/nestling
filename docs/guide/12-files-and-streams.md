@@ -1,6 +1,6 @@
 # 12. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `3ea8ea87`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
@@ -166,7 +166,7 @@ NDJSON, по одному JSON-объекту на строку, с chunked-ко
 сохраняют тип элемента, потому что оба конца цепочки зафиксированы
 схемой `output`.
 
-Слой `observability` работает и здесь. Юнит `.finally` вызывается после
+Слой `observability` работает и здесь. Шаг `.finally` вызывается после
 того, как поток завершился или оборвался, поэтому исход в строке аудита
 верный.
 
@@ -282,7 +282,7 @@ item-цепочка при этом выполняются, как при зап
 ```typescript
 // иллюстрация; в src/app.spec.ts этого теста нет
 it('импортирует строки и пропускает занятые email', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
   });

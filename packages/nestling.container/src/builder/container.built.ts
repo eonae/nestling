@@ -12,7 +12,7 @@ import type { VisitCallback, VisitOptions } from '@nestlingjs/common.graphs';
  */
 const phaseErrorMessage = (token: string): string =>
   `Instance for DI token '${token}' does not exist yet: instances are created in phase INIT, ` +
-  `and init() has not completed. Assembly-phase checks use has(token) instead.`;
+  `and init() has not completed. Build-phase checks use has(token) instead.`;
 
 /**
  * Собранный контейнер: граф провайдеров и слоты их значений.
@@ -229,7 +229,7 @@ export class BuiltContainer {
   /**
    * Проверяет, что DI-токен зарегистрирован, не требуя экземпляра.
    *
-   * Тем и отличается от {@link get}: проверкам фазы ASSEMBLE нужен факт
+   * Тем и отличается от {@link get}: проверкам фазы BUILD нужен факт
    * регистрации, а экземпляров тогда ещё нет.
    *
    * @param token - DI-токен: класс или объектный DI-токен

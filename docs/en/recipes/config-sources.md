@@ -1,6 +1,6 @@
 # Configuration from a file and without a restart
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/config.md](../design/config.md), sections 2–8.
 > Rationale: the entries [ideas.md](../../decisions/ideas.md)
 > `Конфиг: keys-capability вместо configs:-владения` [2026-07-10],
@@ -30,7 +30,7 @@ const app = makeApp({
     [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
     [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
   ],
-}).assemble();
+}).build();
 
 await app.run();
 await app.close();
@@ -66,7 +66,7 @@ An invalid config stops the start before the socket opens:
 source each value was read from.
 
 The same list is accepted by `bootstrapConfig()` when the container is
-assembled without `makeApp`, through `ContainerBuilder`:
+built without `makeApp`, through `ContainerBuilder`:
 
 ```typescript
 // src/container.ts
@@ -84,7 +84,7 @@ export const makeContainer = async (
     // phase 0 and registers it as a value itself; here the calling
     // code does that
     .register(valueProvider(RootLogger$, makeKernelLogger(config)))
-    // Kernel modules that `assemble` registers itself: the kernel
+    // Kernel modules that `build` registers itself: the kernel
     // logger reads the `nestlingLog` section and the request id from
     // the context
     .register(contextKernel(), loggerKernel())
@@ -101,19 +101,19 @@ export const makeContainer = async (
 };
 ```
 
-`ContainerBuilder` assembles the same graph as `makeApp` in `main.ts`
+`ContainerBuilder` builds the same graph as `makeApp` in `main.ts`
 of the same example, but without the application phases and without
 transports. There are two phases here, and they are separated
 explicitly: `bootstrapConfig` brings up the sources, the only
-input-output here, and `build()` assembles the graph synchronously.
+input-output here, and `build()` builds the graph synchronously.
 `configKernel(config)` connects the configuration kernel, and
 `contextKernel()` and `loggerKernel()` connect the request context and
-the kernel logger. When assembling through `makeApp`, the assembly
+the kernel logger. When building through `makeApp`, the build
 itself registers all three. The `appCounters` plugin registers through
 its own modules. The `modules` list may hold switch branches, so
 `resolveBranches(modules, values)` expands it: the example has no
 branches, and the value map is empty. `registerHealth` connects the
-probes: the `Health$` node is assembled even without `makeApp`, and
+probes: the `Health$` node is built even without `makeApp`, and
 the calling code names its phase for it (the recipe [Who is connected
 right now and how to disconnect them](./ops.md)).
 
@@ -181,13 +181,13 @@ knowledge. The rules for a shared key:
 
 - each section checks the raw value with its own schema: `app`
   requires `z.url()`, `health` accepts `z.string()`; an error in
-  either one stops the assembly with the name of that exact section;
+  either one stops the build with the name of that exact section;
 - the key's secrecy is shared by every reader: `app` marked
   `DATABASE_URL` as `secret()`, so printing `HealthConfig` shows
   `'***'`, even though its declaration has no `secret()`;
 - the only conflict between two readers is a different `reloadable`
   flag. Declare `HealthConfig` through `makeConfig.reloadable`, and
-  the assembly fails with `ConfigSharedKeyError`, which names the key,
+  the build fails with `ConfigSharedKeyError`, which names the key,
   both sections and both fixes.
 
 `describeConfig()` shows who reads the key. The snapshot is built from
@@ -336,7 +336,7 @@ section, the field and the list of dependencies.
 
 ## Checking
 
-A test assembles the container with a source that it then changes:
+A test builds the container with a source that it then changes:
 
 ```typescript
 // src/runtime/reload.spec.ts

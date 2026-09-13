@@ -16,7 +16,7 @@
  * - Вариант со слоями (`nestling-layers`, `fastify-layers`): поверх
  *   обязанностей выше идентификатор запроса из заголовка или `randomUUID`,
  *   арендатор из заголовка `x-tenant` и счётчик исходов после ответа. У
- *   Nestling это слой из двух pre-юнитов и `.finally`, у Fastify — хуки
+ *   Nestling это слой из двух pre-шагов и `.finally`, у Fastify — хуки
  *   `onRequest` и `onResponse`. Это цена слоёв.
  *
  * Пакеты Nestling берутся из `dist`, поэтому перед запуском нужна сборка.

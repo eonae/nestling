@@ -49,7 +49,7 @@ import type {
 
 /**
  * Стартовый контекст декларации: поля, которые транспорт кладёт в контекст
- * до первого `.pre`-юнита.
+ * до первого `.pre`-шага.
  *
  * Поле `http` есть у каждого HTTP-запроса. `rawBody: true` добавляет сырые
  * байты тела, `output: events(...)` — заголовок реконнекта
@@ -65,7 +65,7 @@ export type StartContext<RB extends boolean | undefined, O = unknown> = {
 /**
  * Стартовый контекст HTTP-запроса — публичное имя {@link StartContext}.
  *
- * Им типизируются юниты транспорта: `makePipeline<HttpStartContext>()`
+ * Им типизируются шаги транспорта: `makePipeline<HttpStartContext>()`
  * читает `ctx.input.http`. Такой пайплайн допустим в слоте `pipeline`
  * HTTP-декларации и не проходит в `implement`.
  *
@@ -256,7 +256,7 @@ export interface HttpEndpointDictionary<
   redirect?: RedirectStatus;
 
   /**
-   * Пайплайн endpoint'а. Юниты-классы допустимы: они попадают в `TNeeds`
+   * Пайплайн endpoint'а. Шаги-классы допустимы: они попадают в `TNeeds`
    * декларации и получают зависимости из контейнера вместе с `deps`.
    */
   pipeline?: Pipeline<PR, P, PN, PF> & ValidateStart<PR, StartContext<RB, O>>;
@@ -308,7 +308,7 @@ export interface HttpImplementDictionary<
   PF extends AnyFail = never,
 > {
   /**
-   * Пайплайн декларации. Юниты-классы допустимы: они попадают в `TNeeds`
+   * Пайплайн декларации. Шаги-классы допустимы: они попадают в `TNeeds`
    * декларации и получают зависимости из контейнера вместе с `deps`.
    *
    * Отказы, объявленные слоями пайплайна, обязаны входить в `errors:`

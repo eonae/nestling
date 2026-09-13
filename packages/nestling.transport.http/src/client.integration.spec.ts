@@ -10,7 +10,7 @@
  * отдельно, и разойтись им ничто не мешает, кроме этой проверки.
  */
 
-import { assemblePayload, query, readQuery } from './binding.js';
+import { buildPayload, query, readQuery } from './binding.js';
 import { httpEndpoint } from './helpers.js';
 import { HttpServer } from './server.js';
 import { HttpTransport } from './transport.js';
@@ -52,7 +52,7 @@ function capturing(sink: Captured[]): typeof globalThis.fetch {
 /**
  * Разбирает запрос ровно так, как это делает транспорт: path-параметры из
  * совпадения с шаблоном, query через `readQuery`, тело как JSON — и собирает
- * payload `assemblePayload`'ом.
+ * payload `buildPayload`'ом.
  */
 function parseAsTransport(binding: HttpBinding, captured: Captured): unknown {
   const url = new URL(captured.url);
@@ -66,7 +66,7 @@ function parseAsTransport(binding: HttpBinding, captured: Captured): unknown {
     }
   }
 
-  return assemblePayload(binding, {
+  return buildPayload(binding, {
     query: readQuery(url.searchParams, binding.fields),
     body: captured.body === undefined ? undefined : JSON.parse(captured.body),
     params,

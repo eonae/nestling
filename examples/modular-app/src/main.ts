@@ -31,4 +31,4 @@ const cfg = load(RootConfig);
  * `APP_FEATURES=users` поднимает и владельца `notifications.check-address`,
  * когда шины рядом нет.
  */
-await app.assemble({ ...cfg, includeDeps: true }).run();
+await app.build({ ...cfg, includeDeps: true }).run();

@@ -5,7 +5,7 @@
  * `app.emit` — доставка факта или команды всем co-located подписчикам.
  */
 
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { stub } from './stub.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -92,7 +92,7 @@ describe('app.emit', () => {
   });
 
   it('доставляет факт обоим подписчикам и называет каждого', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -113,7 +113,7 @@ describe('app.emit', () => {
   });
 
   it('доставляет команду единственному владельцу', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -127,7 +127,7 @@ describe('app.emit', () => {
   });
 
   it('чеканит idempotencyKey команды и показывает его обработчику', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -141,7 +141,7 @@ describe('app.emit', () => {
   });
 
   it('гонит запрос через полный пайплайн реализации', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -161,7 +161,7 @@ describe('app.emit', () => {
   });
 
   it('возвращает пустой список у события без подписчиков', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -171,7 +171,7 @@ describe('app.emit', () => {
   });
 
   it('бросает у команды без владельца, перечисляя доступные subject`ы', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -183,7 +183,7 @@ describe('app.emit', () => {
   });
 
   it('бросает с понятным сообщением на операцию-запросе', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),
@@ -195,7 +195,7 @@ describe('app.emit', () => {
   });
 
   it('доставляет подписчикам, даже когда эмиттер той же операции застабан', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [OrdersModule],
       }),

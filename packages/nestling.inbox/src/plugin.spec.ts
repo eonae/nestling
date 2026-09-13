@@ -26,7 +26,7 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App, Policy } from '@nestlingjs/app';
 import { compose, implement, makeApp, makeFeature } from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
-import { assembleTest, vars } from '@nestlingjs/testing';
+import { buildTest, vars } from '@nestlingjs/testing';
 
 /** Плагин приёма: один экземпляр на все сборки этого файла */
 const appInbox = inbox({ transaction: Tx, store: InboxStore$ });
@@ -98,7 +98,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('повтор не доходит до хендлера', async () => {
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
     const payload = { id: 'u-1', email: 'alice@example.com' };
 
     const first = await deliver(app, WelcomeEmail, payload, 'k-1');
@@ -110,7 +110,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('откат хендлера убирает отметку', async () => {
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
     const payload = { id: 'u-2', email: 'fail@example.com' };
 
     const failed = await deliver(app, WelcomeEmail, payload, 'k-2');
@@ -133,7 +133,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('два подписчика дедуплицируют независимо', async () => {
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
     const payload = { id: 'u-3', email: 'carol@example.com' };
 
     await deliver(app, WelcomeEmail, payload, 'k-3');
@@ -148,7 +148,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('сообщение без ключа роняет обработку с обеими починками', async () => {
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
 
     const response = await app.call(
       WelcomeEmail,
@@ -166,7 +166,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('слой снаружи транзакции падает понятно', async () => {
-    await using app = await assembleTest(application([Detached]));
+    await using app = await buildTest(application([Detached]));
 
     const response = await app.call(
       Detached,
@@ -182,7 +182,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('процесс без уборщика ставит отметки и не запускает задачу', async () => {
-    await using app = await assembleTest(application(), {
+    await using app = await buildTest(application(), {
       config: vars({ INBOX_SWEEP: 'false' }),
     });
 
@@ -198,7 +198,7 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 
   it('проход уборщика делается без таймера', async () => {
-    await using app = await assembleTest(application(), {
+    await using app = await buildTest(application(), {
       config: vars({ INBOX_RETENTION_MS: '0' }),
     });
 
@@ -238,26 +238,26 @@ describe('inbox(): отказы объявления и сборки', () => {
       transports: [testTransport()],
     });
 
-    await expect(assembleTest(twice)).rejects.toThrow(
+    await expect(buildTest(twice)).rejects.toThrow(
       /Two different plugins are named '@nestlingjs\/inbox'/,
     );
   });
 });
 
-describe('requiresInbox(): предпосылка проверяется на ASSEMBLE', () => {
+describe('requiresInbox(): предпосылка проверяется на BUILD', () => {
   it('подписчик без слоя роняет сборку с перечнем нарушивших', async () => {
     const broken = application(
       [WelcomeEmail, Bare],
       [appInbox.requiresInbox({}, 'inbox')],
     );
 
-    await expect(assembleTest(broken)).rejects.toThrow(
+    await expect(buildTest(broken)).rejects.toThrow(
       /inbox\.spec\.user-created@bare/,
     );
   });
 
   it('все подписчики под слоем — сборка проходит', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       application(
         [WelcomeEmail, Analytics],
         [appInbox.requiresInbox({}, 'inbox')],

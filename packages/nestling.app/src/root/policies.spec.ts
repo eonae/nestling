@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты: политика проверяет происхождение слоя, а не его эффект */
+ * noop-шаги: политика проверяет происхождение слоя, а не его эффект */
 /**
  * Инварианты на собранном графе: прогон политик в `run()`, `check()` и
  * тестовом шве.
@@ -69,9 +69,9 @@ const Detached = testEndpoint({
 });
 
 /** Текст отказа сборки: тесты диагностики читают сообщение целиком */
-const messageOf = async (assembling: Promise<unknown>): Promise<string> =>
-  assembling.then(
-    () => '(assembled successfully)',
+const messageOf = async (building: Promise<unknown>): Promise<string> =>
+  building.then(
+    () => '(built successfully)',
     (error: unknown) =>
       error instanceof Error ? error.message : String(error),
   );
@@ -107,9 +107,9 @@ describe('политики — точка проверки', () => {
       ],
       transports: [asTransport(transport)],
       policies: [hasAuth()],
-    }).assemble();
+    }).build();
 
-    await expect(app.run()).rejects.toThrow(/assembly policies/);
+    await expect(app.run()).rejects.toThrow(/build policies/);
 
     expect(events).toEqual([]);
     expect(transport.serving).toBe(false);
@@ -265,7 +265,7 @@ describe('detached — поверхность для аудита', () => {
       features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
       transports: [asTransport(new MockTransport())],
       logger: detachedProbe.logger,
-    }).assemble();
+    }).build();
 
     await withDetached.run();
     await withDetached.close();
@@ -288,7 +288,7 @@ describe('detached — поверхность для аудита', () => {
       features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
       transports: [asTransport(new MockTransport())],
       logger: cleanProbe.logger,
-    }).assemble();
+    }).build();
 
     await clean.run();
     await clean.close();

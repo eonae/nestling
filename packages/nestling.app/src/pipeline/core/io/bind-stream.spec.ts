@@ -208,7 +208,7 @@ describe('kernel-отказы цепочек проходят проверку �
     });
   });
 
-  it('отказ цепочки виден .catch-юниту', async () => {
+  it('отказ цепочки виден .catch-шагу', async () => {
     const seen: string[] = [];
 
     const form = stream(LogChunk).limit(1);

@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты — часть тестов порядка исполнения */
+ * noop-шаги — часть тестов порядка исполнения */
 /* eslint-disable unicorn/no-useless-undefined --
  * `undefined` в предмете проверки: досрочный успех — успех без значения,
  * и явная запись отличает его от пропущенного поля */
 /**
- * Досрочный успех pre-юнита: третий исход.
+ * Досрочный успех pre-шага: третий исход.
  *
  * Предмет проверки — исполнение (`done()` завершает endpoint успехом без
- * значения) и признак на пайплайн-значении (`.pre(unit, { done: true })`,
+ * значения) и признак на пайплайн-значении (`.pre(step, { done: true })`,
  * `compose`, деривация, `bind`).
  */
 
@@ -16,7 +16,7 @@ import { spyLogger } from '../../logger/__fixtures__/spy.js';
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
-import type { Outcome } from './types/unit.js';
+import type { Outcome } from './types/step.js';
 import { done, isDone } from './done.js';
 import type { AnyPipeline, Pipeline } from './pipeline.js';
 import { compose, declaresDone, makePipeline } from './pipeline.js';
@@ -77,14 +77,14 @@ describe('досрочный успех: исполнение', () => {
   it('завершает endpoint успехом из середины слоя', async () => {
     const third = jest.fn();
     const handler = jest.fn(() => new Ok({ never: true }));
-    const okUnit = jest.fn((): void => {});
+    const okStep = jest.fn((): void => {});
     const outcomes: Outcome[] = [];
 
     const pipeline = makePipeline()
       .pre(() => ({ first: 1 }))
       .pre(() => done(), { done: true })
       .pre(third)
-      .ok(okUnit)
+      .ok(okStep)
       .finally((outcome) => {
         outcomes.push(outcome);
       });
@@ -98,7 +98,7 @@ describe('досрочный успех: исполнение', () => {
     });
     expect(third).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
-    expect(okUnit).toHaveBeenCalledTimes(1);
+    expect(okStep).toHaveBeenCalledTimes(1);
     expect(outcomes).toEqual(['completed']);
   });
 
@@ -170,7 +170,7 @@ describe('досрочный успех: исполнение', () => {
     );
   });
 
-  it('отказ того же юнита идёт прежним путём', async () => {
+  it('отказ того же шага идёт прежним путём', async () => {
     const handler = jest.fn(() => new Ok(undefined));
 
     const response = await run(
@@ -192,7 +192,7 @@ describe('досрочный успех: признак на пайплайн-з
     expect(declaresDone(makePipeline().pre(() => undefined))).toBe(false);
   });
 
-  it('.pre(unit, { done: true }) ставит признак', () => {
+  it('.pre(step, { done: true }) ставит признак', () => {
     expect(declaresDone(makePipeline().pre(() => done(), { done: true }))).toBe(
       true,
     );

@@ -1,4 +1,4 @@
-import type { PreUnitFn } from '../types/unit.js';
+import type { PreStepFn } from '../types/step.js';
 
 import type { EmptyInput } from '@nestlingjs/operations';
 
@@ -6,7 +6,7 @@ import type { EmptyInput } from '@nestlingjs/operations';
  * Добавляет timestamp в input
  * Используется в тестах для проверки накопления полей
  */
-export const withTiming: PreUnitFn<
+export const withTiming: PreStepFn<
   EmptyInput,
   { timestamp: number }
 > = async () => ({ timestamp: Date.now() });

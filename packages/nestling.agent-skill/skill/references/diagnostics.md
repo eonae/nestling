@@ -1,6 +1,6 @@
 # Reading a diagnostic
 
-The compiler and the ASSEMBLE phase say what is wrong in the text of the
+The compiler and the BUILD phase say what is wrong in the text of the
 error. This file maps the line on the screen to the rule behind it. Every
 quoted text is pinned by a snapshot or a test in the repository.
 
@@ -16,7 +16,7 @@ fields, which lengths.
 |---|---|---|
 | `__error: "Handler returns a failure that is not declared in 'errors:'"`, then `returned` and `declared` | The handler returns a failure outside the declared set. `returned` lists the codes over the set, `declared` lists the set itself | Add the definitions to `errors:` of the declaration, or to `errors:` of the operation when the declaration implements one. The other way out is to stop returning them |
 | `__error: "Layer may fail with errors the operation does not declare"`, then `undeclared` | A layer of `pipeline:` declares a failure that the operation does not. The caller imports the operation and never sees the pipeline of the implementation | Add the definitions to `errors:` of the operation |
-| `__error: "Pipeline requires context that the start context does not provide"`, then `missing` | A unit of the layer reads a field that the declaration does not put into the start context | Declare `rawBody: true` on the declaration, or take the fields from an outer layer. Under `implement` the start context is empty: a unit that reads transport fields belongs to a transport declaration |
+| `__error: "Pipeline requires context that the start context does not provide"`, then `missing` | A step of the layer reads a field that the declaration does not put into the start context | Declare `rawBody: true` on the declaration, or take the fields from an outer layer. Under `implement` the start context is empty: a step that reads transport fields belongs to a transport declaration |
 | `__error: "Output item chain must preserve the wire type"` | `.batch` or a type-changing `.through` is declared in `output:` | Keep the chain in `input:`; on the way out the item type is what the client reads |
 | `Object literal may only specify known properties, and 'operation' does not exist in type 'HttpEndpointDictionary<…>'` | The declaration implements an operation, and that is a second constructor | Write `httpEndpoint.implement(Operation, { … })` |
 | `Object literal may only specify known properties, and 'input' does not exist in type 'HttpImplementDictionary<…>'` | The implementation redeclares what the operation owns: `method`, `path`, `input`, `output`, `errors`, `bind`, `rawBody`, `sse`, `doc` | Drop the field. It is declared once, on the operation |
@@ -37,12 +37,12 @@ not a hole in the guarantee.
 | `RoleShapeError<"A class with a handle method is a handler, not a component", "@Handler">` | The class is of another role than the decorator names. The `use` field names the decorator to take | Take the decorator from `use`: `@Handler([…])` for a class with `handle`, `@Resource([…])` for a class with `static acquire` |
 | `Types of parameters 'db' and 'args_0' are incompatible` under a decorator | The dependency list is as long as the parameter list, but the order differs | Reorder the list to match the constructor |
 
-## ASSEMBLE stops the process
+## BUILD stops the process
 
 | What it printed | What it means | What to fix |
 |---|---|---|
 | `Feature 'orders' depends on feature 'billing' by DI token: 'X' injects 'Y'` | A DI token crosses a feature boundary. It does not survive a process boundary either, so the edge breaks as soon as the two features are deployed apart | Declare the call as an operation (`makeRequest` / `makeCommand`), inject its `.caller` and implement it in the other feature |
-| `Plugin 'metrics' depends on feature 'orders': 'X' injects 'Y'` | Infrastructure knows about business logic. It can be neither reused nor shipped separately, and it stops assembling as soon as the feature is out of the selection | Take the value as a parameter of the plugin, or inject a token the plugin declares itself |
+| `Plugin 'metrics' depends on feature 'orders': 'X' injects 'Y'` | Infrastructure knows about business logic. It can be neither reused nor shipped separately, and it stops building as soon as the feature is out of the selection | Take the value as a parameter of the plugin, or inject a token the plugin declares itself |
 | `Module 'audit' is reachable from two features, 'orders' and 'billing', so it has no single owner` | The same module is reachable from two features, and an edge into it cannot be classified | A unit shared by two features is infrastructure: declare it with `makePlugin` and list it in `plugins:` of `makeApp({ … })` |
 | `Unknown feature 'orderz' in the selection` | The selection names a feature that is not declared | Check the name against `features:` of `makeApp({ … })` |
 

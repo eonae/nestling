@@ -134,7 +134,7 @@ describe('checkTopologies', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain(
-      '3 of 3 topologies did not assemble',
+      '3 of 3 topologies did not build',
     );
     expect((error as Error).message).toContain(`args: 'users'`);
     expect((error as Error).message).toContain(`args: 'reports'`);

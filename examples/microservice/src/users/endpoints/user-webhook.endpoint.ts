@@ -24,7 +24,7 @@ const UserEventOutput = z.object({ received: z.boolean() });
 type UserEventOutput = z.infer<typeof UserEventOutput>;
 
 /**
- * Pre-юнит: проверяет HMAC-подпись тела.
+ * Pre-шаг: проверяет HMAC-подпись тела.
  *
  * Подпись считается по сырым байтам: сериализованный заново JSON дал бы
  * другой HMAC. Байты приходят в стартовом контексте, когда декларация

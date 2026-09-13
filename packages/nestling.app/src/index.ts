@@ -114,7 +114,7 @@ export type {
   ContextVarDeclarator,
   ContextVarOptions,
   CtxReader,
-  DeferredPreUnitFn,
+  DeferredPreStepFn,
   Done,
   EndpointDefinition,
   EndpointFilter,
@@ -123,7 +123,7 @@ export type {
   ErrorDetails,
   ErrorResponseContext,
   ExtendableContext,
-  FinallyUnitFn,
+  FinallyStepFn,
   HandlerClass,
   HandlerFn,
   MissingFields,
@@ -131,14 +131,14 @@ export type {
   PhasedPipeline,
   Pipeline,
   Policy,
-  PreUnitFn,
+  PreStepFn,
   PropagatedContextVar,
   Raw,
   ReadonlyContextVar,
   ResponseContext,
   SuccessResponseContext,
   TraceContext,
-  UnitResolver,
+  StepResolver,
 } from './pipeline/index.js';
 
 // ./ports/index.js — 36
@@ -186,7 +186,7 @@ export type {
 // ./root/index.js — 17
 export {
   App,
-  AssembledApp,
+  BuiltApp,
   Discovery$,
   isApp,
   makeApp,
@@ -194,7 +194,7 @@ export {
   makePlugin,
 } from './root/index.js';
 export type {
-  AssembleArgs,
+  BuildArgs,
   Bundle,
   CheckOptions,
   CheckReport,

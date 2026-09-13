@@ -1,11 +1,11 @@
 # 4. Tell the client what went wrong
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/errors.md](../design/errors.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Модель ошибок: Fail — значение, code-идентичность, makeFail, ошибки в контракте`,
 > `[2026-09-03] Код отказа: категория и уточнение; makeFail` and
-> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; юниты транспорта`.
+> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; шаги транспорта`.
 
 `GET /users/:id` must answer `404` if there is no such user, and `POST /users`
 must answer `409` if the email is taken. The client must tell these cases apart

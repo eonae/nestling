@@ -46,7 +46,7 @@ export const BANNED = [
   [word('рожда(ет|ют)ся'), '«создаётся»'],
   [word('рождени[еяю]'), '«создание»'],
   [word('страж(а|у|ем|е|и|ей)?'), '«проверка» (назовите, что именно проверяется)'],
-  [word('тракт(а|у|ом|е)?'), '«ответная фаза», «список юнитов `.ok`/`.catch`»'],
+  [word('тракт(а|у|ом|е)?'), '«ответная фаза», «список шагов `.ok`/`.catch`»'],
   [word('лакмус(а|ом|е)?'), '«проверка», «критерий»'],
   [word('LCD'), '«минимальный общий интерфейс»'],
   [word('примордиальн(ый|ая|ое|ые|ого|ой|ым|ом)'), '«первичный», «до сборки контейнера»'],
@@ -68,7 +68,7 @@ export const BANNED = [
   [word('эндпоинт(а|у|ом|е|ы|ов|ам|ами|ах)?'), '«endpoint» латиницей'],
   [word('дискавери'), '«discovery» латиницей'],
   [word('нейтральн(ый|ая|ое|ые) к транспорту'), '«не зависит от транспорта»'],
-  [word('по применимости'), '«если ответ подходит юниту» (перефразируйте)'],
+  [word('по применимости'), '«если ответ подходит шагу» (перефразируйте)'],
   [word('легальн(о|ый|ая|ое|ые|ого|ой|ым|ом)'), '«разрешено», «допустимо»'],
   [word('бесплатно'), '«без дополнительного кода», «автоматически»'],
   [word('дёшев(о|ый|ая|ое|ые)|дешев(о|ый|ая|ое|ые)'), 'скажите, что именно это стоит (или ничего не стоит)'],
@@ -78,8 +78,14 @@ export const BANNED = [
   [word('луковиц[аыуе]'), '«вложенные обёртки», «модель middleware с `next()`»'],
   [word('(env-)?пол(а|у|ом)?'), '«process.env с низшим приоритетом», «источник по умолчанию»'],
   [
-    /(?<!DI-)(?<!Bearer-)(?<![а-яёa-z])[Тт]окен(а|у|ом|е|ы|ов|ам|ами|ах)?(?![а-яё])/iu,
-    '«DI-токен» — или «Bearer-токен», если речь о токене доступа',
+    /(?<!DI-)(?<!Bearer-)(?<![а-яёa-z])[Тт]окен(а|у|ом|е|ы|ов|ам|ами|ах)?(?![а-яё])(?!\s+семейств)/iu,
+    '«DI-токен», «Bearer-токен» (о доступе) или «токен семейства»',
+  ],
+  // «юнит» — старое имя шага пайплайна. «Юнит-тест» под правило не попадает:
+  // это термин индустрии, и «шаг» его не заменяет.
+  [
+    /(?<![а-яёa-z])[Юю]нит(а|у|ом|е|ы|ов|ам|ами|ах)?(?![а-яёa-z])(?![- ]?[Тт]ест)/iu,
+    '«шаг» (step); «юнит-тест» остаётся — это термин индустрии',
   ],
 ];
 
@@ -93,7 +99,7 @@ export const BANNED = [
 export const BANNED_EN = [
   [/\bleverage[sd]?\b/i, 'say what the code does: «uses», «calls», «reads»'],
   [/\bseamless(ly)?\b/i, 'say what does not have to be done by hand'],
-  [/\brobust(ness)?\b/i, 'name the guarantee: «the assembly stops on a cycle»'],
+  [/\brobust(ness)?\b/i, 'name the guarantee: «the build stops on a cycle»'],
   [/\bcomprehensive(ly)?\b/i, 'say what exactly is covered'],
   [/\bpowerful\b/i, 'name the capability instead of praising it'],
   [/\bsimpl[ey]\b/i, 'drop the word: the sentence keeps its meaning'],
@@ -111,12 +117,21 @@ export const BANNED_EN = [
   [/\butiliz(e|es|ed|ing)\b/i, '«uses»'],
   [/\bfacilitate[sd]?\b/i, '«lets», «makes it possible to»'],
   [/\b(plethora|myriad)\b/i, 'give the number or the list'],
-  [/\b(crucial|vital)\b/i, '«required», «the assembly fails without it»'],
+  [/\b(crucial|vital)\b/i, '«required», «the build fails without it»'],
   [/\b(basically|essentially|obviously)\b/i, 'drop the word'],
   [/\bit'?s worth noting\b|\bnote that\b/i, 'state the fact without the preface'],
   [/\bin today'?s world\b|\bmodern (era|world)\b/i, 'drop the preface'],
   [/\bbattle[- ]tested\b|\bproduction[- ]ready\b/i, 'say what is checked and by what'],
   [/\bboilerplate\b/i, '«repeated code», name what repeats'],
+  // `unit` — английская пара «единицы состава» (`unit of deployment`), поэтому
+  // запрещён только в значении шага: рядом со словами пайплайна. `unit test`
+  // правилу не подчиняется — это термин индустрии.
+  [/\bpre-units?\b/i, '«pre-step»'],
+  [
+    /(?<![-\w])(?:pipeline|layer)\s+units?\b/i,
+    '«step»: `unit` is the pair for «единица состава»',
+  ],
+  [/\bunits?\s+of\s+(?:a\s+|the\s+)?(?:pipeline|layer)\b/i, '«steps of the pipeline»'],
 ];
 
 const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', 'history', 'decisions', 'coverage']);

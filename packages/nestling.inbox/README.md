@@ -29,7 +29,7 @@ an event, and this one does not let it be processed twice.
 ## Minimal example
 
 ```typescript
-// The plugin is assembled next to the connection: its `layer` field is
+// The plugin is built next to the connection: its `layer` field is
 // needed by the subscriber declaration.
 export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
 
@@ -45,8 +45,8 @@ export const app = makeApp({
   features: [UsersFeature],
   plugins: [db, inboxStore, appInbox],
   transports: [http()],
-  // The precondition is checked on the ASSEMBLE phase: a subscriber
-  // without the layer fails the assembly before the socket opens
+  // The precondition is checked on the BUILD phase: a subscriber
+  // without the layer fails the build before the socket opens
   policies: [appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
 });
 ```
@@ -54,7 +54,7 @@ export const app = makeApp({
 ## Exports
 
 - **Connection** — `inbox`, `InboxOptions`, `InboxPlugin`, `InboxLayer`,
-  `inboxConfigKeys`, `InboxConfigValues`, `InboxClaimUnit`,
+  `inboxConfigKeys`, `InboxConfigValues`, `InboxClaimStep`,
   `readIdempotencyKey`, `InboxKeyMissingError`.
 - **Storage** — `InboxStore`, `InMemoryInboxStore`, `InboxMark`,
   `InboxClaim`, `InboxSweepOptions`, `RollbackAwareTransaction`.

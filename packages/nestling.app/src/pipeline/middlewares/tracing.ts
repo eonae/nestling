@@ -8,7 +8,7 @@ import {
   parseTraceparent,
   Trace,
 } from '../core/index.js';
-import type { PreUnitFn } from '../core/types/index.js';
+import type { PreStepFn } from '../core/types/index.js';
 
 /**
  * Родительская трасса из транспортных атрибутов.
@@ -37,7 +37,7 @@ function parentOf(
  * схемы не имеет, поэтому игнорируется, а трасса начинается заново.
  *
  * Писатель — сама переменная {@link Trace}: слой, композированный от
- * этого юнита, удовлетворяет политике `everyEndpoint(…).hasVar(Trace)`, а
+ * этого шага, удовлетворяет политике `everyEndpoint(…).hasVar(Trace)`, а
  * глубокий сервис читает значение через `Ctx(Trace)`.
  *
  * @example
@@ -47,7 +47,7 @@ function parentOf(
  *   .pre(withTracing());
  * ```
  */
-export function withTracing(): PreUnitFn<EmptyInput, { trace: TraceContext }> {
+export function withTracing(): PreStepFn<EmptyInput, { trace: TraceContext }> {
   return Trace.provide((ctx) => {
     const parent = parentOf(ctx.raw.attributes);
 

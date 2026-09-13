@@ -13,8 +13,8 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { createServer } from 'node:http';
 
 import {
-  assemblePayload,
   bindingNeedsBody,
+  buildPayload,
   http,
   HTTP_CAPABILITIES,
   HTTP_TRANSPORT_NAME,
@@ -48,7 +48,7 @@ import { z } from 'zod';
  * Транспорт поверх собственного `node:http`-сервера.
  *
  * Своего разбора и кадрирования у него нет: тело читает `parseJson`,
- * места полей дают `httpBindingOf`, `readQuery` и `assemblePayload`,
+ * места полей дают `httpBindingOf`, `readQuery` и `buildPayload`,
  * ответ пишет `sendResponse`. Формы io он объявляет тем же
  * `HTTP_CAPABILITIES`, что и `HttpTransport`.
  *
@@ -136,7 +136,7 @@ class SatelliteTransport implements ITransport {
     const binding = httpBindingOf(match.route.declaration);
     const body = bindingNeedsBody(binding) ? await parseJson(req) : undefined;
 
-    const payload = assemblePayload(binding, {
+    const payload = buildPayload(binding, {
       query: readQuery(url.searchParams, binding.fields),
       body,
       params: match.params,

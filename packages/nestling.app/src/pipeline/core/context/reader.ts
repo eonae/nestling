@@ -1,5 +1,5 @@
 /**
- * Чтение контекстных переменных через DI: ридер переменной — член
+ * Чтение контекстных переменных через DI: ридер переменной — токен семейства
  * семейства DI-токенов, то есть обычный узел графа.
  *
  * Поэтому зависимость от контекста запроса видна в визуализации и
@@ -35,13 +35,13 @@ export interface CtxReader<T> {
   peek(): T | undefined;
 }
 
-/** Ридер любой переменной: тип члена семейства */
+/** Ридер любой переменной: тип токена семейства */
 export type AnyCtxReader = CtxReader<unknown>;
 
 /**
  * Семейство ридеров. Не экспортируется: наружу отдаётся типизированная
  * функция {@link Ctx}, поэтому `Ctx('опечатка')` не компилируется, а тип
- * члена выводится из переменной.
+ * токена семейства выводится из переменной.
  *
  * @internal Рецепт семейства регистрирует модуль ядра `contextKernel()`
  */
@@ -53,7 +53,7 @@ export const CtxFamily = makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
  * endpoint'а и в `container.get()`.
  *
  * @param variable - Значение переменной (`contextVar<T>()('key')`)
- * @returns DI-токен члена семейства с типом `CtxReader<T>`
+ * @returns DI-токен семейства с типом `CtxReader<T>`
  *
  * @example
  * ```typescript
@@ -102,8 +102,8 @@ function unavailable(key: string, phase?: string): ContextVarUnavailableError {
   if (phase === 'response' || phase === 'finally' || phase === 'stream') {
     return new ContextVarUnavailableError(
       `Context variable '${key}' is unavailable on the response track: the ` +
-        `pre-track did not reach the unit that provides it, so the projection ` +
-        `is Partial here. Use peek() — response, finally and stream units see ` +
+        `pre-track did not reach the step that provides it, so the projection ` +
+        `is Partial here. Use peek() — response, finally and stream steps see ` +
         `an incomplete input by design.`,
     );
   }

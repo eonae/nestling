@@ -1,10 +1,10 @@
 /**
- * `makeApp` — единственный composition root; `AssembledApp` — фазовый
+ * `makeApp` — единственный composition root; `BuiltApp` — фазовый
  * рантайм приложения.
  *
  * Декларация (`makeApp`) описывает, что такое приложение. Сборка
- * (`app.assemble(args)`) выбирает, что запускает этот процесс. Фазы:
- * `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE → 4 START → 5 RUN` и
+ * (`app.build(args)`) выбирает, что запускает этот процесс. Фазы:
+ * `0 BOOTSTRAP → 1 BUILD → 2 INIT → 3 WIRE → 4 START → 5 RUN` и
  * `6 SHUTDOWN` строгим реверсом; их выполняет `run()`. Фазы 0 и 1
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
@@ -65,7 +65,7 @@ import type {
 } from '../transport/index.js';
 import { makeDispatch } from '../transport/index.js';
 
-import type { AssembleArgs } from './args.js';
+import type { BuildArgs } from './args.js';
 import { undeclaredSwitch } from './args.js';
 import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
 import { resolveComposition } from './composition.js';
@@ -78,7 +78,7 @@ import { mapOperations } from './operations.js';
 import type { AppPhase } from './phase.js';
 import type {
   AppSpec,
-  AssemblyPlan,
+  BuildPlan,
   NormalizedAppSpec,
   WiredApp,
   WiredEndpoint,
@@ -111,7 +111,7 @@ import {
 } from '@nestlingjs/container';
 
 export type { AppSpec, NormalizedAppSpec } from './plan.js';
-export type { AssembleArgs, AssembleObject, SwitchFields } from './args.js';
+export type { BuildArgs, BuildObject, SwitchFields } from './args.js';
 
 /** Endpoint в отчёте `check()`: чем обслуживается и кем объявлен */
 export interface CheckedEndpoint {
@@ -220,14 +220,14 @@ const APP_BRAND = Symbol.for('nestling:app');
  * переключатели состава — в `switches:`, транспорты объявляются
  * экземплярами, привязки конфига — полем `config`, корневой логгер —
  * полем `logger`. Выбор фич в словаре не пишется: он часть аргумента
- * `assemble(args)`.
+ * `build(args)`.
  *
  * Декларация проверяется при создании: бренды фич и плагинов, дубли имён
  * фич и имён переключателей, форма состава, закрытый перечень полей,
  * интерком среди транспортов.
  *
  * @param spec - Словарь декларации. Все поля опциональны
- * @returns Декларация приложения с методами `assemble()`, `discover()` и
+ * @returns Декларация приложения с методами `build()`, `discover()` и
  * `check()`
  * @throws {TypeError} Неизвестное поле словаря, смешанная форма состава,
  * не фича в `features`, не плагин в `plugins`
@@ -244,7 +244,7 @@ const APP_BRAND = Symbol.for('nestling:app');
  * });
  *
  * // main.ts
- * await app.assemble().run();
+ * await app.build().run();
  * ```
  *
  * @example Фичи, переключатели и аргумент сборки
@@ -257,7 +257,7 @@ const APP_BRAND = Symbol.for('nestling:app');
  *   intercom: 'events',
  * });
  *
- * await app.assemble({ features: 'orders', storage: 's3' }).run();
+ * await app.build({ features: 'orders', storage: 's3' }).run();
  * ```
  */
 export function makeApp<
@@ -284,7 +284,7 @@ export function isApp(value: unknown): value is App<any> {
  * Значение, а не процесс: одна декларация собирается сколько угодно раз с
  * разным аргументом. Публичная поверхность — три входа с одним и тем же
  * аргументом сборки, различающиеся глубиной: `discover(args?)` — фаза 0,
- * `check(args?, options?)` — фазы 0–1, `assemble(args?).run()` — фазы 0–5.
+ * `check(args?, options?)` — фазы 0–1, `build(args?).run()` — фазы 0–5.
  *
  * @template S - Переключатели декларации; из них выведен тип аргумента
  */
@@ -310,15 +310,15 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * Вызов синхронный и ничего не читает: ни `process.env`, ни граф.
    * Фазы 0–5 выполняет `run()` собранного приложения; ошибки аргумента
    * (неизвестное имя фичи, пустой выбор, значение переключателя не из
-   * словаря) — ошибки фазы ASSEMBLE, их бросает `run()`.
+   * словаря) — ошибки фазы BUILD, их бросает `run()`.
    *
    * @param args - Аргумент сборки: `'all'`, `'orders,billing'`,
    * `['orders', 'billing']` или `{ features, includeDeps, …значения
    * переключателей }`. Отсутствует — выбраны все фичи и умолчания
    * @returns Собранное приложение с методами `run()` и `close()`
    */
-  assemble(args?: AssembleArgs<S>): AssembledApp {
-    return new AssembledApp(makePlan(this.spec, args));
+  build(args?: BuildArgs<S>): BuiltApp {
+    return new BuiltApp(makePlan(this.spec, args));
   }
 
   /**
@@ -338,7 +338,7 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * зависимость, нарушенная политика, форма io вне способностей
    * транспорта и отсутствие требуемого транспорта — исходы `check()`.
    *
-   * @param args - Аргумент сборки в тех же формах, что у `assemble`
+   * @param args - Аргумент сборки в тех же формах, что у `build`
    * @returns Endpoint'ы с атрибуцией к единице и карта требуемых
    * транспортов — то же значение, что сборка кладёт под `Discovery$`
    * @throws {TypeError} Неизвестное поле аргумента сборки
@@ -352,12 +352,12 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * const document = appOpenapi.document(app.discover(args));
    * ```
    */
-  discover(args?: AssembleArgs<S>): EndpointDiscovery {
+  discover(args?: BuildArgs<S>): EndpointDiscovery {
     return discoverEndpoints(resolveComposition(this.spec, args).bundles);
   }
 
   /**
-   * Структурный смок: фазы 0 BOOTSTRAP и 1 ASSEMBLE — и остановка.
+   * Структурный смок: фазы 0 BOOTSTRAP и 1 BUILD — и остановка.
    *
    * Выполняется: разбор аргумента сборки, раскрытие веток
    * переключателей, регистрация модулей и провайдеров, discovery,
@@ -370,10 +370,10 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * `release` тоже не выполняются.
    *
    * Проверка — «собрать и выбросить»: граф не сохраняется, на
-   * последующий `assemble()` той же декларации вызов не влияет, и гонять
+   * последующий `build()` той же декларации вызов не влияет, и гонять
    * его можно по матрице топологий.
    *
-   * @param args - Аргумент сборки в тех же формах, что у `assemble`
+   * @param args - Аргумент сборки в тех же формах, что у `build`
    * @param options - Конвертеры схем для дескрипторов операций и конфиг
    * проверки
    * @returns Отчёт о составе: фичи, значения переключателей, endpoint'ы с
@@ -388,12 +388,10 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * ```
    */
   async check(
-    args?: AssembleArgs<S>,
+    args?: BuildArgs<S>,
     options: CheckOptions = {},
   ): Promise<CheckReport> {
-    return await new AssembledApp(makePlan(this.spec, args))[CHECK_SEAM](
-      options,
-    );
+    return await new BuiltApp(makePlan(this.spec, args))[CHECK_SEAM](options);
   }
 }
 
@@ -459,19 +457,19 @@ function modulesListing(
 }
 
 /**
- * Приложение, собранное для этого процесса: результат `app.assemble()`.
+ * Приложение, собранное для этого процесса: результат `app.build()`.
  *
  * Публичная поверхность — `run()` и `close()`. Конструктор принимает
  * внутренний план сборки, тип которого пакет не экспортирует.
  */
-export class AssembledApp {
-  readonly #plan: AssemblyPlan;
+export class BuiltApp {
+  readonly #plan: BuildPlan;
 
   /**
    * Фактический состав фич: выбор, замкнутый по вызываемым операциям, с
    * раскрытыми ветками.
    *
-   * Считается на фазе ASSEMBLE один раз: `run()`, проверка и шов обязаны
+   * Считается на фазе BUILD один раз: `run()`, проверка и шов обязаны
    * видеть один и тот же состав. До неё поле пусто.
    */
   #features?: readonly ResolvedBundle[];
@@ -542,8 +540,8 @@ export class AssembledApp {
   /** Снятие обработчиков сигналов процесса: закрытое приложение молчит */
   #detachSignals?: () => void;
 
-  /** @internal конструируется только `App.assemble` и швами */
-  constructor(plan: AssemblyPlan) {
+  /** @internal конструируется только `App.build` и швами */
+  constructor(plan: BuildPlan) {
     this.#plan = plan;
   }
 
@@ -564,8 +562,8 @@ export class AssembledApp {
     const { reader, root } = await this.#bootstrap();
     this.#reader = reader;
 
-    // 1 ASSEMBLE — граф, discovery и все fail-fast'ы до захвата ресурсов
-    const { container, discovery } = this.#assemble(reader, root);
+    // 1 BUILD — граф, discovery и все fail-fast'ы до захвата ресурсов
+    const { container, discovery } = this.#build(reader, root);
     this.#container = container;
 
     // Канал остановки создаётся до INIT: его получают и `acquire` ресурсов,
@@ -637,7 +635,7 @@ export class AssembledApp {
     );
 
     try {
-      return this.#report(this.#assemble(reader, root).discovery, options);
+      return this.#report(this.#build(reader, root).discovery, options);
     } finally {
       // Контейнер проверка не разрушает, поэтому источники закрываются
       // сразу после отчёта — иначе они остались бы открытыми
@@ -690,8 +688,8 @@ export class AssembledApp {
     const { reader, root } = await this.#bootstrap();
     this.#reader = reader;
 
-    // 1 ASSEMBLE — те же fail-fast'ы, что и в бою
-    const { container, discovery } = this.#assemble(reader, root);
+    // 1 BUILD — те же fail-fast'ы, что и в бою
+    const { container, discovery } = this.#build(reader, root);
     this.#container = container;
 
     this.#shutdown = new AbortController();
@@ -803,7 +801,7 @@ export class AssembledApp {
     );
   }
 
-  /** Выбранные фичи; доступны после резолва выбора на фазе ASSEMBLE */
+  /** Выбранные фичи; доступны после резолва выбора на фазе BUILD */
   #selectedFeatures(): readonly ResolvedBundle[] {
     return this.#features ?? [];
   }
@@ -889,7 +887,7 @@ export class AssembledApp {
    * @param reader - Читалка со снимком фазы 0
    * @param root - Корневой логгер, созданный на фазе 0
    */
-  #assemble(
+  #build(
     reader: ConfigReader,
     root: Logger,
   ): {
@@ -920,7 +918,7 @@ export class AssembledApp {
     builder.register(contextKernel());
 
     // Kernel-модуль логгера — тоже всегда: рецепт семейства областей и два
-    // члена ядра. Самого корня в модуле нет — он создан на фазе 0 и
+    // токена семейства ядра. Самого корня в модуле нет — он создан на фазе 0 и
     // регистрируется провайдером значения ниже, последним
     builder.register(loggerKernel());
 
@@ -993,7 +991,7 @@ export class AssembledApp {
     }
 
     // Пробы — после всего, что может объявить вклад: узел проб называет
-    // каждый вклад поимённо, а вклад приходит и провайдером члена из
+    // каждый вклад поимённо, а вклад приходит и провайдером токена семейства из
     // модуля, и методом `health` любого ресурса, включая серверы
     registerHealth(builder, () => this.#phase);
 
@@ -1006,7 +1004,7 @@ export class AssembledApp {
     const container = builder.build();
 
     // Записи фаз 0–1 идут в тот же корень, что и узлы графа с фазы INIT:
-    // до INIT члена семейства ещё нет, поэтому сборка строит своего
+    // до INIT токена семейства ещё нет, поэтому сборка строит своего
     // ребёнка сама
     const logger = root.child({ scope: 'nestling' });
 
@@ -1292,7 +1290,7 @@ export class AssembledApp {
    * Достаёт зависимость декларации из контейнера, называя в ошибке
    * endpoint, модуль-объявитель и способ починки.
    *
-   * Одинаково обслуживает оба источника: класс-хендлер и класс-юнит
+   * Одинаково обслуживает оба источника: класс-хендлер и класс-шаг
    * пайплайна — для автора это одна и та же незарегистрированная
    * зависимость.
    */
@@ -1337,16 +1335,13 @@ export class AssembledApp {
       return;
     }
 
-    logger.warn(
-      'intercom is assigned, but this assembly declares no operations',
-      {
-        transport: intercom.name,
-        hint:
-          `nothing will be carried through it. Drop 'intercom:' with its ` +
-          `transport, or check that the feature that needs it is part of the ` +
-          `selection`,
-      },
-    );
+    logger.warn('intercom is assigned, but this build declares no operations', {
+      transport: intercom.name,
+      hint:
+        `nothing will be carried through it. Drop 'intercom:' with its ` +
+        `transport, or check that the feature that needs it is part of the ` +
+        `selection`,
+    });
   }
 
   /**
@@ -1360,7 +1355,7 @@ export class AssembledApp {
     discovery: EndpointDiscovery,
   ): void {
     for (const [token, endpoints] of discovery.transports) {
-      // Наличие — это регистрация, а не экземпляр: на фазе ASSEMBLE
+      // Наличие — это регистрация, а не экземпляр: на фазе BUILD
       // экземпляров нет ни у кого
       if (container.has(token as InjectionToken<ITransport>)) {
         continue;
@@ -1381,7 +1376,7 @@ export class AssembledApp {
   /**
    * Сверяет формы io деклараций со способностями объявленных транспортов.
    *
-   * Способности читаются из `transports:`, а не из графа: на фазе ASSEMBLE
+   * Способности читаются из `transports:`, а не из графа: на фазе BUILD
    * экземпляров нет. Реализация и текст ошибки те же, что на
    * standalone-пути (`serve`).
    *
@@ -1460,7 +1455,7 @@ export class AssembledApp {
     }
 
     throw new Error(
-      `${total} endpoint violation(s) of assembly policies:\n\n` +
+      `${total} endpoint violation(s) of build policies:\n\n` +
         `${groups.join('\n\n')}\n\n` +
         `Fix each handle by composing the required layer into its ` +
         `'pipeline:', or opt out deliberately with ` +

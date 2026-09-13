@@ -179,7 +179,7 @@ export const GetUser = httpEndpoint.implement(GetUserOperation, {
 ```
 
 The second parameter of `handle` is `meta`: it carries what the `.pre`
-units of the layer put into the context, typed. The status of a success,
+steps of the layer put into the context, typed. The status of a success,
 headers, cookies and a redirect are the HTTP shape of the response and
 live in `references/http.md`.
 
@@ -196,4 +196,4 @@ A schema describes one JSON value. Anything else is a form:
 
 Forms are declared in `input:` or `output:` in place of a schema:
 `output: stream(LogLine).limit(1000)`. A transport that cannot carry the
-chosen form fails on ASSEMBLE, not on the first request.
+chosen form fails on BUILD, not on the first request.

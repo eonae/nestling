@@ -4,7 +4,7 @@
 
 Запрос, прошедший через несколько процессов, читается одной цепочкой.
 Well-known переменная `Trace` несёт идентификаторы трассы и участка,
-pre-юнит `withTracing()` продолжает пришедшую трассу или начинает новую, а
+pre-шаг `withTracing()` продолжает пришедшую трассу или начинает новую, а
 формат W3C trace-context везёт её заголовком `traceparent` по HTTP и полем
 конверта по шине. Записи логгера получают поле `traceId` рядом с
 `requestId`, а код вне ядра — готовую читалку.
@@ -37,10 +37,10 @@ pre-юнит `withTracing()` продолжает пришедшую трасс�
 - **THEN** значение `Trace` находится в конверте рядом с `timeoutMs`, а на
   приёме — в `ctx.raw.attributes`
 
-### Requirement: `withTracing()` — pre-юнит, продолжающий или начинающий трассу
+### Requirement: `withTracing()` — pre-шаг, продолжающий или начинающий трассу
 
 `@nestlingjs/app` SHALL экспортировать `withTracing()`, возвращающий
-pre-юнит `PreUnitFn<EmptyInput, { trace: TraceContext }>`. Юнит SHALL быть
+pre-шаг `PreStepFn<EmptyInput, { trace: TraceContext }>`. Шаг SHALL быть
 реализован через `Trace.provide(…)`, поэтому политика
 `everyEndpoint(…).hasVar(Trace)` SHALL засчитывать его.
 
@@ -48,7 +48,7 @@ pre-юнит `PreUnitFn<EmptyInput, { trace: TraceContext }>`. Юнит SHALL б
 поле `trace` (значение с шины), затем заголовок `traceparent` (HTTP). При
 отсутствии обоих SHALL начинаться новая трасса с новым `traceId`.
 
-Юнит SHALL создавать новый `spanId` на каждый запрос и SHALL класть прежний
+Шаг SHALL создавать новый `spanId` на каждый запрос и SHALL класть прежний
 идентификатор участка в `parentSpanId`. Флаг `sampled` SHALL переноситься
 из родительского контекста; у новой трассы он SHALL быть `true`.
 
@@ -56,7 +56,7 @@ pre-юнит `PreUnitFn<EmptyInput, { trace: TraceContext }>`. Юнит SHALL б
 SHALL игнорироваться, и трасса SHALL начинаться заново. Отказа SHALL NOT
 возникать — значение приходит из-за границы доверия и схемы не имеет.
 
-Автоматической подстановки юнита в пайплайн SHALL NOT происходить:
+Автоматической подстановки шага в пайплайн SHALL NOT происходить:
 трассировка объявляется композицией, как `withRequestId()`.
 
 #### Scenario: Продолжение трассы по HTTP

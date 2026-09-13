@@ -5,7 +5,7 @@ import type { InjectionToken } from '../common.js';
  *
  * Роль объявляется декоратором и держит позицию: компонент и ресурс живут
  * в `providers:`, хендлер — в слоте `handler:` декларации. Форму класса
- * проверяет компилятор, позицию — сверка роли на фазе ASSEMBLE.
+ * проверяет компилятор, позицию — сверка роли на фазе BUILD.
  */
 export type ClassRole = 'component' | 'resource' | 'handler';
 

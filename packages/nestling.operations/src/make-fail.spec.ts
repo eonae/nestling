@@ -157,7 +157,7 @@ describe('makeFail — идентичность по коду', () => {
     expect(wire instanceof Fail).toBe(false);
   });
 
-  it('is() распознаёт код в контексте ответа-ошибки (форма catch-юнита)', () => {
+  it('is() распознаёт код в контексте ответа-ошибки (форма catch-шага)', () => {
     const response = {
       isSuccess: false as const,
       status: 'not_found' as const,

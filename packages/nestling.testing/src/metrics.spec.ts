@@ -7,7 +7,7 @@
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { spyMetrics } from './metrics.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -56,7 +56,7 @@ describe('spyMetrics — записи значениями', () => {
 });
 
 describe('spyMetrics — подмена корня', () => {
-  it('перехватывает записи члена семейства вместе с областью', async () => {
+  it('перехватывает записи токена семейства вместе с областью', async () => {
     @Component([Metrics$.auto])
     class UsersService {
       constructor(private readonly metrics: Metrics) {}
@@ -71,7 +71,7 @@ describe('spyMetrics — подмена корня', () => {
     });
 
     const spy = spyMetrics();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       overrides: [[RootMetrics$, spy.metrics]],
     });
 
@@ -97,7 +97,7 @@ describe('spyMetrics — подмена корня', () => {
     });
 
     const spy = spyMetrics();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       overrides: [[RootMetrics$, spy.metrics]],
     });
 

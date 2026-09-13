@@ -1,6 +1,6 @@
 # Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `02d6b233`
+> Гайд по текущему API; сверено с кодом `3ea8ea87`
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -59,7 +59,7 @@ process.on('SIGINT', () => void stop('SIGINT'));
 Шаги, которые сборка делает на фазах WIRE и START, здесь написаны руками.
 `makeDispatch` строит таблицу «паттерн, хендлер» из деклараций, принимая
 только исполнимые декларации — без неразрешённых зависимостей у
-класса-хендлера и классов-юнитов пайплайна: декларация с зависимостями не
+класса-хендлера и классов-шагов пайплайна: декларация с зависимостями не
 проходит по типам, и вызов не компилируется. Две декларации одного
 транспорта с одним и тем же паттерном останавливают `makeDispatch` с
 ошибкой.
@@ -76,7 +76,7 @@ process.on('SIGINT', () => void stop('SIGINT'));
 Читать `process.env` в корне здесь допустимо: секции конфига без ядра
 конфигурации нет.
 
-## Endpoint без пайплайна и endpoint с pre-юнитом
+## Endpoint без пайплайна и endpoint с pre-шагом
 
 ```typescript
 // src/endpoints/create-user.endpoint.ts
@@ -101,8 +101,8 @@ export const CreateUser = httpEndpoint.post('/users', {
 списком `errors:`, контекст запроса открыт.
 
 ```typescript
-// src/common/units.ts
-export const withStartedAt: PreUnitFn<
+// src/common/steps.ts
+export const withStartedAt: PreStepFn<
   EmptyInput,
   { startedAt: number }
 > = () => ({ startedAt: Date.now() });
@@ -120,9 +120,9 @@ export const SayHello = httpEndpoint.get('/', {
 });
 ```
 
-Pre-юнит возвращает добавку к контексту. Хендлер читает её из второго
+Pre-шаг возвращает добавку к контексту. Хендлер читает её из второго
 аргумента `meta` вместе с `signal` и `fail`; тип поля `startedAt`
-выводится из юнита.
+выводится из шага.
 
 ```bash
 yarn start:dev
@@ -153,7 +153,7 @@ export const makeContainer = async (
     // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
     // регистрирует значением сам, здесь это делает вызывающий код
     .register(valueProvider(RootLogger$, makeKernelLogger(config)))
-    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+    // Kernel-модули, которые `build` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
     // Веток переключателей у примера нет, поэтому карта значений пуста
@@ -252,7 +252,7 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
   return dispatch.call(endpoint.pattern, makeEmptyContext(raw, meta));
 };
 
-  it('отдаёт значение pre-юнита хендлеру', async () => {
+  it('отдаёт значение pre-шага хендлеру', async () => {
     const response = await call(SayHello);
 
     expect(response.isSuccess).toBe(true);
@@ -260,7 +260,7 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
   });
 ```
 
-Без `assembleTest` кадр запроса собирает сам тест: `makeEmptyContext`
+Без `buildTest` кадр запроса собирает сам тест: `makeEmptyContext`
 строит начальный контекст из описания запроса и декларации, а
 `dispatch.call` исполняет endpoint тем же путём, что и транспорт. Остальные
 тесты файла проверяют отказ схемы, объявленный отказ и потоковый ответ.

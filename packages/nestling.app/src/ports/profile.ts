@@ -9,12 +9,12 @@
  * - транспортные атрибуты (`ctx.raw.attributes`) кладут оба вызывателя и
  *   шина безусловно, рядом с `subject`;
  * - ambient-переменные ({@link Deadline}, {@link IdempotencyKey}) — это
- *   проекция для кода произвольной глубины. Её включает штатный pre-юнит,
+ *   проекция для кода произвольной глубины. Её включает штатный pre-шаг,
  *   а присутствие проверяет политика `everyEndpoint(…).hasVar(…)` на
  *   сборке.
  */
 
-import type { EmptyInput, PreUnitFn } from '../pipeline/index.js';
+import type { EmptyInput, PreStepFn } from '../pipeline/index.js';
 import { contextVar } from '../pipeline/index.js';
 
 import { followSignal } from './signal.js';
@@ -23,7 +23,7 @@ import { followSignal } from './signal.js';
  * Атрибут бюджета: абсолютный момент **по часам получателя**.
  *
  * Именно момент, а не остаток: остаток «протухает» на каждом await'е, и
- * юнит, прочитавший его позже транспорта, получил бы неверное число.
+ * шаг, прочитавший его позже транспорта, получил бы неверное число.
  */
 export const DEADLINE_ATTRIBUTE = 'deadline';
 
@@ -254,7 +254,7 @@ export const IdempotencyKey = contextVar<string>()('idempotencyKey');
  * const budgeted = makePipeline().pre(withDeadline());
  * ```
  */
-export function withDeadline(): PreUnitFn<
+export function withDeadline(): PreStepFn<
   EmptyInput,
   { deadline: Date | undefined }
 > {
@@ -274,7 +274,7 @@ export function withDeadline(): PreUnitFn<
  * произвольного транспорта), идентичности не имеет, и дать её может только
  * получатель.
  */
-export function withIdempotencyKey(): PreUnitFn<
+export function withIdempotencyKey(): PreStepFn<
   EmptyInput,
   { idempotencyKey: string }
 > {

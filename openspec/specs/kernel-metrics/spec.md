@@ -51,24 +51,24 @@ SHALL возвращать `void` и SHALL NOT быть асинхронными
 которой называет опцию `metrics` как единственный способ задать корень.
 Подмена `[RootMetrics$, …]` в `overrides` тестового корня SHALL работать.
 
-Kernel-модуль метрик SHALL регистрировать рецепт семейства: член
+Kernel-модуль метрик SHALL регистрировать рецепт семейства: DI-токен
 `Metrics$(scope)` SHALL добавлять к каждой записи атрибут `scope`.
-`Metrics$.auto` SHALL давать члена по имени класса-потребителя. Члены
-семейства SHALL оставаться узлами графа.
+`Metrics$.auto` SHALL давать токен семейства по имени класса-потребителя.
+Токены семейства SHALL оставаться узлами графа.
 
 Узел `RootMetrics$` SHALL присутствовать в графе всегда: фича, которая
 пишет метрику, SHALL собираться без установленного сателлита.
 
-#### Scenario: Член семейства добавляет область
+#### Scenario: Токен семейства добавляет область
 
 - **WHEN** класс объявляет `@Component([Metrics$('users')])` и пишет
   `counter('created')`
 - **THEN** реализация получает запись с атрибутом `scope: 'users'`
 
-#### Scenario: `.auto` даёт члена по имени класса
+#### Scenario: `.auto` даёт токена семейства по имени класса
 
 - **WHEN** класс `OrdersService` объявляет `@Component([Metrics$.auto])`
-- **THEN** он получает члена `Metrics$('OrdersService')`
+- **THEN** он получает токена семейства `Metrics$('OrdersService')`
 
 #### Scenario: Без опции запись пропадает
 
@@ -84,14 +84,14 @@ Kernel-модуль метрик SHALL регистрировать рецепт
 ### Requirement: Ядро считает счётчик и длительность на endpoint
 
 Рантайм пайплайна SHALL писать метрики обработки запроса в ответной фазе —
-там же, где вычислен `outcome` и вызываются `.finally`-юниты.
+там же, где вычислен `outcome` и вызываются `.finally`-шаги.
 
 | Метрика | Вид | Атрибуты |
 | --- | --- | --- |
 | `nestling.requests` | счётчик | `transport`, `pattern`, `outcome` |
 | `nestling.request.duration` | гистограмма, мс | `transport`, `pattern`, `outcome` |
 
-`outcome` SHALL принимать те же четыре значения, что видит `.finally`-юнит:
+`outcome` SHALL принимать те же четыре значения, что видит `.finally`-шаг:
 `completed`, `disconnected`, `aborted`, `failed`. `pattern` SHALL быть
 шаблоном маршрута из декларации endpoint'а, а не адресом запроса:
 атрибуты SHALL браться из деклараций, и значения из запроса в метрики
@@ -186,11 +186,11 @@ SHALL NOT попадать.
 `kind` принимает `counter` и `histogram`.
 
 Подмена `[RootMetrics$, spy.metrics]` в `overrides` SHALL перехватывать
-записи всех членов `Metrics$` и записи ядра.
+записи всех токенов семейства `Metrics$` и записи ядра.
 
 #### Scenario: Записи сервиса через подмену корня
 
-- **WHEN** `assembleTest(app, { overrides: [[RootMetrics$, spy.metrics]] })`,
+- **WHEN** `buildTest(app, { overrides: [[RootMetrics$, spy.metrics]] })`,
   и сервис с `Metrics$.auto` пишет `counter('created')`
 - **THEN** `spy.records` содержит запись с `kind: 'counter'`,
   `name: 'created'`, `value: 1` и атрибутом `scope`

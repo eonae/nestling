@@ -296,7 +296,7 @@ export class CliTransport implements ITransport {
 
     // Потоковый выход: NDJSON в поток вывода, завершение по концу потока и
     // по сигналу. Итератор обязан быть либо потреблён, либо закрыт — иначе
-    // отложенные `.finally`-юниты не выполнятся.
+    // отложенные `.finally`-шаги не выполнятся.
     if (
       outputForm.kind === 'stream' &&
       response.isSuccess &&
@@ -606,7 +606,7 @@ export function parseArgv(argv: readonly string[]): CliInput {
  *
  * @example
  * ```typescript
- * await assemble({ features: [Tools], transports: [cli()] }).run();
+ * await build({ features: [Tools], transports: [cli()] }).run();
  * ```
  */
 export const cli = <const Name extends string = typeof DEFAULT_INSTANCE>(

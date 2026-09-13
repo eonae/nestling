@@ -24,7 +24,7 @@ environment — are expressed statically, through DI token families and
 composition switches: the builder sees every requested family member
 and every branch before start. Nothing resolves while the application
 runs: a port is bound to a local implementation or to a remote client at
-assembly, not on every call.
+build, not on every call.
 
 ## Guarantee over convention
 
@@ -58,9 +58,9 @@ Everything that affects an endpoint is visible in its declaration. The
 pipeline is composed of constants; it has no application level and no
 module level. The consumer names the methods of a client (an object
 passed to `makeClient`), not a string parser. `process.env` is read in
-one place, the kernel; the only exception is the assembly argument (the
+one place, the kernel; the only exception is the build argument (the
 feature selection and the switches), read before the container is
-assembled. Nestling has no notion of middleware: pipeline units do not
+built. Nestling has no notion of middleware: pipeline steps do not
 wrap each other and do not call `next()`.
 
 ## Schema-first
@@ -102,7 +102,7 @@ instead of `forRoot` and `DynamicModule`, a subset of features is chosen
 by filtering an array, pipelines are composed from constants and
 checked by the compiler, tests get `overrides`, and introspection
 (`explain()`, a graph visualization) is possible. Classes remain where
-they connect to the container: components, resources, units, handlers.
+they connect to the container: components, resources, steps, handlers.
 This is a form of DI registration, not a style of declaration; the
 canonical style of declaration is the `make*` functions.
 

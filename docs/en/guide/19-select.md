@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -11,11 +11,11 @@
 The application consists of the `users`, `notifications` and `ops` features.
 Locally it starts as one process. In production the user API and the
 operational endpoints are deployed separately, and each process must
-bring up only its own features. The same code must assemble into all
-three roles, and a wrong composition must stop the assembly, not the
+bring up only its own features. The same code must build into all
+three roles, and a wrong composition must stop the build, not the
 first request.
 
-## Read the assembly argument before the container
+## Read the build argument before the container
 
 ```typescript
 // src/main.ts
@@ -25,7 +25,7 @@ import { from, load, makeConfig } from '@nestlingjs/app';
 import { z } from 'zod';
 
 /**
- * The root's section: the assembly argument is read before the
+ * The root's section: the build argument is read before the
  * container.
  *
  * The `root` prefix tells it apart from the `app` section in
@@ -46,22 +46,22 @@ const RootConfig = makeConfig('root', {
  */
 const cfg = load(RootConfig);
 
-await app.assemble({ ...cfg, includeDeps: true }).run();
+await app.build({ ...cfg, includeDeps: true }).run();
 ```
 
-`load(section)` reads the values before the container is assembled:
+`load(section)` reads the values before the container is built:
 synchronously and only from `process.env`. It works this way because
-the assembly argument determines the composition of the container, and
+the build argument determines the composition of the container, and
 a section inside the container would appear only after the selection.
 The sources bound in `config:` take no part in this read. This is the
-only configuration read before the assembly.
+only configuration read before the build.
 
 The `APP_FEATURES` key is set through `from()`: the root has its own
 `root` prefix, because the `app` prefix is already taken by the
 application's section.
 
-The section's fields are named the same as the assembly argument's
-fields, so `cfg` fits `assemble` whole. The name `docs` is the switch's
+The section's fields are named the same as the build argument's
+fields, so `cfg` fits `build` whole. The name `docs` is the switch's
 name, and an extra field in this object does not compile.
 
 ## Argument shapes and the closure over calls
@@ -81,7 +81,7 @@ feature is selected. The plugins from `plugins:` do not enter the
 selection: they are in every process. A feature that is not selected
 is absent from the process entirely: its providers are not created,
 its endpoints are not registered, its implementations of operations do
-not subscribe. An unknown feature name stops the assembly, and the
+not subscribe. An unknown feature name stops the build, and the
 error lists the available ones, the same as two features with one
 name, an empty selection, and a selection with no `features:`.
 
@@ -117,15 +117,15 @@ arrives only by an explicit selection.
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
-An assembly with the `'users'` selection and no `includeDeps` stops on
-the ASSEMBLE phase:
+A build with the `'users'` selection and no `includeDeps` stops on
+the BUILD phase:
 
 ```
 Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
-selected feature implements it and this assembly has no intercom, so the
+selected feature implements it and this build has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
-assembly argument (or close the selection over calls with
-'assemble({ features, includeDeps: true })'), or assign the intercom role
+build argument (or close the selection over calls with
+'build({ features, includeDeps: true })'), or assign the intercom role
 to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
@@ -152,7 +152,7 @@ export const app = makeApp({
     appObservability,
     appAuth,
     appSubscriptions,
-    // With `docs=off` the plugin is entirely absent from the assembly
+    // With `docs=off` the plugin is entirely absent from the build
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
@@ -176,22 +176,22 @@ person reading `app.ts`.
 A branch stands in any list of units: a module's `providers:` and
 `dependsOn:`, a feature's and a plugin's `modules:` and `endpoints:`,
 the root's `endpoints:`, `providers:`, `modules:`, `plugins:` and
-`transports:`. It is not in `features:`: the assembly argument chooses
+`transports:`. It is not in `features:`: the build argument chooses
 the composition of features. It is not in `policies:`: an invariant is
 either declared or it is not.
 
 The root declares the `switches:` dictionary, and the type of the
-assembly argument is derived from it. A switch field with a default is
+build argument is derived from it. A switch field with a default is
 optional, one with no default is required, and a value outside the
 dictionary does not compile:
 
 ```typescript
-app.assemble({ features: 'all', docs: 'off' }); // ok
-app.assemble({ features: 'all', doc: 'off' }); // does not compile: no such field
-app.assemble({ features: 'all', docs: 'no' }); // does not compile: no such value
+app.build({ features: 'all', docs: 'off' }); // ok
+app.build({ features: 'all', doc: 'off' }); // does not compile: no such field
+app.build({ features: 'all', docs: 'no' }); // does not compile: no such value
 ```
 
-The runtime repeats the same four checks on the ASSEMBLE phase, for JS
+The runtime repeats the same four checks on the BUILD phase, for JS
 consumers and for values that came from the environment: a value not
 from the dictionary, a `pick` on a switch outside `switches:`, two
 switches with one name, a value with no default that was not passed.
@@ -199,7 +199,7 @@ switches with one name, a value with no default that was not passed.
 A switch has no DI token: the choice cannot be injected. The
 composition does not leak into the application's code, so a provider
 cannot behave differently depending on how the application was
-assembled: instead, it is absent from the graph entirely.
+built: instead, it is absent from the graph entirely.
 
 The selection is visible in the start line next to the features:
 
@@ -215,8 +215,8 @@ and in the `check()` report as the `switches` field.
 // src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` is selected alone: there are no providers of the `users`
-    // feature in the graph, and plugins are in every assembly
-    await using testApp = await assembleTest(app, {
+    // feature in the graph, and plugins are in every build
+    await using testApp = await buildTest(app, {
       ...testConfig,
       args: 'ops',
     });
@@ -229,7 +229,7 @@ and in the `check()` report as the `switches` field.
 
 Observability, authentication and the subscription registry connect
 through `plugins:` and do not depend on the feature selection. There
-are no providers of the `users` feature in this assembly.
+are no providers of the `users` feature in this build.
 
 ```typescript
 // src/app.spec.ts
@@ -248,14 +248,14 @@ const checked = makeApp({
 });
 ```
 
-The application's `check()` runs phases 0 and 1: parsing the assembly
+The application's `check()` runs phases 0 and 1: parsing the build
 argument, expanding the switch branches, registration, discovery,
 `build()` and checking the policies. No constructor runs, `acquire`,
 `@OnStart` and `serve` are not called, and no resource is acquired. It
 throws the same errors that `run()` would throw on phases 0 and 1, and
 it does not affect a later `run()` of the same application.
 `checkTopologies(app, topologies)` from `@nestlingjs/testing` calls
-`check()` for every assembly argument and collects the errors of every
+`check()` for every build argument and collects the errors of every
 variant into one message.
 
 The composition with no graph gives the declaration's third entry
@@ -340,13 +340,13 @@ visible under names like `subscriptions.opened@ops`.
   });
 ```
 
-A topology is described by the whole assembly argument, so the matrix
+A topology is described by the whole build argument, so the matrix
 goes through the feature selection and the switch branches as one
-list. A branch that assembles only in the dev environment is checked
+list. A branch that builds only in the dev environment is checked
 by the same test as the rest.
 
 The policies from chapter [10](./10-auth.md) are checked in every
-topology of the matrix, not only in the full assembly. An invariant
+topology of the matrix, not only in the full build. An invariant
 that holds at the `'all'` selection and breaks on a subset is visible
 in the test, not at deployment. The `detached` reasons arrive as
 values in the report: the test compares a list rather than reading
@@ -357,5 +357,5 @@ yarn test
 APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
-The roles assemble separately, but for now they run in one process:
+The roles build separately, but for now they run in one process:
 [20. Spread the features across processes](./20-split.md).

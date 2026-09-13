@@ -34,8 +34,8 @@ Nestling собирает приложение из декларативных �
   его сервис. Тот же код работает в одном процессе и в нескольких, через
   NATS.
 - **Один composition root.** `makeApp({ features, plugins, transports,
-  config, policies })` объявляет приложение; `assemble(select)` собирает его
-  для этого процесса, а `run()` проводит по фазам жизненного цикла.
+  config, policies })` объявляет приложение; `build(select)` собирает то,
+  что запускает этот процесс, а `run()` проводит по фазам жизненного цикла.
 
 Принципы, по которым принимаются решения, описаны в
 [docs/design/principles.md](./docs/design/principles.md).
@@ -65,7 +65,7 @@ const app = makeApp({
   transports: [http({ port: 3000 })],
 });
 
-await app.assemble().run();
+await app.build().run();
 ```
 
 Приложение отвечает на `GET /users/42`, проверяет вход по схеме `input` и

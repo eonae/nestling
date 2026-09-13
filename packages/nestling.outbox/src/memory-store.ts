@@ -72,7 +72,7 @@ function assertStaging(value: unknown): asserts value is StagingTransaction {
  * ```typescript
  * const store = new InMemoryOutboxStore();
  *
- * const app = await assembleTest(application, {
+ * const app = await buildTest(application, {
  *   stubs: [[OutboxStore$, store]],
  * });
  * ```

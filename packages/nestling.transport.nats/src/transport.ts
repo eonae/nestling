@@ -835,7 +835,7 @@ export class NatsBus implements IMessageBus, ITransport {
     if (!this.#connection) {
       throw new Error(
         'NATS bus has no connection: it is captured in phase 2 INIT. A call ' +
-          'this early means the transport was used outside the assembled ' +
+          'this early means the transport was used outside the built ' +
           'application — move it to @OnStart or later.',
       );
     }
@@ -859,7 +859,7 @@ export class NatsBus implements IMessageBus, ITransport {
 /**
  * Объявляет экземпляр транспорта-шины на NATS.
  *
- * Перечисляется в `transports:` словаря `assemble` — как `http()` и
+ * Перечисляется в `transports:` словаря `build` — как `http()` и
  * `cli()`. Отдельной оси в корне не появляется: шина это транспорт, и её
  * место там же, где место остальных. Переносчиком операций она становится,
  * когда корень назначит её в `intercom:` — по имени экземпляра.
@@ -868,7 +868,7 @@ export class NatsBus implements IMessageBus, ITransport {
  *
  * @example
  * ```typescript
- * await assemble({
+ * await build({
  *   features: [OrdersFeature, BillingFeature],
  *   select: load(RootConfig).features,
  *   transports: [http(), nats({ name: 'events' })],

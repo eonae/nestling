@@ -17,7 +17,7 @@ export * from './raw.js';
 /**
  * Метаданные endpoint'а. Только для чтения.
  *
- * Доступны юнитам пайплайна для конфигурации: rate limit, audit, cache
+ * Доступны шагам пайплайна для конфигурации: rate limit, audit, cache
  * и подобное.
  */
 export interface EndpointMeta {
@@ -41,19 +41,19 @@ export interface EndpointMeta {
    */
   errors?: readonly AnyFailDefinition[];
 
-  /** Дополнительные опции для юнитов пайплайна */
+  /** Дополнительные опции для шагов пайплайна */
   [key: string]: unknown;
 }
 
 /**
- * Контекст запроса, каким его видят `.pre`-юниты.
+ * Контекст запроса, каким его видят `.pre`-шаги.
  *
- * Юниты читают `raw.payload` и `raw.attributes`, дополняют накопленный
+ * Шаги читают `raw.payload` и `raw.attributes`, дополняют накопленный
  * `input` и читают `endpoint` для конфигурации. Проверка входа по схеме
  * `input` выполняется после них, поэтому `raw.payload` здесь ещё не
  * проверен.
  *
- * Ключ `payload` в `input` зарезервирован: юнит кладёт туда значение,
+ * Ключ `payload` в `input` зарезервирован: шаг кладёт туда значение,
  * которое рантайм проверит по схеме `input` вместо `raw.payload` (так
  * распаковывают конверт запроса). В `meta` хендлера этот ключ не
  * попадает.
@@ -86,7 +86,7 @@ export interface ExtendableContext<I extends AnyInput> {
    */
   readonly summary: StreamSummary;
 
-  /** Накопленный input: дополняется pre-юнитами */
+  /** Накопленный input: дополняется pre-шагами */
   input: I;
 }
 
@@ -105,7 +105,7 @@ const NEVER_ABORTED = new AbortController().signal;
  * @param signal - сигнал отмены запроса; если транспорт его не передал,
  * подставляется never-aborted сигнал, так что `ctx.signal` есть всегда
  * @param input - стартовый input: то, что транспорт кладёт в контекст ещё
- * до первого pre-юнита (например, сырые байты тела при `rawBody: true`).
+ * до первого pre-шага (например, сырые байты тела при `rawBody: true`).
  * По умолчанию пуст — тип стартового контекста тогда `EmptyInput`.
  */
 export function makeEmptyContext<S extends AnyInput = EmptyInput>(

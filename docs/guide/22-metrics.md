@@ -1,6 +1,6 @@
 # 22. Считать запросы и вызовы между процессами
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `3ea8ea87`.
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Метрики ядра», [design/pipeline.md](../design/pipeline.md) §2 и
 > [design/operations.md](../design/operations.md) §2.3. Почему так:
@@ -69,7 +69,7 @@ export function declareApp(options: DeclareOptions = {}): App {
 
 ## Четыре метрики, которые считает ядро
 
-Ядро считает обработку запроса и вызов порта само, без единого юнита в
+Ядро считает обработку запроса и вызов порта само, без единого шага в
 пайплайне:
 
 | Метрика | Вид | Атрибуты |
@@ -79,7 +79,7 @@ export function declareApp(options: DeclareOptions = {}): App {
 | `nestling.port.calls` | счётчик | `operation`, `kind`, `binding`, `outcome` |
 | `nestling.port.duration` | гистограмма, мс | `operation`, `kind`, `binding`, `outcome` |
 
-`outcome` принимает те же четыре значения, что видит `.finally`-юнит:
+`outcome` принимает те же четыре значения, что видит `.finally`-шаг:
 `completed`, `disconnected`, `aborted`, `failed`. `pattern` — шаблон
 маршрута из декларации, а не адрес запроса: у `GET /users/:id` атрибут
 один на все идентификаторы. Так количество рядов у экспортёра остаётся
@@ -97,7 +97,7 @@ export function declareApp(options: DeclareOptions = {}): App {
 
 ## Записи приложения
 
-Сервису метрики приходят как обычная зависимость — членом семейства
+Сервису метрики приходят как обычная зависимость — токеном семейства
 `Metrics$`:
 
 ```typescript
@@ -194,7 +194,7 @@ it('обработка операции попадает в экспорт сч�
     metrics: exporter,
   });
 
-  await using testApp = await assembleTest(observed, { args: 'all' });
+  await using testApp = await buildTest(observed, { args: 'all' });
 
   await testApp.emit(RegisterUser, { email: 'alice@example.com' });
 
@@ -210,7 +210,7 @@ it('обработка операции попадает в экспорт сч�
 
 ```typescript
 const spy = spyMetrics();
-await using testApp = await assembleTest(app, {
+await using testApp = await buildTest(app, {
   overrides: [[RootMetrics$, spy.metrics]],
 });
 

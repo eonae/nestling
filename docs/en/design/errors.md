@@ -6,13 +6,13 @@
 > `[2026-07-13] Типизированные клиенты из операций` (the recovery of
 > `Fail` on the client),
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
-> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-юнитов`,
+> `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-шагов`,
 > `[2026-09-03] Код отказа: категория и уточнение; makeFail`,
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`,
 > `[2026-09-03] Заголовки Ok не зависят от транспорта`,
-> `[2026-09-04] Отказы слоя: объявление в .pre(unit, { errors }), канал return у pre-юнита, эффективное множество errors`,
+> `[2026-09-04] Отказы слоя: объявление в .pre(step, { errors }), канал return у pre-шага, эффективное множество errors`,
 > `[2026-09-04] Output<T, E> допускает отказы ядра; void у хендлера без output`,
-> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; юниты транспорта`.
+> `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; шаги транспорта`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. `Fail` is a value; `return` is the canon, `throw` is delivery
@@ -44,7 +44,7 @@ model repeats the pair `Result` and `panic!` from Rust.
   `false` on `Ok`. It is serialized, unlike an `instanceof` check.
   Wrapping a failure into a success is not allowed: `new Ok(fail)` is a
   compilation error.
-- A returned `Fail` goes down the error branch before the `.ok` units.
+- A returned `Fail` goes down the error branch before the `.ok` steps.
   The invariant "`.ok` sees only success" holds for both paths.
 - `Fail extends Error`, so a thrown failure carries a call stack.
 
@@ -74,7 +74,7 @@ The list of categories is closed and does not depend on the transport:
 
 - `category` is a derived field of `Fail`: the first segment of the
   code. Transports read it (to translate it into an HTTP status or a
-  bus code), so do `.catch` units and the OpenAPI generator, where
+  bus code), so do `.catch` steps and the OpenAPI generator, where
   responses are grouped by category. `Fail` has no separate `status`
   field: the category is part of the code, so a code with one category
   and a status from another cannot be written.
@@ -84,7 +84,7 @@ The list of categories is closed and does not depend on the transport:
 - `cause?: unknown` is the original error, as on `Error` in ES2022.
 - The serialized form (`ErrorDetails`) carries `code`, `message`,
   `details` and `requestId`. `requestId` is added by `.catch` and
-  `.finally` units from the context, so the response links to the logs
+  `.finally` steps from the context, so the response links to the logs
   without user code. The category is not carried separately: it is
   restored from the code. This is the shape of a failure inside the
   application and on the bus; at the HTTP boundary it becomes the
@@ -103,7 +103,7 @@ export const OrderNotFound = makeFail('not_found:order', {
 
 return OrderNotFound({ orderId: '42' });
 throw OrderNotFound({ orderId: '42' }, { cause: dbError });   // from deep in a call chain
-// inside a .catch unit:
+// inside a .catch step:
 if (OrderNotFound.is(res)) { /* ... */ }        // matched by code
 ```
 
@@ -123,7 +123,7 @@ A failure is recognized by `code`, not by `instanceof`. A `Fail` that
 arrived from a remote port or in a client is deserialized data: it has
 no class, but `code` survives. So `is` checks the code on two carriers:
 a failure value (including one parsed from JSON) and the error-response
-context that a `.catch` unit sees. The second carrier is described by
+context that a `.catch` step sees. The second carrier is described by
 the minimal structural type
 `{ isSuccess: false; value?: { code?: string } }`, not by the context
 type of the pipeline; narrowing in `.catch` does not change because of
@@ -144,7 +144,7 @@ client unchanged ([operations.md](./operations.md)).
 
 The `errors: [EmailTaken, OrderLimitReached]` field of an endpoint or
 operation declaration states which failures are possible. The failures
-of pre-units are declared on the layer, when the unit is connected
+of pre-steps are declared on the layer, when the step is connected
 ([pipeline.md §3](./pipeline.md)); the effective set of an endpoint adds
 up the `errors:` of its declaration and the failures of its pipeline.
 The guarantee rests on two levels.
@@ -194,7 +194,7 @@ way to declare your own failure as a kernel failure; a user definition
 with the same code (`makeFail('bad_request')`) is the same failure by
 identity.
 
-The check on the way out sits after all `.catch` units: `.catch` is
+The check on the way out sits after all `.catch` steps: `.catch` is
 where an undeclared failure turns into a declared one. A forgotten
 declaration shows up right away: the client gets `InternalError` (500),
 not an accidentally working 404.

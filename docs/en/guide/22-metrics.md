@@ -1,6 +1,6 @@
 # 22. Count requests and calls between processes
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/container.md](../design/container.md), the
 > "Kernel metrics" section, [design/pipeline.md](../design/pipeline.md) §2
 > and [design/operations.md](../design/operations.md) §2.3. Why: entry
@@ -39,7 +39,7 @@ the implementation decides how to store it.
 
 While the implementation is not set, the records go nowhere: an empty
 implementation stands under the root DI token `RootMetrics$`. A service
-writes a metric and assembles without any configuration — like a logger
+writes a metric and builds without any configuration — like a logger
 that writes to `stderr` until a library is connected.
 
 The `metrics` option of the root sets the implementation:
@@ -61,7 +61,7 @@ export function declareApp(options: DeclareOptions = {}): App {
 
 The value is ready-made, like the `logger` option. There is no second way
 to set the root: a provider under `RootMetrics$` in `providers:` is an
-assembly error, and its text names the `metrics` option.
+build error, and its text names the `metrics` option.
 
 The option also turns on the instrumentation of the kernel. Without it,
 the runtime does not measure time and does not call the write methods at
@@ -70,7 +70,7 @@ all, so an application that does not need metrics does not pay for them.
 ## Four metrics that the kernel counts
 
 The kernel counts the processing of a request and the call of a port
-itself, without a single unit in the pipeline:
+itself, without a single step in the pipeline:
 
 | Metric | Kind | Attributes |
 |---|---|---|
@@ -79,7 +79,7 @@ itself, without a single unit in the pipeline:
 | `nestling.port.calls` | counter | `operation`, `kind`, `binding`, `outcome` |
 | `nestling.port.duration` | histogram, ms | `operation`, `kind`, `binding`, `outcome` |
 
-`outcome` takes the same four values that a `.finally` unit sees:
+`outcome` takes the same four values that a `.finally` step sees:
 `completed`, `disconnected`, `aborted`, `failed`. `pattern` is the route
 template from the declaration, not the address of the request: for
 `GET /users/:id` the attribute is one for every identifier. This way the
@@ -175,7 +175,7 @@ export function metricsPlugin(exporter: MetricsExporter): Plugin {
 
 A plugin, not a feature: metrics are needed in every process of the
 deployment, and the feature selection does not concern them. `detached`
-takes the endpoint out from under the assembly policies: the metrics are
+takes the endpoint out from under the build policies: the metrics are
 scraped by the collector, not by an API client.
 
 The histogram is expressed by the pair `_count` and `_sum`: the kernel
@@ -197,7 +197,7 @@ it('обработка операции попадает в экспорт сч�
     metrics: exporter,
   });
 
-  await using testApp = await assembleTest(observed, { args: 'all' });
+  await using testApp = await buildTest(observed, { args: 'all' });
 
   await testApp.emit(RegisterUser, { email: 'alice@example.com' });
 
@@ -213,7 +213,7 @@ gives `spyMetrics()`:
 
 ```typescript
 const spy = spyMetrics();
-await using testApp = await assembleTest(app, {
+await using testApp = await buildTest(app, {
   overrides: [[RootMetrics$, spy.metrics]],
 });
 

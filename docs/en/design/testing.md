@@ -4,7 +4,7 @@
 > [ideas.md](../../decisions/ideas.md):
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
-> `[2026-09-03] Декларация приложения: makeApp, assemble(select), AssembledApp`,
+> `[2026-09-03] Декларация приложения: makeApp, build(select), BuiltApp`,
 > `[2026-09-06] Фаза 0 BOOTSTRAP: источники до сборки, синхронный build(), фабрики без I/O`,
 > `[2026-09-06] Ресурсы и роли классов: @Component, @Resource, @Handler; экземпляры на INIT`,
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки`,
@@ -33,14 +33,14 @@ needs is created by hand:
 - a port is an object with a `call` method;
 - a handler is a call to a factory or a class with fakes.
 
-## 3. `assembleTest`: the test composition root
+## 3. `buildTest`: the test composition root
 
 ```typescript
 import { app } from './app';   // the same makeApp declaration as main.ts uses
 
 const spy = spyLogger();
 
-await using testApp = await assembleTest(app, {
+await using testApp = await buildTest(app, {
   overrides: [
     [OrdersRepository, inMemoryOrdersRepo()],
     [RootLogger$, spy.logger],
@@ -54,13 +54,13 @@ const res = await testApp.call(CreateOrder, { items: [...] });
 
 ### Substitution: `overrides`
 
-A substitution is replacing a graph node on phase ASSEMBLE, before the
+A substitution is replacing a graph node on phase BUILD, before the
 instances are created. The `overrides: [[Token, fake]]` field exists
 only on the test root; `makeApp` does not accept it. Only a DI token
 you have a reference to can be substituted; there is no string form
 like `overrideByName('…')`. The pair is typed: a fake that is not
 compatible with the type of the DI token is a compilation error.
-Substituting a DI token that is not in the graph is an assembly error:
+Substituting a DI token that is not in the graph is a build error:
 after a provider is renamed, the test does not silently substitute an
 empty spot.
 
@@ -127,15 +127,15 @@ and an empty list; for a `command` it is an addressing error.
 ### Policies
 
 Policies are taken from the `makeApp` declaration and checked by the
-same pass of phase ASSEMBLE. The test root does not relax the
-invariants: an application that does not assemble in production must
-not assemble in a test either ([pipeline.md §7](./pipeline.md)).
+same pass of phase BUILD. The test root does not relax the
+invariants: an application that does not build in production must
+not build in a test either ([pipeline.md §7](./pipeline.md)).
 
 ### Asynchrony
 
-`assembleTest` is asynchronous: `await using` waits for dispose, not
+`buildTest` is asynchronous: `await using` waits for dispose, not
 for the initializer, so `await` before the call is mandatory. The form
-without `using` (`const testApp = await assembleTest(app, …)` and
+without `using` (`const testApp = await buildTest(app, …)` and
 `await testApp.close()`) is also supported — for `beforeEach`/`afterEach`.
 
 ## 4. Substitution boundaries in an app test
@@ -163,8 +163,8 @@ pair of the DI token of the caller and the fake (`[C.caller, …]` for
 through the `stubs:` field. The stub's provider takes priority over
 the recipe of the caller family, so the production
 `buildPort`/`buildEmitter` for this operation is never called and the
-reachability check does not fire: the consumer feature assembles and
-works even if the operation has no implementation in this assembly
+reachability check does not fire: the consumer feature builds and
+works even if the operation has no implementation in this build
 and the bus delivers nothing outward.
 
 The fake is checked by the schemas of its operation on every call: the
@@ -212,7 +212,7 @@ family member is built as `root.child({ scope })`
 ([container.md](./container.md), "The kernel logger"), and the spy's
 child logger writes into the same list. A test checks `entries` by
 field, not by parsing `stderr`. The same logger is passed straight
-into a unit that takes a `Logger` argument, or into
+into a step that takes a `Logger` argument, or into
 `makeDispatch(endpoints, { logger })` with no `App`.
 
 ### The transport
@@ -222,7 +222,7 @@ inside the process. There is no `transports` list in the test options
 at all: the composition comes from the declaration, and the test run
 does not execute START, so the socket never opens and there is
 nothing to substitute a port for. An endpoint on a transport outside
-the graph gives the same fail-fast on phase ASSEMBLE as in production.
+the graph gives the same fail-fast on phase BUILD as in production.
 
 ## 5. The test surface of a module: the `./testing` subpath
 
@@ -246,13 +246,13 @@ are not created, resources are not acquired. It checks cycles, port
 binding, the completeness of the environment, the branches of the
 switches, and the declared `policies:` — one test per deployment
 variant. This is a method of the `makeApp` declaration, not of an
-assembled or test application: `check()` compensates for pruning, so
+built or test application: `check()` compensates for pruning, so
 it works on the full graph and accepts no substitutions. The method
 returns a report on the composition: the features, the endpoints by
 transport with the `detached` reasons, the transports. It throws the
 same errors `run()` would throw on these phases, and it does not
 affect a later `run()` of the same application. The `check(args?,
-options?)` arguments are optional: the first is the assembly argument
+options?)` arguments are optional: the first is the build argument
 (the feature selection and the switch values), the second is options:
 the schema converters and `config` in place of the default sources.
 
@@ -291,7 +291,7 @@ This is the mechanical form of the rule "when you substitute, check
 the topology". There is no separate helper for it: both sides of the
 comparison are already values.
 
-The same reports assemble a schema compatibility check, with no
+The same reports build a schema compatibility check, with no
 rebuild of the application:
 
 ```typescript
@@ -315,14 +315,14 @@ whether the test fails through `expect`. `snapshotOperations`,
 `.check()` creates no instances, so the constructors and `acquire`
 never run inside it.
 
-## 7. `testUnit(U, { stubs })`: a unit in isolation
+## 7. `testBundle(U, { stubs })`: a unit in isolation
 
 A mini application around one feature or one plugin — with its
 modules and their `dependsOn`, the kernel's configuration module, and
-stubs. The same phases 0–3 and the same result as `assembleTest`.
+stubs. The same phases 0–3 and the same result as `buildTest`.
 Unsatisfied dependencies must be stubbed explicitly; the error lists
 every missing DI token with its consumer, not only the first one
-found. `testUnit` lives inside the package of the unit, so the DI
+found. `testBundle` lives inside the package of the unit, so the DI
 tokens are visible with no export. The `stubs` field also accepts
 stubs of operations: a call to another feature declared by this unit
 is supplied through the same field as a missing provider.

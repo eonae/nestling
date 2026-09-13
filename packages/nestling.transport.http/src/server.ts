@@ -38,11 +38,11 @@ type HttpServerConfigValues = ConfigProjection<
 >;
 
 /**
- * Семейство DI-токенов HTTP-сервера: один член на экземпляр.
+ * Семейство DI-токенов HTTP-сервера: один DI-токен на экземпляр.
  *
  * Параметр — имя экземпляра, то же, что у транспорта: `http()` без
  * `server` заводит сервер с собственным именем, поэтому `HttpServer$` и
- * `HttpTransport$` члена одного имени описывают одну пару.
+ * `HttpTransport$` токена семейства одного имени описывают одну пару.
  */
 export const HttpServer$ = makeTokenFamily<HttpServer, [instance: string]>(
   'server:http',
@@ -168,7 +168,7 @@ export class HttpServer implements IListener {
         'HTTP server is already listening, so a handler cannot be attached: ' +
           'handlers are attached in serve() and the socket opens after all ' +
           'of them. A transport reaching this line runs outside the ' +
-          'assembled application.',
+          'built application.',
       );
     }
 
@@ -380,7 +380,7 @@ function chainOf(
  * await makeApp({
  *   features: [Users],
  *   transports: [http({ server: api }), graphql({ server: api })],
- * }).assemble().run();
+ * }).build().run();
  * ```
  */
 export const server = <const Name extends string = typeof DEFAULT_INSTANCE>(

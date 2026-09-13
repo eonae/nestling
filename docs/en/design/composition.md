@@ -9,7 +9,7 @@
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)` — `check()`.
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,
-> `[2026-09-03] Декларация приложения: makeApp, assemble(select), AssembledApp`,
+> `[2026-09-03] Декларация приложения: makeApp, build(select), BuiltApp`,
 > `[2026-09-06] Фаза 0 BOOTSTRAP: источники до сборки, синхронный build(), фабрики без I/O`,
 > `[2026-09-06] Ресурсы и роли классов: @Component, @Resource, @Handler; экземпляры на INIT`,
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки; формы корня без фич`,
@@ -28,7 +28,7 @@
 flowchart TD
     START([process start]) --> P0
     P0["0 · BOOTSTRAP"] -->|"sources → config snapshot"| P1
-    P1["1 · ASSEMBLE"] -->|"graph check · discover · bind ports"| P2
+    P1["1 · BUILD"] -->|"graph check · discover · bind ports"| P2
     P2["2 · INIT"] -->|"instances · resource acquire"| P3
     P3["3 · WIRE"] -->|"endpoint registration"| P4
     P4["4 · START · @OnStart"] -->|"serve(dispatch, signal) · listen"| P5
@@ -57,15 +57,15 @@ The reader lives for the time of `run()`: it enters the graph as a
 value provider, and it is closed by an explicit step of the SHUTDOWN
 phase, after the container is destroyed.
 
-The assembly argument (the feature selection and the switch values,
+The build argument (the feature selection and the switch values,
 §3) is not part of this phase: user code reads it before calling
-`assemble`, synchronously and only from `process.env`, through
+`build`, synchronously and only from `process.env`, through
 `load(RootConfig)`.
 
-### 1 · ASSEMBLE
+### 1 · BUILD
 
-The phase is synchronous and performs no input-output. The assembly
-argument decides which features enter the assembly and which switch
+The phase is synchronous and performs no input-output. The build
+argument decides which features enter the build and which switch
 branches are picked. Discovery walks the selected features and the
 connected plugins and collects the endpoints; there is no global
 registry. The same tally is available on its own too:
@@ -80,10 +80,10 @@ validated; an invalid value stops the start. `build()` checks the
 graph: cycles, missing DI tokens, class roles in their positions, the
 feature boundary. There are no instances at this phase. The ports are
 bound to their implementations, local or remote through the bus; if
-there is nothing to bind to, the assembly fails. The io shapes of the
+there is nothing to bind to, the build fails. The io shapes of the
 declarations are checked against the capabilities of the transports,
 declared on their declarations ([transports.md](./transports.md)). A
-duplicate pattern on one transport instance stops the assembly, naming
+duplicate pattern on one transport instance stops the build, naming
 both units. Last, the declared `policies:` are checked against the
 found endpoints ([pipeline.md §7](./pipeline.md)). Every check of this
 phase runs before INIT: a violation has no time to acquire a single
@@ -106,9 +106,9 @@ start. The transports exist, but they do not accept requests yet.
 ### 3 · WIRE
 
 Every endpoint declaration gets its dependencies from the container:
-the handler class and the pipeline unit classes
+the handler class and the pipeline step classes
 (`endpoint.resolve(resolver)`). Then, for every transport, a table
-matching patterns to handlers is assembled, the `dispatch` object. At
+matching patterns to handlers is built, the `dispatch` object. At
 this phase `dispatch` already exists, but it has not been passed to
 the transports yet. The one exception is the operation bus: it gets its
 own `dispatch` right here and subscribes to the subjects of its own
@@ -155,16 +155,16 @@ The invariants this scheme sets:
 | `process.env` is read only in the configuration | 0 |
 | configuration sources come up before the container, retries are declared by the source | 0 |
 | `build()` is synchronous and performs no input-output | 1 |
-| a provider factory is synchronous: a `Promise` from it is an assembly error | 1 |
+| a provider factory is synchronous: a `Promise` from it is a build error | 1 |
 | discovery walks the features and the plugins, not a global registry | 1 |
-| a graph edge between two features is an assembly error | 1 |
+| a graph edge between two features is a build error | 1 |
 | transports are graph nodes, declared as instances by the root | 1 |
 | the port binding is computed from the graph, not from an external configuration | 1 |
-| a duplicate pattern on a transport instance is an assembly error | 1 |
+| a duplicate pattern on a transport instance is a build error | 1 |
 | the consumer of a resource is created after the resource is acquired | 2 |
 | `dispatch` is created on phase 3, the socket opens last on phase 4 (a guarantee, not a convention) | 2→3→4 |
 | fail-fast: the sources (0), the configuration, the port binding and a missing transport (1), the resource acquisition (2) | 0, 1, 2 |
-| the assembly argument is the only input read before the container | 0→1 |
+| the build argument is the only input read before the container | 0→1 |
 | START in topological order, SHUTDOWN strictly in reverse | 4 ↔ 6 |
 
 The protection against accepting requests early rests on the order of
@@ -173,12 +173,12 @@ reaches a transport only as the argument of `serve`, and the socket
 opens only after `serve` of every transport. There is no other channel
 through which a transport would get declarations with handlers
 earlier. So a transport that started accepting requests before START
-would have nowhere to route them. Why WIRE is not merged with ASSEMBLE
+would have nowhere to route them. Why WIRE is not merged with BUILD
 is the journal entry `[2026-07-08] Жизненный цикл: фазы, @OnStart/go-live, гарантия dispatch`.
 
-## 2. `makeApp` and `assemble`: the composition root
+## 2. `makeApp` and `build`: the composition root
 
-An application is declared by one function and assembled by one
+An application is declared by one function and built by one
 method. Every field of the declaration is optional; the feature
 mechanism is optional too (progressive disclosure,
 [principles.md](./principles.md)):
@@ -189,19 +189,19 @@ export const app = makeApp({
   endpoints?,   // L0: the endpoints of the root; together with providers or modules, with no features
   providers?,   // the providers of the root (only together with endpoints)
   modules?,     // the modules of the root (only together with endpoints)
-  features?,    // L2: the features of the application; the assembly argument picks a subset
+  features?,    // L2: the features of the application; the build argument picks a subset
   plugins?,     // cross-cutting infrastructure; connected always
   switches?,    // L2: the dictionary of composition switches (§3)
   transports?,  // L0+: the declarations of transport instances (§4)
   intercom?,    // L4: the name of the transport that carries the operations
   logging?,     // the root logger and correlation fields: { logger, fields } (§6)
-  policies?,    // invariants on the assembled graph; checked at the end
-                //   of phase 1 ASSEMBLE — in run(), check() and assembleTest
+  policies?,    // invariants on the built graph; checked at the end
+                //   of phase 1 BUILD — in run(), check() and buildTest
                 //   (pipeline.md §7)
-});             // App: app.assemble(args?) · app.check(args?, options?) · app.discover(args?)
+});             // App: app.build(args?) · app.check(args?, options?) · app.discover(args?)
 
 // main.ts — how the application starts this process
-await app.assemble(argv(process.argv)).run();   // AssembledApp: run(options?) · close()
+await app.build(argv(process.argv)).run();   // BuiltApp: run(options?) · close()
 // run({ config }) sets the configuration sources (config.md §3); the default with no option
 
 // The dispatch policy of the callers is set by the configuration
@@ -223,20 +223,20 @@ to the declaration: `run()` accepts their list
 ([config.md §3](./config.md)). The `logging:` field sets the root
 logger and the correlation fields (§6). The logger is a ready value:
 the root exists before the graph and cannot depend on its nodes, and
-the records of every phase, including the assembly warnings, go into
+the records of every phase, including the build warnings, go into
 it ([container.md](./container.md), "The kernel logger"). Substituting
 graph nodes (`overrides`) exists only on the test root
-`assembleTest` ([testing.md](./testing.md)); `makeApp` knows nothing
+`buildTest` ([testing.md](./testing.md)); `makeApp` knows nothing
 about substitutions and does not pass them into the container.
 
-The assembly argument (the feature selection and the switch values)
-belongs to the assembly, not to the declaration: it changes the
-composition of the process, not of the application. `app.assemble(args?)`
-is synchronous and reads nothing; it returns an `AssembledApp`, and
+The build argument (the feature selection and the switch values)
+belongs to the build, not to the declaration: it changes the
+composition of the process, not of the application. `app.build(args?)`
+is synchronous and reads nothing; it returns an `BuiltApp`, and
 `run()` runs the phases. The type of the argument is derived from the
 declaration: `{ features?, includeDeps?, ...switch values from
 switches: }`. The entry point passes the command-line arguments
-through the `argv(process.argv)` marker: the assembly parses them by
+through the `argv(process.argv)` marker: the build parses them by
 the same schema. `--features` accepts `all` or a list of names,
 `--include-deps` is a flag, every switch is a flag under its own name
 with the values from `makeSwitch`; `--help` prints the schema and ends
@@ -244,19 +244,19 @@ the process. The parsing is strict: an unknown flag, an unknown
 feature or a foreign switch value is a failure before phase 0. The
 kernel does not read `process.argv` itself.
 
-The declaration and the assembled application provide four methods:
+The declaration and the built application provide four methods:
 
 | Method | Where | Phases | What it does |
 |---|---|---|---|
-| `run(options?)` | `AssembledApp` | 0–5 | brings the application to RUN and stays there; sets up signal handlers. `options.config` carries the bindings of the configuration sources instead of the default ([config.md §3](./config.md)) |
+| `run(options?)` | `BuiltApp` | 0–5 | brings the application to RUN and stays there; sets up signal handlers. `options.config` carries the bindings of the configuration sources instead of the default ([config.md §3](./config.md)) |
 | `check(args?, options?)` | `App` | 0–1 | a structural check: the graph is checked, no instances are created, no resources are acquired; checks `policies:`; returns a report on the composition (the features, the switches, the endpoints by transport with `detached` reasons, the transports, the map of operations), and throws the same errors `run()` would throw at these phases. `options.config` carries the bindings of the configuration sources instead of the default, the same as for `run()` |
-| `discover(args?)` | `App` | phase 0 of the declaration | the composition by the assembly argument, as a value: the features, the switches, the endpoints by transport; no sources, no graph. The entry of the OpenAPI generator ([schemas.md §2.1](./schemas.md)) |
-| `close()` | `AssembledApp` | 6 | SHUTDOWN in strict reverse order; idempotent |
+| `discover(args?)` | `App` | phase 0 of the declaration | the composition by the build argument, as a value: the features, the switches, the endpoints by transport; no sources, no graph. The entry of the OpenAPI generator ([schemas.md §2.1](./schemas.md)) |
+| `close()` | `BuiltApp` | 6 | SHUTDOWN in strict reverse order; idempotent |
 
-`check()` lives on the declaration, not on the assembled application:
-it is "assemble and discard", it does not need the result of the
-assembly. It does not keep its graph and does not affect a later
-`assemble()` of the same declaration. This is why it checks the matrix
+`check()` lives on the declaration, not on the built application:
+it is "build and discard", it does not need the result of the
+build. It does not keep its graph and does not affect a later
+`build()` of the same declaration. This is why it checks the matrix
 of topologies in CI ([testing.md §6](./testing.md)).
 
 Application levels:
@@ -315,7 +315,7 @@ export const app = makeApp({
 });
 
 // main.ts — start
-await app.assemble().run();
+await app.build().run();
 ```
 
 ### L1 — typed configuration
@@ -348,7 +348,7 @@ export class OrdersService {
 }
 
 // app.ts — the single source of env: nothing about the configuration is written in the declaration.
-// The sections are checked at assembly; an invalid configuration drops the start.
+// The sections are checked at build; an invalid configuration drops the start.
 export const app = makeApp({
   endpoints: [CreateOrder],
   providers: [OrdersService],
@@ -367,7 +367,7 @@ export const app = makeApp({
 export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule] });
 export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
 
-// config.ts — the assembly argument is read before the container
+// config.ts — the build argument is read before the container
 export const RootConfig = makeConfig('app', {
   features: z.string().default('all'), // key APP_FEATURES: 'all' | 'orders,billing'
 });
@@ -379,11 +379,11 @@ export const app = makeApp({
   transports: [http()],
 });
 
-// main.ts — load() reads the assembly argument before the container:
+// main.ts — load() reads the build argument before the container:
 // synchronously and only from process.env; the bound sources do not
 // take part in this read.
 const cfg = load(RootConfig);
-await app.assemble(cfg.features).run();   // 'all' locally, 'orders' in a separate pod
+await app.build(cfg.features).run();   // 'all' locally, 'orders' in a separate pod
 ```
 
 An unselected feature is absent entirely: its providers are not
@@ -409,7 +409,7 @@ of a declaration and in the dependencies of a provider: a caller is an
 ordinary DI token. Switch branches are resolved before the closure, so
 the closure sees the already-selected composition.
 
-The assembly fails on ASSEMBLE in four cases: the name is unknown (the
+The build fails on BUILD in four cases: the name is unknown (the
 error lists the available ones), two different features carry one
 name, the selection is empty (`''` or `[]`; "nothing" is expressed by
 no features), the selection is given with no `features`.
@@ -417,7 +417,7 @@ no features), the selection is given with no `features`.
 ### Composition switches
 
 A switch is a value that picks one of the declared composition
-branches, by a value known before assembly. Both the module and the
+branches, by a value known before build. Both the module and the
 root import it, like a configuration section.
 
 ```typescript
@@ -460,7 +460,7 @@ export const RootConfig = makeConfig('app', {
 });
 
 // main.ts — the fields are named like the switches, so cfg fits as a whole
-await app.assemble(load(RootConfig)).run();
+await app.build(load(RootConfig)).run();
 ```
 
 - An enumeration has one method, `pick(table)`. The table lists every
@@ -470,14 +470,14 @@ await app.assemble(load(RootConfig)).run();
 - A switch is allowed in any list of units: `providers:`, the
   `modules:` of a feature, the `dependsOn:` of a module, `endpoints:`,
   `plugins:` and `transports:` of the root. It has no place in
-  `features:`: the assembly argument picks the feature composition. It
+  `features:`: the build argument picks the feature composition. It
   has no place in `policies:` either: an invariant either holds or it
   does not.
 - `switches:` of the root declares the dictionary. The type of the
-  `assemble` argument is derived from it; the `.schema` of a switch
+  `build` argument is derived from it; the `.schema` of a switch
   describes a field of `RootConfig`, and `load(RootConfig)` fits the
   argument as a whole, when the field names match the switch names.
-- The assembly fails on ASSEMBLE if a value is not from the dictionary
+- The build fails on BUILD if a value is not from the dictionary
   (the error lists the allowed ones), if `pick` sits on a switch that
   is not in `switches:`, if two switches carry one name, if a value
   with no default is not passed.
@@ -496,7 +496,7 @@ boundary, and an operation does, since it has an address and schemas,
 so a call works the same way through `dispatch` and through the
 intercom.
 
-Hence three checks on the assembled graph:
+Hence three checks on the built graph:
 
 | Edge | Verdict |
 |---|---|
@@ -521,7 +521,7 @@ export const ChargeCard = makeRequest({   // request-response, may return Fail
   output: z.object({ chargeId: z.string() }),
 });
 
-// billing implements the operation; the binding is computed at assembly
+// billing implements the operation; the binding is computed at build
 @Handler([PaymentGateway])
 class ChargeCardHandler implements Handler<typeof ChargeCard> {
   constructor(private gw: PaymentGateway) {}
@@ -563,8 +563,8 @@ export const app = makeApp({
 });
 
 // main.ts
-const cfg = load(RootConfig);            // only the assembly argument is read before assembly
-await app.assemble(cfg.features).run();  // 'orders' here, 'billing' in another pod
+const cfg = load(RootConfig);            // only the build argument is read before build
+await app.build(cfg.features).run();  // 'orders' here, 'billing' in another pod
 
 // The dispatch policy is set by configuration, not by a field of the root.
 // NESTLING_PORTS_DISPATCH=local-first (the default): implementations from this
@@ -574,24 +574,24 @@ await app.assemble(cfg.features).run();  // 'orders' here, 'billing' in another 
 `intercom:` **assigns a role by reference** to an already-declared
 transport, it does not declare a second one. Only transports that
 carry operations fit; HTTP does not fit this role, and the compiler
-checks this. A declared bus with no assigned role is an assembly
+checks this. A declared bus with no assigned role is a build
 error: the connection is spent, and there is nothing to carry.
 
-With `assemble('orders')`, the billing feature is not selected in this
+With `build('orders')`, the billing feature is not selected in this
 process, and `ChargeCard.caller` binds to a remote caller over NATS: an
 unselected owner of an operation means it runs in another pod. Billing
 serves `billing.charge` in its own pod; its replicas form a queue
-group. The same root with `assemble('all')` brings up both features in
+group. The same root with `build('all')` brings up both features in
 one process: `request` and `command` are called directly through
 `dispatch`, while `event` still goes through the intercom, because the
 subscribers of an event may live in other pods too, and losing them
 silently is not allowed. With no `intercom:`, the application works on
 the in-process bus with no changes to the declarations and the calls.
-One binary serves different topologies through the assembly argument
+One binary serves different topologies through the build argument
 and the configuration.
 
 Both topologies on one code base live in `examples/modular-app`: one
-root, one set of declarations, a different assembly argument.
+root, one set of declarations, a different build argument.
 
 ## 4. Transports and servers
 
@@ -600,10 +600,10 @@ a lifecycle. The root lists **instance declarations**: `http()`,
 `http({ name: 'admin' })`, `nats({ name: 'events' })`. Every instance
 gets its own name, and a declaration picks its own through `on:`; with
 no `on:` this is `'default'`. There is no limit of "one HTTP per
-assembly".
+build".
 
 A server is a resource, `server({ name? })`, that holds a socket. It is
-not listed in `transports:`: the assembly collects the servers from the
+not listed in `transports:`: the build collects the servers from the
 transport declarations by the `server` reference and unfolds them as
 nodes, one node per reference. A server no transport references is not
 created. A transport with no `server` declares its own server under
@@ -620,7 +620,7 @@ const admin = server({ name: 'admin' });               // HTTP_ADMIN_PORT, HTTP_
 ```
 
 A declaration references a transport by DI token; if there is no
-instance in the graph, the assembly fails on ASSEMBLE. A server and a
+instance in the graph, the build fails on BUILD. A server and a
 transport read the port and the addresses from their own configuration
 sections (`HTTP_PORT`, `NATS_SERVERS`); there are no port literals in
 the root. The transport interface, the server and the byte level
@@ -641,14 +641,14 @@ middleware, no registry of the infrastructure raised so far:
 | plugin parameters | a function that returns a value: `logging({ … })`; the value is created once and imported ([container.md](./container.md)) |
 | plugin configuration | a `makeConfig` section, declared by the plugin itself; only its `.keys` is exported ([config.md](./config.md)) |
 | dependency on another plugin | `dependsOn:` with references **only to plugins**; a parametrized dependency is expressed by a DI token |
-| "only for these transports" | an ordinary dependency on the DI token of a transport; a missing instance drops the assembly on ASSEMBLE |
+| "only for these transports" | an ordinary dependency on the DI token of a transport; a missing instance drops the build on BUILD |
 | "a plugin that knows the composition of the application" | a dependency on `Discovery$`: the composition of the application as an ordinary graph node (below) |
 | middleware on every endpoint | an exported pipeline layer plus the `everyEndpoint(…).hasLayer(ref)` policy ([pipeline.md §7](./pipeline.md)) |
-| formatting and sending errors | `.catch` and `.finally` units of the same layer ([errors.md](./errors.md)) |
-| enriching the context | a `.pre` unit of the layer; reading from deep in the graph is done by the readers of the asynchronous context |
+| formatting and sending errors | `.catch` and `.finally` steps of the same layer ([errors.md](./errors.md)) |
+| enriching the context | a `.pre` step of the layer; reading from deep in the graph is done by the readers of the asynchronous context |
 
 The name of a plugin matches the name of the npm package that supplies
-it: otherwise two foreign packages would drop the assembly with a name
+it: otherwise two foreign packages would drop the build with a name
 collision, and there would be no way to fix it, since both names are
 set by their authors. Endpoints are allowed on a plugin:
 `@nestlingjs/openapi` is infrastructure and declares a utility endpoint
@@ -656,13 +656,13 @@ with the document.
 
 ### The composition of the application as a graph node
 
-The assembly registers the result of discovery as a value provider
+The build registers the result of discovery as a value provider
 under the DI token `Discovery$`, always, unconditionally. This is the
 same value `App` computed before the graph was built; a second pass
 does not run. Through `Discovery$`, a plugin sees the selected
-topology, with no need to duplicate the assembly argument in the root.
+topology, with no need to duplicate the build argument in the root.
 Outside the graph, the same value is given by `app.discover(args?)`;
-there is no other entry into discovery, since the assembly argument
+there is no other entry into discovery, since the build argument
 belongs only to the declaration, and without it the composition of the
 document would drift from the composition of the process. The value is
 read-only: the lists are frozen, the mutators of the map throw. The
@@ -676,12 +676,12 @@ graph. The first consumer is documentation generation
 
 The parameter of a plugin function is a composition-root decision: what
 the instance is named, what the service name in the records is. It is
-known at assembly and visible in a review diff. A switch is a
+known at build and visible in a review diff. A switch is a
 deployment decision about the composition of the graph: which
 implementation is picked, whether a module is on (§3). A configuration
 section, which a module declares itself, is an environment decision
 about values: addresses, ports, log levels, timeouts. Its values come
-from sources, are checked at assembly, and can be reloadable. The
+from sources, are checked at build, and can be reloadable. The
 criterion for the author of a plugin: what changes the set of
 providers is a switch or a parameter; what changes only values is a
 section.
@@ -690,7 +690,7 @@ section.
 
 A plugin is reachable by everyone through DI tokens, and a DI token does
 not survive a process boundary. So a unit reached by DI token must
-exist in every process, or the assembly would break the first time
+exist in every process, or the build would break the first time
 processes are split. Hence its place in the root: `plugins:` takes no
 part in the feature selection.
 
@@ -708,7 +708,7 @@ token declared by the plugin itself and implemented by anyone.
 ### Cross-cutting behavior: a layer plus a policy
 
 An infrastructure module exports a pipeline layer as a value, endpoints
-compose it explicitly, and a policy on the assembled graph guarantees
+compose it explicitly, and a policy on the built graph guarantees
 that the layer is everywhere:
 
 ```typescript
@@ -730,7 +730,7 @@ export const app = makeApp({
 
 There are no pipeline levels for the whole application or for a unit
 ([pipeline.md](./pipeline.md)): a layer is always visible in the
-declaration of an endpoint. A forgotten layer is caught on ASSEMBLE,
+declaration of an endpoint. A forgotten layer is caught on BUILD,
 naming the endpoint. A conscious exception is recorded with a reason
 (`detached: '<why>'`), visible in the diff and in the `check()` report.
 
@@ -799,15 +799,15 @@ interface from `@nestlingjs/logging` ([container.md](./container.md),
 the interface is there too). The root sets it through the
 `logging: { logger?, fields? }` option. `logger` is a ready value, the
 kernel logger by default. `fields` are context variables whose values
-land in every record, `[RequestId, Trace]` by default. The assembly
+land in every record, `[RequestId, Trace]` by default. The build
 wraps the passed logger in a correlation decorator: it reads the
 declared variables from the ambient context and adds them as fields,
 so any implementation gets `requestId` and `traceId` with no knowledge
 of the kernel internals. A plugin declares its own fields in
-`makePlugin({ logFields })`, and the assembly collects them together
+`makePlugin({ logFields })`, and the build collects them together
 with the providers; `logField(Var, 'name')` sets the field name,
 otherwise the variable name is used. Two fields with the same name are
-an assembly error. A missing value leaves out the field. Static
+a build error. A missing value leaves out the field. Static
 process fields (`node`, `version`) are added through
 `logger.child({...})` at creation. The level and the format of the
 kernel logger are set by the `nestlingLog` kernel section:
@@ -833,7 +833,7 @@ visible in the visualization.
 The kernel has no separate output hooks: it does not touch `console`
 outside `ConsoleLogger`. The warnings of the configuration reader pile
 up until the logger appears and go into it right after `build()`; the
-assembly takes the container warnings from
+build takes the container warnings from
 `BuiltContainer.warnings`. Standalone paths with no `App`
 (`makeDispatch`, `new InProcessBus()`) use `ConsoleLogger` with its
 defaults, so an undeclared failure is not swallowed silently. In a

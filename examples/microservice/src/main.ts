@@ -13,9 +13,9 @@ const RootConfig = makeConfig('root', {
 });
 
 /**
- * Точка входа: `assemble()` собирает приложение для этого процесса,
+ * Точка входа: `build()` собирает приложение для этого процесса,
  * `run()` проводит его по фазам. Остановка по `SIGTERM` и `SIGINT`
  * устанавливается автоматически. `APP_DOCS=off` убирает документацию из
  * состава.
  */
-await app.assemble(load(RootConfig)).run();
+await app.build(load(RootConfig)).run();

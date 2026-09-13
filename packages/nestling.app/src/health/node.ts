@@ -20,7 +20,7 @@ import type {
 
 /** Вклад вместе с именем, под которым он зарегистрирован */
 export interface NamedHealthCheck {
-  /** Параметр члена `HealthCheck$` — имя проверки в отчёте */
+  /** Параметр токена семейства `HealthCheck$` — имя проверки в отчёте */
   readonly name: string;
 
   /** Сам вклад */

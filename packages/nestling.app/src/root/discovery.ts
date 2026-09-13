@@ -45,7 +45,7 @@ export interface EndpointDiscovery {
 /**
  * DI-токен инжектируемого discovery: состав приложения как узел графа.
  *
- * Регистрируется `assemble` **всегда и без условий** — провайдер-значение
+ * Регистрируется `build` **всегда и без условий** — провайдер-значение
  * ничего не стоит, а его отсутствие делало бы плагин зависимым от флага в
  * корне. Значение то же самое, которое `App` вычисляет до построения
  * графа: второй discovery не выполняется.
@@ -117,7 +117,7 @@ export function discoverEndpoints(
       if (seenBundle !== bundle) {
         throw new Error(
           `Two different ${bundle.role}s are named '${bundle.name}'. ` +
-            `The name attributes endpoints and providers to their unit, so it ` +
+            `The name attributes endpoints and providers to their step, so it ` +
             `must be unique. Share one value between its consumers, or give ` +
             `the two configurations different names.`,
         );
@@ -223,13 +223,13 @@ function assertPatternsUnique(
         continue;
       }
 
-      const units = declared
+      const steps = declared
         .map(({ moduleName }) => `'${moduleName}'`)
         .join(', ');
 
       duplicates.push(
         `  - '${pattern}' on transport '${transportNameOf(token)}', ` +
-          `declared in ${units}`,
+          `declared in ${steps}`,
       );
     }
   }

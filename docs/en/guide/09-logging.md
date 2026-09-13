@@ -1,6 +1,6 @@
 # 9. See every request in the log
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/container.md](../design/container.md), the "Kernel logger" section.
 > Why: entries [ideas.md](../../decisions/ideas.md)
@@ -78,21 +78,21 @@ level and the format:
 
 A record below the set level is dropped. A typo in the value stops the
 start: this is an ordinary config section, and an invalid value is checked
-at assembly, as in [chapter 7](./07-config.md).
+at build, as in [chapter 7](./07-config.md).
 
 ## The observability layer
 
-The pipeline — a sequence of units — describes everything that happens
-around the handler. A unit is one function or class. The pipeline is
+The pipeline — a sequence of steps — describes everything that happens
+around the handler. A step is one function or class. The pipeline is
 declared by a `makePipeline()` call and reads top to bottom as the order of
 execution:
 
 | Method | When it runs | What it sees |
 |---|---|---|
-| `.pre(unit)` | before the handler, in declaration order | the accumulated context; each unit adds its own fields to it |
-| `.ok(unit)` | only for a successful response | the full context |
-| `.catch(unit)` | only for a failure response | the fields of its own layer as optional |
-| `.finally(unit)` | always, last | the same as `.catch`, plus the outcome of the request |
+| `.pre(step)` | before the handler, in declaration order | the accumulated context; each step adds its own fields to it |
+| `.ok(step)` | only for a successful response | the full context |
+| `.catch(step)` | only for a failure response | the fields of its own layer as optional |
+| `.finally(step)` | always, last | the same as `.catch`, plus the outcome of the request |
 
 The log needs two phases: `.pre`, to put the request and trace
 identifiers into the context, and `.finally`, to record the outcome.
@@ -114,7 +114,7 @@ import {
 import { Handler } from '@nestlingjs/container';
 
 /**
- * A `.finally` unit: writes an audit line when every request finishes.
+ * A `.finally` step: writes an audit line when every request finishes.
  */
 @Handler([Logger$.auto])
 export class AuditOutcome {
@@ -137,12 +137,12 @@ export const observability = makePipeline()
   .finally(AuditOutcome);
 ```
 
-`withRequestId()` is a ready pre-unit from `@nestlingjs/app`. It takes the
+`withRequestId()` is a ready pre-step from `@nestlingjs/app`. It takes the
 identifier from the `x-request-id` header or generates a random one and
 puts it into the context as the `requestId` field.
 
-`AuditOutcome` is a `.finally` unit in the form of a class. A class is
-needed because the unit needs the logger from the container: the
+`AuditOutcome` is a `.finally` step in the form of a class. A class is
+needed because the step needs the logger from the container: the
 dependencies are declared in the role decorator. The role here is
 `@Handler` — the class has a `handle` method; in the `providers:` of the
 feature it stays an ordinary graph node. The `handle` method gets three
@@ -156,15 +156,15 @@ arguments.
   transport: `ok`, `created`, `not_found`. The transport translates it into
   an HTTP code.
 - `ctx` — the context of the request. `ctx.input` holds the fields
-  accumulated by the pre-units; `ctx.raw.pattern` is the pattern of the
+  accumulated by the pre-steps; `ctx.raw.pattern` is the pattern of the
   endpoint, for example `GET /users/:id`.
 
 The type `ExtendableContext<{ requestId?: string }>` describes what the
-unit expects from the context: the field is declared optional, because
-`.finally` also gets requests on which the pre-unit did not manage to run.
+step expects from the context: the field is declared optional, because
+`.finally` also gets requests on which the pre-step did not manage to run.
 A field outside the declared type does not compile.
 
-The request identifier is in the audit record even though the unit does
+The request identifier is in the audit record even though the step does
 not pass it. The kernel logger reads `requestId` from the context of the
 request itself and adds it as a field to every record made inside the
 request. Outside a request, for example during a resource acquisition, the
@@ -191,9 +191,9 @@ too: `BuildInfo` from [chapter 10](./10-auth.md) has no pipeline, and
 neither do the `httpProbes()` probes from the recipe ["Who is connected
 right now and how to disconnect them"](../recipes/ops.md).
 
-The container creates the unit class, so `AuditOutcome` is registered in
-the `providers:` of the feature. A unit class missing from `providers:`
-stops the assembly on the ASSEMBLE phase, before the socket opens.
+The container creates the step class, so `AuditOutcome` is registered in
+the `providers:` of the feature. A step class missing from `providers:`
+stops the build on the BUILD phase, before the socket opens.
 
 ```typescript
 // src/users.feature.ts
@@ -280,12 +280,12 @@ the value: this is its own way of reading the context. A logger record
 does not need this: the field that a call did not set, the kernel logger
 adds on its own. This is how `AuditOutcome` above works.
 
-The `hasVar` assembly policy checks that the variable is declared on every
+The `hasVar` build policy checks that the variable is declared on every
 route where it is read: [chapter 10](./10-auth.md).
 
 ## Trace of the request
 
-`withTracing()` is the second unit of the layer. It puts the `Trace`
+`withTracing()` is the second step of the layer. It puts the `Trace`
 variable into the context, with a value of the shape
 `{ traceId, spanId, parentSpanId?, sampled }`, and the kernel logger adds
 `traceId` as a field to every record inside the request — the same way
@@ -295,7 +295,7 @@ it adds `requestId`:
 2026-09-12T20:03:49.400Z INFO  UsersService created requestId=7f3a… traceId=4bf92f35…
 ```
 
-The unit continues the trace of the caller, if it arrived in the
+The step continues the trace of the caller, if it arrived in the
 `traceparent` header, and starts a new one if it did not. A span
 identifier is created for every request, and the span of the caller goes
 into `parentSpanId`. A header that cannot be parsed does not break the
@@ -322,7 +322,7 @@ export class AuditTrail {
 ```
 
 A layer can be extended by another layer with the `compose` function: the
-`pre` units of the outer layer run earlier, and the `.finally` of the
+`pre` steps of the outer layer run earlier, and the `.finally` of the
 outer layer runs later than that of the inner one.
 
 ## Your own logger
@@ -340,11 +340,11 @@ export const app = makeApp({
 ```
 
 Replacing the root changes every member of `Logger$`: both `Logger$.auto`
-in the services and the records of the kernel itself, including assembly
+in the services and the records of the kernel itself, including build
 warnings. The value is ready-made: the root logger is created before the
 graph, so it cannot depend on its nodes — everything it needs is passed to
 it. There is no second way to declare the root: a provider under
-`RootLogger$` in `providers:` is an assembly error, and its text names the
+`RootLogger$` in `providers:` is a build error, and its text names the
 `logger` option.
 
 ## Check
@@ -356,7 +356,7 @@ it('пишет запись аудита через логгер ядра', asyn
   // Logger$: both the kernel and the application. The scope of the record
   // is the name of the class that took Logger$.auto
   const spy = spyLogger();
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: testConfig,
     overrides: [
       [UsersRepository$, inMemoryUsersRepo([alice])],

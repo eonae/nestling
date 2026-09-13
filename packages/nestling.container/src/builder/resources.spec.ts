@@ -292,7 +292,7 @@ describe('ресурсы', () => {
     expect(calls).toEqual(['db:acquire']);
   });
 
-  it('рецепт семейства отдаёт ресурс: каждый член захватывается отдельно', async () => {
+  it('рецепт семейства отдаёт ресурс: каждый DI-токен захватывается отдельно', async () => {
     const Pool$ = makeTokenFamily<{ name: string }, [name: string]>('Pool');
 
     @Component([Pool$('users'), Pool$('orders')] as const)
@@ -323,7 +323,7 @@ describe('ресурсы', () => {
     await container.init();
     await container.destroy();
 
-    // Порядок между независимыми членами не задан, поэтому сверяется
+    // Порядок между независимыми токенами семейства не задан, поэтому сверяется
     // состав и то, что освобождение идёт после захвата
     expect(calls.slice(0, 2).sort()).toEqual([
       'pool:acquire(orders)',

@@ -1,6 +1,6 @@
 # 18. Test a feature without its neighbours
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/testing.md](../design/testing.md) §3 and §4. Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
@@ -14,34 +14,34 @@ neighbours, so that the test depends neither on their code nor on the
 broker.
 
 The basics from [chapter 8](./08-testing.md) are assumed known:
-`assembleTest`, `testApp.call`, `unwrap`, `overrides` and `vars`.
+`buildTest`, `testApp.call`, `unwrap`, `overrides` and `vars`.
 
-## Assemble one feature without its neighbours
+## Build one feature without its neighbours
 
 ```typescript
 // src/isolated.spec.ts (fragment)
 const isolated = makeApp({ features: [UsersFeature, NotificationsFeature] });
 
-await using testApp = await assembleTest(isolated, { args: 'users' });
+await using testApp = await buildTest(isolated, { args: 'users' });
 ```
 
-The assembly argument in the test is the same as in production: only
+The build argument in the test is the same as in production: only
 the selected features remain in the graph
-([chapter 19](./19-select.md)). Such an assembly stops on the ASSEMBLE
+([chapter 19](./19-select.md)). Such a build stops on the BUILD
 phase:
 
 ```
 Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
-selected feature implements it and this assembly has no intercom, so the
+selected feature implements it and this build has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
-assembly argument (or close the selection over calls with
-'assemble({ features, includeDeps: true })'), or assign the intercom role
+build argument (or close the selection over calls with
+'build({ features, includeDeps: true })'), or assign the intercom role
 to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
 
 The caller `CheckAddress.caller` in the `users` feature's dependencies
-requires an owner of the operation. In an assembly of one feature there
+requires an owner of the operation. In a build of one feature there
 is no owner, and a stub takes its place.
 
 ## Stubs instead of neighbouring operations
@@ -52,10 +52,10 @@ is no owner, and a stub takes its place.
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       // There is no owner of `notifications.check-address` and no subscriber of
-      // `users.registered` in the assembly: both sides are replaced
+      // `users.registered` in the build: both sides are replaced
       // by stubs
       stubs: [
         stub(CheckAddress, async (input) => {
@@ -74,8 +74,8 @@ is no owner, and a stub takes its place.
 fake: for `request` this is `CheckAddress.caller`, for `command` and
 `event` this is `.emitter`. The pair is passed in the `stubs:` field.
 The stub's provider takes priority over the production recipe for the
-caller, so the owner check does not fire, and the feature assembles:
-overriding a node that is not in the graph does not stop the assembly.
+caller, so the owner check does not fire, and the feature builds:
+overriding a node that is not in the graph does not stop the build.
 A stub of an operation that has an owner among the selected features is
 also allowed: it takes priority over the owner.
 
@@ -160,7 +160,7 @@ graph stands next to the stubs:
 ```typescript
 // src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () => {
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       stubs: [
         stub(CheckAddress, async () => ({ remaining: 1 })),
@@ -186,7 +186,7 @@ graph stands next to the stubs:
   });
 ```
 
-`checkTopologies` assembles each topology with no overrides and returns
+`checkTopologies` builds each topology with no overrides and returns
 a report with the `operations` field. The test compares
 `testApp.stubbed` with the union of the published operations.
 
@@ -201,7 +201,7 @@ value)` gives a reader with a constant value:
 // src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () => {
     const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       ...testConfig,
       overrides: [
         [RootLogger$, spy.logger],
@@ -228,8 +228,8 @@ same `overrides` list.
 // src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` is selected alone: there are no providers of the `users`
-    // feature in the graph, and plugins are in every assembly
-    await using testApp = await assembleTest(app, {
+    // feature in the graph, and plugins are in every build
+    await using testApp = await buildTest(app, {
       ...testConfig,
       args: 'ops',
     });
@@ -240,7 +240,7 @@ same `overrides` list.
   });
 
   it('замыкает выбор по вызываемым операциям', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       ...testConfig,
       args: { features: 'users', includeDeps: true },
     });
@@ -249,12 +249,12 @@ same `overrides` list.
   });
 ```
 
-`testApp.get(token)` returns an instance from the assembled graph or
+`testApp.get(token)` returns an instance from the built graph or
 `null` if the node is not in the graph. `testApp.features` lists the
 selected features after the closure over the calls.
 
 It is convenient to keep this chapter's tests in one `isolated.spec.ts`
-file: assembling one feature, stubs with a success and with a failure,
+file: building one feature, stubs with a success and with a failure,
 `testApp.emit`, and checking `testApp.stubbed` against the matrix. The
 `contextValue` tests and the graph composition tests stay in
 `app.spec.ts` next to the rest of the application's tests.
@@ -264,5 +264,5 @@ yarn test
 yarn test
 ```
 
-The application in production assembles the same way, in parts:
+The application in production builds the same way, in parts:
 [19. Start only a part of the features](./19-select.md).

@@ -90,7 +90,7 @@ function assertDeclaration(
   if (typeof name !== 'string' || name.trim().length === 0) {
     throw new TypeError(
       `makeSwitch(name, …): 'name' must be a non-empty string — it names the ` +
-        `field of the assembly argument.`,
+        `field of the build argument.`,
     );
   }
 

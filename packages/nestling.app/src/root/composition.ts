@@ -2,7 +2,7 @@
  * Фаза 0 BOOTSTRAP как чистая функция: состав приложения — значение.
  *
  * Аргумент сборки разбирается здесь, а не в двух похожих местах. Ту же
- * функцию зовут сборка (`AssembledApp`) и генератор документа
+ * функцию зовут сборка (`BuiltApp`) и генератор документа
  * (`App.discover`), поэтому одинаковый состав у них — свойство одного
  * кода, а не совпадение.
  *
@@ -15,7 +15,7 @@ import type {
   TransportDeclaration,
 } from '../transport/index.js';
 
-import type { AssembleArgs, ParsedArgs } from './args.js';
+import type { BuildArgs, ParsedArgs } from './args.js';
 import { parseArgs, resolveSwitchValues, undeclaredSwitch } from './args.js';
 import type { Bundle, Feature, ResolvedBundle } from './feature.js';
 import {
@@ -100,7 +100,7 @@ export interface AppComposition {
  */
 export function resolveComposition(
   spec: NormalizedAppSpec,
-  args?: AssembleArgs<any>,
+  args?: BuildArgs<any>,
 ): AppComposition {
   const parsed: ParsedArgs = parseArgs(args, spec.switches);
   const values = resolveSwitchValues(spec.switches, parsed);

@@ -9,7 +9,7 @@
 
 import { InboxKeyMissingError } from './errors.js';
 
-import type { EmptyInput, PreUnitFn } from '@nestlingjs/app';
+import type { EmptyInput, PreStepFn } from '@nestlingjs/app';
 import { IDEMPOTENCY_KEY_ATTRIBUTE, IdempotencyKey } from '@nestlingjs/app';
 
 /**
@@ -21,7 +21,7 @@ import { IDEMPOTENCY_KEY_ATTRIBUTE, IdempotencyKey } from '@nestlingjs/app';
  *
  * @throws {InboxKeyMissingError} В конверте сообщения ключа нет
  */
-export function readIdempotencyKey(): PreUnitFn<
+export function readIdempotencyKey(): PreStepFn<
   EmptyInput,
   { idempotencyKey: string }
 > {

@@ -57,7 +57,7 @@ type ValidateStart<PR extends AnyInput, Start extends AnyInput> = [
   : {
       __error: 'Pipeline requires context that the start context does not provide';
       missing: MissingFields<Start, PR>;
-      hint: 'implement() runs on the bus and its start context is empty: a unit that reads transport fields belongs to a transport declaration';
+      hint: 'implement() runs on the bus and its start context is empty: a step that reads transport fields belongs to a transport declaration';
     };
 
 /**
@@ -75,7 +75,7 @@ export interface ImplementDictionary<
   PR extends AnyInput = EmptyInput,
 > {
   /**
-   * Pipeline этой реализации. Классы-юниты допустимы: они попадают в
+   * Pipeline этой реализации. Классы-шаги допустимы: они попадают в
    * `TNeeds` декларации и получают инстансы вместе с классом-хендлером.
    *
    * Отказы, объявленные слоями пайплайна, обязаны входить в `errors:`

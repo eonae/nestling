@@ -1,6 +1,6 @@
 # Container
 
-The container holds a graph of providers and its lifecycle. `assemble()`
+The container holds a graph of providers and its lifecycle. `build()`
 builds the graph and stops on a missing dependency, a cycle or a class in
 the wrong role; instances are created afterwards, all of them, in
 topological order. Names live in the README of
@@ -25,7 +25,7 @@ list. The list must match the constructor by type, order and length.
 |---|---|---|
 | `@Component([…])` | a service | on INIT, once |
 | `@Resource([…])` | a connection, a pool, anything to close | `static acquire` on INIT, `release` on SHUTDOWN |
-| `@Handler([…])` | an endpoint handler or a pipeline unit | on INIT, once |
+| `@Handler([…])` | an endpoint handler or a pipeline step | on INIT, once |
 
 <!-- snippet: users.repository.ts -->
 ```typescript
@@ -157,7 +157,7 @@ export const UsersModule = makeModule({
     Database,
     // An interface token is bound to the class that implements it
     classProvider(UsersRepository$, DbUsersRepository),
-    // A factory runs during assembly and must not do any I/O
+    // A factory runs during the build and must not do any I/O
     factoryProvider(
       Clock$,
       (_config: Config<typeof AppConfig>) => ({ now: () => new Date() }),
@@ -181,12 +181,12 @@ export const UsersModule = makeModule({
 | Phase | What happens |
 |---|---|
 | 0 BOOTSTRAP | config sources are read, before the container exists |
-| 1 ASSEMBLE | the graph is built, endpoints are discovered, policies are checked |
+| 1 BUILD | the graph is built, endpoints are discovered, policies are checked |
 | 2 INIT | instances are created and resources acquired, in graph order |
-| 3 WIRE | handlers and units are resolved, the dispatch table is built |
+| 3 WIRE | handlers and steps are resolved, the dispatch table is built |
 | 4 START | `@OnStart()` runs, transports are served, sockets open last |
 | 6 SHUTDOWN | the reverse: transports close, `release` runs backwards |
 
-Anything that fails on ASSEMBLE fails before a single request is served.
+Anything that fails on BUILD fails before a single request is served.
 That is the point: keep work that can fail out of the request path and put
 it into the declaration.

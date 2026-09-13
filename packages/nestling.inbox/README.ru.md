@@ -44,7 +44,7 @@ export const app = makeApp({
   features: [UsersFeature],
   plugins: [db, inboxStore, appInbox],
   transports: [http()],
-  // Предпосылка проверяется на фазе ASSEMBLE: подписчик без слоя роняет
+  // Предпосылка проверяется на фазе BUILD: подписчик без слоя роняет
   // сборку до открытия сокета
   policies: [appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
 });
@@ -53,7 +53,7 @@ export const app = makeApp({
 ## Экспорты
 
 - **Подключение** — `inbox`, `InboxOptions`, `InboxPlugin`, `InboxLayer`,
-  `inboxConfigKeys`, `InboxConfigValues`, `InboxClaimUnit`,
+  `inboxConfigKeys`, `InboxConfigValues`, `InboxClaimStep`,
   `readIdempotencyKey`, `InboxKeyMissingError`.
 - **Хранилище** — `InboxStore`, `InMemoryInboxStore`, `InboxMark`,
   `InboxClaim`, `InboxSweepOptions`, `RollbackAwareTransaction`.

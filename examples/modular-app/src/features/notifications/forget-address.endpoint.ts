@@ -28,7 +28,7 @@ class ForgetAddressHandler {
     this.suppressions.suppress(payload.email, 'user asked to be forgotten');
 
     // Ключ не передаётся параметром: `Ctx(IdempotencyKey)` — обычный узел
-    // графа. В контекст ключ кладёт pre-юнит `withIdempotencyKey()`
+    // графа. В контекст ключ кладёт pre-шаг `withIdempotencyKey()`
     this.logger.info('address forgotten', { intent: this.intent.get() });
   }
 }
@@ -36,7 +36,7 @@ class ForgetAddressHandler {
 /**
  * Реализация команды `notifications.forget-address`.
  *
- * Pre-юнит `withIdempotencyKey()` кладёт ключ в контекст. Что юнит есть в
+ * Pre-шаг `withIdempotencyKey()` кладёт ключ в контекст. Что шаг есть в
  * пайплайне, проверяет политика в `app.ts`. Дедупликации здесь нет: ядро
  * доставляет ключ до обработчика, а что с ним делать, решает владелец
  * команды.

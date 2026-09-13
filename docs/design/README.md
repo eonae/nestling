@@ -13,14 +13,14 @@
 |---|---|
 | [principles.md](./principles.md) | опорные принципы и сквозные границы |
 | [container.md](./container.md) | DI: DI-токены, роли классов (компонент, ресурс, хендлер), семейства, модули, логгер ядра, видимость |
-| [composition.md](./composition.md) | composition root: `makeApp`, `assemble(args)`, фазы жизненного цикла, формы корня, features/`select`, переключатели, пробы и логгер ядра, L0–L4 |
-| [pipeline.md](./pipeline.md) | request-pipeline: фазы, слои, `compose`, формы юнитов |
+| [composition.md](./composition.md) | composition root: `makeApp`, `build(args)`, фазы жизненного цикла, формы корня, features/`select`, переключатели, пробы и логгер ядра, L0–L4 |
+| [pipeline.md](./pipeline.md) | request-pipeline: фазы, слои, `compose`, формы шагов |
 | [endpoints.md](./endpoints.md) | декларации: операция первична, per-transport конструкторы, формы io, HTTP-канон |
 | [operations.md](./operations.md) | операции и порты, шина, dispatch-политики, внешние клиенты |
 | [config.md](./config.md) | конфиг: секции, keys-capability, источники, reloadable, секреты |
 | [errors.md](./errors.md) | модель ошибок: `Ok`/`Fail`, `makeFail`, коды с категорией, `E ∪ InternalError` |
 | [schemas.md](./schemas.md) | Standard Schema на границах, OpenAPI/AsyncAPI через конвертеры |
 | [streaming.md](./streaming.md) | стриминг: `stream`/`events`, item-цепочки, `Topic`, граница с RxJS |
-| [transports.md](./transports.md) | транспорты: `serve(dispatch)`, сервер как ресурс, юниты транспорта, пробы, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
+| [transports.md](./transports.md) | транспорты: `serve(dispatch)`, сервер как ресурс, шаги транспорта, пробы, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
 | [persistence.md](./persistence.md) | база данных: соединение значением, транзакция запроса переменной контекста, адаптеры хранилищ outbox'а и приёма |
-| [testing.md](./testing.md) | `@nestlingjs/testing`: `assembleTest(app, …)`, стабы, `check(args)` |
+| [testing.md](./testing.md) | `@nestlingjs/testing`: `buildTest(app, …)`, стабы, `check(args)` |

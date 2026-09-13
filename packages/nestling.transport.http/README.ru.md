@@ -38,7 +38,7 @@ await makeApp({
   features: [UsersFeature], // фича, где объявлен GetUser
   transports: [http()], // объявление, а не экземпляр
 })
-  .assemble()
+  .build()
   .run();
 ```
 
@@ -72,13 +72,13 @@ await makeApp({
   в пакете операций, чтобы клиент читал документ в браузере; отсюда они
   реэкспортированы, чтобы генератор документации и транспорт поверх
   стороннего сервера брали формат оттуда же, откуда `httpCodeOf`.
-- **Байтовый уровень** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
+- **Байтовый уровень** — `buildPayload`, `bindingNeedsBody`, `parseJson`,
   `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
   `readQuery`, `sendResponse`.
 
   Эти части публичны намеренно: на них собирается своя реализация
   `ITransport` поверх стороннего HTTP-сервера, без правок пакета.
-- **Юниты пайплайна** ([design](../../docs/design/pipeline.md)) —
+- **Шаги пайплайна** ([design](../../docs/design/pipeline.md)) —
   `httpAccessLog`, `withClientIp`, `withHeader`.
 
 ## Границы пакета

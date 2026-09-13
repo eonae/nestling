@@ -1,10 +1,10 @@
 # 2. What an application consists of
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/composition.md](../design/composition.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,
-> `[2026-09-03] Декларация приложения: makeApp, assemble(select), AssembledApp`
+> `[2026-09-03] Декларация приложения: makeApp, build(select), BuiltApp`
 > and
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки; формы корня без фич`.
 
@@ -64,7 +64,7 @@ its properties follows from that:
 
 - a feature is addressed by **operations**, not by DI tokens: a DI token does
   not survive a process boundary, an operation does;
-- a feature can be left out of the assembly, and then it is absent entirely: no
+- a feature can be left out of the build, and then it is absent entirely: no
   providers in the graph, no endpoints in the transports;
 - a feature has no `dependsOn` field: the link with its neighbours follows from
   the declared operations.
@@ -95,7 +95,7 @@ export const UploadsModule = makeModule({
 
 Both branches are listed as a table and are read without running code:
 `check()` sees both of them, and so does a person. The root declares the
-dictionary of switches, the value arrives as the assembly argument:
+dictionary of switches, the value arrives as the build argument:
 
 ```typescript
 export const app = makeApp({
@@ -104,16 +104,16 @@ export const app = makeApp({
   transports: [http()],
 });
 
-await app.assemble({ features: 'all', storage: 's3' }).run();
+await app.build({ features: 'all', storage: 's3' }).run();
 ```
 
 The choice cannot be injected: a switch has no DI token, and the composition
 does not leak into the application code. In detail:
 [19. Start only a part of the features](./19-select.md).
 
-## The assembly argument: what this process assembles
+## The build argument: what this process builds
 
-The declaration says what the application is. The assembly argument says what a
+The declaration says what the application is. The build argument says what a
 specific process brings up from that. The shapes are `'all'`,
 `'users,uploads'`, `['users', 'uploads']` or an object
 `{ features?, includeDeps?, …switch values }`. The type of the object shape is
@@ -125,12 +125,12 @@ container:
 ```typescript
 const cfg = load(RootConfig); // { features: 'all', storage: 's3' }
 
-await app.assemble(cfg).run();
+await app.build(cfg).run();
 ```
 
 ## Split: a consequence, not a separate mechanism
 
-When features are spread across different processes, only the assembly argument
+When features are spread across different processes, only the build argument
 changes, along with the `intercom:` role of a declared transport. The code of
 the features does not change: it already communicated by operations. In detail:
 [20. Spread the features across processes](./20-split.md).

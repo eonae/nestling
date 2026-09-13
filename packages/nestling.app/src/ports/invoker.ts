@@ -316,7 +316,7 @@ function makeCallContext(
     pattern,
     payload,
     // Тот же безусловный канал, что у шины: local- и remote-путь кладут
-    // профиль одной процедурой, поэтому юнит видит одно и то же
+    // профиль одной процедурой, поэтому шаг видит одно и то же
     attributes: profileAttributes({ subject: operation.name, ...profile }),
   };
 
@@ -447,7 +447,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         runtime.report({
           operation: operation.name,
           error: new Error(
-            `Port '${operation.name}': no message bus in the assembled ` +
+            `Port '${operation.name}': no message bus in the built ` +
               `application`,
           ),
         });

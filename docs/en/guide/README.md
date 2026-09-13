@@ -29,7 +29,7 @@ read when needed. The list of what the framework checks before the first
 request lies in a separate reference, [guarantees.md](../guarantees.md).
 
 The code of the chapters is written for the text: a snippet starts with a
-path inside your project and reads on the spot. The applications assembled
+path inside your project and reads on the spot. The applications built
 in full lie in [`examples/`](../../../examples/) — a chapter links to them
 where that helps, but it does not retell their code.
 
@@ -46,23 +46,23 @@ introduces are not in the map — the map describes the reading order.
 | transport | A node of the graph that accepts requests from the outside and passes them into `dispatch` | [1](./01-first-service.md) |
 | root composition shape | One of the three records of `makeApp`: `{ endpoints, providers? }`, `{ endpoints, modules? }` or `{ features }` | [2](./02-composition.md) |
 | feature | A unit of the application with its own endpoints that can be moved into a separate process | [2](./02-composition.md) |
-| assembly argument | What this process assembles: the feature selection and the values of the switches | [2](./02-composition.md) |
+| build argument | What this process builds: the feature selection and the values of the switches | [2](./02-composition.md) |
 | schema (Standard Schema) | Any value that implements Standard Schema v1: zod, valibot, arktype | [3](./03-input.md) |
 | failure, `Fail` | An error that the endpoint declared in `errors:` and the handler returns as a value | [4](./04-errors.md) |
 | handler | A function or a class with a `handle` method that receives the checked input and returns `Ok` or `Fail` | [5](./05-handler-class.md) |
 | DI token | The key by which a dependency is requested from the container | [6](./06-repository.md) |
 | provider | A description of how to obtain the value for a DI token | [6](./06-repository.md) |
 | section (of the configuration) | An object «field → schema» that is injected as an ordinary dependency | [7](./07-config.md) |
-| pipeline | The sequence of units around the handler: `.pre` before it, `.ok` and `.catch` after it, `.finally` at the end | [9](./09-logging.md) |
-| unit | One function or class in the pipeline | [9](./09-logging.md) |
+| pipeline | The sequence of steps around the handler: `.pre` before it, `.ok` and `.catch` after it, `.finally` at the end | [9](./09-logging.md) |
+| step | One function or class in the pipeline | [9](./09-logging.md) |
 | layer (of a pipeline) | One `makePipeline()` call with a chain of methods that `compose` puts together with the others | [9](./09-logging.md) |
-| context (`ctx`) | The typed object of the request that `.pre` units extend and the handler and the other units read | [9](./09-logging.md) |
+| context (`ctx`) | The typed object of the request that `.pre` steps extend and the handler and the other steps read | [9](./09-logging.md) |
 | kernel logger | The `Logger` interface, the root `RootLogger$` and the family `Logger$` with `.auto`: both the kernel and the application write through it | [9](./09-logging.md) |
 | trace | The chain of processing of one request across every process it touched; `withTracing()` puts it into the context | [9](./09-logging.md) |
-| policy | An invariant over the assembled graph that is checked on the ASSEMBLE phase | [10](./10-auth.md) |
-| early success | The third outcome of a pre-unit: `done()` finishes the endpoint with a success without reaching the handler | [10](./10-auth.md) |
+| policy | An invariant over the built graph that is checked on the BUILD phase | [10](./10-auth.md) |
+| early success | The third outcome of a pre-step: `done()` finishes the endpoint with a success without reaching the handler | [10](./10-auth.md) |
 | HTTP shape of a handler | A handler whose `meta` contains the request and whose result allows an `HttpResponse`: headers, cookies and a redirect | [10](./10-auth.md) |
-| transport start context | The fields the transport puts into the context before the first `.pre` unit; for HTTP it is `HttpStartContext` | [10](./10-auth.md) |
+| transport start context | The fields the transport puts into the context before the first `.pre` step; for HTTP it is `HttpStartContext` | [10](./10-auth.md) |
 | database connection | The value `drizzlePg({ schema })`: the DI token of the pool, the transaction variable, the layer and the policy in one declaration | [11](./11-database.md) |
 | request transaction | The context variable that the pipeline layer puts there: the repository and the transactional emitter read it with the `Ctx` reader | [11](./11-database.md) |
 | io shape | The kind of input or output of an endpoint: `value`, `stream(T)`, `events(T)`, `multipart()`, `upload()` | [12](./12-files-and-streams.md) |
@@ -73,8 +73,8 @@ introduces are not in the map — the map describes the reading order.
 | module | A `makeModule` object that groups providers under a name | [2](./02-composition.md) |
 | subscriber | The name under which a feature subscribes to an event | [15](./15-events.md) |
 | inbox mark | The record «this consumer has processed this message», committed by the request transaction | [16](./16-durable-events.md) |
-| feature selection | Which features to include in the assembly: `'all'`, a list of names or the `features` field of the argument | [19](./19-select.md) |
-| composition switch | A value that chooses one of the declared composition branches by a value known before assembly | [19](./19-select.md) |
+| feature selection | Which features to include in the build: `'all'`, a list of names or the `features` field of the argument | [19](./19-select.md) |
+| composition switch | A value that chooses one of the declared composition branches by a value known before build | [19](./19-select.md) |
 | composition branch | The elements that go into the list at one of the values of a switch: `Storage.pick({ … })`, `Audit.when(…)` | [19](./19-select.md) |
 | intercom | The role of the carrier of operations between processes, assigned to a declared transport | [20](./20-split.md) |
 | split deployment | The features of one application are started in different processes and talk through a broker | [20](./20-split.md) |
@@ -85,15 +85,15 @@ introduces are not in the map — the map describes the reading order.
 | Chapter | Task |
 |---|---|
 | [1. Bring up a service that answers a request](./01-first-service.md) | an endpoint, `makeApp`, the `http()` transport |
-| [2. What an application consists of](./02-composition.md) | the three root shapes, providers, modules, features, switches, the assembly argument |
+| [2. What an application consists of](./02-composition.md) | the three root shapes, providers, modules, features, switches, the build argument |
 | [3. Accept data and let no rubbish through](./03-input.md) | the `input` schema, path and query, `bind`, the `400` response |
 | [4. Tell the client what went wrong](./04-errors.md) | `makeFail`, a code with a category, `errors:`, `Ok.created` |
 | [5. A handler as a class](./05-handler-class.md) | the `handler` field, `@Handler`, a unit test through `new` |
 | [6. Where the handler gets the repository from](./06-repository.md) | the DI token of an interface, `providers`, class roles, resources, value providers |
 | [7. The port and the database address from the environment](./07-config.md) | `makeConfig`, keys, `secret`, fail-fast |
-| [8. Make sure it works without starting a server](./08-testing.md) | `assembleTest(app, …)`, `overrides`, `vars`, a unit test of a handler |
+| [8. Make sure it works without starting a server](./08-testing.md) | `buildTest(app, …)`, `overrides`, `vars`, a unit test of a handler |
 | [9. See every request in the log](./09-logging.md) | the pipeline `.pre` and `.finally`, a layer, `compose`, `Ctx(RequestId)` |
-| [10. Let only your own through](./10-auth.md) | a pre-unit with a failure, the context of a layer, the `hasLayer` and `hasVar` policies, `detached`, `HttpResponse` and transport units |
+| [10. Let only your own through](./10-auth.md) | a pre-step with a failure, the context of a layer, the `hasLayer` and `hasVar` policies, `detached`, `HttpResponse` and transport steps |
 | [11. Write to the database in the request transaction](./11-database.md) | `drizzlePg`, a transaction in a context variable, drizzle-kit migrations |
 | [12. Files and large exports](./12-files-and-streams.md) | `multipart`, `upload`, `stream(T)` on the input and on the output |
 | [13. Give the frontend the documentation and the client](./13-openapi-and-client.md) | `openapi()`, `doc:`, an operation with `http:`, `makeClient` |
@@ -107,7 +107,7 @@ introduces are not in the map — the map describes the reading order.
 | [16. Do not lose an event when the process falls](./16-durable-events.md) | `outboxed(Op)`, the relay, the inbox mark, the early success of a subscriber |
 | [17. A live feed for the client](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` |
 | [18. Test a feature without its neighbours](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` |
-| [19. Start only a part of the features](./19-select.md) | `assemble(args)`, `includeDeps`, composition switches, `load()` before assembly, `check()` |
+| [19. Start only a part of the features](./19-select.md) | `build(args)`, `includeDeps`, composition switches, `load()` before build, `check()` |
 | [20. Spread the features across processes](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
 | [21. Do not break the neighbours when an operation changes](./21-compatibility.md) | the version in the name, the snapshot of operations, `diffOperations` |
 | [22. Count requests and calls between processes](./22-metrics.md) | `Metrics`, the `metrics` option, `Metrics$.auto`, kernel metrics, the adapter and `/metrics` |

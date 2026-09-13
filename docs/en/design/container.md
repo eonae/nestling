@@ -47,7 +47,7 @@ export class UserService {
   `id` serves display: error texts, reports and the `toJSON()` of the
   graph. A matching `id` does not cause a substitution — the DI tokens
   remain different — but it makes the reports ambiguous, and the
-  assembly warns about it. Every call to `makeToken` gives a new DI
+  build warns about it. Every call to `makeToken` gives a new DI
   token, so a DI token is declared once and imported by value. The
   second argument, `makeToken(id, { hint })`, is a fix text for the case
   when the graph has no provider for the DI token; it does not affect
@@ -76,7 +76,7 @@ positions where the class is allowed:
 |---|---|---|---|
 | component | `@Component([deps])` | a synchronous constructor with no input-output | `providers:` |
 | resource | `@Resource([deps])` | `static acquire(...deps, signal)` and a `release()` method | `providers:` |
-| handler | `@Handler([deps])` | a constructor with dependencies and a `handle` method | the `handler:` slot of a declaration ([endpoints.md §3](./endpoints.md)), `providers:` for a pipeline unit |
+| handler | `@Handler([deps])` | a constructor with dependencies and a `handle` method | the `handler:` slot of a declaration ([endpoints.md §3](./endpoints.md)), `providers:` for a pipeline step |
 
 Two mechanisms hold the position. **The compiler checks the shape of
 the class:** `@Handler` applies only to a class with a `handle` method,
@@ -89,7 +89,7 @@ the compiler as the constraint itself, and without this check an error
 for any other reason would carry text about a foreign role. The
 `handler:` slot, for its part, requires a `handle` method with a
 signature from the schemas, so a component does not fit there by type.
-**The role is checked on the ASSEMBLE phase:** the assembly names the
+**The role is checked on the BUILD phase:** the build names the
 class, the position and the decorator it expects. This catches what the
 shape does not distinguish: a resource in the `handler:` slot and a
 class with no role decorator in `providers:`.
@@ -154,12 +154,12 @@ export class Database {
 
 A **handler** is a class with a `handle` method. It has two positions:
 the `handler:` slot of an endpoint declaration and `providers:` for a
-pipeline unit ([pipeline.md](./pipeline.md)). The handler shapes, the
+pipeline step ([pipeline.md](./pipeline.md)). The handler shapes, the
 `Handler<Op>` and `HttpHandler<Op>` interfaces, are described in
 [endpoints.md §3](./endpoints.md). An endpoint registers its own
-handler class itself; the same class in `providers:` is an assembly
+handler class itself; the same class in `providers:` is a build
 error naming the class, the pattern of the endpoint and the module. A
-pipeline unit, on the other hand, is declared in `providers:`: it is
+pipeline step, on the other hand, is declared in `providers:`: it is
 resolved by `pipeline.bind`.
 
 The `@OnStart(signal)` hook exists on a component and on a resource:
@@ -167,7 +167,7 @@ starting background work is not an acquisition. The signal is armed on
 SHUTDOWN. Classes have no other hooks: acquisition and release are the
 `acquire` and `release` of a resource.
 
-## Assembly and instance creation
+## Build and instance creation
 
 `build()` is synchronous and performs no input-output. It unfolds the
 provider factories of the modules, resolves the switch branches, creates
@@ -188,7 +188,7 @@ first step of SHUTDOWN. The semantics of the phases are described in
 [composition.md](./composition.md).
 
 Missing dependencies are listed as one error. The check runs before the
-instances are created: the assembly walks the `deps` of every provider,
+instances are created: the build walks the `deps` of every provider,
 collects the DI tokens with no provider together with their consumers,
 and gives one list. Under the list, hints of declarations are printed:
 of the missing DI token and of every consumer that has one, one line
@@ -198,7 +198,7 @@ to do without it. The hint for the `MessageBus$` bus comes from the
 kernel: it names the transport from `transports:`.
 
 A `factoryProvider` factory is synchronous. A factory that returned a
-Promise drops the assembly, naming the provider, with the hint "an
+Promise drops the build, naming the provider, with the hint "an
 acquisition of a resource is a `resourceProvider`".
 
 ## Reading methods of the builder
@@ -207,7 +207,7 @@ acquisition of a resource is a `resourceProvider`".
 two reading methods. `healthResources()` lists the resource providers
 that declared `health`; `familyMembers(family)` lists the registered
 members of a family. Neither one registers anything or changes the
-assembly order, and both see the unfolded `when` branches and the
+build order, and both see the unfolded `when` branches and the
 expanded factories of module providers.
 
 The kernel uses them: the nodes of the probe contributions are
@@ -216,9 +216,9 @@ nothing about the probes; it answers the question "which resources have
 `health`", and `Health$` gives the outcomes their meaning
 ([composition.md §6](./composition.md)).
 
-## Substitution and pruning in a test assembly
+## Substitution and pruning in a test build
 
-`ContainerBuilder` accepts two options for a test assembly: `overrides`
+`ContainerBuilder` accepts two options for a test build: `overrides`
 (pairs of "DI token and value") and `familyOverrides` (a replacement of
 a family's recipe). The public `makeApp` does not accept these options:
 substituting graph nodes is a property of a test run
@@ -239,7 +239,7 @@ substituting graph nodes is a property of a test run
 7. lists the missing dependencies, builds the graph, checks the cycles
    and the roles.
 
-The substitution fails the assembly in two cases. The first is an
+The substitution fails the build in two cases. The first is an
 override for a DI token with no provider: for example, a provider was
 renamed, and the test would replace nothing; for a family member, a
 separate error explains that a member becomes a graph node only after
@@ -268,7 +268,7 @@ the graph as orphaned, rather than staying in it as a root.
 
 Invariant: with no `overrides`, `deps = deps′`, every node is reachable
 from the nodes with a zero in-degree, so `Keep = All`, and pruning
-changes nothing. A production assembly matches a test assembly with no
+changes nothing. A production build matches a test build with no
 substitutions, down to the last node. The list of the identifiers of
 removed nodes is available as `app.pruned`: the question "why is my
 resource not acquired" is answered by data, not by reading the source.
@@ -276,7 +276,7 @@ resource not acquired" is answered by data, not by reading the source.
 ## Modules
 
 A module is a value: a label of provider ownership and a packaging
-unit. It is not a boundary, so it has no `exports` field; it has no
+step. It is not a boundary, so it has no `exports` field; it has no
 endpoints either, they are declared by the application-layer unit
 ([composition.md](./composition.md)). A module is described by `name`,
 `providers` and `dependsOn`. Visibility rests on ES modules and package
@@ -297,7 +297,7 @@ export const OrdersModule = makeModule({
 - The identity of a module is its value. The same value, met again
   (through `dependsOn`, in two features, in a feature and in a plugin)
   is registered once. The module name is the attribution key of its
-  providers, so two different values under one name are an assembly
+  providers, so two different values under one name are a build
   error. The error names the module and the ways to fix it: split one
   value with an import, give the configurations different names, check
   for duplicate packages in the dependencies. The comparison of values
@@ -307,10 +307,10 @@ export const OrdersModule = makeModule({
   notions of `DynamicModule`, `forRoot` and `forRootAsync` do not
   exist. The result of such a function is created once and shared by
   import: calling the factory again, even with the same options, gives
-  a different value under the same name and drops the assembly.
+  a different value under the same name and drops the build.
 - The `providers` of a module can be a synchronous factory; it is
   called in `build()`. A composition branch by a value known before
-  assembly is not a factory, it is a switch:
+  build is not a factory, it is a switch:
   `Storage.pick({ … })` and `Audit.when(…)` in `providers` and
   `dependsOn` ([composition.md §3](./composition.md)).
 - The container is used standalone too, with no `App`: grouping
@@ -321,7 +321,7 @@ export const OrdersModule = makeModule({
 A DI token family is one recipe and many instances, distinguished by a
 parameter. Families cover parametrized providers, an instance's
 dependency on its consumer, and multi-injection. All of this is
-resolved at assembly.
+resolved at build.
 
 ```typescript
 export const Logger$ = makeTokenFamily<Logger, [scope: string]>('Logger');
@@ -340,9 +340,9 @@ class CreateUserHandler { /* ... */ }
   without it, every access would start a new node under the same name.
   The family and the parameter are stored by the member in **fields**,
   so the question "whose DI token is this" does not depend on how its
-  `id` looks: a DI token assembled by hand through
+  `id` looks: a DI token built by hand through
   `makeToken('Logger:users')` is not a member of the family. The
-  assembly finds every member mentioned in `deps` and creates a graph
+  build finds every member mentioned in `deps` and creates a graph
   node for each one, by the recipe. These are ordinary nodes, and they
   are created on INIT together with the rest.
 - `.auto` is a member whose parameter equals the name of the consumer.
@@ -356,7 +356,7 @@ class CreateUserHandler { /* ... */ }
   does not collide with the aggregate. Contributions are ordinary
   providers with member DI tokens
   (`classProvider(HealthCheck$('db'), DbHealthCheck)`); different
-  modules register them independently. At `build()`, the assembly
+  modules register them independently. At `build()`, the build
   creates a synthetic aggregate node with the list of instances. The
   list is frozen; the order is the order of registration: the explicit
   ones first, then the ones created by the recipe. An empty family
@@ -397,7 +397,7 @@ interface Logger {
   record: a series of records about one object is written through
   `logger.child({ orderId })`.
 - `RootLogger$` is the DI token of the root logger. The root itself
-  lives **outside the graph**: the assembly creates it on phase 0 — it
+  lives **outside the graph**: the build creates it on phase 0 — it
   is the value of the root's `logging.logger`, or the kernel logger
   built from the snapshot of the `nestlingLog` section, wrapped in a
   correlation decorator ([composition.md §6](./composition.md)) — and
@@ -419,8 +419,8 @@ interface Logger {
   carries the trace, and on receipt `withTracing()` returns it into the
   context ([pipeline.md §3](./pipeline.md)).
 - The container does not depend on the logger: it has no logger. It
-  gives the assembly warnings (matching DI token `id`s) as the value
-  `BuiltContainer.warnings`, and the application assembly writes them to
+  gives the build warnings (matching DI token `id`s) as the value
+  `BuiltContainer.warnings`, and the application build writes them to
   the root logger after `build()`. A consumer of the container with no
   `App` reads the list itself, the same technique as `pruned`.
 
@@ -448,7 +448,7 @@ it by an already familiar form.
 - `RootMetrics$` is the DI token of the root. Its value is set by the
   `makeApp({ metrics })` option; without it, an empty implementation
   whose methods do nothing stands under the DI token. The node is always
-  in the graph, so a feature that writes a metric assembles without an
+  in the graph, so a feature that writes a metric builds without an
   installed satellite. An application provider under `RootMetrics$` is a
   duplicate error, the same as for the logger.
 - `Metrics$(scope)` and `Metrics$.auto` are family members. A member adds
@@ -494,7 +494,7 @@ the handler) need values from the request context, for example
 `requestId`. For them there is a read-only projection of the pipeline
 context, through `AsyncLocalStorage`. The rule: the value comes from the
 environment, but the dependency on it is declared explicitly; only
-`.pre` units can write values.
+`.pre` steps can write values.
 
 A context variable is a typed key of the accumulated `input` of the
 pipeline, not a cell of a separate store. There is no separate state
@@ -504,19 +504,19 @@ literal.
 
 ```typescript
 export const RequestId = contextVar<string>()('requestId');
-// the key 'requestId' is the same field a unit sees at ctx.input.requestId
+// the key 'requestId' is the same field a step sees at ctx.input.requestId
 ```
 
 - The variable itself does the writing: `Var.provide(compute)` returns
-  an ordinary `PreUnitFn<TReq, { key: T }>`. Declaring a variable and
+  an ordinary `PreStepFn<TReq, { key: T }>`. Declaring a variable and
   writing its value are one action. The second shape,
   `Var.provide(deps, compute)`, gives the writer values from the
   container: the list of DI tokens is resolved at `bind()` by the same
-  resolver as the class units, and it lands in the `TNeeds` of the
+  resolver as the class steps, and it lands in the `TNeeds` of the
   pipeline ([pipeline.md §5](./pipeline.md)); such a writer declares its
   requirements on the context with an annotation on the `ctx` parameter.
   `Family.auto` in the list is rejected: a writer has no consumer class
-  to pick a member by name from. A unit that puts the same field into
+  to pick a member by name from. A step that puts the same field into
   `input` by hand works for readers, but is not counted as the declarer
   of the variable, and the `hasVar` policy does not count it either.
 - Reading is a member of a DI token family: `Ctx(RequestId)` in `deps`
@@ -540,9 +540,9 @@ export const RequestId = contextVar<string>()('requestId');
   key `'signal'` is reserved, and this variable has no `provide` method,
   neither in the type nor at runtime. Only the pipeline runtime updates
   the projection; there is no public setter.
-- The presence of a variable is checked at assembly, opt-in:
+- The presence of a variable is checked at build, opt-in:
   `everyEndpoint(…).hasVar(Var)` ([pipeline.md §7](./pipeline.md)).
-  Types close off reading from a unit, the policy closes off reading
+  Types close off reading from a step, the policy closes off reading
   from deep in the graph, where there are no input types.
 - The kernel declares three variables and reserves their keys. `Signal`
   is the cancellation signal of the request, read-only. `RequestId` is
@@ -570,7 +570,7 @@ export const RequestId = contextVar<string>()('requestId');
     `ctx.raw.attributes`, and into the context projection through
     `Var.propagated()`. This writer carries the same runtime mark as
     `Var.provide`, so `everyEndpoint(…).hasVar(Var)` counts it too, and
-    the presence of the propagated context is checked at assembly.
+    the presence of the propagated context is checked at build.
   - The value is not validated: a context variable has no schema.
     Propagation crosses a trust boundary; what to propagate and what to
     decide based on it stays the responsibility of the application.

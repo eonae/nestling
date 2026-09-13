@@ -42,7 +42,7 @@ appOpenapi.document(app.discover(args));
 
 | Имя | Что делает |
 |---|---|
-| `openapi` | плагин: строит документ на фазе ASSEMBLE, отдаёт его endpoint'ом, а методом `document(discovery)` — значением |
+| `openapi` | плагин: строит документ на фазе BUILD, отдаёт его endpoint'ом, а методом `document(discovery)` — значением |
 | `OpenApiDocument$` | DI-токен готового документа |
 | `OpenApiPlugin` | значение плагина: обычная единица состава плюс метод `document` |
 | `OpenApiOptions` | `info`, необязательные `converters`, `servers`, `security`, `externalDocs` |
