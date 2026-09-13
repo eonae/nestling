@@ -210,7 +210,7 @@ async function writeNdjson(
       await writeChunk(res, encodeNdjson(item), options.summary);
     }
   } catch {
-    // Отказ уже прошёл проверку `errors` и `.finally`-юниты; транспорту
+    // Отказ уже прошёл проверку `errors` и `.finally`-шаги; транспорту
     // остаётся оборвать ответ
     res.destroy();
     return;

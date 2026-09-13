@@ -7,7 +7,7 @@
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import {
@@ -48,7 +48,7 @@ const makeAppUnderTest = () =>
 
 describe('отказ слоя в собранном приложении', () => {
   it('попадает в ответ со своим кодом без объявления на декларации', async () => {
-    await using test = await assembleTest(makeAppUnderTest());
+    await using test = await buildTest(makeAppUnderTest());
 
     const response = await test.call(Profile, undefined, { attributes: {} });
 
@@ -57,7 +57,7 @@ describe('отказ слоя в собранном приложении', () =>
   });
 
   it('успешный проход отдаёт значение хендлера', async () => {
-    await using test = await assembleTest(makeAppUnderTest());
+    await using test = await buildTest(makeAppUnderTest());
 
     const response = await test.call(Profile, undefined, {
       attributes: { token: 't' },

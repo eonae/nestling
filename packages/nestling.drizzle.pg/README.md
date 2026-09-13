@@ -81,7 +81,7 @@ export class DbUsersRepository {
   everything from the group below.
 - **Subpath `./outbox/table`** — `outboxTable`, `OutboxTable`,
   `outboxDdl`, `DEFAULT_OUTBOX_TABLE`. A separate subpath is needed by
-  drizzle-kit: it assembles the schema as CJS, and only what does not pull
+  drizzle-kit: it builds the schema as CJS, and only what does not pull
   in the kernel suits it from the package.
 - **Subpath `./inbox`** — `pgInboxStore`, `PgInboxStorePlugin`,
   `PgInboxStoreOptions`, `PgInboxStore`, `PgInboxTransactionError`, plus
@@ -105,7 +105,7 @@ dialects are not supported in V1: the session issuance is specific to
 each driver.
 
 The transaction layer does not apply to a streaming response: the `.ok`
-unit runs at the start of the response phase, so for the `stream` and
+step runs at the start of the response phase, so for the `stream` and
 `events` output shapes the commit would pass before the handler finished
 reading the cursor.
 

@@ -1,7 +1,7 @@
 /**
  * App-тесты: каждый запрос проходит полный пайплайн, сокет не открывается.
  *
- * Тест собирает ту же декларацию, что `main.ts`: `assembleTest(app, …)`
+ * Тест собирает ту же декларацию, что `main.ts`: `buildTest(app, …)`
  * принимает подмены, выбор фич и конфиг теста.
  *
  * Приложению нужна настоящая база: пул открывается на фазе INIT, а слой
@@ -29,7 +29,7 @@ import { inMemoryUsersRepo } from './testing.js';
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
-import { assembleTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
+import { buildTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };
@@ -73,7 +73,7 @@ async function seed(
 
 describeWithDatabase('microservice', () => {
   it('отдаёт пользователя через полный пайплайн', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
     });
@@ -83,7 +83,7 @@ describeWithDatabase('microservice', () => {
   });
 
   it('возвращает объявленный отказ с категорией и кодом', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
     });
@@ -96,7 +96,7 @@ describeWithDatabase('microservice', () => {
   });
 
   it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
@@ -109,7 +109,7 @@ describeWithDatabase('microservice', () => {
   });
 
   it('читает размер страницы из конфига', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: vars({
         API_TOKEN: 'test-token',
         WEBHOOK_SECRET: 'test-hook',
@@ -124,7 +124,7 @@ describeWithDatabase('microservice', () => {
 
   it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
     const repo = inMemoryUsersRepo([alice]);
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [[UsersRepository$, repo]],
     });
@@ -138,7 +138,7 @@ describeWithDatabase('microservice', () => {
   });
 
   it('создаёт пользователя по Bearer-токену из конфига', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
@@ -157,7 +157,7 @@ describeWithDatabase('microservice', () => {
   });
 
   it('откатывает транзакцию, когда слой ответил отказом', async () => {
-    await using testApp = await assembleTest(app, { config: testConfig });
+    await using testApp = await buildTest(app, { config: testConfig });
     await seed(testApp);
 
     // Bearer-токен не тот: слой `authed` отвечает отказом, слой транзакции
@@ -180,10 +180,10 @@ describeWithDatabase('microservice', () => {
   });
 
   it('пишет запись аудита через логгер ядра', async () => {
-    // Подмена корня перехватывает записи всех членов Logger$: и ядра, и
+    // Подмена корня перехватывает записи всех токенов семейства Logger$: и ядра, и
     // приложения. Область записи — имя класса, взявшего Logger$.auto
     const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [
         [UsersRepository$, inMemoryUsersRepo([alice])],
@@ -202,7 +202,7 @@ describeWithDatabase('microservice', () => {
 
   it('хранилище пишет идентификатор запроса полем записи', async () => {
     const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       config: testConfig,
       overrides: [[RootLogger$, spy.logger]],
     });

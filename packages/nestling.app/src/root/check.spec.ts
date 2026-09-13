@@ -100,7 +100,7 @@ describe('App.check() — фазы 0–1', () => {
     await expect(makeApp(spec).check()).rejects.toThrow(
       /Transport 'cli'.*module:cli.*'transports:'/s,
     );
-    await expect(makeApp(spec).assemble().run()).rejects.toThrow(
+    await expect(makeApp(spec).build().run()).rejects.toThrow(
       /Transport 'cli'.*module:cli.*'transports:'/s,
     );
   });
@@ -165,15 +165,15 @@ describe('App.check() — фазы 0–1', () => {
     await app.check();
     expect(inits).toEqual([]);
 
-    const assembled = app.assemble();
-    await assembled.run();
+    const built = app.build();
+    await built.run();
 
     expect(inits).toEqual(['init']);
     expect(transport.routes.map((route) => route.pattern)).toEqual([
       'GET /ping',
     ]);
 
-    await assembled.close();
+    await built.close();
   });
 });
 
@@ -200,14 +200,14 @@ describe('App.check() — опубликованные операции в от�
     ],
   });
 
-  const assembleBilling = () =>
+  const buildBilling = () =>
     makeApp({
       features: [billingModule],
       transports: [asTransport(new MockTransport())],
     });
 
   it('несёт дескриптор с видом, формами и кодами отказов', async () => {
-    const report = await assembleBilling().check(undefined, {
+    const report = await buildBilling().check(undefined, {
       converters: [zodConverter()],
     });
 
@@ -228,7 +228,7 @@ describe('App.check() — опубликованные операции в от�
   });
 
   it('без конвертеров даёт ту же структурную часть и непрозрачные листья', async () => {
-    const report = await assembleBilling().check();
+    const report = await buildBilling().check();
 
     const [descriptor] = report.published;
 
@@ -238,7 +238,7 @@ describe('App.check() — опубликованные операции в от�
   });
 
   it('импортированная, но не реализованная операция в отчёт не попадает', async () => {
-    const report = await assembleBilling().check();
+    const report = await buildBilling().check();
 
     // Значение импортировано этим файлом и лежит в приватном реестре
     // пакета — но приложение его не публикует, и отчёт это знает
@@ -300,7 +300,7 @@ describe('App.check() — опубликованные операции в от�
   });
 
   it('не создаёт ни одного экземпляра и не влияет на последующий run()', async () => {
-    const app = assembleBilling();
+    const app = buildBilling();
 
     const first = await app.check(undefined, { converters: [zodConverter()] });
     const second = await app.check(undefined, { converters: [zodConverter()] });

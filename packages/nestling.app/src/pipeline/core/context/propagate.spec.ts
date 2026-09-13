@@ -40,9 +40,9 @@ describe('провозимая переменная', () => {
   });
 
   it('propagated() кладёт в input значение, пришедшее по сети', async () => {
-    const unit = TenantId.propagated();
+    const step = TenantId.propagated();
 
-    expect(await unit(contextWith({ tenantId: 'acme' }))).toEqual({
+    expect(await step(contextWith({ tenantId: 'acme' }))).toEqual({
       tenantId: 'acme',
     });
   });
@@ -84,7 +84,7 @@ describe('провозимая переменная', () => {
     expect(collected).toEqual({ tenantId: 'acme' });
   });
 
-  it('переменная, до которой pre-юниты не дошли, не провозится', () => {
+  it('переменная, до которой pre-шаги не дошли, не провозится', () => {
     const cell = makeCell(new AbortController().signal, { requestId: 'req-1' });
 
     expect(runInScope(cell, () => collectPropagatedContext())).toBeUndefined();

@@ -2,7 +2,7 @@
  * Правило размещения полей HTTP-input: три правила и проверки при
  * создании.
  *
- * Чтение карты (`readQuery`, `assemblePayload`, `httpBindingOf`)
+ * Чтение карты (`readQuery`, `buildPayload`, `httpBindingOf`)
  * проверяется в `@nestlingjs/transport.http`.
  */
 

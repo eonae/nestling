@@ -8,7 +8,7 @@
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { contextValue } from './context.js';
 import { unwrap } from './unwrap.js';
 
@@ -72,7 +72,7 @@ const AuditModule = makeFeature({
 
 describe('contextValue', () => {
   it('сервис читает подставленное значение без app.call', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [AuditModule],
         transports: [asHttpTransport(new SpyTransport())],
@@ -90,7 +90,7 @@ describe('contextValue', () => {
   });
 
   it('подмена приоритетна над значением, положенным пайплайном', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [AuditModule],
         transports: [asHttpTransport(new SpyTransport())],
@@ -104,7 +104,7 @@ describe('contextValue', () => {
   });
 
   it('без подмены app.call даёт боевое поведение проекции', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [AuditModule],
         transports: [asHttpTransport(new SpyTransport())],

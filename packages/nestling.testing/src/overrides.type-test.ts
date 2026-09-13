@@ -8,7 +8,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { familyOverride } from './overrides.js';
 
 import type { ResponseContext } from '@nestlingjs/app';
@@ -53,7 +53,7 @@ const Ping = httpEndpoint.get('/ping', {
 // ---------------------------------------------------------------------------
 
 async function overridesAcceptCompatibleFake(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     overrides: [
       [UsersRepository, { findById: async () => ({ id: '1' }) }],
       familyOverride(ILogger, () => ({ log: (): void => undefined })),
@@ -62,16 +62,16 @@ async function overridesAcceptCompatibleFake(): Promise<void> {
 }
 
 async function overridesRejectIncompatibleFake(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     // @ts-expect-error: фейк без `findById` не совместим с типом DI-токена
     overrides: [[UsersRepository, { find: async () => null }]],
   });
 }
 
 async function familyOverrideRejectsIncompatibleMember(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     overrides: [
-      // @ts-expect-error: член семейства обязан быть `ILoggerService`
+      // @ts-expect-error: токен семейства обязан быть `ILoggerService`
       familyOverride(ILogger, () => ({ write: (): void => undefined })),
     ],
   });
@@ -82,7 +82,7 @@ async function familyOverrideRejectsIncompatibleMember(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function callTypes(): Promise<void> {
-  const app = await assembleTest(makeApp({}));
+  const app = await buildTest(makeApp({}));
 
   const user = await app.call(GetUser, { id: '1' });
   type _Result = Expect<

@@ -1,8 +1,8 @@
 # @nestlingjs/testing
 
-A test composition root. `assembleTest(app, options)` assembles the same
+A test composition root. `buildTest(app, options)` builds the same
 `makeApp` declaration that `main.ts` starts, takes the application
-through the phases `0 BOOTSTRAP`, `1 ASSEMBLE`, `2 INIT`, `3 WIRE` and
+through the phases `0 BOOTSTRAP`, `1 BUILD`, `2 INIT`, `3 WIRE` and
 stops: `dispatch` is created, the sockets are not open, no signal
 handlers are set, and nothing is printed to stdout.
 
@@ -40,11 +40,11 @@ Node turns on the condition with the `--conditions=testing` flag.
 ```typescript
 import { app } from './app'; // the same makeApp declaration that main.ts uses
 
-import { assembleTest, stub, unwrap, vars } from '@nestlingjs/testing';
+import { buildTest, stub, unwrap, vars } from '@nestlingjs/testing';
 
-await using testApp = await assembleTest(app, {
+await using testApp = await buildTest(app, {
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
-  // a stub for an operation that this assembly does not implement
+  // a stub for an operation that this build does not implement
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
 });
@@ -56,24 +56,24 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 
 ## Exports
 
-- **Assembly** — `assembleTest`, `TestApp`, `TestAssemblyOptions`,
+- **Build** — `buildTest`, `TestApp`, `TestBuildOptions`,
   `TestCallOptions`, `EmitDelivery`, `UnwrapFailedError`, `unwrap`.
 - **Substitutions** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`.
 - **Logger and metrics** — `spyLogger`, `SpyLogger`, `LogEntry`,
   `spyMetrics`, `SpyMetrics`, `MetricRecord`.
-- **Topologies and units** — `checkTopologies`, `TopologyReport`,
-  `testUnit`, `TestUnitOptions`.
+- **Topologies and bundles** — `checkTopologies`, `TopologyReport`,
+  `testBundle`, `TestBundleOptions`.
 - **Re-export of [`@nestlingjs/app`](../nestling.app/)** — the core
   names, so that a test imports one package.
 
-The `transports` list in the options is not accepted: the test assembly
+The `transports` list in the options is not accepted: the test build
 does not run START, so no sockets open and there is no need to
 substitute a port.
 
 ## Package boundaries
 
-The package assembles the application and gives access to it. It does
+The package builds the application and gives access to it. It does
 not start transports, does not bring up a database and does not replace
 the test runner.

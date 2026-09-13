@@ -67,7 +67,7 @@ export function validateSync<S extends StandardSchemaV1>(
     throw new AsyncSchemaNotSupportedError(
       'Schema validation must be synchronous, but `~standard.validate` ' +
         'returned a Promise. Async refinements in endpoint schemas are ' +
-        'not supported: move the async check into a `.pre` unit or into ' +
+        'not supported: move the async check into a `.pre` step or into ' +
         'the handler.',
     );
   }

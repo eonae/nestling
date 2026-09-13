@@ -1,7 +1,7 @@
 import { makeFail } from '@nestlingjs/operations';
 
 /**
- * Отказ проверки Bearer-токена. Его возвращает pre-юнит слоя `authed`.
+ * Отказ проверки Bearer-токена. Его возвращает pre-шаг слоя `authed`.
  *
  * Код из одной категории: уточнять нечего.
  */

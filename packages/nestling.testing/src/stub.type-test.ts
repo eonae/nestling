@@ -12,7 +12,7 @@
  * тело `{}` читалось бы как «забыли дописать». */
 
 import type { EmitDelivery } from './app.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { stub } from './stub.js';
 
 import type { Port, PortResult } from '@nestlingjs/app';
@@ -52,7 +52,7 @@ const PlaceOrder = makeCommand({
 // ---------------------------------------------------------------------------
 
 async function stubAcceptsCompatibleFakes(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     stubs: [
       // голое значение — та же форма, что у обычного хендлера
       stub(ClaimQuota, async () => ({ granted: 1 })),
@@ -67,7 +67,7 @@ async function stubAcceptsCompatibleFakes(): Promise<void> {
 }
 
 async function stubRejectsIncompatibleValue(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     // @ts-expect-error: `granted` объявлен числом
     stubs: [stub(ClaimQuota, async () => ({ granted: 'many' }))],
   });
@@ -78,21 +78,21 @@ async function stubRejectsUndeclaredFail(): Promise<void> {
     message: 'Nope',
   });
 
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     // @ts-expect-error: отказа нет в `errors:` операции
     stubs: [stub(ClaimQuota, async () => Undeclared())],
   });
 }
 
 async function stubRejectsEmitterShapeForRequest(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     // @ts-expect-error: `request` обязан ответить значением по `output`-схеме
     stubs: [stub(ClaimQuota, async () => undefined)],
   });
 }
 
 async function stubRejectsPortShapeForEvent(): Promise<void> {
-  await assembleTest(makeApp({}), {
+  await buildTest(makeApp({}), {
     // @ts-expect-error: у `event` нет канала результата
     stubs: [stub(OrderPlaced, async () => ({ granted: 1 }))],
   });
@@ -140,7 +140,7 @@ async function callSiteIsIdentical(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function emitTypes(): Promise<void> {
-  const app = await assembleTest(makeApp({}));
+  const app = await buildTest(makeApp({}));
 
   const deliveries = await app.emit(OrderPlaced, { orderId: 'o-1' });
 

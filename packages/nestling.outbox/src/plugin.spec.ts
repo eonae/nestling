@@ -34,7 +34,7 @@ import {
 } from '@nestlingjs/app';
 import { Ok } from '@nestlingjs/operations';
 import type { TestApp } from '@nestlingjs/testing';
-import { assembleTest, vars } from '@nestlingjs/testing';
+import { buildTest, vars } from '@nestlingjs/testing';
 
 /** Подписчики события; наполняется прямым эмиттером и relay */
 const delivered: { id: string; idempotencyKey?: string }[] = [];
@@ -93,7 +93,7 @@ function storeOf(app: TestApp): InMemoryOutboxStore {
 describe('outbox(): пакет в собранном приложении', () => {
   it('пишет запись в транзакции запроса и не публикует её сразу', async () => {
     delivered.length = 0;
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
 
     const response = await app.call(CreateUser, {
       id: 'u-1',
@@ -115,7 +115,7 @@ describe('outbox(): пакет в собранном приложении', () =
 
   it('relay публикует запись, и подписчик видит ключ идемпотентности', async () => {
     delivered.length = 0;
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
 
     await app.call(CreateUser, { id: 'u-2', email: 'bob@example.com' });
 
@@ -134,7 +134,7 @@ describe('outbox(): пакет в собранном приложении', () =
 
   it('откат транзакции убирает запись', async () => {
     delivered.length = 0;
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
 
     const response = await app.call(CreateUser, {
       id: 'u-3',
@@ -147,7 +147,7 @@ describe('outbox(): пакет в собранном приложении', () =
   });
 
   it('приложение без подписчиков на факты собирается и работает', async () => {
-    await using app = await assembleTest(application());
+    await using app = await buildTest(application());
 
     await app.call(CreateUser, { id: 'u-4', email: 'dave@example.com' });
 
@@ -157,7 +157,7 @@ describe('outbox(): пакет в собранном приложении', () =
   });
 
   it('процесс с выключенным relay пишет записи и не запускает задачу', async () => {
-    await using app = await assembleTest(application(), {
+    await using app = await buildTest(application(), {
       config: vars({ OUTBOX_RELAY: 'false' }),
     });
 
@@ -188,7 +188,7 @@ describe('outbox(): отказы сборки', () => {
       transports: [testTransport()],
     });
 
-    await expect(assembleTest(broken)).rejects.toThrow(
+    await expect(buildTest(broken)).rejects.toThrow(
       /plugin\.spec\.user-deleted.*outbox\({ operations }\)/s,
     );
   });
@@ -207,7 +207,7 @@ describe('outbox(): отказы сборки', () => {
     // Проверка имён единиц срабатывает раньше повторной регистрации
     // рецепта семейства, но запрещает ровно то же: двух плагинов outbox'а
     // в приложении быть не может
-    await expect(assembleTest(twice)).rejects.toThrow(
+    await expect(buildTest(twice)).rejects.toThrow(
       /Two different plugins are named '@nestlingjs\/outbox'/,
     );
   });
@@ -225,7 +225,7 @@ describe('outbox(): отказы сборки', () => {
     let failure: Error | undefined;
 
     try {
-      await assembleTest(busless);
+      await buildTest(busless);
     } catch (error) {
       failure = error as Error;
     }
@@ -254,7 +254,7 @@ describe('outbox(): отказы сборки', () => {
   });
 });
 
-describe('requiresTransaction(): предпосылка проверяется на ASSEMBLE', () => {
+describe('requiresTransaction(): предпосылка проверяется на BUILD', () => {
   it('endpoint без слоя транзакции роняет сборку', async () => {
     const app = makeApp({
       features: [
@@ -281,7 +281,7 @@ describe('requiresTransaction(): предпосылка проверяется �
       ],
     });
 
-    await expect(assembleTest(app)).rejects.toThrow(/POST ping/);
+    await expect(buildTest(app)).rejects.toThrow(/POST ping/);
   });
 
   it('endpoint со слоем транзакции политику проходит', async () => {
@@ -291,7 +291,7 @@ describe('requiresTransaction(): предпосылка проверяется �
       operations: [UserCreated],
     });
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [usersFeature],
         plugins: [databasePlugin, declaration],

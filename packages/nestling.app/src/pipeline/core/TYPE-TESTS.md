@@ -13,14 +13,14 @@
 
 Единый файл с типовыми тестами, проверяющий:
 
-- накопление input-полей `.pre`-юнитами (монотонно, с проверкой конфликтов);
+- накопление input-полей `.pre`-шагами (монотонно, с проверкой конфликтов);
 - type-state билдера (`.pre` недоступен после первого ответного метода);
 - честную типизацию ctx по фазам (`.ok` — полный, `.catch`/`.finally` —
   свой слой `Partial`, требования `TReq` — гарантированы);
 - проверку требований слоёв в точке композиции (`compose`);
 - позитивный вывод `compose` на всех арностях (2–4): накопленный `TAcc`,
   объединение `TNeeds`, тип меты хендлера, сохранение `TReq` внешнего слоя;
-- `TNeeds`: класс-юнит блокирует исполнение до `bind()`;
+- `TNeeds`: класс-шаг блокирует исполнение до `bind()`;
 - вывод типа меты хендлера (накопленный input без `payload` + `signal`).
 
 ## Как они работают
@@ -84,7 +84,7 @@ type _Identity = Expect<Equal<typeof ctx.input.identity, User | undefined>>;
 #### 3. Негативные случаи — `@ts-expect-error`
 
 ```typescript
-// @ts-expect-error: Pre-unit is overriding fields in input
+// @ts-expect-error: Pre-step is overriding fields in input
 pipeline.pre(addField({ userId: 42 }));
 ```
 
@@ -109,8 +109,8 @@ compose(
 
 `withIdentity`/`withPermissions` здесь — локальные функции самого
 `pipeline.spec.ts`, не публичный API: они дают тот же типовой эффект
-(двухшаговая зависимость pre-юнитов), что раньше давали одноимённые
-удалённые юниты (change `pipeline-stale-units`).
+(двухшаговая зависимость pre-шагов), что раньше давали одноимённые
+удалённые шаги (change `pipeline-stale-steps`).
 
 ### ❌ Неправильные комбинации (ошибки компиляции)
 
@@ -118,7 +118,7 @@ compose(
 // перезапись поля другим типом
 makePipeline().pre(addField({ userId: 'abc' })).pre(addField({ userId: 42 }));
 
-// юнит требует поле, которого ещё нет
+// шаг требует поле, которого ещё нет
 makePipeline().pre(withPermissions(...)); // identity не добавлена
 
 // pre после ответного метода
@@ -127,7 +127,7 @@ makePipeline().catch(u).pre(v);
 // композиция без удовлетворения требований внутреннего слоя
 compose(base, makePipeline<{ identity: User }>().pre(...));
 
-// пайплайн с нерезолвленным классом-юнитом — транспорту нельзя
+// пайплайн с нерезолвленным классом-шагом — транспорту нельзя
 acceptsExecutable(makePipeline().pre(WithTracing));
 ```
 
@@ -152,7 +152,7 @@ acceptsExecutable(makePipeline().pre(WithTracing));
 
 1. Добавьте тест в `pipeline.spec.ts` (группа по смыслу: accumulation /
    type-state / phase ctx / compose / TNeeds).
-2. Для inline pre-юнитов используйте `addField()`.
+2. Для inline pre-шагов используйте `addField()`.
 3. Негативные случаи — через `@ts-expect-error` с текстом ожидаемой ошибки
    в комментарии.
 4. Помните: `it`-блоки выполняются в рантайме — рантайм-guard'ы билдера

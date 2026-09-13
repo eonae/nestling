@@ -1,8 +1,8 @@
 # @nestlingjs/testing
 
-Тестовый composition root. `assembleTest(app, options)` собирает ту же
+Тестовый composition root. `buildTest(app, options)` собирает ту же
 декларацию `makeApp`, что запускает `main.ts`, проводит приложение по фазам
-`0 BOOTSTRAP`, `1 ASSEMBLE`, `2 INIT`, `3 WIRE` и останавливается: `dispatch`
+`0 BOOTSTRAP`, `1 BUILD`, `2 INIT`, `3 WIRE` и останавливается: `dispatch`
 создан, сокеты не открыты, обработчики сигналов не установлены, в stdout
 ничего не напечатано.
 
@@ -39,9 +39,9 @@ Node включает условие флагом `--conditions=testing`.
 ```typescript
 import { app } from './app'; // та же декларация makeApp, что у main.ts
 
-import { assembleTest, stub, unwrap, vars } from '@nestlingjs/testing';
+import { buildTest, stub, unwrap, vars } from '@nestlingjs/testing';
 
-await using testApp = await assembleTest(app, {
+await using testApp = await buildTest(app, {
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   // заглушка операции, которую эта сборка не реализует
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
@@ -55,15 +55,15 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 
 ## Экспорты
 
-- **Сборка** — `assembleTest`, `TestApp`, `TestAssemblyOptions`,
+- **Сборка** — `buildTest`, `TestApp`, `TestBuildOptions`,
   `TestCallOptions`, `EmitDelivery`, `UnwrapFailedError`, `unwrap`.
 - **Подстановки** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`.
 - **Логгер и метрики** — `spyLogger`, `SpyLogger`, `LogEntry`, `spyMetrics`,
   `SpyMetrics`, `MetricRecord`.
-- **Топологии и юниты** — `checkTopologies`, `TopologyReport`, `testUnit`,
-  `TestUnitOptions`.
+- **Топологии и единицы** — `checkTopologies`, `TopologyReport`,
+  `testBundle`, `TestBundleOptions`.
 - **Реэкспорт [`@nestlingjs/app`](../nestling.app/)** — имена ядра, чтобы тест
   импортировал один пакет.
 

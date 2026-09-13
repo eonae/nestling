@@ -44,7 +44,7 @@ if (EmailTaken.is(created)) {
 | Name | What it does |
 |---|---|
 | `makeClient` | builds the API object from a record of operations and configuration |
-| `Client` | the type of the assembled API object |
+| `Client` | the type of the built API object |
 | `ClientConfig` | `baseUrl`, `headers`, a trace reader `trace`, a custom `fetch` implementation, `validateOutput` |
 | `ClientMeta` | the second argument of the method: `signal` and `deadline` |
 | `ClientMethod` | the type of one client method |

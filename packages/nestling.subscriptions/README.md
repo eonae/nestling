@@ -54,7 +54,7 @@ export const Feed = httpEndpoint.get('/api/feed', {
 
 `identity` takes either a context variable or a function of the context.
 The function does not see the accumulated input — a key made of several
-variables is assembled by
+variables is built by
 `computed([TenantId, UserId], (_ctx, tenant, user) => …)`.
 
 The facts are published as operations only if the plugin has

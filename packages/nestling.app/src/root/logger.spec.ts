@@ -54,7 +54,7 @@ describe('логгер корня', () => {
       transports: [asTransport(new MockTransport())],
       providers: [valueProvider(First$, 'a'), valueProvider(Second$, 'b')],
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.close();
@@ -73,13 +73,13 @@ describe('логгер корня', () => {
     const app = makeApp({
       endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
   });
 
-  it('члены семейства строятся от логгера опции', async () => {
+  it('токены семейства строятся от логгера опции', async () => {
     const probe = loggerProbe();
     const Service$ = makeToken<unknown>('Service');
 
@@ -98,7 +98,7 @@ describe('логгер корня', () => {
         ),
       ],
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.close();
@@ -117,7 +117,7 @@ describe('логгер корня', () => {
       endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
       providers: [valueProvider(RootLogger$, probe.logger)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /root logger is set by the 'logger' option of makeApp/,

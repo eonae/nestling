@@ -76,14 +76,14 @@ exports[`pipeline type diagnostics output-multipart-form 1`] = `
 
 exports[`pipeline type diagnostics pre-after-response 1`] = `"packages/nestling.app/type-tests/fixtures/pre-after-response.ts(14,4): error TS2339: Property 'pre' does not exist on type 'PhasedPipeline<EmptyInput, EmptyInput, never, never>'."`;
 
-exports[`pipeline type diagnostics pre-overrides-field 1`] = `"packages/nestling.app/type-tests/fixtures/pre-overrides-field.ts(12,8): error TS2345: Argument of type 'PreUnitFn<AnyInput, { userId: number; }>' is not assignable to parameter of type '{ __error: "Pre-unit overrides fields that are already in the input"; conflicting: { userId: [string, number]; }; }'."`;
+exports[`pipeline type diagnostics pre-overrides-field 1`] = `"packages/nestling.app/type-tests/fixtures/pre-overrides-field.ts(12,8): error TS2345: Argument of type 'PreStepFn<AnyInput, { userId: number; }>' is not assignable to parameter of type '{ __error: "Pre-step overrides fields that are already in the input"; conflicting: { userId: [string, number]; }; }'."`;
 
-exports[`pipeline type diagnostics pre-requires-missing 1`] = `"packages/nestling.app/type-tests/fixtures/pre-requires-missing.ts(11,3): error TS2345: Argument of type 'PreUnitFn<{ identity: User; }, { permissions: string[]; }>' is not assignable to parameter of type '{ __error: "Pre-unit requires context that the accumulated input does not provide"; missing: { identity: User; }; }'."`;
+exports[`pipeline type diagnostics pre-requires-missing 1`] = `"packages/nestling.app/type-tests/fixtures/pre-requires-missing.ts(11,3): error TS2345: Argument of type 'PreStepFn<{ identity: User; }, { permissions: string[]; }>' is not assignable to parameter of type '{ __error: "Pre-step requires context that the accumulated input does not provide"; missing: { identity: User; }; }'."`;
 
-exports[`pipeline type diagnostics pre-return-undeclared-fail 1`] = `"packages/nestling.app/type-tests/fixtures/pre-return-undeclared-fail.ts(16,42): error TS2345: Argument of type '() => Fail<"forbidden", undefined>' is not assignable to parameter of type '{ __error: "Pre-unit returns a fail that is not declared in errors of this .pre"; undeclared: Fail<"forbidden", undefined>; }'."`;
+exports[`pipeline type diagnostics pre-return-undeclared-fail 1`] = `"packages/nestling.app/type-tests/fixtures/pre-return-undeclared-fail.ts(16,42): error TS2345: Argument of type '() => Fail<"forbidden", undefined>' is not assignable to parameter of type '{ __error: "Pre-step returns a fail that is not declared in errors of this .pre"; undeclared: Fail<"forbidden", undefined>; }'."`;
 
-exports[`pipeline type diagnostics unresolved-class-unit 1`] = `
-"packages/nestling.app/type-tests/fixtures/unresolved-class-unit.ts(25,15): error TS2322: Type 'EndpointDefinition<AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, typeof WithTracing>' is not assignable to type 'ExecutableDeclaration'.
+exports[`pipeline type diagnostics unresolved-class-step 1`] = `
+"packages/nestling.app/type-tests/fixtures/unresolved-class-step.ts(25,15): error TS2322: Type 'EndpointDefinition<AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, typeof WithTracing>' is not assignable to type 'ExecutableDeclaration'.
   Types of property '$needs' are incompatible.
     Type 'typeof WithTracing | undefined' is not assignable to type 'undefined'.
       Type 'typeof WithTracing' is not assignable to type 'undefined'."

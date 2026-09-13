@@ -11,7 +11,7 @@ import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
- * Семейство DI-токенов CLI-транспорта: один член на экземпляр.
+ * Семейство DI-токенов CLI-транспорта: один DI-токен на экземпляр.
  *
  * Им ссылается на транспорт каждая `cliEndpoint`-декларация; `App` берёт по
  * нему инстанс из графа. Декларация выбирает экземпляр через `on:`; без

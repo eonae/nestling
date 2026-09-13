@@ -24,17 +24,17 @@ import type {
 } from './types/context.js';
 import type {
   AnyAddition,
-  CatchUnitFn,
-  FinallyUnitFn,
-  OkUnitFn,
+  CatchStepFn,
+  FinallyStepFn,
+  OkStepFn,
   Outcome,
-  PreUnitFn,
+  PreStepFn,
   ResponseTrackInput,
-  UnitInstance,
-  UnitLike,
-} from './types/unit.js';
+  StepInstance,
+  StepLike,
+} from './types/step.js';
 import { computeOutcome } from './abort.js';
-import type { DeferredUnit, UNIT_NEEDS } from './deferred.js';
+import type { DeferredStep, STEP_NEEDS } from './deferred.js';
 import { deferredOf } from './deferred.js';
 import type { Done } from './done.js';
 import { isDone } from './done.js';
@@ -91,17 +91,17 @@ export function isMidStreamFailure(value: unknown): value is MidStreamFailure {
 }
 
 /**
- * Pre-юнит вернул `done()` из пайплайна без признака досрочного успеха.
+ * Pre-шаг вернул `done()` из пайплайна без признака досрочного успеха.
  *
  * Это ошибка композиции, а не отказ домена: клиент получает
  * `internal_error`, а текст называет починку.
  */
 export class UndeclaredDoneError extends Error {
-  constructor(unitName: string) {
+  constructor(stepName: string) {
     super(
-      `Pre-unit '${unitName}' returned done(), but the pipeline does not ` +
-        `declare an early success. Connect the unit as ` +
-        `.pre(${unitName}, { done: true }): the declaration with such a ` +
+      `Pre-step '${stepName}' returned done(), but the pipeline does not ` +
+        `declare an early success. Connect the step as ` +
+        `.pre(${stepName}, { done: true }): the declaration with such a ` +
         `pipeline is checked for having no 'output'.`,
     );
     this.name = 'UndeclaredDoneError';
@@ -223,21 +223,21 @@ type ComposeError<Provided, Required> = Simplify<{
   missing: MissingFields<Provided, Required>;
 }>;
 
-/** Тип-ошибка `.pre`: накопленный `input` не покрывает требования юнита */
+/** Тип-ошибка `.pre`: накопленный `input` не покрывает требования шага */
 type PreRequirementError<TCurrentInput, TReq> = Simplify<{
-  __error: 'Pre-unit requires context that the accumulated input does not provide';
+  __error: 'Pre-step requires context that the accumulated input does not provide';
   missing: MissingFields<TCurrentInput, TReq>;
 }>;
 
-/** Тип-ошибка `.pre`: юнит перезаписывает уже накопленное поле */
+/** Тип-ошибка `.pre`: шаг перезаписывает уже накопленное поле */
 type PreConflictError<TCurrentInput, TAdd> = Simplify<{
-  __error: 'Pre-unit overrides fields that are already in the input';
+  __error: 'Pre-step overrides fields that are already in the input';
   conflicting: ConflictingFields<TCurrentInput, TAdd>;
 }>;
 
-/** Тип-ошибка `.pre`: юнит возвращает отказ вне списка `errors` этого `.pre` */
+/** Тип-ошибка `.pre`: шаг возвращает отказ вне списка `errors` этого `.pre` */
 type PreUndeclaredFailError<TUndeclared> = Simplify<{
-  __error: 'Pre-unit returns a fail that is not declared in errors of this .pre';
+  __error: 'Pre-step returns a fail that is not declared in errors of this .pre';
   undeclared: TUndeclared;
 }>;
 
@@ -252,14 +252,14 @@ type ConflictingKeys<A, B> = {
 }[OverlapKeys<A, B>];
 
 /**
- * Проверяет, что требования `TReq`, добавка и отказы юнита совместимы с
+ * Проверяет, что требования `TReq`, добавка и отказы шага совместимы с
  * накопленным `input` и со списком `errors` этого `.pre`.
  *
  * Возвращает `M`, если да, и тип-ошибку, если нет. Порядок проверок —
  * от внешнего к внутреннему: сначала требования к контексту, затем
  * перезапись полей, затем незадекларированный отказ.
  */
-type CheckPreUnit<TCurrentInput, TReq, TAdd, TReturned, M> = [
+type CheckPreStep<TCurrentInput, TReq, TAdd, TReturned, M> = [
   TCurrentInput,
 ] extends [TReq]
   ? [ConflictingKeys<TCurrentInput, TAdd>] extends [never]
@@ -270,33 +270,33 @@ type CheckPreUnit<TCurrentInput, TReq, TAdd, TReturned, M> = [
   : PreRequirementError<TCurrentInput, TReq>;
 
 /**
- * Функция юнита, извлечённая из его формы: у класса и у инстанса это
+ * Функция шага, извлечённая из его формы: у класса и у инстанса это
  * `handle`, у функции — она сама.
  */
-type UnitFnOf<M> =
-  M extends Constructor<UnitInstance<infer F>>
+type StepFnOf<M> =
+  M extends Constructor<StepInstance<infer F>>
     ? F
-    : M extends UnitInstance<infer F>
+    : M extends StepInstance<infer F>
       ? F
       : M;
 
-/** Результат `.pre`-юнита любой формы, развёрнутый из `Promise` */
-type PreUnitResult<M> =
-  UnitFnOf<M> extends (...args: any[]) => infer R ? Awaited<R> : never;
+/** Результат `.pre`-шага любой формы, развёрнутый из `Promise` */
+type PreStepResult<M> =
+  StepFnOf<M> extends (...args: any[]) => infer R ? Awaited<R> : never;
 
 /**
- * Отказы, которые юнит возвращает значением.
+ * Отказы, которые шаг возвращает значением.
  *
- * У юнита с результатом `any` отказов нет: `any` поглотил бы проверку и
- * сделал бы такой юнит ошибкой в любом `.pre`.
+ * У шага с результатом `any` отказов нет: `any` поглотил бы проверку и
+ * сделал бы такой шаг ошибкой в любом `.pre`.
  */
 type ReturnedFails<TResult> = 0 extends 1 & TResult
   ? never
   : Extract<TResult, AnyFail>;
 
-/** Добавка юнита: результат без отказа, без досрочного успеха и без «ничего» */
+/** Добавка шага: результат без отказа, без досрочного успеха и без «ничего» */
 type AdditionOf<TResult> = NormalizeAddition<
-  /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` в результате юнита — поддерживаемая форма: юнит-наблюдатель пишется как обычная функция без `return` (см. `PreUnitFn`) */
+  /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` в результате шага — поддерживаемая форма: шаг-наблюдатель пишется как обычная функция без `return` (см. `PreStepFn`) */
   Exclude<TResult, AnyFail | Done | undefined | void>
 >;
 
@@ -306,27 +306,27 @@ type AllowedFails<F extends readonly AnyFailDefinition[]> =
   | FailOf<KernelFail>;
 
 /**
- * Проверяет `.pre`-юнит любой из трёх форм (функция, инстанс, класс):
+ * Проверяет `.pre`-шаг любой из трёх форм (функция, инстанс, класс):
  * требования к накопленному `input`, добавку и возвращаемые отказы.
  */
-type ValidatePreUnit<
+type ValidatePreStep<
   TCurrentInput extends AnyInput,
   F extends readonly AnyFailDefinition[],
   M,
 > =
-  UnitFnOf<M> extends PreUnitFn<infer TReq, any, any>
-    ? CheckPreUnit<
+  StepFnOf<M> extends PreStepFn<infer TReq, any, any>
+    ? CheckPreStep<
         TCurrentInput,
         TReq,
-        AdditionOf<PreUnitResult<M>>,
-        Exclude<ReturnedFails<PreUnitResult<M>>, AllowedFails<F>>,
+        AdditionOf<PreStepResult<M>>,
+        Exclude<ReturnedFails<PreStepResult<M>>, AllowedFails<F>>,
         M
       >
     : never;
 
 /**
- * Приводит добавку юнита к объекту: `undefined` и `never` становятся `{}`,
- * чтобы юнит без добавки не менял тип пайплайна.
+ * Приводит добавку шага к объекту: `undefined` и `never` становятся `{}`,
+ * чтобы шаг без добавки не менял тип пайплайна.
  */
 type NormalizeAddition<TAdd> = [TAdd] extends [never]
   ? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -336,18 +336,18 @@ type NormalizeAddition<TAdd> = [TAdd] extends [never]
     : // eslint-disable-next-line @typescript-eslint/no-empty-object-type
       {};
 
-/** Добавка `.pre`-юнита любой формы, приведённая к объекту */
-type ExtractAddition<M> = AdditionOf<PreUnitResult<M>>;
+/** Добавка `.pre`-шага любой формы, приведённая к объекту */
+type ExtractAddition<M> = AdditionOf<PreStepResult<M>>;
 
 /**
- * Отложенные зависимости юнита: для класс-формы это её конструктор, для
+ * Отложенные зависимости шага: для класс-формы это её конструктор, для
  * писателя переменной с зависимостями — его DI-токены, для остальных форм
  * — `never`.
  */
 type ExtractNeeds<M> =
-  M extends Constructor<UnitInstance<any>>
+  M extends Constructor<StepInstance<any>>
     ? M
-    : M extends { readonly [UNIT_NEEDS]: readonly (infer N)[] }
+    : M extends { readonly [STEP_NEEDS]: readonly (infer N)[] }
       ? N
       : never;
 
@@ -370,22 +370,22 @@ export interface PipelineTypes<
 /**
  * Даёт `bind()` значение по DI-токену; обычно это контейнер.
  *
- * Резолвер один на оба вида отложенных зависимостей: класс-юнит — DI-токен,
+ * Резолвер один на оба вида отложенных зависимостей: класс-шаг — DI-токен,
  * которым служит сам класс, писатель переменной — список DI-токенов из
  * `Var.provide(deps, compute)`.
  */
-export type UnitResolver = (token: InjectionToken) => unknown;
+export type StepResolver = (token: InjectionToken) => unknown;
 
 /**
  * Пайплайн: иммутабельное значение, которое умеет выполнить запрос.
  *
  * @template TReq - Требования слоя к внешнему контексту. Задаются
  * `makePipeline<TReq>()` и проверяются компилятором в `compose`
- * @template TAcc - `input`, накопленный `.pre`-юнитами (включает `TReq`)
- * @template TNeeds - Отложенные зависимости: классы-юниты без инстанса и
+ * @template TAcc - `input`, накопленный `.pre`-шагами (включает `TReq`)
+ * @template TNeeds - Отложенные зависимости: классы-шаги без инстанса и
  * DI-токены писателей переменных. `never` — пайплайн готов к выполнению;
  * иначе нужен `bind()` (`App` вызывает его на фазе WIRE)
- * @template TFails - Отказы, объявленные при подключении `.pre`-юнитов.
+ * @template TFails - Отказы, объявленные при подключении `.pre`-шагов.
  * Декларация складывает их со своим `errors:` в эффективное множество
  */
 export interface Pipeline<
@@ -399,17 +399,17 @@ export interface Pipeline<
 
   /**
    * Резолвит отложенные зависимости через `resolve` (обычно это контейнер)
-   * — создаёт инстансы классов-юнитов и подставляет значения писателям
+   * — создаёт инстансы классов-шагов и подставляет значения писателям
    * переменных — и возвращает пайплайн, готовый к выполнению
    * (`TNeeds = never`).
    */
-  bind(resolve: UnitResolver): Pipeline<TReq, TAcc, never, TFails>;
+  bind(resolve: StepResolver): Pipeline<TReq, TAcc, never, TFails>;
 
   /**
-   * Выполняет запрос: `.pre`-юниты, проверку входа по схеме `input`,
+   * Выполняет запрос: `.pre`-шаги, проверку входа по схеме `input`,
    * хендлер, `.ok`/`.catch`, проверку `errors:` и `.finally`.
    *
-   * Доступен только при `TNeeds = never`: у всех классов-юнитов есть
+   * Доступен только при `TNeeds = never`: у всех классов-шагов есть
    * инстансы.
    *
    * @param handler - Хендлер endpoint'а; получает `payload` и `meta`
@@ -443,33 +443,33 @@ export interface PhasedPipeline<
   TNeeds = never,
   TFails extends AnyFail = never,
 > extends Pipeline<TReq, TAcc, TNeeds, TFails> {
-  /** Добавляет юнит для успешного ответа; юнит видит полный `ctx` */
-  ok<M extends UnitLike<OkUnitFn<TAcc>>>(
-    unit: M,
+  /** Добавляет шаг для успешного ответа; шаг видит полный `ctx` */
+  ok<M extends StepLike<OkStepFn<TAcc>>>(
+    step: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
 
-  /** Добавляет юнит для ответа-ошибки; поля своего слоя в `ctx` — `Partial` */
-  catch<M extends UnitLike<CatchUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
-    unit: M,
+  /** Добавляет шаг для ответа-ошибки; поля своего слоя в `ctx` — `Partial` */
+  catch<M extends StepLike<CatchStepFn<ResponseTrackInput<TReq, TAcc>>>>(
+    step: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
 
   /** Добавляет наблюдатель исхода; вызывается всегда и последним */
-  finally<M extends UnitLike<FinallyUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
-    unit: M,
+  finally<M extends StepLike<FinallyStepFn<ResponseTrackInput<TReq, TAcc>>>>(
+    step: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
 }
 
 /**
  * Второй аргумент `.pre`: объявление отказов и досрочного успеха
- * подключаемого юнита.
+ * подключаемого шага.
  */
 export interface PreOptions<
   F extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
 > {
   /**
-   * Отказы, которыми может завершиться юнит: список определений `makeFail`.
+   * Отказы, которыми может завершиться шаг: список определений `makeFail`.
    *
-   * Юнит может вернуть отказ только из этого списка или отказ ядра;
+   * Шаг может вернуть отказ только из этого списка или отказ ядра;
    * остальное — ошибка компиляции в точке `.pre`. Декларация со слоем
    * получает эти отказы в своё эффективное множество и не перечисляет их
    * в `errors:`.
@@ -477,16 +477,16 @@ export interface PreOptions<
   errors?: F;
 
   /**
-   * Право юнита завершить endpoint досрочным успехом — вернуть `done()`.
+   * Право шага завершить endpoint досрочным успехом — вернуть `done()`.
    *
    * Признак ставится на пайплайн-значение. Декларация с таким пайплайном
    * обязана быть без `output`: значения досрочный успех не несёт.
-   * Возврат `done()` из юнита без признака роняет запрос ошибкой.
+   * Возврат `done()` из шага без признака роняет запрос ошибкой.
    */
   done?: boolean;
 }
 
-/** Пайплайн, к которому ещё можно добавлять `.pre`-юниты */
+/** Пайплайн, к которому ещё можно добавлять `.pre`-шаги */
 export interface PipelineBuilder<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
@@ -494,14 +494,14 @@ export interface PipelineBuilder<
   TFails extends AnyFail = never,
 > extends PhasedPipeline<TReq, TAcc, TNeeds, TFails> {
   /**
-   * Добавляет юнит до хендлера; его добавка расширяет `input`, а
+   * Добавляет шаг до хендлера; его добавка расширяет `input`, а
    * объявленные вторым аргументом отказы — множество отказов пайплайна.
    */
   pre<
-    M extends UnitLike<PreUnitFn<any, any, any>>,
+    M extends StepLike<PreStepFn<any, any, any>>,
     F extends readonly AnyFailDefinition[] = [],
   >(
-    unit: ValidatePreUnit<TAcc, F, M>,
+    step: ValidatePreStep<TAcc, F, M>,
     options?: PreOptions<F>,
   ): PipelineBuilder<
     TReq,
@@ -541,17 +541,17 @@ type Guard<
 // Рантайм
 // ---------------------------------------------------------------------------
 
-type AnyUnitFn = (...args: unknown[]) => unknown;
+type AnyStepFn = (...args: unknown[]) => unknown;
 
-interface UnitEntry {
-  /** Готовая к вызову функция юнита (или `handle` инстанса с `bind`) */
-  fn?: AnyUnitFn;
-  /** Класс юнита, пока `bind()` не создал инстанс */
-  ctor?: Constructor<UnitInstance<AnyUnitFn>>;
-  /** Отложенный юнит, пока `bind()` не подставил значения зависимостей */
-  deferred?: DeferredUnit;
+interface StepEntry {
+  /** Готовая к вызову функция шага (или `handle` инстанса с `bind`) */
+  fn?: AnyStepFn;
+  /** Класс шага, пока `bind()` не создал инстанс */
+  ctor?: Constructor<StepInstance<AnyStepFn>>;
+  /** Отложенный шаг, пока `bind()` не подставил значения зависимостей */
+  deferred?: DeferredStep;
   /**
-   * Имя юнита в той форме, в какой его подключили.
+   * Имя шага в той форме, в какой его подключили.
    *
    * Считается один раз при подключении и переживает `bind()`: у инстанса
    * `handle.bind(instance)` называется `bound handle`, и текст ошибки по
@@ -560,83 +560,83 @@ interface UnitEntry {
   name: string;
 }
 
-/** Имя юнита, которому ещё нужен `bind()`; `undefined` — юнит готов */
-const pendingUnitName = (entry: UnitEntry): string | undefined =>
+/** Имя шага, которому ещё нужен `bind()`; `undefined` — шаг готов */
+const pendingStepName = (entry: StepEntry): string | undefined =>
   entry.fn ? undefined : (entry.ctor?.name ?? entry.deferred?.name);
 
 type ResponsePhase = 'ok' | 'catch';
 
-interface ResponseEntry extends UnitEntry {
+interface ResponseEntry extends StepEntry {
   phase: ResponsePhase;
 }
 
 interface Layer {
-  pre: UnitEntry[];
+  pre: StepEntry[];
   responses: ResponseEntry[];
-  finals: UnitEntry[];
+  finals: StepEntry[];
 }
 
-function normalizeUnit(unit: unknown): UnitEntry {
-  const name = describeUnit(unit);
+function normalizeStep(step: unknown): StepEntry {
+  const name = describeStep(step);
 
-  if (typeof unit === 'function') {
+  if (typeof step === 'function') {
     // Писатель с зависимостями — заглушка до `bind()`: исполнять её нельзя
-    const deferred = deferredOf(unit);
+    const deferred = deferredOf(step);
     if (deferred) {
       return { deferred, name: deferred.name };
     }
 
-    // У класса-юнита есть handle в прототипе; обычная функция — сама юнит
-    const proto = (unit as { prototype?: { handle?: unknown } }).prototype;
+    // У класса-шага есть handle в прототипе; обычная функция — сама шаг
+    const proto = (step as { prototype?: { handle?: unknown } }).prototype;
     if (proto && typeof proto.handle === 'function') {
-      return { ctor: unit as Constructor<UnitInstance<AnyUnitFn>>, name };
+      return { ctor: step as Constructor<StepInstance<AnyStepFn>>, name };
     }
-    return { fn: unit as AnyUnitFn, name };
+    return { fn: step as AnyStepFn, name };
   }
 
   if (
-    unit !== null &&
-    typeof unit === 'object' &&
-    typeof (unit as UnitInstance<AnyUnitFn>).handle === 'function'
+    step !== null &&
+    typeof step === 'object' &&
+    typeof (step as StepInstance<AnyStepFn>).handle === 'function'
   ) {
-    const instance = unit as UnitInstance<AnyUnitFn>;
+    const instance = step as StepInstance<AnyStepFn>;
     return { fn: instance.handle.bind(instance), name };
   }
 
   throw new TypeError(
-    'Pipeline unit must be a function, an instance with handle(), or a class with handle()',
+    'Pipeline step must be a function, an instance with handle(), or a class with handle()',
   );
 }
 
-/** Имя юнита для текстов ошибок: у инстанса — имя его класса */
-function describeUnit(unit: unknown): string {
-  if (typeof unit === 'function') {
-    return unit.name || '<anonymous>';
+/** Имя шага для текстов ошибок: у инстанса — имя его класса */
+function describeStep(step: unknown): string {
+  if (typeof step === 'function') {
+    return step.name || '<anonymous>';
   }
 
-  const ctor = (unit as { constructor?: { name?: string } } | undefined)
+  const ctor = (step as { constructor?: { name?: string } } | undefined)
     ?.constructor;
 
-  return ctor?.name ?? String(unit);
+  return ctor?.name ?? String(step);
 }
 
 /**
  * Проверяет список `errors` второго аргумента `.pre`: каждый элемент
- * создан `makeFail`, коды не повторяются. Текст ошибки называет юнит.
+ * создан `makeFail`, коды не повторяются. Текст ошибки называет шаг.
  *
  * Правило то же, что у `errors:` декларации; отличается только адресат в
  * тексте.
  */
 function readPreFails(
   options: { errors?: unknown } | undefined,
-  unit: unknown,
+  step: unknown,
 ): readonly AnyFailDefinition[] {
   const errors = options?.errors;
   if (errors === undefined) {
     return [];
   }
 
-  const where = `pre(${describeUnit(unit)}, { errors })`;
+  const where = `pre(${describeStep(step)}, { errors })`;
 
   if (!Array.isArray(errors)) {
     throw new TypeError(
@@ -666,11 +666,11 @@ function readPreFails(
  * Читает признак досрочного успеха второго аргумента `.pre`.
  *
  * Правило то же, что у `errors`: значение проверяется там, где объявлено,
- * и текст ошибки называет юнит.
+ * и текст ошибки называет шаг.
  */
 function readPreDone(
   options: { done?: unknown } | undefined,
-  unit: unknown,
+  step: unknown,
 ): boolean {
   const done = options?.done;
 
@@ -680,8 +680,8 @@ function readPreDone(
 
   if (typeof done !== 'boolean') {
     throw new TypeError(
-      `pre(${describeUnit(unit)}, { done }): 'done' must be a boolean — ` +
-        `it declares that the unit may finish the endpoint with an early ` +
+      `pre(${describeStep(step)}, { done }): 'done' must be a boolean — ` +
+        `it declares that the step may finish the endpoint with an early ` +
         `success.`,
     );
   }
@@ -720,12 +720,12 @@ function cloneLayer(layer: Layer): Layer {
 }
 
 /**
- * Возвращает функцию юнита. Ошибка недостижима после проверки классов без
+ * Возвращает функцию шага. Ошибка недостижима после проверки классов без
  * инстансов в `execute`; она страхует от рассинхрона двух проверок.
  */
-function materialized(entry: UnitEntry): AnyUnitFn {
+function materialized(entry: StepEntry): AnyStepFn {
   if (!entry.fn) {
-    throw new Error('Pipeline unit is not materialized; call bind() first');
+    throw new Error('Pipeline step is not materialized; call bind() first');
   }
   return entry.fn;
 }
@@ -740,7 +740,7 @@ class PipelineImpl {
     private readonly layers: Layer[],
     /** `true` после первого `.ok`/`.catch`/`.finally`: `.pre` закрыт */
     private readonly sealed: boolean,
-    /** `true` для результата `compose`: юниты добавлять нельзя */
+    /** `true` для результата `compose`: шаги добавлять нельзя */
     private readonly composed = false,
     /**
      * Значения, из которых получен этот пайплайн.
@@ -752,7 +752,7 @@ class PipelineImpl {
      */
     private readonly sources: readonly PipelineImpl[] = [],
     /**
-     * Контекстные переменные, объявленные `.pre`-юнитами этого пайплайна.
+     * Контекстные переменные, объявленные `.pre`-шагами этого пайплайна.
      *
      * Правила те же, что у `sources`: `compose` объединяет множества,
      * методы билдера и `bind()` их сохраняют. В выполнении не участвует:
@@ -761,7 +761,7 @@ class PipelineImpl {
      */
     private readonly declared: ReadonlySet<AnyContextVar> = new Set(),
     /**
-     * Отказы, объявленные при подключении `.pre`-юнитов этого пайплайна.
+     * Отказы, объявленные при подключении `.pre`-шагов этого пайплайна.
      *
      * Правила те же, что у `declared`: `compose` объединяет множества,
      * методы билдера и `bind()` их сохраняют. Множество читает
@@ -770,8 +770,8 @@ class PipelineImpl {
      */
     private readonly declaredFails: ReadonlySet<AnyFailDefinition> = new Set(),
     /**
-     * Подключён ли хоть один `.pre`-юнит с правом досрочного успеха
-     * (`.pre(unit, { done: true })`).
+     * Подключён ли хоть один `.pre`-шаг с правом досрочного успеха
+     * (`.pre(step, { done: true })`).
      *
      * Правила те же, что у `declaredFails`: `compose` берёт дизъюнкцию,
      * методы билдера и `bind()` признак сохраняют. Читают его
@@ -783,17 +783,17 @@ class PipelineImpl {
     // Слои после конструктора не меняются: методы билдера и `bind()`
     // возвращают новый экземпляр. Поэтому инварианты, которые раньше
     // проверялись на каждый запрос, считаются здесь один раз
-    this.unresolvedUnit = layers
+    this.unresolvedStep = layers
       .flatMap((layer) => [...layer.pre, ...layer.responses, ...layer.finals])
-      .map(pendingUnitName)
+      .map(pendingStepName)
       .find((name) => name !== undefined);
     this.hasFinals = layers.some((layer) => layer.finals.length > 0);
   }
 
-  /** Имя первого юнита, которому нужен `bind()`; `execute` отказывает по нему */
-  private readonly unresolvedUnit: string | undefined;
+  /** Имя первого шага, которому нужен `bind()`; `execute` отказывает по нему */
+  private readonly unresolvedStep: string | undefined;
 
-  /** Есть ли хоть один `.finally`-юнит; без них ответная фаза их не ждёт */
+  /** Есть ли хоть один `.finally`-шаг; без них ответная фаза их не ждёт */
   private readonly hasFinals: boolean;
 
   static emptyLayer(): PipelineImpl {
@@ -875,7 +875,7 @@ class PipelineImpl {
   ): PipelineImpl {
     if (this.composed) {
       throw new Error(
-        'Cannot add units to a composed pipeline; add them to a layer before compose()',
+        'Cannot add steps to a composed pipeline; add them to a layer before compose()',
       );
     }
     // Builder всегда владеет ровно одним слоем
@@ -905,7 +905,7 @@ class PipelineImpl {
   }
 
   pre(
-    unit: unknown,
+    step: unknown,
     options?: { errors?: unknown; done?: unknown },
   ): PipelineImpl {
     if (this.sealed) {
@@ -913,55 +913,55 @@ class PipelineImpl {
         'pre() is not available after a response-phase method (.ok/.catch/.finally)',
       );
     }
-    // Список проверяется здесь же, где объявлен: ошибка называет юнит
-    const fails = readPreFails(options, unit);
-    const done = readPreDone(options, unit);
+    // Список проверяется здесь же, где объявлен: ошибка называет шаг
+    const fails = readPreFails(options, step);
+    const done = readPreDone(options, step);
 
-    // Объявителем переменной считается только юнит из `<Var>.provide(…)`
+    // Объявителем переменной считается только шаг из `<Var>.provide(…)`
     return this.withOwnLayer(
-      (l) => l.pre.push(normalizeUnit(unit)),
+      (l) => l.pre.push(normalizeStep(step)),
       false,
-      declaredVarOf(unit),
+      declaredVarOf(step),
       fails,
       done,
     );
   }
 
-  ok(unit: unknown): PipelineImpl {
+  ok(step: unknown): PipelineImpl {
     return this.withOwnLayer(
-      (l) => l.responses.push({ ...normalizeUnit(unit), phase: 'ok' }),
+      (l) => l.responses.push({ ...normalizeStep(step), phase: 'ok' }),
       true,
     );
   }
 
-  catch(unit: unknown): PipelineImpl {
+  catch(step: unknown): PipelineImpl {
     return this.withOwnLayer(
-      (l) => l.responses.push({ ...normalizeUnit(unit), phase: 'catch' }),
+      (l) => l.responses.push({ ...normalizeStep(step), phase: 'catch' }),
       true,
     );
   }
 
-  finally(unit: unknown): PipelineImpl {
-    return this.withOwnLayer((l) => l.finals.push(normalizeUnit(unit)), true);
+  finally(step: unknown): PipelineImpl {
+    return this.withOwnLayer((l) => l.finals.push(normalizeStep(step)), true);
   }
 
-  bind(resolve: UnitResolver): PipelineImpl {
-    const resolveEntry = <E extends UnitEntry>(entry: E): E => {
+  bind(resolve: StepResolver): PipelineImpl {
+    const resolveEntry = <E extends StepEntry>(entry: E): E => {
       if (entry.deferred) {
         const { name, deps, make } = entry.deferred;
-        // Значения берутся один раз: писатель — синглтон, как класс-юнит
+        // Значения берутся один раз: писатель — синглтон, как класс-шаг
         const values = deps.map((token) => {
           const value = resolve(token);
           if (value === undefined) {
             throw new Error(
-              `Cannot bind pipeline unit ${name}: resolver returned no value ` +
+              `Cannot bind pipeline step ${name}: resolver returned no value ` +
                 `for '${tokenId(token)}'`,
             );
           }
           return value;
         });
 
-        return { ...entry, deferred: undefined, fn: make(values) as AnyUnitFn };
+        return { ...entry, deferred: undefined, fn: make(values) as AnyStepFn };
       }
       if (!entry.ctor) {
         return entry;
@@ -970,14 +970,14 @@ class PipelineImpl {
       if (
         instance === null ||
         typeof instance !== 'object' ||
-        typeof (instance as UnitInstance<AnyUnitFn>).handle !== 'function'
+        typeof (instance as StepInstance<AnyStepFn>).handle !== 'function'
       ) {
         throw new Error(
-          `Cannot bind pipeline unit ${entry.ctor.name}: resolver returned no instance with handle()`,
+          `Cannot bind pipeline step ${entry.ctor.name}: resolver returned no instance with handle()`,
         );
       }
-      const unit = instance as UnitInstance<AnyUnitFn>;
-      return { ...entry, ctor: undefined, fn: unit.handle.bind(unit) };
+      const step = instance as StepInstance<AnyStepFn>;
+      return { ...entry, ctor: undefined, fn: step.handle.bind(step) };
     };
 
     return new PipelineImpl(
@@ -999,7 +999,7 @@ class PipelineImpl {
 
   /**
    * Открывает область асинхронного контекста на всё выполнение запроса:
-   * `.pre`-юниты, проверку входа, хендлер, `.ok`/`.catch`, проверку
+   * `.pre`-шаги, проверку входа, хендлер, `.ok`/`.catch`, проверку
    * `errors:` и `.finally`.
    *
    * Область открывается всегда, даже если в приложении нет ни одного
@@ -1025,9 +1025,9 @@ class PipelineImpl {
     ctx: ExtendableContext<AnyInput>,
     options: ExecuteOptions = {},
   ): Promise<ResponseContext<unknown>> {
-    if (this.unresolvedUnit !== undefined) {
+    if (this.unresolvedStep !== undefined) {
       throw new Error(
-        `Pipeline has unresolved units (${this.unresolvedUnit}); ` +
+        `Pipeline has unresolved steps (${this.unresolvedStep}); ` +
           'call bind() or run under App',
       );
     }
@@ -1046,7 +1046,7 @@ class PipelineImpl {
     // префикс `layers`, и ответной фазе хватает его длины
     let activatedCount = 0;
 
-    /** Один из pre-юнитов вернул `done()`: хендлера не будет */
+    /** Один из pre-шагов вернул `done()`: хендлера не будет */
     let earlySuccess = false;
 
     /**
@@ -1064,8 +1064,8 @@ class PipelineImpl {
     let unhandled = false;
 
     try {
-      // `.pre`-юниты слоёв, снаружи внутрь. Слой активирован с первого
-      // своего `.pre`-юнита: его `.ok`/`.catch`/`.finally` выполнятся.
+      // `.pre`-шаги слоёв, снаружи внутрь. Слой активирован с первого
+      // своего `.pre`-шага: его `.ok`/`.catch`/`.finally` выполнятся.
       layers: for (const layer of this.layers) {
         activatedCount += 1;
         for (const entry of layer.pre) {
@@ -1082,8 +1082,8 @@ class PipelineImpl {
             break layers;
           }
 
-          // Отказ, возвращённый юнитом, идёт тем же путём, что брошенный:
-          // в контекст он не пишется, следующие юниты и хендлер не
+          // Отказ, возвращённый шагом, идёт тем же путём, что брошенный:
+          // в контекст он не пишется, следующие шаги и хендлер не
           // вызываются, ответную фазу открывает тот же `catch`
           if (isFail(result)) {
             throw result;
@@ -1091,7 +1091,7 @@ class PipelineImpl {
 
           // Результат дописывается в тот же объект `input`: ячейка контекста
           // ссылается на него с создания, и сервис, вызванный следующим
-          // юнитом, читает через `Ctx` уже дополненный контекст
+          // шагом, читает через `Ctx` уже дополненный контекст
           if (result !== undefined && result !== null) {
             Object.assign(ctx.input, result as AnyAddition);
           }
@@ -1109,11 +1109,11 @@ class PipelineImpl {
           payload?: unknown;
         };
 
-        // Кандидат проверки: `.pre`-юнит мог подменить значение для
+        // Кандидат проверки: `.pre`-шаг мог подменить значение для
         // хендлера, положив в контекст ключ `payload`
         const candidate = 'payload' in finalInput ? payload : ctx.raw.payload;
 
-        // Проверка входа стоит после всех `.pre`-юнитов и до хендлера: к
+        // Проверка входа стоит после всех `.pre`-шагов и до хендлера: к
         // этому моменту активированы все слои, поэтому отказ 400 видят их
         // `.catch` и `.finally`
         const effectivePayload = validateInput(
@@ -1124,13 +1124,13 @@ class PipelineImpl {
         setPhase(cell, 'handler');
 
         // Ключ `signal` зарезервирован: значение пайплайна перекрывает
-        // одноимённое поле из `.pre`-юнитов
+        // одноимённое поле из `.pre`-шагов
         const result = await handler(effectivePayload, {
           ...meta,
           signal: ctx.signal,
         });
 
-        // Возвращённый `Fail` обрабатывается как брошенный: `.ok`-юниты не
+        // Возвращённый `Fail` обрабатывается как брошенный: `.ok`-шаги не
         // выполняются ни в одном из двух случаев
         if (isFail(result)) {
           originalError = result;
@@ -1147,8 +1147,8 @@ class PipelineImpl {
 
     setPhase(cell, 'response');
 
-    // `.ok`/`.catch`: активированные слои изнутри наружу, юниты слоя в
-    // порядке объявления. Юнит выполняется, если подходит текущему ответу.
+    // `.ok`/`.catch`: активированные слои изнутри наружу, шаги слоя в
+    // порядке объявления. Шаг выполняется, если подходит текущему ответу.
     for (let index = activatedCount - 1; index >= 0; index--) {
       const layer = this.layers[index];
       for (const entry of layer.responses) {
@@ -1177,7 +1177,7 @@ class PipelineImpl {
           }
         } catch (error) {
           // Исключение из `.ok`/`.catch` — необработанная ошибка: ответ
-          // заменяется, остальные юниты продолжают
+          // заменяется, остальные шаги продолжают
           originalError = error;
           unhandled = !isFail(error);
           response = this.errorToResponse(error, exposeErrorDetails);
@@ -1198,7 +1198,7 @@ class PipelineImpl {
     );
 
     // `.finally`: изнутри наружу, всегда. Исключения наблюдателей на ответ
-    // не влияют; юнит обрабатывает свои ошибки сам
+    // не влияют; шаг обрабатывает свои ошибки сам
     const runFinals = async (
       outcome: Outcome,
       settled: ResponseContext<unknown>,
@@ -1218,7 +1218,7 @@ class PipelineImpl {
     /**
      * Завершение запроса: метрика и наблюдатели, в этом порядке.
      *
-     * Метрика — до `.finally`-юнитов: их ошибки проглатываются, и запись
+     * Метрика — до `.finally`-шагов: их ошибки проглатываются, и запись
      * не должна зависеть от того, чем занят наблюдатель. Исход у обеих
      * сторон один и тот же.
      */
@@ -1279,7 +1279,7 @@ class PipelineImpl {
       );
 
       // Область контекста — самая внешняя обёртка: в ней выполняются и
-      // шаги потока, и `.finally`-юниты после его завершения
+      // шаги потока, и `.finally`-шаги после его завершения
       return {
         ...delivered,
         value: iterateInScope(cell, stream),
@@ -1423,7 +1423,7 @@ class PipelineImpl {
       return response;
     }
 
-    // Исходной ошибки может не быть (ответ собрал `.catch`-юнит вручную);
+    // Исходной ошибки может не быть (ответ собрал `.catch`-шаг вручную);
     // тогда в запись попадает сам ответ
     reportUnknownFail(logger, originalError ?? response, endpoint);
 
@@ -1492,7 +1492,7 @@ export function makePipeline<
 
 /**
  * Складывает слои в один пайплайн. Список читается сверху вниз как
- * «снаружи внутрь»: `.pre`-юниты выполняются снаружи внутрь,
+ * «снаружи внутрь»: `.pre`-шаги выполняются снаружи внутрь,
  * `.ok`/`.catch` и `.finally` — изнутри наружу. Требования каждого слоя к
  * внешнему контексту проверяет компилятор.
  */
@@ -1562,7 +1562,7 @@ export function compose(...pipelines: AnyPipeline[]): AnyPipeline {
 /**
  * Проверяет, что `pipeline` содержит слой `layer`.
  *
- * Слои сравниваются по ссылке, а не по имени, юнитам или структуре.
+ * Слои сравниваются по ссылке, а не по имени, шагам или структуре.
  * Отношение транзитивно (`compose(compose(base, authed), extra)` содержит
  * все три слоя) и рефлексивно (пайплайн содержит сам себя).
  *
@@ -1580,7 +1580,7 @@ export function derivesFrom(pipeline: unknown, layer: unknown): boolean {
 /**
  * Возвращает отказы, объявленные слоями `pipeline`.
  *
- * Объявлением считается второй аргумент `.pre(unit, { errors })`.
+ * Объявлением считается второй аргумент `.pre(step, { errors })`.
  * Определения с одним `code` схлопнуты в одно: множество уже сложено
  * `compose` и методами билдера. Значение не пайплайна даёт пустой список.
  *
@@ -1597,7 +1597,7 @@ export function declaredFailsOf(
 
 /**
  * Проверяет, что `pipeline` несёт признак досрочного успеха: хоть один
- * его `.pre`-юнит подключён как `.pre(unit, { done: true })`.
+ * его `.pre`-шаг подключён как `.pre(step, { done: true })`.
  *
  * Значение не пайплайна даёт `false`.
  *
@@ -1613,7 +1613,7 @@ export function declaresDone(pipeline: unknown): boolean {
 /**
  * Проверяет, что `pipeline` объявил контекстную переменную `variable`.
  *
- * Объявлением считается только `.pre`-юнит вида `<Var>.provide(…)`. Юнит,
+ * Объявлением считается только `.pre`-шаг вида `<Var>.provide(…)`. Шаг,
  * который кладёт то же поле обычной функцией, работает (читатели видят
  * поле через `Ctx`), но объявлением не считается. Переменные сравниваются
  * по ссылке: одноимённая переменная из другого вызова `contextVar` —

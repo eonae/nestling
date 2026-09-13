@@ -33,7 +33,7 @@ const PARTS = [
   '## What is different from NestJS',
   '## Service skeleton',
   '## A minimal application',
-  '## Rules the compiler or ASSEMBLE catches',
+  '## Rules the compiler or BUILD catches',
   '## Where to look next',
 ];
 

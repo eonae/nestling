@@ -4,7 +4,7 @@
 
 import type {
   App,
-  AssembleArgs,
+  BuildArgs,
   CheckOptions,
   CheckReport,
 } from '@nestlingjs/app';
@@ -16,7 +16,7 @@ export interface TopologyReport<
   S extends readonly AnySwitch[] = readonly AnySwitch[],
 > {
   /** Аргумент сборки, с которым топология собиралась */
-  readonly args: AssembleArgs<S>;
+  readonly args: BuildArgs<S>;
 
   /** Состав, который вернул `check()` */
   readonly report: CheckReport;
@@ -27,7 +27,7 @@ export interface TopologyReport<
  *
  * Топология описывается аргументом сборки целиком: выбором фич и
  * значениями переключателей вместе. Элемент списка — то же значение, что
- * принимает `app.assemble(args)`.
+ * принимает `app.build(args)`.
  *
  * Разделение обязанностей намеренное: ядро фейлится быстро — первая же
  * несобираемая топология бросает свою ошибку, — а тестовый хелпер
@@ -65,7 +65,7 @@ export interface TopologyReport<
  */
 export async function checkTopologies<const S extends readonly AnySwitch[]>(
   app: App<S>,
-  topologies: readonly AssembleArgs<S>[],
+  topologies: readonly BuildArgs<S>[],
   options: CheckOptions = {},
 ): Promise<TopologyReport<S>[]> {
   if (!isApp(app)) {
@@ -93,7 +93,7 @@ export async function checkTopologies<const S extends readonly AnySwitch[]>(
   if (failures.length > 0) {
     throw new Error(
       `${failures.length} of ${topologies.length} topologies did not ` +
-        `assemble:\n${failures.join('\n')}`,
+        `build:\n${failures.join('\n')}`,
     );
   }
 
@@ -101,7 +101,7 @@ export async function checkTopologies<const S extends readonly AnySwitch[]>(
 }
 
 /** Читаемое имя топологии для сообщения об отказе */
-const describeArgs = (args: AssembleArgs<any>): string => {
+const describeArgs = (args: BuildArgs<any>): string => {
   if (typeof args === 'string') {
     return `'${args}'`;
   }

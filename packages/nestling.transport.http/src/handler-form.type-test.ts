@@ -1,5 +1,5 @@
 /**
- * Типовые тесты HTTP-формы хендлера и юнитов транспорта.
+ * Типовые тесты HTTP-формы хендлера и шагов транспорта.
  *
  * Файл не гоняется jest'ом: он и есть тест — если типы разойдутся, упадёт
  * `tsc` на сборке пакета. Негативные случаи закрыты `@ts-expect-error`:
@@ -13,7 +13,7 @@ import { httpEndpoint } from './helpers.js';
 import type { HttpHandler, HttpHandlerMeta } from './request.js';
 import type { HttpOutput } from './response.js';
 import { HttpResponse } from './response.js';
-import { withClientIp, withHeader } from './units.js';
+import { withClientIp, withHeader } from './steps.js';
 
 import type { Handler, HandlerMeta, Pipeline } from '@nestlingjs/app';
 import { implement, makePipeline, Ok } from '@nestlingjs/app';
@@ -84,15 +84,15 @@ const readsHeader = httpEndpoint.get('/whoami', {
     new Ok({ agent: meta.http.headers['user-agent'] ?? 'unknown' }),
 });
 
-/** Пайплайн из юнитов транспорта не растит `TNeeds` */
+/** Пайплайн из шагов транспорта не растит `TNeeds` */
 const httpBase = makePipeline<HttpStartContext>()
   .pre(withClientIp())
   .pre(withHeader('x-tenant'));
 
 const executable: Pipeline<HttpStartContext, any, never> = httpBase;
 
-/** Юнит транспорта читает стартовый контекст и виден хендлеру */
-const withUnits = httpEndpoint.get('/tenant', {
+/** Шаг транспорта читает стартовый контекст и виден хендлеру */
+const withSteps = httpEndpoint.get('/tenant', {
   output: z.object({ tenant: z.string(), ip: z.string() }),
   pipeline: httpBase,
   handler: async (_payload, meta) =>
@@ -103,7 +103,7 @@ const withUnits = httpEndpoint.get('/tenant', {
 });
 
 /** Тот же пайплайн в `implement` не компилируется */
-const unitsOnBus = implement(Login, {
+const stepsOnBus = implement(Login, {
   // @ts-expect-error { __error; missing: { http: HttpRequest }; hint }
   pipeline: httpBase,
   handler: LoginHandler,

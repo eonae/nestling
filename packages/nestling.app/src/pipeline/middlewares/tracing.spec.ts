@@ -1,8 +1,8 @@
 /**
- * Юнит `withTracing()`: продолжение трассы, её начало и снисходительность
+ * Шаг `withTracing()`: продолжение трассы, её начало и снисходительность
  * к значению, пришедшему из-за границы доверия.
  *
- * Проверяется поверхность юнита в изоляции от транспорта: источник
+ * Проверяется поверхность шага в изоляции от транспорта: источник
  * родителя — атрибуты кадра, и оба транспорта кладут их туда одинаково.
  */
 
@@ -29,7 +29,7 @@ const contextWith = (
     raw: { transport: 'http', pattern: 'GET /users', payload: {}, attributes },
   }) as unknown as ExtendableContext<never>;
 
-/** Исполняет юнит и отдаёт положенную им трассу */
+/** Исполняет шаг и отдаёт положенную им трассу */
 const trace = async (
   attributes: Record<string, unknown>,
 ): Promise<TraceContext> => {
@@ -146,7 +146,7 @@ describe('withTracing — объявление переменной', () => {
     expect(declaresVar(makePipeline().pre(withTracing()), twin)).toBe(false);
   });
 
-  it('политика перечисляет endpoint без юнита', () => {
+  it('политика перечисляет endpoint без шага', () => {
     const policy = everyEndpoint().hasVar(Trace, 'trace');
     const traced = subject('GET /users', makePipeline().pre(withTracing()));
     const bare = subject('GET /health');

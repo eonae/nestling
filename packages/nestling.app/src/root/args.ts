@@ -29,7 +29,7 @@ export type SwitchFields<S extends readonly AnySwitch[]> = {
 };
 
 /** Объектная форма аргумента сборки */
-export type AssembleObject<S extends readonly AnySwitch[]> = {
+export type BuildObject<S extends readonly AnySwitch[]> = {
   /** Имена выбранных фич либо `'all'` */
   readonly features?: string | readonly string[];
 
@@ -43,7 +43,7 @@ export type AssembleObject<S extends readonly AnySwitch[]> = {
 } & SwitchFields<S>;
 
 /**
- * Аргумент `assemble` и `check`.
+ * Аргумент `build` и `check`.
  *
  * Строковая форма — граница процесса (аргумент бинарника, переменная
  * окружения), она строковая по природе и задаёт только выбор фич.
@@ -51,10 +51,10 @@ export type AssembleObject<S extends readonly AnySwitch[]> = {
  * `load(RootConfig)` подходит ею целиком, когда имена полей совпадают с
  * именами переключателей.
  */
-export type AssembleArgs<S extends readonly AnySwitch[] = []> =
+export type BuildArgs<S extends readonly AnySwitch[] = []> =
   | string
   | readonly string[]
-  | AssembleObject<S>;
+  | BuildObject<S>;
 
 /** Разобранный аргумент сборки: выбор фич отдельно от значений */
 export interface ParsedArgs {
@@ -90,7 +90,7 @@ const isObjectForm = (args: unknown): args is Record<string, unknown> =>
  * @throws {Error} Неизвестное поле объектной формы
  */
 export function parseArgs(
-  args: AssembleArgs<any> | undefined,
+  args: BuildArgs<any> | undefined,
   switches: readonly AnySwitch[],
 ): ParsedArgs {
   if (args === undefined) {
@@ -111,9 +111,9 @@ export function parseArgs(
   for (const [field, value] of Object.entries(args)) {
     if (!known.has(field)) {
       throw new Error(
-        `Unknown field '${field}' in the assembly argument. Known fields: ` +
+        `Unknown field '${field}' in the build argument. Known fields: ` +
           `${[...known].map((name) => `'${name}'`).join(', ')}. The list is ` +
-          `closed, so a typo cannot silently assemble a different composition.`,
+          `closed, so a typo cannot silently build a different composition.`,
       );
     }
 
@@ -136,7 +136,7 @@ export function parseArgs(
  * Сопоставляет каждому объявленному переключателю значение: из аргумента
  * или из умолчания.
  *
- * Шаг 2 фазы ASSEMBLE — до раскрытия веток и до discovery.
+ * Шаг 2 фазы BUILD — до раскрытия веток и до discovery.
  *
  * @param switches - Переключатели, объявленные корнем
  * @param parsed - Разобранный аргумент сборки
@@ -156,9 +156,9 @@ export function resolveSwitchValues(
 
     if (chosen === undefined) {
       throw new Error(
-        `Switch '${declared.name}' has no default, and the assembly argument ` +
+        `Switch '${declared.name}' has no default, and the build argument ` +
           `does not set it. Pass it as the '${declared.name}' field: ` +
-          `app.assemble({ ${declared.name}: '${declared.values[0]}' }).`,
+          `app.build({ ${declared.name}: '${declared.values[0]}' }).`,
       );
     }
 
@@ -186,7 +186,7 @@ export function resolveSwitchValues(
  * промах по ней означает ровно это.
  *
  * @param declared - Переключатель ветки
- * @returns Ошибка фазы ASSEMBLE
+ * @returns Ошибка фазы BUILD
  */
 export const undeclaredSwitch = (declared: AnySwitch): Error =>
   new Error(

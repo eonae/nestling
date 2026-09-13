@@ -2,8 +2,8 @@
  * `spyLogger()` — логгер, который копит записи значениями.
  *
  * Подмена `[RootLogger$, spy.logger]` в `overrides` перехватывает записи
- * всех членов `Logger$` — и ядра, и приложения: рецепт семейства строит
- * член как `root.child({ scope })`, и дочерний логгер шпиона пишет в тот
+ * всех DI-токенов `Logger$` — и ядра, и приложения: рецепт семейства строит
+ * токен семейства как `root.child({ scope })`, и дочерний логгер шпиона пишет в тот
  * же список. Тест проверяет `entries`, а не разбирает `stderr`.
  */
 
@@ -23,7 +23,7 @@ export interface LogEntry {
 
 /** Логгер-шпион и его записи */
 export interface SpyLogger {
-  /** Логгер для подмены `RootLogger$` или передачи в юнит напрямую */
+  /** Логгер для подмены `RootLogger$` или передачи в шаг напрямую */
   readonly logger: Logger;
 
   /** Записи в порядке вызовов, включая записи дочерних логгеров */
@@ -71,7 +71,7 @@ const makeLogger = (entries: LogEntry[], bindings: Fields): Logger => {
  * @example
  * ```typescript
  * const spy = spyLogger();
- * await using testApp = await assembleTest(app, {
+ * await using testApp = await buildTest(app, {
  *   overrides: [[RootLogger$, spy.logger]],
  * });
  *

@@ -56,7 +56,7 @@ export const app = makeApp({
     ops,
     db,
     metricsPlugin(exporter),
-    // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
+    // Документ строится на фазе BUILD из тех же деклараций, которые
     // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
     Docs.when(appOpenapi),
   ],

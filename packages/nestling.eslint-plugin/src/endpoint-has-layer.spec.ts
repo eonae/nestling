@@ -123,7 +123,7 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
           message:
             "Endpoint declaration does not appear to compose layer 'authedBase'. " +
             'This is an editor hint, not a guarantee: the guarantee is the ' +
-            'assembly policy check (everyEndpoint({ … }).hasLayer(authedBase)) in ' +
+            'build policy check (everyEndpoint({ … }).hasLayer(authedBase)) in ' +
             "the composition root. Opt out deliberately with detached: '<reason>'.",
         },
       ],

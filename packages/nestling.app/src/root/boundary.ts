@@ -37,7 +37,7 @@ export type OwnerMap = ReadonlyMap<string, ModuleOwner>;
  *
  * @param features - Выбранные фичи с раскрытыми ветками
  * @param plugins - Подключённые плагины с раскрытыми ветками
- * @param values - Значения переключателей фазы ASSEMBLE
+ * @param values - Значения переключателей фазы BUILD
  * @returns Карта владельцев
  * @throws {Error} Если модуль достижим из двух и более фич
  */
@@ -76,7 +76,7 @@ export function buildOwnerMap(
         throw new Error(
           `Module '${module.name}' is reachable from two features, ` +
             `'${owner.name}' and '${feature.name}', so it has no single ` +
-            `owner and an edge into it cannot be classified. A unit shared ` +
+            `owner and an edge into it cannot be classified. A step shared ` +
             `by two features is infrastructure: declare it with makePlugin ` +
             `and list it in 'plugins:' of makeApp({ … }).`,
         );
@@ -113,7 +113,7 @@ const pluginToFeatureMessage = (
   `Plugin '${from}' depends on feature '${to}': ` +
   `'${consumer}' injects '${dependency}'. Infrastructure that knows about ` +
   `business logic can be neither reused nor shipped separately, and it stops ` +
-  `assembling as soon as '${to}' is not selected. Take the value as a ` +
+  `building as soon as '${to}' is not selected. Take the value as a ` +
   `parameter of the plugin, or inject a DI token the plugin declares itself.`;
 
 /**

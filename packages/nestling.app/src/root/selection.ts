@@ -75,7 +75,7 @@ function implementers(
  *
  * @param selected - Фичи, названные в аргументе сборки
  * @param declared - Все объявленные фичи с раскрытыми ветками
- * @param values - Значения переключателей фазы ASSEMBLE
+ * @param values - Значения переключателей фазы BUILD
  * @returns Выбор плюс фичи, реализующие вызываемые операции
  */
 export function closeOverCalls(

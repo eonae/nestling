@@ -163,11 +163,11 @@ describe('обёртка secret()', () => {
 });
 
 describe('DI-токен секции', () => {
-  it('идентификатор — член семейства ConfigSection', () => {
+  it('идентификатор — токен семейства ConfigSection', () => {
     expect(tokenId(OrdersConfig)).toBe('ConfigSection:orders');
   });
 
-  it('DI-токен секции и есть член семейства', () => {
+  it('DI-токен секции и есть токен семейства', () => {
     expect(OrdersConfig).toBe(ConfigSection('orders'));
   });
 

@@ -9,10 +9,10 @@
  * диагностики — каждый обязан называть починку, иначе он бесполезен.
  */
 
-import type { DeferredPreUnitFn } from '../deferred.js';
-import { deferredOf, UNIT_NEEDS } from '../deferred.js';
+import type { DeferredPreStepFn } from '../deferred.js';
+import { deferredOf, STEP_NEEDS } from '../deferred.js';
 import type { ExtendableContext } from '../types/context.js';
-import type { PreUnitFn } from '../types/unit.js';
+import type { PreStepFn } from '../types/step.js';
 
 import type { CtxReader } from './reader.js';
 import { ContextVarUnavailableError, Ctx, makeCtxReader } from './reader.js';
@@ -122,23 +122,23 @@ describe('isContextVar — форма значения опции', () => {
 describe('Var.provide — единственный канонический писатель', () => {
   it('строит добавку из своего ключа', async () => {
     const TenantId = contextVar<string>()('tenantId');
-    const unit = TenantId.provide(() => 'acme');
+    const step = TenantId.provide(() => 'acme');
 
-    await expect(unit({} as never)).resolves.toEqual({ tenantId: 'acme' });
+    await expect(step({} as never)).resolves.toEqual({ tenantId: 'acme' });
   });
 
-  it('помечает юнит переменной — неперечислимо', () => {
+  it('помечает шаг переменной — неперечислимо', () => {
     const TenantId = contextVar<string>()('tenantId');
-    const unit = TenantId.provide(() => 'acme');
+    const step = TenantId.provide(() => 'acme');
 
-    expect(declaredVarOf(unit)).toBe(TenantId);
-    expect(Object.keys(unit)).toEqual([]);
-    expect({ ...unit }).toEqual({});
+    expect(declaredVarOf(step)).toBe(TenantId);
+    expect(Object.keys(step)).toEqual([]);
+    expect({ ...step }).toEqual({});
   });
 
-  it('юнит, кладущий поле вручную, объявителем не считается', () => {
+  it('шаг, кладущий поле вручную, объявителем не считается', () => {
     expect(declaredVarOf(async () => ({ tenantId: 'acme' }))).toBeUndefined();
-    expect(declaredVarOf('not a unit')).toBeUndefined();
+    expect(declaredVarOf('not a step')).toBeUndefined();
   });
 
   it('Signal писать нечем — ни типом, ни в рантайме', () => {
@@ -231,12 +231,12 @@ describe('Ctx — типизированный аксессор', () => {
     // @ts-expect-error: переменная объявлена как string
     RequestId.provide(() => 1);
 
-    const unit = RequestId.provide(() => 'req-1');
+    const step = RequestId.provide(() => 'req-1');
     type _Addition = Expect<
-      Equal<typeof unit, PreUnitFn<EmptyInput, { requestId: string }>>
+      Equal<typeof step, PreStepFn<EmptyInput, { requestId: string }>>
     >;
 
-    expect(declaredVarOf(unit)).toBe(RequestId);
+    expect(declaredVarOf(step)).toBe(RequestId);
   });
 });
 
@@ -244,30 +244,30 @@ describe('Var.provide(deps, compute) — писатель с зависимос�
   const Database$ = makeToken<{ begin(): string }>('Database');
   const Tx = contextVar<string>()('tx');
 
-  it('до bind() юнит — заглушка, называющая починку', () => {
-    const unit = Tx.provide([Database$], (_ctx, db) => db.begin());
+  it('до bind() шаг — заглушка, называющая починку', () => {
+    const step = Tx.provide([Database$], (_ctx, db) => db.begin());
 
-    expect(() => unit({} as never)).toThrow(/tx\.provide.*bind\(\)/);
+    expect(() => step({} as never)).toThrow(/tx\.provide.*bind\(\)/);
   });
 
   it('несёт метку переменной и список DI-токенов — неперечислимо', () => {
-    const unit = Tx.provide([Database$], (_ctx, db) => db.begin());
+    const step = Tx.provide([Database$], (_ctx, db) => db.begin());
 
-    expect(declaredVarOf(unit)).toBe(Tx);
-    expect(unit[UNIT_NEEDS]).toEqual([Database$]);
-    expect(deferredOf(unit)?.deps).toEqual([Database$]);
-    expect(Object.keys(unit)).toEqual([]);
-    expect(unit.name).toBe('tx.provide');
+    expect(declaredVarOf(step)).toBe(Tx);
+    expect(step[STEP_NEEDS]).toEqual([Database$]);
+    expect(deferredOf(step)?.deps).toEqual([Database$]);
+    expect(Object.keys(step)).toEqual([]);
+    expect(step.name).toBe('tx.provide');
   });
 
   it('фабрика собирает добавку из контекста и значений зависимостей', async () => {
-    const unit = Tx.provide(
+    const step = Tx.provide(
       [Database$],
       (ctx: ExtendableContext<{ tenant: string }>, db) =>
         `${ctx.input.tenant}:${db.begin()}`,
     );
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const fn = deferredOf(unit)!.make([{ begin: () => 'tx-1' }]);
+    const fn = deferredOf(step)!.make([{ begin: () => 'tx-1' }]);
 
     await expect(
       (fn as (ctx: unknown) => Promise<unknown>)({ input: { tenant: 'acme' } }),
@@ -302,7 +302,7 @@ describe('Var.provide(deps, compute) — писатель с зависимос�
     type _Annotated = Expect<
       Equal<
         typeof withTenant,
-        DeferredPreUnitFn<{ tenant: string }, { tx: string }, typeof Database$>
+        DeferredPreStepFn<{ tenant: string }, { tx: string }, typeof Database$>
       >
     >;
 
@@ -310,7 +310,7 @@ describe('Var.provide(deps, compute) — писатель с зависимос�
     type _Plain = Expect<
       Equal<
         typeof plain,
-        DeferredPreUnitFn<EmptyInput, { tx: string }, typeof Database$>
+        DeferredPreStepFn<EmptyInput, { tx: string }, typeof Database$>
       >
     >;
 

@@ -12,7 +12,7 @@ import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
- * Семейство DI-токенов транспорта MCP: один член на экземпляр.
+ * Семейство DI-токенов транспорта MCP: один DI-токен на экземпляр.
  *
  * Им ссылается на транспорт каждая декларация инструмента; `App` берёт по
  * нему экземпляр из графа. Декларация выбирает экземпляр через `on:`; без

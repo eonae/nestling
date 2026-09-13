@@ -23,14 +23,14 @@ import { expect, it } from '@jest/globals';
 import { makeApp } from '@nestlingjs/app';
 import { OutboxRelay$ } from '@nestlingjs/outbox';
 import type { TestApp } from '@nestlingjs/testing';
-import { assembleTest, checkTopologies, stub } from '@nestlingjs/testing';
+import { buildTest, checkTopologies, stub } from '@nestlingjs/testing';
 import { http } from '@nestlingjs/transport.http';
 
 /**
  * Декларация для изоляции: те же фичи и плагины, но без шины.
  *
  * `http()` остаётся: пробы и метрики объявлены HTTP-endpoint'ами, и без
- * их транспорта сборка остановилась бы на ASSEMBLE. Брокера нет,
+ * их транспорта сборка остановилась бы на BUILD. Брокера нет,
  * соединение с ним не открывается, а соседние операции подменяются
  * стабами.
  */
@@ -60,7 +60,7 @@ describeWithDatabase('фича users в изоляции', () => {
     const checked: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       config: testConfig,
       // Ни владельца `notifications.check-address`, ни подписчика
@@ -106,7 +106,7 @@ describeWithDatabase('фича users в изоляции', () => {
   it('не публикует факт регистрации, когда адрес отвергнут', async () => {
     const registered: unknown[] = [];
 
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       config: testConfig,
       stubs: [
@@ -134,7 +134,7 @@ describeWithDatabase('фича users в изоляции', () => {
   });
 
   it('каждая застабанная операция реализована в одной из топологий', async () => {
-    await using testApp = await assembleTest(isolated, {
+    await using testApp = await buildTest(isolated, {
       args: 'users',
       config: testConfig,
       stubs: [

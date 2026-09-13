@@ -40,7 +40,7 @@ await makeApp({
   features: [UsersFeature], // the feature where GetUser is declared
   transports: [http()], // a declaration, not an instance
 })
-  .assemble()
+  .build()
   .run();
 ```
 
@@ -77,14 +77,14 @@ await makeApp({
   they are re-exported from here so that the documentation generator and a
   transport on top of a foreign server take the format from the same place
   as `httpCodeOf`.
-- **Byte level** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
+- **Byte level** — `buildPayload`, `bindingNeedsBody`, `parseJson`,
   `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
   `readQuery`, `sendResponse`.
 
   These parts are public on purpose: a custom `ITransport`
-  implementation can be assembled on top of a third-party HTTP server
+  implementation can be built on top of a third-party HTTP server
   from them, without changing the package.
-- **Pipeline units** ([design](../../docs/en/design/pipeline.md)) —
+- **Pipeline steps** ([design](../../docs/en/design/pipeline.md)) —
   `httpAccessLog`, `withClientIp`, `withHeader`.
 
 ## Package boundaries

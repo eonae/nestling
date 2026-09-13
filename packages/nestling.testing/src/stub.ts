@@ -3,7 +3,7 @@
  *
  * Шов «меж-фичевые вызовы»: фича-потребитель тестируется без соседей.
  * Механизм держится на уже существующем свойстве контейнера — явный
- * провайдер члена семейства **опережает** рецепт, поэтому боевой
+ * провайдер токена семейства **опережает** рецепт, поэтому боевой
  * `buildPort`/`buildEmitter` для застабанной операции не вызывается ни
  * разу, а вместе с ним не выполняется и проверка достижимости.
  *
@@ -119,7 +119,7 @@ function assertOperation(
  * Схема-лист value-формы или `undefined`, если валидировать нечем.
  *
  * Примитивные листы (`'binary'`/`'text'`) и не-value формы шине недоступны:
- * их отвергает проверка форм против её способностей ещё на ASSEMBLE.
+ * их отвергает проверка форм против её способностей ещё на BUILD.
  */
 function leafSchemaOf(io: unknown): Schema | undefined {
   const form = describeForm(io);
@@ -340,8 +340,8 @@ function makeEmitterStub(
  *
  * Сторона вызывателя выбирается **видом операции**, а не вызывающим:
  * `request` даёт пару с `operation.caller`, `command`/`event` — с
- * `operation.emitter`. Пара едет полем `stubs:` (`assembleTest`,
- * `testUnit`) и структурно годна для `overrides:`.
+ * `operation.emitter`. Пара едет полем `stubs:` (`buildTest`,
+ * `testBundle`) и структурно годна для `overrides:`.
  *
  * @param operation - Операция, объявленный `makeRequest`
  * @param impl - Реализация фейка: обычный хендлер по форме
@@ -350,7 +350,7 @@ function makeEmitterStub(
  *
  * @example
  * ```typescript
- * await using app = await assembleTest({
+ * await using app = await buildTest({
  *   features: [OrdersFeature],
  *   args: 'orders',
  *   stubs: [stub(ClaimQuota, async () => ({ granted: 1 }))],
@@ -385,7 +385,7 @@ export function stub(
 /**
  * Имена операций, застабанных списком `stubs:`.
  *
- * Состав читается по **членству DI-токена в семействах вызывателей**, а не по
+ * Состав читается по **принадлежности DI-токена семействам вызывателей**, а не по
  * бренду на паре: тест, написавший `[ChargeCard.caller, fake]` руками, тоже
  * подменил операция, и отчёт обязан это показывать. Обычные пары
  * `DI-токен → значение` в состав не входят — это не операции.

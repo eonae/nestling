@@ -1,7 +1,7 @@
 # Testing
 
-`assembleTest(app, options)` takes the same declaration that `main.ts`
-runs, walks it through BOOTSTRAP, ASSEMBLE, INIT and WIRE and stops there:
+`buildTest(app, options)` takes the same declaration that `main.ts`
+runs, walks it through BOOTSTRAP, BUILD, INIT and WIRE and stops there:
 the dispatch table exists, no socket is open, no signal handler is
 installed and nothing is printed. Names live in the README of
 [`@nestlingjs/testing`](https://www.npmjs.com/package/@nestlingjs/testing).
@@ -19,7 +19,7 @@ testEnvironmentOptions: {
 
 ## An application test
 
-<!-- snippet: assemble-test.ts -->
+<!-- snippet: build-test.ts -->
 ```typescript
 import { app } from './app.js';
 import { CreateUser } from './create-user.endpoint.js';
@@ -29,7 +29,7 @@ import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
 import {
-  assembleTest,
+  buildTest,
   checkTopologies,
   stub,
   unwrap,
@@ -47,7 +47,7 @@ const inMemoryUsers = (): UsersRepository => ({
 
 describe('users', () => {
   it('calls an endpoint through the whole pipeline, without a socket', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       // The same declaration `main.ts` runs, with two substitutions
       overrides: [[UsersRepository$, inMemoryUsers()]],
       config: vars({ API_TOKEN: 'test-token' }),
@@ -57,10 +57,10 @@ describe('users', () => {
   });
 
   it('returns a declared failure with its status and code', async () => {
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       overrides: [[UsersRepository$, inMemoryUsers()]],
       config: vars({ API_TOKEN: 'test-token' }),
-      // A stub answers for an operation this assembly does not implement;
+      // A stub answers for an operation this build does not implement;
       // its answer is validated against the operation schema
       stubs: [stub(ClaimQuota, async () => QuotaExceeded({ limit: 5 }))],
     });
@@ -74,7 +74,7 @@ describe('users', () => {
     ).toMatchObject({ isSuccess: false, status: 'too_many_requests' });
   });
 
-  it('assembles every deployment topology', async () => {
+  it('builds every deployment topology', async () => {
     // Structural only: no instance is created, so `config` binds the
     // required keys instead of substituting values
     const reports = await checkTopologies(app, ['all', 'users', 'quotas'], {
@@ -86,10 +86,10 @@ describe('users', () => {
 });
 ```
 
-- `await using` disposes the assembly at the end of the test; without it
+- `await using` disposes the build at the end of the test; without it
   resources stay open between tests.
 - `testApp.call(Endpoint, payload, options)` runs the whole pipeline for
-  that endpoint — units, validation, handler — without a network. The third
+  that endpoint — steps, validation, handler — without a network. The third
   argument carries what a transport would have brought: `attributes` for
   headers, `input` for transport specifics.
 - `unwrap(result)` returns the value of a success and throws on a failure,
@@ -108,16 +108,16 @@ import { test } from 'node:test';
 import { app } from './app.js';
 import { GetUser } from './get-user.endpoint.js';
 
-import { assembleTest, unwrap, vars } from '@nestlingjs/testing';
+import { buildTest, unwrap, vars } from '@nestlingjs/testing';
 
 /**
- * The same assembly under the runner built into Node. Nothing about the
+ * The same build under the runner built into Node. Nothing about the
  * framework changes: only the names of the test function and of the
  * assertion, and `--conditions=testing` on the command line instead of a
  * field in a config.
  */
 test('calls an endpoint through the whole pipeline, without a socket', async () => {
-  await using testApp = await assembleTest(app, {
+  await using testApp = await buildTest(app, {
     config: vars({ API_TOKEN: 'test-token' }),
   });
 
@@ -138,10 +138,10 @@ compiling them, and a decorator is syntax it cannot parse.
 | Option | Replaces |
 |---|---|
 | `overrides: [[Token, value]]` | a provider; anything only it needed is pruned from the graph |
-| `stubs: [stub(Operation, fn)]` | the owner of an operation this assembly does not implement |
+| `stubs: [stub(Operation, fn)]` | the owner of an operation this build does not implement |
 | `config: vars({ … })` | the config binding of the whole declaration, so `process.env` is not read |
 | `contextValue(Var, value)` | a context variable in the test root |
-| `args: 'users'` | the selection of features, as `assemble` would receive it |
+| `args: 'users'` | the selection of features, as `build` would receive it |
 
 The answer of a stub is validated against the schema of the operation, so a
 stub cannot promise something the real owner could not return.
@@ -151,7 +151,7 @@ a useful assertion that a fake really did replace a connection.
 ## Topologies
 
 `checkTopologies(app, ['all', { features: 'users', includeDeps: true }])`
-assembles every deployment variant structurally and reports the features,
+builds every deployment variant structurally and reports the features,
 the endpoints and the operations of each. It opens nothing. Run it once per
 application: it is what turns "we also deploy it split" into a test.
 
@@ -160,7 +160,7 @@ application: it is what turns "we also deploy it split" into a test.
 A handler class is an ordinary class. When the pipeline and the container
 are not the subject, construct it and call `handle`.
 
-<!-- snippet: handler-unit.ts -->
+<!-- snippet: handler-step.ts -->
 ```typescript
 import { UserNotFound } from './errors.js';
 import { GetUserHandler } from './get-user.endpoint.js';
@@ -181,6 +181,8 @@ describe('GetUserHandler', () => {
 });
 ```
 
-For a pipeline unit there is `testUnit(Unit, options)`, which builds the
-context around a single unit. Reach for the application test first: it
-costs milliseconds and it checks the wiring too.
+For one feature or one plugin on its own there is
+`testBundle(bundle, options)`. It builds a mini-application around that
+bundle, and every dependency a neighbour would have provided must be
+stubbed explicitly. Reach for the application test first: it costs
+milliseconds and it checks the wiring too.

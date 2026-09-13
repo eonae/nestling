@@ -1,6 +1,6 @@
 import type { HttpStartContext } from './helpers.js';
 
-import type { FinallyUnitFn, Logger, PreUnitFn } from '@nestlingjs/app';
+import type { FinallyStepFn, Logger, PreStepFn } from '@nestlingjs/app';
 
 /**
  * Кладёт значение заголовка запроса в контекст под тем же именем.
@@ -19,7 +19,7 @@ import type { FinallyUnitFn, Logger, PreUnitFn } from '@nestlingjs/app';
  */
 export function withHeader<const Name extends string>(
   name: Name,
-): PreUnitFn<HttpStartContext, Record<Name, string | undefined>> {
+): PreStepFn<HttpStartContext, Record<Name, string | undefined>> {
   return (ctx) =>
     ({ [name]: ctx.input.http.headers[name] }) as Record<
       Name,
@@ -30,11 +30,11 @@ export function withHeader<const Name extends string>(
 /**
  * Кладёт адрес сокета в поле `clientIp`.
  *
- * Заголовки прокси юнит не читает: за прокси это адрес прокси. Разбор
+ * Заголовки прокси шаг не читает: за прокси это адрес прокси. Разбор
  * `X-Forwarded-For` пишет приложение — доверять заголовку можно только
  * зная свою сеть.
  */
-export function withClientIp(): PreUnitFn<
+export function withClientIp(): PreStepFn<
   HttpStartContext,
   { clientIp: string | undefined }
 > {
@@ -46,21 +46,21 @@ export function withClientIp(): PreUnitFn<
  * счётчики байтов.
  *
  * Длительности в записи нет: часы на запрос стоят около 2% пропускной
- * способности `GET`, а измерить их дешевле неоткуда — юнит фазы
+ * способности `GET`, а измерить их дешевле неоткуда — шаг фазы
  * `.finally` вызывается один раз. Длительность запроса меряет слой
  * приложения, которому она нужна.
  *
- * Логгер приходит аргументом, как у `withRequestLogging`: так юнит
+ * Логгер приходит аргументом, как у `withRequestLogging`: так шаг
  * остаётся функцией и не растит `TNeeds` пайплайна.
  *
- * @param logger - Логгер; обычно член `Logger$(scope)`
+ * @param logger - Логгер; обычно токен семейства `Logger$(scope)`
  *
  * @example
  * ```typescript
  * const pipeline = makePipeline<HttpStartContext>().finally(httpAccessLog(logger));
  * ```
  */
-export function httpAccessLog(logger: Logger): FinallyUnitFn<HttpStartContext> {
+export function httpAccessLog(logger: Logger): FinallyStepFn<HttpStartContext> {
   return (outcome, response, ctx) => {
     const { http } = ctx.input;
 

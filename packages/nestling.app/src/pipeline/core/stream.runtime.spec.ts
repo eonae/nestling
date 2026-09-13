@@ -8,7 +8,7 @@ import { spyLogger } from '../../logger/__fixtures__/spy.js';
 import type { EndpointMeta, ResponseContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
-import type { Outcome } from './types/unit.js';
+import type { Outcome } from './types/step.js';
 import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import { isMidStreamFailure, makePipeline } from './pipeline.js';
 

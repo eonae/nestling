@@ -19,8 +19,8 @@ import {
 import { Handler } from '@nestlingjs/container';
 
 /**
- * A `.pre` unit runs before the handler and adds typed fields to the
- * context. There is no `next()`: units do not wrap each other.
+ * A `.pre` step runs before the handler and adds typed fields to the
+ * context. There is no `next()`: steps do not wrap each other.
  */
 @Handler([AppConfig])
 export class Authenticate {
@@ -31,14 +31,14 @@ export class Authenticate {
   ): { caller: { id: string } } | ReturnType<typeof Unauthorized> {
     const header = ctx.raw.attributes.authorization;
 
-    // Returning a failure stops the request: no later unit, no handler
+    // Returning a failure stops the request: no later step, no handler
     return header === `Bearer ${this.config.apiToken}`
       ? { caller: { id: 'api-token' } }
       : Unauthorized();
   }
 }
 
-/** A `.finally` unit runs on every outcome, success and failure alike */
+/** A `.finally` step runs on every outcome, success and failure alike */
 @Handler([Logger$.auto])
 export class AuditOutcome {
   constructor(private readonly logger: Logger) {}
@@ -63,7 +63,7 @@ export const authed = compose(
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 
-/** Unit classes are providers: without registration the layer does not build */
+/** Step classes are providers: without registration the layer does not build */
 export const appPipeline = makePlugin({
   name: 'app-pipeline',
   providers: [Authenticate, AuditOutcome],

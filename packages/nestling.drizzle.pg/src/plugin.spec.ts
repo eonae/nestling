@@ -17,7 +17,7 @@ import { drizzlePg } from './plugin.js';
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App } from '@nestlingjs/app';
 import { makeApp, makeFeature } from '@nestlingjs/app';
-import { assembleTest, vars } from '@nestlingjs/testing';
+import { buildTest, vars } from '@nestlingjs/testing';
 
 /** Пул соединения по умолчанию: журнал команд читают тесты */
 const pool = new FakePool();
@@ -50,7 +50,7 @@ const application = (endpoints: readonly AnyEndpointDefinition[]): App =>
 describe('drizzlePg(): соединение в собранном приложении', () => {
   it('запрос идёт в транзакции: `BEGIN`, запись, `COMMIT`', async () => {
     pool.commands.length = 0;
-    await using app = await assembleTest(application([CreateUser]), {
+    await using app = await buildTest(application([CreateUser]), {
       overrides: [
         [db.connection, connection],
         [analytics.connection, analyticsConnection],
@@ -88,7 +88,7 @@ describe('drizzlePg(): соединение в собранном приложе
 describe('drizzlePg(): политика предпосылки', () => {
   it('endpoint под фильтром без слоя роняет сборку', async () => {
     await expect(
-      assembleTest(application([Ping]), {
+      buildTest(application([Ping]), {
         overrides: [
           [db.connection, connection],
           [analytics.connection, analyticsConnection],
@@ -99,7 +99,7 @@ describe('drizzlePg(): политика предпосылки', () => {
   });
 
   it('endpoint со слоем политику удовлетворяет', async () => {
-    await using app = await assembleTest(application([CreateUser]), {
+    await using app = await buildTest(application([CreateUser]), {
       overrides: [
         [db.connection, connection],
         [analytics.connection, analyticsConnection],

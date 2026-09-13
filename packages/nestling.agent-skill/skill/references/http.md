@@ -50,7 +50,7 @@ const SESSION_TTL = 3600;
  * handler: `Ok.created` keeps the success status, and the options carry
  * what belongs to HTTP rather than to the value.
  *
- * `detached:` takes the endpoint out of the assembly policies and says why
+ * `detached:` takes the endpoint out of the build policies and says why
  * in one sentence: this is the call that issues the token, so the `authed`
  * layer the root requires of every `POST` cannot run before it.
  */
@@ -104,7 +104,7 @@ async handle(input: Credentials, meta: HttpHandlerMeta) {
 ```
 
 `meta.http` carries `method`, `url`, `headers` — names in lower case — and
-`ip`. The same value is in the start context, so a `.pre` unit sees it too:
+`ip`. The same value is in the start context, so a `.pre` step sees it too:
 authentication reads the header there once, and the handler takes a typed
 field instead.
 

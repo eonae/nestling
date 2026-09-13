@@ -1,5 +1,5 @@
 /**
- * Корень метрик приложения: опция корня, члены семейства и запрет второго
+ * Корень метрик приложения: опция корня, токены семейства и запрет второго
  * объявления.
  *
  * Проверяется та же схема, что у логгера, — и это предмет проверки:
@@ -44,7 +44,7 @@ const ping = () =>
 
 const Service$ = makeToken<unknown>('Service');
 
-/** Провайдер, который пишет счётчик из названного члена семейства */
+/** Провайдер, который пишет счётчик из названного токена семейства */
 const writerOf = (scope: string) =>
   factoryProvider(
     Service$,
@@ -57,7 +57,7 @@ const writerOf = (scope: string) =>
   );
 
 describe('корень метрик', () => {
-  it('член семейства добавляет область к записи', async () => {
+  it('токен семейства добавляет область к записи', async () => {
     const spy = spyMetrics();
 
     const app = makeApp({
@@ -65,7 +65,7 @@ describe('корень метрик', () => {
       transports: [asTransport(new MockTransport())],
       providers: [writerOf('users')],
       metrics: spy.metrics,
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.close();
@@ -78,7 +78,7 @@ describe('корень метрик', () => {
     });
   });
 
-  it('.auto даёт члена по имени класса-потребителя', async () => {
+  it('.auto даёт токена семейства по имени класса-потребителя', async () => {
     const spy = spyMetrics();
 
     @Component([Metrics$.auto])
@@ -93,7 +93,7 @@ describe('корень метрик', () => {
       transports: [asTransport(new MockTransport())],
       providers: [OrdersService],
       metrics: spy.metrics,
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.close();
@@ -111,7 +111,7 @@ describe('корень метрик', () => {
       endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
       providers: [writerOf('users')],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
@@ -124,7 +124,7 @@ describe('корень метрик', () => {
       endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
       providers: [valueProvider(RootMetrics$, spy.metrics)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /metrics root is set by the 'metrics' option of makeApp/,

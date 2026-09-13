@@ -29,7 +29,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const FORBIDDEN = new Set([
   'makeApp',
   'App',
-  'AssembledApp',
+  'BuiltApp',
   'isApp',
   'makeFeature',
   'Feature',

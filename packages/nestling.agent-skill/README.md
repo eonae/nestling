@@ -67,7 +67,7 @@ skill that diverges from the API. The code blocks are checked by
 `yarn workspace @nestlingjs/agent-skill snippets`.
 
 The snippets are checked by more than compilation. The ones that
-`snippets/app.ts` reaches by imports are assembled into an application by
-the spec through `assembleTest`: the root policy, the endpoint layer, the
-edge between features and the provider of the layer unit are caught the
+`snippets/app.ts` reaches by imports are built into an application by
+the spec through `buildTest`: the root policy, the endpoint layer, the
+edge between features and the provider of the layer step are caught the
 same way as for a user.

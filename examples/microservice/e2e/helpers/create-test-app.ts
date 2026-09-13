@@ -3,7 +3,7 @@ import { api, app } from '../../src/app.js';
 import { db } from '../../src/persistence.js';
 
 import { describe } from '@jest/globals';
-import type { AssembledApp } from '@nestlingjs/app';
+import type { BuiltApp } from '@nestlingjs/app';
 import { makeApp, objectSource } from '@nestlingjs/app';
 import type { HttpServer } from '@nestlingjs/transport.http';
 import { serverKeys } from '@nestlingjs/transport.http';
@@ -34,7 +34,7 @@ export const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 export const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };
 
 export interface TestAppContext {
-  app: AssembledApp;
+  app: BuiltApp;
   baseUrl: string;
   /** Возвращает базу к засеву */
   reset(): Promise<void>;
@@ -78,7 +78,7 @@ export async function createTestApp(): Promise<TestAppContext> {
   // Та же декларация, что в `app.ts`, с эфемерным портом и секретами из
   // объекта: состав берётся из `app.spec`, включая оба транспорта на
   // общем сервере
-  const assembled = makeApp({
+  const built = makeApp({
     features: app.spec.features,
     plugins: app.spec.plugins,
     switches: app.spec.switches,
@@ -101,18 +101,18 @@ export async function createTestApp(): Promise<TestAppContext> {
         serverKeys(),
       ],
     ],
-  }).assemble();
+  }).build();
 
-  await assembled.run();
+  await built.run();
 
-  const server = assembled.servers.get(api.name) as HttpServer | undefined;
+  const server = built.servers.get(api.name) as HttpServer | undefined;
   const address = server?.address();
   if (!address) {
     throw new Error('server did not report an address after listen()');
   }
 
   return {
-    app: assembled,
+    app: built,
     baseUrl: `http://127.0.0.1:${address.port}`,
     reset,
   };

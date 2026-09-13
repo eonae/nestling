@@ -86,8 +86,8 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 
   return makePlugin({
     name: '@nestlingjs/subscriptions',
-    // Юниты слоя едут вместе с плагином: слой без своего реестра не
-    // соберётся, и это отказ на ASSEMBLE, а не на первом запросе
+    // Шаги слоя едут вместе с плагином: слой без своего реестра не
+    // соберётся, и это отказ на BUILD, а не на первом запросе
     providers: [registry, TrackSubscription, UntrackSubscription],
   });
 };

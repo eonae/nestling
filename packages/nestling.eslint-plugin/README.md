@@ -74,8 +74,8 @@ the one connected in `plugins`.
 ## Package boundaries
 
 The rules read the source and do not run the application.
-`app.assemble()` checks the invariants visible only at container
-assembly. `dependency-list` tells a class from an interface by the
+`app.build()` checks the invariants visible only at container
+build. `dependency-list` tells a class from an interface by the
 form of the import: an interface imported as a value instead of
-`import type` is treated as a class. It does not distinguish a family
-member from a DI token and accepts any member with the same head.
+`import type` is treated as a class. It does not tell a family from a
+DI token and accepts any DI token with the same head.

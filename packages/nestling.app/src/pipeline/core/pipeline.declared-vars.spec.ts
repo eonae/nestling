@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты: предмет проверки — множество объявленных переменных, а не
+ * noop-шаги: предмет проверки — множество объявленных переменных, а не
  * их эффект */
 /**
  * Множество ambient-переменных, объявленных пайплайном.
@@ -26,7 +26,7 @@ describe('множество объявленных переменных', () =>
     expect(declaresVar(makePipeline(), RequestId)).toBe(false);
   });
 
-  it('pre с writer-юнитом объявляет переменную', () => {
+  it('pre с writer-шагом объявляет переменную', () => {
     const layer = makePipeline().pre(RequestId.provide(() => 'req-1'));
 
     expect(declaresVar(layer, RequestId)).toBe(true);
@@ -55,22 +55,22 @@ describe('множество объявленных переменных', () =>
   });
 
   it('bind сохраняет множество несвязанного оригинала', () => {
-    class TrackUnit {
+    class TrackStep {
       handle(): void {}
     }
 
     const layer = makePipeline()
       .pre(RequestId.provide(() => 'req-1'))
-      .pre(TrackUnit);
+      .pre(TrackStep);
 
     const bound = (layer as unknown as Pipeline<EmptyInput>).bind(
-      () => new TrackUnit(),
+      () => new TrackStep(),
     );
 
     expect(declaresVar(bound, RequestId)).toBe(true);
   });
 
-  it('юнит, кладущий поле вручную, объявителем не считается', () => {
+  it('шаг, кладущий поле вручную, объявителем не считается', () => {
     const manual = makePipeline().pre(async () => ({ requestId: 'req-1' }));
 
     expect(declaresVar(manual, RequestId)).toBe(false);

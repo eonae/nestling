@@ -2,7 +2,7 @@
  * `spyMetrics()` — метрики, которые копят записи значениями.
  *
  * Подмена `[RootMetrics$, spy.metrics]` в `overrides` перехватывает записи
- * всех членов `Metrics$` — и ядра, и приложения: рецепт семейства
+ * всех DI-токенов `Metrics$` — и ядра, и приложения: рецепт семейства
  * оборачивает корень, добавляя атрибут `scope`. Она же включает
  * инструментовку ядра, потому что под корнем оказывается не пустая
  * реализация.
@@ -21,7 +21,7 @@ export interface MetricRecord {
   /** Значение; у счётчика без прибавки — единица */
   readonly value: number;
 
-  /** Атрибуты записи, включая `scope` члена семейства */
+  /** Атрибуты записи, включая `scope` токена семейства */
   readonly attributes: MetricAttributes;
 }
 
@@ -30,7 +30,7 @@ export interface SpyMetrics {
   /** Реализация для подмены `RootMetrics$` или передачи в код напрямую */
   readonly metrics: Metrics;
 
-  /** Записи в порядке вызовов, включая записи членов семейства */
+  /** Записи в порядке вызовов, включая записи токенов семейства */
   readonly records: readonly MetricRecord[];
 }
 
@@ -42,7 +42,7 @@ export interface SpyMetrics {
  * @example
  * ```typescript
  * const spy = spyMetrics();
- * await using testApp = await assembleTest(app, {
+ * await using testApp = await buildTest(app, {
  *   overrides: [[RootMetrics$, spy.metrics]],
  * });
  *

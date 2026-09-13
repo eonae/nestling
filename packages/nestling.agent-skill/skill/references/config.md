@@ -81,7 +81,7 @@ export class Pager {
 `ConfigService` and no `get('some.key')`: a typo is a compile error.
 
 Outside the container — in `main.ts`, to pick features or switches before
-assembly — the same section is read with `load(RootConfig)`.
+build — the same section is read with `load(RootConfig)`.
 
 ## Sources
 

@@ -4,7 +4,7 @@
  * Единственное позднее связывание в модели портов, и оно явное. Причина
  * фазовая: local-клиент исполняет вызов через `dispatch`, а `dispatch`
  * создаётся в WIRE — до него исполнимых endpoint'ов не существует ни у
- * кого. Значит клиент, инстанцированный на ASSEMBLE, физически не может
+ * кого. Значит клиент, инстанцированный на BUILD, физически не может
  * держать исполнитель, и окно «инстанцирован, но не связан» закрывается
  * ошибкой с понятным сообщением, а не молчаливым ожиданием.
  */
@@ -63,7 +63,7 @@ export class PortRuntime {
     if (!executors.dispatch) {
       throw new Error(
         `Port '${operation}' has no bus dispatch: the bus transport is not ` +
-          `part of the assembled application. Declare the implementation ` +
+          `part of the built application. Declare the implementation ` +
           `with implement(${operation}, { … }) in 'endpoints:' of a module.`,
       );
     }

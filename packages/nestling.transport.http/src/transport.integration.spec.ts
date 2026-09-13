@@ -29,7 +29,7 @@ import type {
   HandlerFn,
   Logger,
   LogLevel,
-  PreUnitFn,
+  PreStepFn,
 } from '@nestlingjs/app';
 import {
   Fail,
@@ -853,7 +853,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
   let seenRawBody: Uint8Array | undefined;
 
   /** Слой проверки подписи: объявляет требование к стартовому контексту */
-  const captureRawBody: PreUnitFn<{ rawBody: Uint8Array }, undefined> = (
+  const captureRawBody: PreStepFn<{ rawBody: Uint8Array }, undefined> = (
     ctx,
   ) => {
     seenRawBody = ctx.input.rawBody;

@@ -31,7 +31,7 @@ import {
 } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { events, Ok } from '@nestlingjs/operations';
-import { assembleTest } from '@nestlingjs/testing';
+import { buildTest } from '@nestlingjs/testing';
 import { z } from 'zod';
 
 const Tick = z.object({ n: z.number() });
@@ -114,7 +114,7 @@ async function waitFor(
 
 describe('subscriptions(): реестр в собранном приложении', () => {
   it('видит подписку, убивает её и снимает запись', async () => {
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
@@ -151,7 +151,7 @@ describe('subscriptions(): реестр в собранном приложени
   });
 
   it('снимает записи на SHUTDOWN и закрывает ленту', async () => {
-    const testApp = await assembleTest(
+    const testApp = await buildTest(
       makeApp({
         plugins: [subscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
@@ -192,7 +192,7 @@ describe('subscriptions(): реестр в собранном приложени
   });
 
   it('живой просмотр сам является подпиской и не видит своего opened', async () => {
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions()],
         features: [
@@ -234,7 +234,7 @@ describe('subscriptions(): реестр в собранном приложени
 
   it('роняет сборку, если слой есть, а модуля нет', async () => {
     await expect(
-      assembleTest(
+      buildTest(
         makeApp({
           features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
           transports: [testTransport()],
@@ -245,7 +245,7 @@ describe('subscriptions(): реестр в собранном приложени
 
   it('роняет сборку на двух значениях плагина', async () => {
     await expect(
-      assembleTest(
+      buildTest(
         makeApp({
           plugins: [subscriptions(), subscriptions({ node: 'other' })],
           features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
@@ -274,7 +274,7 @@ describe('subscriptions(): подписанта называет перемен�
       ): Output<AsyncIterable<Tick>> => new Ok(ticks(meta.subscription.signal)),
     });
 
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions({ identity: RequestId })],
         features: [
@@ -299,7 +299,7 @@ describe('subscriptions(): подписанта называет перемен�
   });
 
   it('оставляет подписку без identity, когда переменной в пайплайне нет', async () => {
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions({ identity: RequestId })],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
@@ -322,7 +322,7 @@ describe('subscriptions(): подписанта называет перемен�
 
 describe('subscriptions(): факты жизненного цикла', () => {
   it('без публикации вызывателей операций в графе нет', async () => {
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
@@ -335,7 +335,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
   });
 
   it('с публикацией и нулём подписчиков собирается, emit — no-op', async () => {
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions({ publish: true, node: 'node-1' })],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
@@ -375,7 +375,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
       },
     });
 
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions({ publish: true, node: 'node-1' })],
         features: [
@@ -422,7 +422,7 @@ describe('subscriptions(): слой композируется поверх пр
       },
     });
 
-    await using testApp = await assembleTest(
+    await using testApp = await buildTest(
       makeApp({
         plugins: [subscriptions()],
         features: [

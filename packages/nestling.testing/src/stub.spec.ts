@@ -7,9 +7,9 @@
  * место стаба в сборке.
  */
 
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
+import { testBundle } from './bundle.js';
 import { stub } from './stub.js';
-import { testUnit } from './unit.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Emitter, Port } from '@nestlingjs/app';
@@ -325,7 +325,7 @@ describe('stub — место в сборке', () => {
 
   it('без стаба та же сборка падает проверкой достижимости', async () => {
     await expect(
-      assembleTest(
+      buildTest(
         makeApp({
           features: [ConsumerFeature],
         }),
@@ -342,7 +342,7 @@ describe('stub — место в сборке', () => {
     // Сборка проходит — значит боевой рецепт семейства для этой операции
     // не вызывался ни разу: его первое же действие, `assertReachable`,
     // уронило бы её (см. тест выше)
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [ConsumerFeature],
       }),
@@ -362,7 +362,7 @@ describe('stub — место в сборке', () => {
   it('кладёт в граф именно значение стаба', async () => {
     const entry = stub(ClaimQuota, async () => ({ granted: 1 }));
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [ConsumerFeature],
       }),
@@ -385,7 +385,7 @@ describe('stub — место в сборке', () => {
       ) {}
     }
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({ name: 'module:mixed', providers: [MixedConsumer] }),
@@ -418,7 +418,7 @@ describe('stub — место в сборке', () => {
       constructor(readonly billing: Port<typeof ChargeCard>) {}
     }
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({
@@ -452,7 +452,7 @@ describe('stub — место в сборке', () => {
       ) {}
     }
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({ name: 'module:both', providers: [BothConsumer] }),
@@ -470,8 +470,8 @@ describe('stub — место в сборке', () => {
     expect(app.stubbed).toEqual(['stub.orders.place', 'stub.quotas.claim']);
   });
 
-  it('поставляется тем же полем у testUnit', async () => {
-    await using app = await testUnit(
+  it('поставляется тем же полем у testBundle', async () => {
+    await using app = await testBundle(
       makeFeature({ name: 'module:isolated', providers: [QuotaConsumer] }),
       { stubs: [stub(ClaimQuota, async () => ({ granted: 2 }))] },
     );

@@ -52,7 +52,7 @@ function check(schema: Schema, value: unknown): unknown {
  *
  * @param form - описатель формы `input` декларации
  * @param candidate - значение на проверку: `payload` из контекста, если
- * его положил `.pre`-юнит, иначе `raw.payload`
+ * его положил `.pre`-шаг, иначе `raw.payload`
  * @returns выход схемы, то есть результат её трансформаций
  * @throws Fail отказ `bad_request` (400), если значение не прошло схему
  */

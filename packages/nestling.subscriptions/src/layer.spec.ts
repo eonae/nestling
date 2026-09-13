@@ -39,8 +39,8 @@ const accHasSubscription: Types['acc'] extends {
   ? true
   : never = true;
 
-/** Оба класс-юнита попадают в `TNeeds`: без модуля слой не соберётся */
-const needsBothUnits: [
+/** Оба класс-шага попадают в `TNeeds`: без модуля слой не соберётся */
+const needsBothSteps: [
   typeof TrackSubscription,
   typeof UntrackSubscription,
 ][number] extends Types['needs']
@@ -301,6 +301,6 @@ describe('tracked: нет накопления', () => {
 describe('tracked: типы слоя', () => {
   it('добавка и отложенные зависимости объявлены', () => {
     expect(accHasSubscription).toBe(true);
-    expect(needsBothUnits).toBe(true);
+    expect(needsBothSteps).toBe(true);
   });
 });

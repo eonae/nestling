@@ -1,11 +1,11 @@
 /**
- * Общий инвентарь фикстур: доменные типы и inline pre-юниты.
+ * Общий инвентарь фикстур: доменные типы и inline pre-шаги.
  *
  * Живёт вне `fixtures/`, потому что обязан компилироваться чисто —
  * диагностики отсюда в снапшоты не попадают.
  */
 
-import type { AnyInput, PreUnitFn } from '@nestlingjs/app';
+import type { AnyInput, PreStepFn } from '@nestlingjs/app';
 
 export interface User {
   id: string;
@@ -14,16 +14,16 @@ export interface User {
 
 export const testUser: User = { id: '1', name: 'John Doe' };
 
-/** Pre-юнит, добавляющий в input ровно указанные поля */
+/** Pre-шаг, добавляющий в input ровно указанные поля */
 export function addField<T extends Record<string, unknown>>(
   value: T,
-): PreUnitFn<AnyInput, T> {
+): PreStepFn<AnyInput, T> {
   return async () => value;
 }
 
-/** Pre-юнит, требующий `identity` во входе и добавляющий указанные поля */
+/** Pre-шаг, требующий `identity` во входе и добавляющий указанные поля */
 export function needsIdentity<T extends Record<string, unknown>>(
   value: T,
-): PreUnitFn<{ identity: User }, T> {
+): PreStepFn<{ identity: User }, T> {
   return async () => value;
 }

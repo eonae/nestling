@@ -132,13 +132,13 @@ describe('карта операций в отчёте check()', () => {
       transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 
     expect(probe.entries).toContainEqual({
       level: 'warn',
-      message: 'intercom is assigned, but this assembly declares no operations',
+      message: 'intercom is assigned, but this build declares no operations',
       fields: expect.objectContaining({
         scope: 'nestling',
         transport: 'events',

@@ -1,6 +1,6 @@
 # @nestlingjs/openapi
 
-An OpenAPI 3.1 document assembled from the same endpoint declarations
+An OpenAPI 3.1 document built from the same endpoint declarations
 that serve the requests. A second description of the API next to the
 code is not needed.
 
@@ -44,9 +44,9 @@ appOpenapi.document(app.discover(args));
 
 | Name | What it does |
 |---|---|
-| `openapi` | a plugin: builds the document on the ASSEMBLE phase, serves it as an endpoint, and gives it as a value through the `document(discovery)` method |
+| `openapi` | a plugin: builds the document on the BUILD phase, serves it as an endpoint, and gives it as a value through the `document(discovery)` method |
 | `OpenApiDocument$` | the DI token of the ready document |
-| `OpenApiPlugin` | the plugin value: an ordinary unit of the composition plus the `document` method |
+| `OpenApiPlugin` | the plugin value: an ordinary step of the composition plus the `document` method |
 | `OpenApiOptions` | `info`, the optional `converters`, `servers`, `security`, `externalDocs` |
 | `OpenApiServeOptions` | the plugin options: `path`, `pipeline`, `detached`, `announceHidden` |
 | `OpenApiDocument` | the whole document |

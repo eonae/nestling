@@ -121,7 +121,7 @@ export interface EnvSourceOptions {
  * await makeApp({
  *   config: [[env({ prefix: 'SERVICE_1_' }), '*']],
  *   // …
- * }).assemble().run();
+ * }).build().run();
  * ```
  */
 export const env = (options: EnvSourceOptions = {}): ConfigSource => {

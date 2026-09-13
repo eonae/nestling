@@ -139,7 +139,7 @@ export type AnySwitch = Switch<string, any, any>;
 /**
  * Карта «имя переключателя → выбранное значение».
  *
- * Строится на фазе ASSEMBLE из аргумента сборки и умолчаний; раскрытие
+ * Строится на фазе BUILD из аргумента сборки и умолчаний; раскрытие
  * читает только её.
  */
 export type SwitchValues = Readonly<Record<string, string>>;

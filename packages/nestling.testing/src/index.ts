@@ -9,17 +9,17 @@
  * и не будет: это дыра в ES-видимости и обесценивание kernel/user-границы.
  */
 
-export { assembleTest, TestApp } from './app.js';
+export { buildTest, TestApp } from './app.js';
 export type {
   EmitDelivery,
-  TestAssemblyOptions,
+  TestBuildOptions,
   TestCallOptions,
   TestStub,
 } from './app.js';
 export { vars } from './config.js';
 export { contextValue } from './context.js';
-export { testUnit } from './unit.js';
-export type { TestUnitOptions } from './unit.js';
+export { testBundle } from './bundle.js';
+export type { TestBundleOptions } from './bundle.js';
 export { spyLogger } from './logger.js';
 export type { LogEntry, SpyLogger } from './logger.js';
 export { spyMetrics } from './metrics.js';

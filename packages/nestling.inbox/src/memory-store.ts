@@ -58,7 +58,7 @@ const idOf = (mark: Pick<InboxMark, 'consumer' | 'key'>): string =>
  * ```typescript
  * const store = new InMemoryInboxStore();
  *
- * const app = await assembleTest(application, {
+ * const app = await buildTest(application, {
  *   stubs: [[InboxStore$, store]],
  * });
  * ```

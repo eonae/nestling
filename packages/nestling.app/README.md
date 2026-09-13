@@ -3,7 +3,7 @@
 The core of Nestling in one package: the request pipeline, configuration,
 ports between features, the transport abstraction and the composition
 root. `makeApp(spec)` declares the application as a value,
-`app.assemble(select)` assembles it for this process, and `run()` builds
+`app.build(select)` builds it for this process, and `run()` builds
 the container, finds the endpoints by walking the features and the
 plugins, takes the application through the lifecycle phases and stops it
 on `SIGTERM` and `SIGINT`.
@@ -13,7 +13,7 @@ on `SIGTERM` and `SIGINT`.
 > Design: [`docs/en/design/composition.md`](../../docs/en/design/composition.md),
 > [`docs/en/design/pipeline.md`](../../docs/en/design/pipeline.md),
 > [`docs/en/design/container.md`](../../docs/en/design/container.md).
-> Guide: [chapter 2. Assemble the application from features](../../docs/en/guide/02-composition.md),
+> Guide: [chapter 2. Build the application from features](../../docs/en/guide/02-composition.md),
 > [chapter 9. See every request in the log](../../docs/en/guide/09-logging.md),
 > [chapter 22. Count requests and calls](../../docs/en/guide/22-metrics.md).
 
@@ -41,13 +41,13 @@ export const app = makeApp({
 });
 
 // main.ts — what starts this process
-await app.assemble().run();
+await app.build().run();
 ```
 
 ## Exports
 
 - **Composition root** ([design](../../docs/en/design/composition.md)) — `App`,
-  `AssembleArgs`, `AssembledApp`, `Bundle`, `CheckOptions`, `CheckReport`,
+  `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`, `CheckReport`,
   `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
   `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
   `PluginOptions`.
@@ -66,17 +66,17 @@ await app.assemble().run();
   `ClientDisconnectedError`, `collectPropagatedContext`, `compose`,
   `contextKernel`, `contextVar`, `ContextVar`, `ContextVarDeclarator`,
   `ContextVarOptions`, `ContextVarUnavailableError`, `Ctx`, `CtxReader`,
-  `DeferredPreUnitFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
+  `DeferredPreStepFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
   `EndpointMeta`, `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`,
-  `everyEndpoint`, `ExtendableContext`, `FinallyUnitFn`, `HandlerClass`,
+  `everyEndpoint`, `ExtendableContext`, `FinallyStepFn`, `HandlerClass`,
   `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isContextVar`, `isDone`,
   `isEndpointDefinition`, `isMidStreamFailure`, `makeEmptyContext`,
   `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
-  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreUnitFn`,
+  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreStepFn`,
   `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
   `ResponseContext`, `Signal`, `SuccessResponseContext`, `Trace`,
   `TraceContext`, `traceparent`, `TransportClosingError`, `transportNameOf`,
-  `UndeclaredDoneError`, `UnitResolver`, `withRequestId`, `withTracing`.
+  `UndeclaredDoneError`, `StepResolver`, `withRequestId`, `withTracing`.
 - **Ports and bus** ([design](../../docs/en/design/operations.md)) —
   `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
   `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,

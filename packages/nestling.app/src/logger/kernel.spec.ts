@@ -122,7 +122,7 @@ describe('корневой логгер вне графа', () => {
 });
 
 describe('loggerKernel: семейство областей', () => {
-  it('член семейства — дочерний логгер корня с привязкой scope', async () => {
+  it('токен семейства — дочерний логгер корня с привязкой scope', async () => {
     const spy = spyLogger();
 
     const builder = await kernelBuilder({
@@ -143,7 +143,7 @@ describe('loggerKernel: семейство областей', () => {
     ]);
   });
 
-  it('.auto даёт член по имени класса-потребителя', async () => {
+  it('.auto даёт токен семейства по имени класса-потребителя', async () => {
     const spy = spyLogger();
 
     @Component([Logger$.auto])

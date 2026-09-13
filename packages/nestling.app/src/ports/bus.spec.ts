@@ -23,7 +23,7 @@ const settle = async (): Promise<void> => {
 const silent = spyLogger().logger;
 
 describe('InProcessBus', () => {
-  it('доставляет команду ровно одному члену группы', async () => {
+  it('доставляет команду ровно одному токену семейства группы', async () => {
     const bus = new InProcessBus();
     const seen: string[] = [];
 

@@ -1,5 +1,5 @@
 import type { ResponseContext } from './types/context.js';
-import type { Outcome } from './types/unit.js';
+import type { Outcome } from './types/step.js';
 
 /**
  * Причина аборта «клиент отвалился». Транспорты взводят per-request
@@ -23,7 +23,7 @@ export class TransportClosingError extends Error {
 }
 
 /**
- * Вычисляет исход выполнения для `.finally`-юнитов.
+ * Вычисляет исход выполнения для `.finally`-шагов.
  *
  * Для не-потоковой формы `output` зовётся сразу после ответной фазы; для
  * потоковой — из обёртки завершения, когда поток дотёк, оборвался или был

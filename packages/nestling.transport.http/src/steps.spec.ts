@@ -1,13 +1,13 @@
 /**
- * Юниты HTTP-транспорта: заголовок в контексте, адрес клиента и строка
+ * Шаги HTTP-транспорта: заголовок в контексте, адрес клиента и строка
  * доступа.
  *
- * Проверки идут через пайплайн без сокета: юниты читают стартовый
+ * Проверки идут через пайплайн без сокета: шаги читают стартовый
  * контекст, а не `IncomingMessage`, поэтому запрос изображается значением.
  */
 
 import type { HttpRequest } from './request.js';
-import { httpAccessLog, withClientIp, withHeader } from './units.js';
+import { httpAccessLog, withClientIp, withHeader } from './steps.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type {
@@ -39,7 +39,7 @@ const endpoint: EndpointMeta = { transport: 'http', pattern: 'GET /users' };
 /**
  * Контекст запроса со стартовым полем `http`, как его кладёт транспорт.
  *
- * Тип накопленного `input` здесь не важен: его доращивают сами юниты, а
+ * Тип накопленного `input` здесь не важен: его доращивают сами шаги, а
  * тест подставляет контекст в `executeWithHandler` уже собранного
  * пайплайна.
  */

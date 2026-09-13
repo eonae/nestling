@@ -3,7 +3,7 @@
  * и исход отказа.
  *
  * Регрессия, ради которой change и делался: endpoint со схемой `input` и
- * пайплайном без юнита проверки принимал невалидный payload и отвечал
+ * пайплайном без шага проверки принимал невалидный payload и отвечал
  * успехом.
  */
 
@@ -13,7 +13,7 @@ import type { Logger } from '../../logger/interface.js';
 import type { EndpointMeta, ResponseContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
-import type { PreUnitFn } from './types/unit.js';
+import type { PreStepFn } from './types/step.js';
 import { compose, makePipeline } from './pipeline.js';
 
 import type { Schema, StandardSchemaV1 } from '@nestlingjs/common.misc';
@@ -62,7 +62,7 @@ function fakeSchema<T>(
 /**
  * Исполнимый пайплайн без параметров типов.
  *
- * Тесты собирают слои из разных юнитов, и точные `TReq`/`TAcc` каждого не
+ * Тесты собирают слои из разных шагов, и точные `TReq`/`TAcc` каждого не
  * относятся к проверяемому поведению.
  */
 interface Runnable {
@@ -75,28 +75,28 @@ interface Runnable {
 
 const runnable = (pipeline: unknown): Runnable => pipeline as Runnable;
 
-/** Юнит, дополняющий контекст обычным полем */
-const withRequestId: PreUnitFn<
+/** Шаг, дополняющий контекст обычным полем */
+const withRequestId: PreStepFn<
   Record<string, never>,
   { rid: string }
 > = async () => ({ rid: 'r-1' });
 
-/** Юнит, распаковывающий конверт: подменяет кандидата проверки */
-const unwrapEnvelope: PreUnitFn<
+/** Шаг, распаковывающий конверт: подменяет кандидата проверки */
+const unwrapEnvelope: PreStepFn<
   Record<string, never>,
   { payload: unknown }
 > = async (ctx) => ({
   payload: (ctx.raw.payload as { params: unknown }).params,
 });
 
-/** Тот же юнит плюс обычное поле: проверяет состав меты хендлера */
-const unwrapWithField: PreUnitFn<
+/** Тот же шаг плюс обычное поле: проверяет состав меты хендлера */
+const unwrapWithField: PreStepFn<
   Record<string, never>,
   { payload: unknown; rid: string }
 > = async (ctx) => ({ payload: ctx.raw.payload, rid: 'r-1' });
 
-/** Юнит авторизации, отвергающий запрос до проверки входа */
-const deny: PreUnitFn<Record<string, never>, never> = async () => {
+/** Шаг авторизации, отвергающий запрос до проверки входа */
+const deny: PreStepFn<Record<string, never>, never> = async () => {
   throw NoToken();
 };
 
@@ -127,8 +127,8 @@ async function run(
   return { response, seen, called };
 }
 
-describe('Проверка входа выполняется без юнита в пайплайне', () => {
-  it('отвергает невалидный payload у пайплайна с обычными юнитами', async () => {
+describe('Проверка входа выполняется без шага в пайплайне', () => {
+  it('отвергает невалидный payload у пайплайна с обычными шагами', async () => {
     const { response, called } = await run(
       makePipeline().pre(withRequestId),
       z.object({ n: z.number() }),
@@ -179,7 +179,7 @@ describe('Проверка входа выполняется без юнита �
 });
 
 describe('Кандидат проверки', () => {
-  it('берётся из контекста, если его положил `.pre`-юнит', async () => {
+  it('берётся из контекста, если его положил `.pre`-шаг', async () => {
     const { seen, response } = await run(
       makePipeline().pre(unwrapEnvelope),
       Row,
@@ -233,8 +233,8 @@ describe('Кандидат проверки', () => {
   });
 });
 
-describe('Порядок: `.pre`-юниты раньше проверки', () => {
-  it('отказ `.pre`-юнита отменяет проверку', async () => {
+describe('Порядок: `.pre`-шаги раньше проверки', () => {
+  it('отказ `.pre`-шага отменяет проверку', async () => {
     let schemaCalled = false;
     const schema = fakeSchema(() => {
       schemaCalled = true;

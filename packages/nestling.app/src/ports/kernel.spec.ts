@@ -162,17 +162,17 @@ class FakeRemoteBus extends InProcessBusClass {
   }
 }
 
-interface Assembled {
+interface Built {
   container: BuiltContainer;
   bus?: InProcessBus;
   close: () => Promise<void>;
 }
 
 /**
- * Мини-корень: те же шаги, что делает `App` в фазах ASSEMBLE и WIRE, но без
+ * Мини-корень: те же шаги, что делает `App` в фазах BUILD и WIRE, но без
  * импорта каталога `root` (стрелка зависимостей идёт оттуда сюда).
  */
-async function assemble(options: {
+async function build(options: {
   declarations?: readonly AnyEndpointDefinition[];
   consumers?: readonly Parameters<ContainerBuilder['register']>[0][];
   dispatch?: 'local-first' | 'always-remote';
@@ -181,7 +181,7 @@ async function assemble(options: {
   rootBus?: FakeRemoteBus;
   /** Метрики корня; без них инструментовка выключена, как в бою */
   metrics?: Metrics;
-}): Promise<Assembled> {
+}): Promise<Built> {
   const declarations = options.declarations ?? [];
   const source = objectSource(
     options.dispatch === undefined
@@ -292,7 +292,7 @@ describe('portsKernel', () => {
   });
 
   it('создаёт вызыватель только для запрошенных операций', async () => {
-    const app = await assemble({
+    const app = await build({
       declarations: [EchoImpl],
       consumers: [portConsumer],
     });
@@ -304,7 +304,7 @@ describe('portsKernel', () => {
   });
 
   it('приложение без операций не заводит ни одного узла портов', async () => {
-    const app = await assemble({});
+    const app = await build({});
 
     expect(app.container.get(MessageBus$)).toBeNull();
     expect(app.container.get(BusTransport$)).toBeNull();
@@ -314,7 +314,7 @@ describe('portsKernel', () => {
   });
 
   it('local-first зовёт реализацию без копирования payload', async () => {
-    const app = await assemble({
+    const app = await build({
       declarations: [PassthroughImpl],
       consumers: [passthroughConsumer],
       dispatch: 'local-first',
@@ -331,7 +331,7 @@ describe('portsKernel', () => {
   });
 
   it('always-remote уводит тот же вызов через шину со структурной копией', async () => {
-    const app = await assemble({
+    const app = await build({
       declarations: [PassthroughImpl],
       consumers: [passthroughConsumer],
       dispatch: 'always-remote',
@@ -350,7 +350,7 @@ describe('portsKernel', () => {
 
   it('отвергает неизвестную политику валидацией секции', async () => {
     await expect(
-      assemble({
+      build({
         declarations: [EchoImpl],
         consumers: [portConsumer],
         dispatch: 'balanced' as never,
@@ -367,7 +367,7 @@ describe('portsKernel', () => {
     );
 
     await expect(
-      assemble({ declarations: [EchoImpl], consumers: [orphanConsumer] }),
+      build({ declarations: [EchoImpl], consumers: [orphanConsumer] }),
     ).rejects.toThrow(/'kernel\.orphan'.*no selected feature implements it/s);
   });
 
@@ -378,7 +378,7 @@ describe('portsKernel', () => {
       [Placed.emitter],
     );
 
-    const app = await assemble({
+    const app = await build({
       declarations: [EchoImpl],
       consumers: [eventConsumer],
     });
@@ -392,7 +392,7 @@ describe('portsKernel', () => {
   });
 
   it('называет операции, обслуживаемые недолговечно', async () => {
-    const app = await assemble({ declarations: [DurableImpl, EchoImpl] });
+    const app = await build({ declarations: [DurableImpl, EchoImpl] });
 
     expect(undurableOperations(app.container, [DurableImpl, EchoImpl])).toEqual(
       ['kernel.durable.placed'],
@@ -402,7 +402,7 @@ describe('portsKernel', () => {
   });
 
   it('без долговечных операций список пуст', async () => {
-    const app = await assemble({ declarations: [EchoImpl] });
+    const app = await build({ declarations: [EchoImpl] });
 
     expect(undurableOperations(app.container, [EchoImpl])).toEqual([]);
 
@@ -410,7 +410,7 @@ describe('portsKernel', () => {
   });
 
   it('шина, умеющая долговечность, деградации не даёт', async () => {
-    const app = await assemble({ declarations: [DurableImpl] });
+    const app = await build({ declarations: [DurableImpl] });
 
     // Способность читается **значением**, а не выводится из класса: тест
     // подменяет её на собранной шине и получает пустой список
@@ -433,7 +433,7 @@ describe('portsKernel', () => {
     // Владельца нет нигде в кластере: тест смотрит на биндинг, не на записи
     const rootBus = new FakeRemoteBus({ logger: spyLogger().logger });
 
-    const app = await assemble({ consumers: [orphanConsumer], rootBus });
+    const app = await build({ consumers: [orphanConsumer], rootBus });
 
     const { port } = app.container.getOrThrow(Consumer);
     const result = await port.call();
@@ -453,7 +453,7 @@ describe('portsKernel', () => {
     );
 
     const rootBus = new FakeRemoteBus();
-    const app = await assemble({ consumers: [orphanConsumer], rootBus });
+    const app = await build({ consumers: [orphanConsumer], rootBus });
 
     expect(app.container.get(PortFamily(Orphan.name))).not.toBeNull();
 
@@ -462,7 +462,7 @@ describe('portsKernel', () => {
 
   it('шину поставил корень: оба DI-токена дают его инстанс', async () => {
     const rootBus = new FakeRemoteBus();
-    const app = await assemble({ declarations: [EchoImpl], rootBus });
+    const app = await build({ declarations: [EchoImpl], rootBus });
 
     expect(app.container.get(MessageBus$)).toBe(rootBus);
     expect(app.container.get(BusTransport$)).toBe(rootBus);
@@ -478,7 +478,7 @@ describe('portsKernel', () => {
     );
 
     const rootBus = new FakeRemoteBus();
-    const app = await assemble({
+    const app = await build({
       declarations: [PlacedImpl],
       consumers: [eventConsumer],
       rootBus,
@@ -505,7 +505,7 @@ describe('portsKernel', () => {
       [Placed.emitter],
     );
 
-    const app = await assemble({
+    const app = await build({
       declarations: [PlacedImpl],
       consumers: [eventConsumer],
     });
@@ -521,7 +521,7 @@ describe('portsKernel', () => {
 
   it('request с co-located реализацией при remote-шине остаётся локальным', async () => {
     const rootBus = new FakeRemoteBus();
-    const app = await assemble({
+    const app = await build({
       declarations: [PassthroughImpl],
       consumers: [passthroughConsumer],
       rootBus,
@@ -539,7 +539,7 @@ describe('portsKernel', () => {
   });
 
   it('вызов до фазы WIRE — ошибка с именем операции и фазой', async () => {
-    const app = await assemble({
+    const app = await build({
       declarations: [EchoImpl],
       consumers: [portConsumer],
       wire: false,
@@ -563,7 +563,7 @@ describe('portsKernel — метрики вызова', () => {
     'политика %s даёт тот же набор метрик, различая биндинг',
     async (dispatch, binding) => {
       const spy = spyMetrics();
-      const app = await assemble({
+      const app = await build({
         declarations: [EchoImpl],
         consumers: [portConsumer],
         metrics: spy.metrics,
@@ -602,7 +602,7 @@ describe('portsKernel — метрики вызова', () => {
       [Placed.emitter],
     );
 
-    const app = await assemble({
+    const app = await build({
       declarations: [PlacedImpl],
       consumers: [eventConsumer],
       metrics: spy.metrics,
@@ -626,7 +626,7 @@ describe('portsKernel — метрики вызова', () => {
 
   it('объявленный отказ реализации даёт outcome failed', async () => {
     const spy = spyMetrics();
-    const app = await assemble({
+    const app = await build({
       declarations: [FailingImpl],
       consumers: [failingConsumer],
       metrics: spy.metrics,
@@ -649,7 +649,7 @@ describe('portsKernel — метрики вызова', () => {
 
   it('локальный вызов даёт и метрику порта, и метрику endpoint’а', async () => {
     const spy = spyMetrics();
-    const app = await assemble({
+    const app = await build({
       declarations: [EchoImpl],
       consumers: [portConsumer],
       metrics: spy.metrics,
@@ -673,7 +673,7 @@ describe('portsKernel — метрики вызова', () => {
 
   it('без метрик корня ни один метод не вызван', async () => {
     const spy = spyMetrics();
-    const app = await assemble({
+    const app = await build({
       declarations: [EchoImpl],
       consumers: [portConsumer],
     });

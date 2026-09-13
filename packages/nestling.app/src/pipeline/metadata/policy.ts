@@ -89,7 +89,7 @@ export interface EndpointPolicyBuilder {
    * Каждый endpoint под фильтром композирован от значения-слоя.
    *
    * Идентичность слоя — **ссылочная**: совпадение определяется провенансом
-   * композиции (`compose`, деривация билдера, `bind`), а не именем, юнитами
+   * композиции (`compose`, деривация билдера, `bind`), а не именем, шагами
    * или структурой. Endpoint без пайплайна нарушает: «нет пайплайна» и
    * «нет слоя» для инварианта неразличимы.
    *
@@ -101,7 +101,7 @@ export interface EndpointPolicyBuilder {
 
   /**
    * Каждый endpoint под фильтром **объявил** ambient-переменную: его
-   * пайплайн содержит pre-юнит формы `<Var>.provide(…)`.
+   * пайплайн содержит pre-шаг формы `<Var>.provide(…)`.
    *
    * Требование объявляется явно, значением. Автоматического вывода «кто-то
    * в поддереве инжектит `Ctx(X)`, поэтому endpoint обязан класть X» в V1
@@ -164,7 +164,7 @@ function assertFilter(filter: EndpointFilter): void {
  *
  * @example
  * ```typescript
- * assemble({
+ * build({
  *   features: [UsersFeature],
  *   transports: [http()],
  *   policies: [

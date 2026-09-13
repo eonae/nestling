@@ -58,7 +58,7 @@ beforeEach(() => {
 
 describe('фаза приложения', () => {
   it('во время обслуживания запросов узел ядра читает RUN', async () => {
-    const app = declaration().assemble();
+    const app = declaration().build();
 
     await app.run();
 
@@ -73,7 +73,7 @@ describe('фаза приложения', () => {
   });
 
   it('после сигнала остановки узел ядра читает SHUTDOWN', async () => {
-    const app = declaration().assemble();
+    const app = declaration().build();
 
     await app.run();
 

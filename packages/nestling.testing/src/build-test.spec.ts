@@ -1,10 +1,10 @@
 /**
- * `assembleTest` целиком: остановка после WIRE, подстановки, in-proc
+ * `buildTest` целиком: остановка после WIRE, подстановки, in-proc
  * `call` через полный пайплайн, конфиг объектом и SHUTDOWN.
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
-import { assembleTest } from './app.js';
+import { buildTest } from './app.js';
 import { vars } from './config.js';
 import { spyLogger } from './logger.js';
 import { familyOverride } from './overrides.js';
@@ -51,7 +51,7 @@ const settle = async (): Promise<void> => {
   await Promise.resolve();
 };
 
-describe('assembleTest — приложение собрано, но запросы не принимает', () => {
+describe('buildTest — приложение собрано, но запросы не принимает', () => {
   it('выполняет конструктор (INIT) и строит dispatch, но не @OnStart', async () => {
     const events: string[] = [];
 
@@ -74,7 +74,7 @@ describe('assembleTest — приложение собрано, но запро�
 
     const transport = new SpyTransport();
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({
@@ -99,7 +99,7 @@ describe('assembleTest — приложение собрано, но запро�
       .mockImplementation((): void => undefined);
 
     try {
-      await using app = await assembleTest(
+      await using app = await buildTest(
         makeApp({
           features: [makeFeature({ name: 'module:quiet' })],
           transports: [asHttpTransport(new SpyTransport())],
@@ -130,7 +130,7 @@ describe('assembleTest — приложение собрано, но запро�
     });
 
     await expect(
-      assembleTest(
+      buildTest(
         makeApp({
           features: [
             makeFeature({
@@ -173,7 +173,7 @@ describe('assembleTest — приложение собрано, но запро�
       }
     }
 
-    const app = await assembleTest(
+    const app = await buildTest(
       makeApp({
         features: [
           makeFeature({
@@ -191,7 +191,7 @@ describe('assembleTest — приложение собрано, но запро�
   });
 });
 
-describe('assembleTest — overrides и прунинг', () => {
+describe('buildTest — overrides и прунинг', () => {
   interface IPool {
     query(): string;
   }
@@ -243,7 +243,7 @@ describe('assembleTest — overrides и прунинг', () => {
   });
 
   it('подставляет фейк и прунит осиротевший узел', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [DataModule],
         transports: [asHttpTransport(new SpyTransport())],
@@ -261,7 +261,7 @@ describe('assembleTest — overrides и прунинг', () => {
   });
 
   it('без overrides граф остаётся полным', async () => {
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [DataModule],
         transports: [asHttpTransport(new SpyTransport())],
@@ -331,7 +331,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('исполняет endpoint целиком и отдаёт успех', async () => {
-    await using app = await assembleTest(declaration);
+    await using app = await buildTest(declaration);
 
     expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({
       id: '1',
@@ -340,7 +340,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('отдаёт объявленный отказ со статусом и кодом', async () => {
-    await using app = await assembleTest(declaration);
+    await using app = await buildTest(declaration);
 
     const response = await app.call(GetUser, { id: '404' });
 
@@ -356,7 +356,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('отдаёт отказ валидации на невалидном входе', async () => {
-    await using app = await assembleTest(declaration);
+    await using app = await buildTest(declaration);
 
     const response = await app.call(GetUser, { id: 42 as unknown as string });
 
@@ -368,7 +368,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('проверяет поля multipart так же, как транспорт', async () => {
-    await using app = await assembleTest(declaration);
+    await using app = await buildTest(declaration);
     uploadCalls = 0;
 
     const response = await app.call(UploadAvatar, {
@@ -385,7 +385,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('даёт слою честный, но пустой кадр запроса', async () => {
-    await using app = await assembleTest(declaration);
+    await using app = await buildTest(declaration);
 
     expect(unwrap(await app.call(Frame))).toEqual({
       transport: 'http',
@@ -404,7 +404,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       handler: async (_payload, meta) => new Ok(meta.http),
     });
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [makeFeature({ name: 'start', endpoints: [Start] })],
         transports: [asHttpTransport(new SpyTransport())],
@@ -432,7 +432,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       endpoints: [Invoices],
     });
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [UsersModule, Billing],
         transports: [asHttpTransport(new SpyTransport())],
@@ -443,7 +443,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     );
 
     await expect(app.call(Invoices)).rejects.toThrow(
-      /GET \/invoices.*not part of the assembled application.*GET \/users\/:id/s,
+      /GET \/invoices.*not part of the built application.*GET \/users\/:id/s,
     );
   });
 
@@ -473,7 +473,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       transports: [asHttpTransport(new SpyTransport())],
     });
 
-    await using local = await assembleTest(app, {
+    await using local = await buildTest(app, {
       args: { storage: 'local' },
     });
 
@@ -499,7 +499,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       },
     });
 
-    const app = await assembleTest(
+    const app = await buildTest(
       makeApp({
         features: [makeFeature({ name: 'module:wait', endpoints: [Wait] })],
         transports: [asHttpTransport(new SpyTransport())],
@@ -530,7 +530,7 @@ describe('vars и familyOverride', () => {
   it('проецирует секцию из объекта, не трогая process.env', async () => {
     expect(process.env.USERS_PAGE_SIZE).toBeUndefined();
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         endpoints: [],
         providers: [
@@ -556,7 +556,7 @@ describe('vars и familyOverride', () => {
     const source = vars({ RUNTIME_LOG_LEVEL: 'info' });
     const seen: string[] = [];
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         endpoints: [],
         providers: [
@@ -599,7 +599,7 @@ describe('vars и familyOverride', () => {
 
     const Sink = makeToken<ILoggerService[]>('LoggerSink');
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({
@@ -640,7 +640,7 @@ describe('Discovery$ в тестовом корне', () => {
       handler: async () => new Ok({ pong: true }),
     });
 
-    await using app = await assembleTest(
+    await using app = await buildTest(
       makeApp({
         features: [
           makeFeature({ name: 'module:discovery', endpoints: [Ping] }),
@@ -657,7 +657,7 @@ describe('Discovery$ в тестовом корне', () => {
   });
 });
 
-describe('assembleTest — логгер ядра', () => {
+describe('buildTest — логгер ядра', () => {
   it('подмена RootLogger$ перехватывает записи сервиса с Logger$.auto', async () => {
     @Component([Logger$.auto])
     class UsersRepository {
@@ -673,7 +673,7 @@ describe('assembleTest — логгер ядра', () => {
     });
 
     const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       overrides: [[RootLogger$, spy.logger]],
     });
 
@@ -701,7 +701,7 @@ describe('assembleTest — логгер ядра', () => {
     });
 
     const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
+    await using testApp = await buildTest(app, {
       overrides: [[RootLogger$, spy.logger]],
     });
 

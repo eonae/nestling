@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
- * noop-юниты — легитимная часть тестов порядка исполнения */
+ * noop-шаги — легитимная часть тестов порядка исполнения */
 /* eslint-disable unicorn/consistent-function-scoping --
  * сборщики пайплайнов замыкают фикстуры своего describe */
 /* eslint-disable unicorn/prefer-structured-clone --
@@ -9,7 +9,7 @@
  *
  * В отличие от pipeline.spec.ts (типовые проверки), здесь проверяется
  * реальное поведение выполнения: порядок фаз и слоёв, замена ответа,
- * Partial ctx на error-path, исходы finally, формы юнитов и bind,
+ * Partial ctx на error-path, исходы finally, формы шагов и bind,
  * meta.signal и политика раскрытия ошибок (exposeErrorDetails).
  */
 
@@ -19,7 +19,7 @@ import { contextVar } from './context/variable.js';
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
-import type { PreUnitFn } from './types/unit.js';
+import type { PreStepFn } from './types/step.js';
 import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
@@ -263,7 +263,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     expect(events).toEqual(['pre1', 'pre2', 'catch']);
   });
 
-  it('catch может заменить ошибку; следующие юниты видят заменённый ответ', async () => {
+  it('catch может заменить ошибку; следующие шаги видят заменённый ответ', async () => {
     const seen: string[] = [];
 
     const pipeline = makePipeline()
@@ -315,7 +315,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     });
   });
 
-  it('падение ответного юнита заменяет ответ по общей политике ошибок', async () => {
+  it('падение ответного шага заменяет ответ по общей политике ошибок', async () => {
     const events: string[] = [];
 
     const pipeline = makePipeline()
@@ -374,8 +374,8 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     let calls = 0;
 
     // Миграция `.after(u)` → `.ok(u).catch(u)` эквивалентна, пока `u`
-    // не бросает: бросок в роли ok-юнита делает ответ ошибкой, и тот же
-    // `u` становится применим уже как catch-юнит.
+    // не бросает: бросок в роли ok-шага делает ответ ошибкой, и тот же
+    // `u` становится применим уже как catch-шаг.
     const u = (): never => {
       calls += 1;
       throw Rejected();
@@ -443,7 +443,7 @@ describe('Pipeline v2 — слои и compose', () => {
     ]);
   });
 
-  it('ответ-ошибка: catch изнутри наружу, ok-юниты слоёв не исполняются', async () => {
+  it('ответ-ошибка: catch изнутри наружу, ok-шаги слоёв не исполняются', async () => {
     const events: string[] = [];
 
     const base = makePipeline()
@@ -523,7 +523,7 @@ describe('Pipeline v2 — слои и compose', () => {
     expect(events).toEqual(['pre:base', 'catch:base', 'finally:base']);
   });
 
-  it('ответный юнит внутреннего слоя видит контекст внешнего полным', async () => {
+  it('ответный шаг внутреннего слоя видит контекст внешнего полным', async () => {
     let seenRequestId: unknown;
 
     const base = makePipeline().pre(() => ({ requestId: 'r-42' }));
@@ -556,7 +556,7 @@ async function outcomeOf(opts: {
   await run(pipeline, opts.handler, { signal: opts.signal });
 
   if (!observed) {
-    throw new Error('finally-юнит не был вызван');
+    throw new Error('finally-шаг не был вызван');
   }
   return observed;
 }
@@ -638,7 +638,7 @@ describe('Pipeline v2 — finally и исходы', () => {
     });
   });
 
-  it('ошибка finally-юнита не влияет на ответ', async () => {
+  it('ошибка finally-шага не влияет на ответ', async () => {
     const pipeline = makePipeline()
       .pre(() => {})
       .finally(() => {
@@ -654,7 +654,7 @@ describe('Pipeline v2 — finally и исходы', () => {
   });
 });
 
-describe('Pipeline v2 — формы юнитов и bind', () => {
+describe('Pipeline v2 — формы шагов и bind', () => {
   class WithTracing {
     constructor(private readonly traceId: string) {}
 
@@ -677,11 +677,11 @@ describe('Pipeline v2 — формы юнитов и bind', () => {
     const pipeline = makePipeline().pre(WithTracing);
 
     await expect(run(pipeline, () => new Ok({}))).rejects.toThrow(
-      /unresolved units \(WithTracing\)/,
+      /unresolved steps \(WithTracing\)/,
     );
   });
 
-  it('bind резолвит класс-юнит и пайплайн исполняется', async () => {
+  it('bind резолвит класс-шаг и пайплайн исполняется', async () => {
     const resolved: unknown[] = [];
 
     const pipeline = makePipeline()
@@ -703,18 +703,18 @@ describe('Pipeline v2 — формы юнитов и bind', () => {
     const pipeline = makePipeline().pre(WithTracing);
 
     expect(() => pipeline.bind(() => ({}))).toThrow(
-      /Cannot bind pipeline unit WithTracing/,
+      /Cannot bind pipeline step WithTracing/,
     );
   });
 
-  it('в composed pipeline нельзя добавлять юниты (рантайм-защита)', () => {
+  it('в composed pipeline нельзя добавлять шаги (рантайм-защита)', () => {
     const composed = compose(
       makePipeline().pre(() => {}),
       makePipeline().pre(() => {}),
-    ) as unknown as { ok(unit: unknown): unknown };
+    ) as unknown as { ok(step: unknown): unknown };
 
     expect(() => composed.ok(() => {})).toThrow(
-      /Cannot add units to a composed pipeline/,
+      /Cannot add steps to a composed pipeline/,
     );
   });
 });
@@ -747,7 +747,7 @@ describe('Pipeline v2 — meta.signal', () => {
     });
   });
 
-  it('ctx.signal доступен юнитам всех фаз и совпадает с meta.signal', async () => {
+  it('ctx.signal доступен шагам всех фаз и совпадает с meta.signal', async () => {
     const controller = new AbortController();
     const seen: AbortSignal[] = [];
 
@@ -770,11 +770,11 @@ describe('Pipeline v2 — meta.signal', () => {
     expect(response).toMatchObject({ value: { same: true } });
   });
 
-  it('поле signal из pre-юнита перекрывается сигналом контекста', async () => {
+  it('поле signal из pre-шага перекрывается сигналом контекста', async () => {
     const controller = new AbortController();
 
     const overridingSignal = (() =>
-      Promise.resolve({ signal: 'not-a-signal' })) as PreUnitFn<
+      Promise.resolve({ signal: 'not-a-signal' })) as PreStepFn<
       EmptyInput,
       Record<string, unknown>
     >;
@@ -964,7 +964,7 @@ describe('Pipeline v2 — проверка операции отказов', () 
     });
   });
 
-  it('catch-юнит превращает недекларированный отказ в объявленный', async () => {
+  it('catch-шаг превращает недекларированный отказ в объявленный', async () => {
     const pipeline = makePipeline()
       .pre(() => {})
       .catch(() => Mapped());
@@ -1113,13 +1113,13 @@ describe('Pipeline v2 — писатель переменной с зависи�
   const Database$ = makeToken<{ begin(): string }>('Database');
   const Tx = contextVar<string>()('tx');
 
-  it('без bind — ошибка выполнения, называющая юнит', async () => {
+  it('без bind — ошибка выполнения, называющая шаг', async () => {
     const pipeline = makePipeline().pre(
       Tx.provide([Database$], (_ctx, db) => db.begin()),
     );
 
     await expect(run(pipeline, () => new Ok({}))).rejects.toThrow(
-      /unresolved units \(tx\.provide\)/,
+      /unresolved steps \(tx\.provide\)/,
     );
   });
 
@@ -1170,7 +1170,7 @@ describe('Pipeline v2 — писатель переменной с зависи�
     );
 
     expect(() => pipeline.bind(() => {})).toThrow(
-      /Cannot bind pipeline unit tx\.provide.*'Database'/,
+      /Cannot bind pipeline step tx\.provide.*'Database'/,
     );
   });
 });

@@ -280,7 +280,7 @@ export const endpointHasLayer: Rule.RuleModule = {
       missingLayer:
         "Endpoint declaration does not appear to compose layer '{{layer}}'. " +
         'This is an editor hint, not a guarantee: the guarantee is the ' +
-        'assembly policy check (everyEndpoint({ … }).hasLayer({{layer}})) in ' +
+        'build policy check (everyEndpoint({ … }).hasLayer({{layer}})) in ' +
         "the composition root. Opt out deliberately with detached: '<reason>'.",
     },
   },

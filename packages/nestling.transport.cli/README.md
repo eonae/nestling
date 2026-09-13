@@ -41,7 +41,7 @@ await makeApp({
   features: [ToolsFeature],
   transports: [cli()],
 })
-  .assemble()
+  .build()
   .run();
 ```
 

@@ -1,5 +1,5 @@
 /**
- * `assemble` и фазовый рантайм: порядок фаз, fail-fast сборки, резолв
+ * `build` и фазовый рантайм: порядок фаз, fail-fast сборки, резолв
  * зависимостей деклараций и строгий реверс shutdown.
  */
 
@@ -53,7 +53,7 @@ const contextFor = (pattern: string, payload?: unknown, signal?: AbortSignal) =>
     signal,
   ) as ExtendableContext<AnyInput>;
 
-describe('assemble — discovery и регистрация', () => {
+describe('build — discovery и регистрация', () => {
   it('маршруты дерева модулей передаются транспорту проекциями', async () => {
     const TestEndpoint = testEndpoint({
       method: 'GET',
@@ -72,7 +72,7 @@ describe('assemble — discovery и регистрация', () => {
     const app = makeApp({
       features: [TestModule],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -121,7 +121,7 @@ describe('assemble — discovery и регистрация', () => {
     const app = makeApp({
       features: [QuotaModule],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -130,7 +130,7 @@ describe('assemble — discovery и регистрация', () => {
     await app.close();
   });
 
-  it('endpoint из модуля, не переданного в assemble, не обслуживается', async () => {
+  it('endpoint из модуля, не переданного в build, не обслуживается', async () => {
     const ForeignEndpoint = testEndpoint({
       method: 'GET',
       path: '/foreign',
@@ -144,7 +144,7 @@ describe('assemble — discovery и регистрация', () => {
       features: [],
       // модуль с endpoint'ом не зарегистрирован
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     // Старт проходит, транспорт пуст: импорт файла ни на что не влияет
     await app.run();
@@ -159,7 +159,7 @@ describe('assemble — discovery и регистрация', () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:empty' })],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -170,14 +170,14 @@ describe('assemble — discovery и регистрация', () => {
   });
 
   it('пустая сборка допустима', async () => {
-    const app = makeApp({}).assemble();
+    const app = makeApp({}).build();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
   });
 });
 
-describe('assemble — fail-fast фазы ASSEMBLE', () => {
+describe('build — fail-fast фазы BUILD', () => {
   it('класс-хендлер без регистрации провайдером — ошибка старта', async () => {
     @Handler([])
     class CreateUserHandler {
@@ -199,7 +199,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
         makeFeature({ name: 'module:class', endpoints: [CreateUser] }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -210,7 +210,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     await app.close();
   });
 
-  it('класс-хендлер, перечисленный в providers, — ошибка ASSEMBLE', async () => {
+  it('класс-хендлер, перечисленный в providers, — ошибка BUILD', async () => {
     @Handler([])
     class CreateUserHandler {
       async handle() {
@@ -234,7 +234,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
         }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /Handler class 'CreateUserHandler'.*POST \/users.*'module:twice'/s,
@@ -267,7 +267,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
         makeFeature({ name: 'module:no-logger', endpoints: [CreateUser] }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/ILogger.*CreateUserHandler/s);
     expect(transport.serving).toBe(false);
@@ -286,7 +286,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:cli', endpoints: [CliEndpoint] })],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /Transport 'cli'.*users:list.*module:cli.*'transports:'/s,
@@ -320,7 +320,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
         }),
       ],
       transports: [asTransport(new MockTransport())],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(/Transport 'cli'/);
     expect(opened).toEqual([]);
@@ -352,7 +352,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /GET \/stream.*module:forms.*does not support form 'stream' in 'output'/s,
@@ -370,7 +370,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const app = makeApp({
       features: [Smuggling],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /smuggling.*index 0.*not an endpoint declaration/s,
@@ -378,8 +378,8 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     expect(transport.serving).toBe(false);
   });
 
-  it('незарегистрированный класс-юнит — ошибка старта до приёма запросов', async () => {
-    class UnregisteredUnit {
+  it('незарегистрированный класс-шаг — ошибка старта до приёма запросов', async () => {
+    class UnregisteredStep {
       handle(): { traceId: string } {
         return { traceId: 'never' };
       }
@@ -388,7 +388,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const BrokenEndpoint = testEndpoint({
       method: 'GET',
       path: '/broken',
-      pipeline: makePipeline().pre(UnregisteredUnit),
+      pipeline: makePipeline().pre(UnregisteredStep),
       handler: async () => new Ok({}),
     });
 
@@ -398,16 +398,16 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
         makeFeature({ name: 'test-module', endpoints: [BrokenEndpoint] }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
-      /Dependency 'UnregisteredUnit'.*GET \/broken.*not available in the DI container/s,
+      /Dependency 'UnregisteredStep'.*GET \/broken.*not available in the DI container/s,
     );
     expect(transport.serving).toBe(false);
   });
 });
 
-describe('assemble — фаза WIRE: резолв зависимостей деклараций', () => {
+describe('build — фаза WIRE: резолв зависимостей деклараций', () => {
   it('хендлер получает инстанс из DI', async () => {
     @Component([])
     class TestService {
@@ -441,7 +441,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
         }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -491,7 +491,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
         }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -508,10 +508,10 @@ describe('assemble — фаза WIRE: резолв зависимостей де
     await app.close();
   });
 
-  it('классы-юниты пайплайна связываются контейнером', async () => {
-    // Юнит пайплайна несёт метод `handle`, то есть роль хендлера. Его
+  it('классы-шаги пайплайна связываются контейнером', async () => {
+    // Шаг пайплайна несёт метод `handle`, то есть роль хендлера. Его
     // позиция — `providers:` единицы: класс-хендлер endpoint'а туда бы не
-    // встал, а юнит пайплайна живёт именно там
+    // встал, а шаг пайплайна живёт именно там
     @Handler([])
     class WithTracing {
       handle(): { traceId: string } {
@@ -538,7 +538,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
         }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -556,7 +556,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
   });
 });
 
-describe('assemble — порядок фаз и shutdown', () => {
+describe('build — порядок фаз и shutdown', () => {
   it('порядок наблюдаем: сначала конструктор (INIT), затем @OnStart, затем serve', async () => {
     const order: string[] = [];
 
@@ -585,7 +585,7 @@ describe('assemble — порядок фаз и shutdown', () => {
         makeFeature({ name: 'module:scheduler', providers: [Scheduler] }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -620,7 +620,7 @@ describe('assemble — порядок фаз и shutdown', () => {
         asTransport(first),
         transportValue(Second$, second, { capabilities: ALL_FORMS }),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -656,7 +656,7 @@ describe('assemble — порядок фаз и shutdown', () => {
         makeFeature({ name: 'module:resource', providers: [Teardown] }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.run();
@@ -671,7 +671,7 @@ describe('assemble — порядок фаз и shutdown', () => {
 
     const app = makeApp({
       transports: [asTransport(new MockTransport())],
-    }).assemble();
+    }).build();
 
     await app.run();
     expect(process.listenerCount('SIGTERM')).toBe(before + 1);
@@ -690,7 +690,7 @@ describe('assemble — порядок фаз и shutdown', () => {
       features: [Orders],
       transports: [asTransport(new MockTransport())],
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -717,7 +717,7 @@ describe('assemble — порядок фаз и shutdown', () => {
       features: [Orders, Billing],
       transports: [asTransport(new MockTransport())],
       logger: probe.logger,
-    }).assemble({ features: ['orders'], includeDeps: true });
+    }).build({ features: ['orders'], includeDeps: true });
 
     await app.run();
 
@@ -743,7 +743,7 @@ describe('assemble — порядок фаз и shutdown', () => {
       ],
       transports: [asTransport(new MockTransport())],
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -762,7 +762,7 @@ describe('assemble — порядок фаз и shutdown', () => {
     const app = makeApp({
       transports: [asTransport(new MockTransport())],
       logger: probe.logger,
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -846,7 +846,7 @@ describe('assemble — порядок фаз и shutdown', () => {
         }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -866,7 +866,7 @@ describe('assemble — порядок фаз и shutdown', () => {
   });
 });
 
-describe('assemble — фичи в приложении', () => {
+describe('build — фичи в приложении', () => {
   it("невыбранная фича не строит провайдеров и не регистрирует endpoint'ов", async () => {
     const built: string[] = [];
 
@@ -904,7 +904,7 @@ describe('assemble — фичи в приложении', () => {
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(transport)],
-    }).assemble('orders');
+    }).build('orders');
 
     await app.run();
 
@@ -948,7 +948,7 @@ describe('assemble — фичи в приложении', () => {
         }),
       ],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -972,7 +972,7 @@ describe('assemble — фичи в приложении', () => {
     });
 
     // Имя модуля — ключ атрибуции его провайдеров, поэтому два разных
-    // значения под одним именем роняют сборку на фазе ASSEMBLE, до
+    // значения под одним именем роняют сборку на фазе BUILD, до
     // построения контейнера и создания любого экземпляра
     const app = makeApp({
       features: [Orders, Billing],
@@ -1007,7 +1007,7 @@ describe('assemble — фичи в приложении', () => {
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(new MockTransport())],
-    }).assemble('orders');
+    }).build('orders');
 
     await app.run();
 
@@ -1017,7 +1017,7 @@ describe('assemble — фичи в приложении', () => {
   });
 });
 
-describe('assemble — именованные экземпляры транспортов', () => {
+describe('build — именованные экземпляры транспортов', () => {
   it('endpoint уходит на экземпляр, названный в `on:`', async () => {
     const publicApi = new MockTransport();
     const adminApi = new MockTransport();
@@ -1050,7 +1050,7 @@ describe('assemble — именованные экземпляры трансп�
           capabilities: ALL_FORMS,
         }),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
 
@@ -1088,7 +1088,7 @@ describe('assemble — именованные экземпляры трансп�
   });
 });
 
-describe('assemble — писатель переменной с зависимостями', () => {
+describe('build — писатель переменной с зависимостями', () => {
   it('незарегистрированная зависимость писателя — ошибка старта до приёма запросов', async () => {
     const Database$ = makeToken<{ begin(): string }>('Database');
     const Tx = contextVar<string>()('tx');
@@ -1106,7 +1106,7 @@ describe('assemble — писатель переменной с зависимо
     const app = makeApp({
       features: [makeFeature({ name: 'billing', endpoints: [BrokenEndpoint] })],
       transports: [asTransport(transport)],
-    }).assemble();
+    }).build();
 
     await expect(app.run()).rejects.toThrow(
       /Dependency 'Database'.*GET \/broken.*module 'billing'.*not available in the DI container/s,

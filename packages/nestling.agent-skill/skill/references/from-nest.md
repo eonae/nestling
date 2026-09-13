@@ -13,7 +13,7 @@ behind each replacement, read the README of the package that owns it —
 
 | NestJS | Nestling | Difference |
 |---|---|---|
-| `NestFactory.create(AppModule)`, `app.listen()` | `makeApp({ features, transports }).assemble().run()` | `run()` walks the phases and installs the `SIGTERM` handler itself |
+| `NestFactory.create(AppModule)`, `app.listen()` | `makeApp({ features, transports }).build().run()` | `run()` walks the phases and installs the `SIGTERM` handler itself |
 | `@Module({ providers, imports })` | `makeModule({ name, providers })` | a module is an object, not a class, and has no lifecycle hooks |
 | `@Module({ controllers })` | `makeFeature({ providers, endpoints })` | endpoints belong to a feature, and a feature can be deployed on its own |
 | `exports` of a module | nothing | ES modules hold visibility: an unexported token cannot be injected |
@@ -29,7 +29,7 @@ behind each replacement, read the README of the package that owns it —
 | `@Inject(TOKEN)` | the token in the list and the position in the constructor | an interface gets a token `Name$` from `makeToken` |
 | `forwardRef()` | nothing | a dependency cycle is a build error |
 | `Scope.REQUEST` | `Ctx(Var)` and a layer that sets the variable | providers stay singletons; request data is read from the async context |
-| `Scope.TRANSIENT` with `INQUIRER` | `Family.auto` | the member named after its consumer is created during assembly |
+| `Scope.TRANSIENT` with `INQUIRER` | `Family.auto` | the member named after its consumer is created during the build |
 | `useFactory` with `inject` | `factoryProvider(token, fn, deps)` | same meaning, positional dependencies, no I/O allowed |
 | `OnModuleInit`, `OnModuleDestroy` | `static acquire` and `release` of a resource, `@OnStart()` | acquisition follows the graph order, release the reverse |
 | `ModuleRef.get()` | nothing | the container is not handed out; take instances through `deps` |
@@ -40,10 +40,10 @@ behind each replacement, read the README of the package that owns it —
 |---|---|---|
 | `@Param()`, `@Query()`, `@Body()` | the `input` schema and the placement rule | path by parameter name, query for methods without a body, body otherwise; `bind` overrides |
 | `ValidationPipe` with class-validator | the `input` schema | input is always validated, before the handler, through Standard Schema |
-| `Middleware` | a `.pre` unit | a unit adds typed fields to the context and never calls `next()` |
-| `Guard` | a `.pre` unit that returns a failure | the failure is declared in `errors:`; the handler does not run |
-| `Interceptor` | `.pre`, `.ok`, `.finally` units | three separate phases instead of a wrapper around the call |
-| `ExceptionFilter` | a `.catch` unit | it exchanges one failure for another; it cannot produce a success |
+| `Middleware` | a `.pre` step | a step adds typed fields to the context and never calls `next()` |
+| `Guard` | a `.pre` step that returns a failure | the failure is declared in `errors:`; the handler does not run |
+| `Interceptor` | `.pre`, `.ok`, `.finally` steps | three separate phases instead of a wrapper around the call |
+| `ExceptionFilter` | a `.catch` step | it exchanges one failure for another; it cannot produce a success |
 | `HttpException` | `makeFail` and the `errors:` list | a failure is a value with a code; one outside the list becomes `internal_error` |
 | `@HttpCode(201)` | `Ok.created(value)` | the success status is set on the value and does not mention HTTP |
 | `@Header()`, `@Res().cookie()`, `@Redirect()` | `HttpResponse.of(ok, { headers, cookies })`, `HttpResponse.redirect(location)` | the HTTP shape of a response, allowed where the transport owns the address |
@@ -55,7 +55,7 @@ behind each replacement, read the README of the package that owns it —
 
 | NestJS | Nestling | Difference |
 |---|---|---|
-| injecting a service of another module | `makeRequest` and `Operation.caller` | features are linked only by operations; a direct edge is an assembly error |
+| injecting a service of another module | `makeRequest` and `Operation.caller` | features are linked only by operations; a direct edge is a build error |
 | `EventEmitter2`, `@OnEvent()` | `makeEvent`, `Operation.emitter`, `implement(Event, { subscriber })` | the event has a schema and the subscriber is named |
 | `@MessagePattern()`, `ClientProxy` | `implement(Operation)` and `Operation.caller` | the calling code is identical in one process and across a broker |
 | `@nestjs/microservices` over NATS | `nats()` in `transports:` and `intercom:` | the bus is an ordinary transport; carrying operations is a role assigned to it |
@@ -67,15 +67,15 @@ behind each replacement, read the README of the package that owns it —
 |---|---|---|
 | `ConfigModule.forRoot()`, `ConfigService.get('X')` | `makeConfig(prefix, fields)` and injecting the section | the section is typed by schema and validated at start; nothing to register |
 | `ConfigModule` with `load` and `validationSchema` | `config: [[source, Section.keys]]` in the root | a source is bound to keys, not to a module |
-| `Test.createTestingModule()`, `overrideProvider()` | `assembleTest(app, { overrides })` | the test assembles the same application through the same phases |
+| `Test.createTestingModule()`, `overrideProvider()` | `buildTest(app, { overrides })` | the test builds the same application through the same phases |
 | `supertest` against `app.getHttpServer()` | `testApp.call(Endpoint, payload)` | the request goes through the whole pipeline without a network |
 | mocking a service of a neighbouring module | `stubs: [stub(Operation, impl)]` | the answer of the stub is validated against the operation schema |
 
 ## Not here at all
 
-- `forwardRef`: a dependency cycle does not assemble.
+- `forwardRef`: a dependency cycle does not build.
 - `REQUEST` and `TRANSIENT` scopes: request data lives in the async
   context, and an instance per consumer comes from a token family.
 - `exports` of a module: ES modules are the visibility boundary.
-- `next()`: pipeline units do not wrap each other.
+- `next()`: pipeline steps do not wrap each other.
 - A controller layer: an endpoint is a declaration with a handler.

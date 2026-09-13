@@ -28,7 +28,7 @@ export const app = makeApp({
 });
 
 // Декларации, операции и код вызовов при добавлении nats() не меняются.
-await app.assemble(load(RootConfig).features).run();
+await app.build(load(RootConfig).features).run();
 ```
 
 ## Экспорты

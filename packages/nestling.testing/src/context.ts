@@ -2,7 +2,7 @@
  * Request-контекст в тесте: подставляется **подменой провайдера**, а не
  * ALS'ом.
  *
- * Ридер ambient-переменной — обычный узел графа (член семейства `Ctx`),
+ * Ридер ambient-переменной — обычный узел графа (токен семейства `Ctx`),
  * поэтому шва тут не изобретается: `contextValue` — та же пара
  * `DI-токен → фейк`, что и любой другой элемент `overrides:`. Отсюда главное
  * свойство: сервис, читающий `Ctx(RequestId)`, тестируется прямым вызовом,
@@ -31,7 +31,7 @@ import type { Token } from '@nestlingjs/container';
  *
  * @example
  * ```typescript
- * await using app = await assembleTest({
+ * await using app = await buildTest({
  *   features: [UsersFeature],
  *   overrides: [contextValue(RequestId, 'req-1')],
  * });

@@ -9,7 +9,7 @@ import { cliEndpoint } from '@nestlingjs/transport.cli';
  * Читает выгрузку сервиса построчно.
  *
  * Каждая строка — один пользователь в JSON. Схема та же, что у сервиса:
- * `User` приезжает из его операций, второго описания строки нет.
+ * `User` берётся из его операций, второго описания строки нет.
  */
 async function* rows(): AsyncIterableIterator<User> {
   const response = await fetch(`${baseUrl}${EXPORT_USERS_PATH}`);

@@ -17,7 +17,7 @@ npm install --save-dev @nestlingjs/viz
 
 ## Minimal example
 
-The graph is exported from the assembled container:
+The graph is exported from the built container:
 `await container.toJSON()` is written to a file. Then the file is opened
 with the command:
 
@@ -42,4 +42,4 @@ A working example: the `graph` and `visualize` scripts in
 ## Package boundaries
 
 The tool only shows the graph: it does not check it and does not change
-it. The container assembly does the checking of the graph.
+it. The container build does the checking of the graph.

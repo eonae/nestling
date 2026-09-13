@@ -1,6 +1,6 @@
 export * from './abort.js';
 export * from './context/index.js';
-export type { DeferredPreUnitFn } from './deferred.js';
+export type { DeferredPreStepFn } from './deferred.js';
 export * from './done.js';
 export * from './io/index.js';
 export * from './pipeline.js';

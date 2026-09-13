@@ -22,7 +22,7 @@ import { objectSource } from '@nestlingjs/app';
  * @example
  * ```typescript
  * const src = vars({ USERS_PAGE_SIZE: '10' });
- * await using app = await assembleTest({ features: [UsersFeature], config: src });
+ * await using app = await buildTest({ features: [UsersFeature], config: src });
  *
  * src.set('USERS_PAGE_SIZE', '20'); // reloadable-секция перепроецируется
  * ```

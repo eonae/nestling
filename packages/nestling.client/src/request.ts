@@ -5,7 +5,7 @@
  * Карта общая для клиента и сервера: сервер по ней раскладывает запрос в
  * payload, клиент по ней же собирает payload в запрос. Инвариант, который
  * обязан держаться и проверяется round-trip-тестом:
- * `assemblePayload(binding, split(binding, payload)) ≡ payload`.
+ * `buildPayload(binding, split(binding, payload)) ≡ payload`.
  */
 
 import type { HttpBinding } from '@nestlingjs/operations';
@@ -125,7 +125,7 @@ export function buildRequest(
   const hasFields = Object.keys(binding.fields).length > 0;
 
   if (!hasFields) {
-    // Зеркало `assemblePayload`: явных размещений нет — payload целиком и
+    // Зеркало `buildPayload`: явных размещений нет — payload целиком и
     // есть источник «остальное». Тело при этом может быть и не объектом.
     if (binding.rest === 'query') {
       for (const [name, value] of Object.entries(record ?? {})) {

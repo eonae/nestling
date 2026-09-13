@@ -28,8 +28,8 @@ const GetUser = httpEndpoint.get('/users/:id', {
 /** A feature owns endpoints and providers. An app is a list of features */
 const UsersFeature = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-// `assemble()` picks what this process runs; `run()` builds the graph,
+// `build()` picks what this process runs; `run()` builds the graph,
 // walks the phases, opens the socket and stops on SIGTERM
 await makeApp({ features: [UsersFeature], transports: [http()] })
-  .assemble()
+  .build()
   .run();

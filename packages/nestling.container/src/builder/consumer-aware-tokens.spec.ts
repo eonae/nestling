@@ -14,7 +14,7 @@ interface ILoggerService {
 }
 
 describe('Family.auto', () => {
-  it('заменяется на члена с именем класса-потребителя', async () => {
+  it('заменяется на токена семейства с именем класса-потребителя', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('AutoOne');
 
     @Component([ILogger.auto])
@@ -41,7 +41,7 @@ describe('Family.auto', () => {
     );
   });
 
-  it('даёт двум потребителям двух разных членов из одного рецепта', async () => {
+  it('даёт двум потребителям двух разных токенов семейства из одного рецепта', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('AutoTwo');
 
     @Component([ILogger.auto])
@@ -75,7 +75,7 @@ describe('Family.auto', () => {
     );
   });
 
-  it('совпадает с явным членом того же имени', async () => {
+  it('совпадает с явным токеном семейства того же имени', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'AutoDedup',
     );

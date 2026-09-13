@@ -1,5 +1,5 @@
 /**
- * `assembleTest` — тестовый composition root и `TestApp` вокруг него.
+ * `buildTest` — тестовый composition root и `TestApp` вокруг него.
  *
  * Собственного фазового рантайма здесь нет: пакет собирает **ту же**
  * декларацию `makeApp` через шов `@nestlingjs/app/testing` и останавливает
@@ -18,7 +18,7 @@ import type {
   AnyOutput,
   AnyPayload,
   App,
-  AssembleArgs,
+  BuildArgs,
   ConfigInput,
   DispatchOptions,
   EndpointDefinition,
@@ -65,10 +65,10 @@ export interface TestCallOptions extends DispatchOptions {
 
   /**
    * Стартовый контекст запроса: то, что транспорт кладёт в контекст до
-   * первого `.pre`-юнита.
+   * первого `.pre`-шага.
    *
    * `testApp.call` собирает контекст сам и стартовых полей не заполняет,
-   * поэтому юнит и хендлер, читающие их, получают значения отсюда. Поле
+   * поэтому шаг и хендлер, читающие их, получают значения отсюда. Поле
    * общее для всех транспортов: пакет не зависит от пакета транспорта и
    * его типов не называет.
    *
@@ -87,7 +87,7 @@ export interface TestCallOptions extends DispatchOptions {
  *
  * Одно поле на обе формы, потому что решение у теста одно и то же —
  * «здесь боевого кода не будет»; стаб операции есть та же пара, только
- * DI-токен в ней — член семейства вызывателей ([stub.ts](./stub.ts)).
+ * DI-токен в ней — токен семейства вызывателей ([stub.ts](./stub.ts)).
  */
 export type TestStub =
   | readonly [token: InjectionToken<any>, value: any]
@@ -119,15 +119,15 @@ export interface EmitDelivery {
  * пара проверялась по типу своего DI-токена
  * @template S - Переключатели декларации; из них выведен тип аргумента
  */
-export interface TestAssemblyOptions<
+export interface TestBuildOptions<
   L extends readonly unknown[] = readonly TestOverride[],
   S extends readonly AnySwitch[] = readonly AnySwitch[],
 > {
   /**
    * Аргумент сборки — тот же, что в бою: выбор фич и значения
-   * переключателей. Опечатка падает на фазе ASSEMBLE.
+   * переключателей. Опечатка падает на фазе BUILD.
    */
-  args?: AssembleArgs<S>;
+  args?: BuildArgs<S>;
 
   /**
    * Конфиг теста: источник, одна привязка или их список.
@@ -170,7 +170,7 @@ export class TestApp {
 
   readonly #stubbed: readonly string[];
 
-  /** @internal конструируется только `assembleTest`/`testUnit` */
+  /** @internal конструируется только `buildTest`/`testBundle` */
   constructor(wired: WiredApp, stubbed: readonly string[] = []) {
     this.#wired = wired;
     this.#stubbed = stubbed;
@@ -223,7 +223,7 @@ export class TestApp {
   /**
    * Исполняет endpoint in-proc — через **полный пайплайн**.
    *
-   * Этим app-тест и отличается от юнита: отрабатывают все слои, валидация
+   * Этим app-тест и отличается от шага: отрабатывают все слои, валидация
    * схем и проверка границы, а результат — `ResponseContext`, то есть ровно
    * то, что увидел бы транспорт.
    *
@@ -306,9 +306,9 @@ export class TestApp {
 
       throw new Error(
         `Operation '${operation.name}' (kind 'command') has no owner in the ` +
-          `assembled application: no registered module declares ` +
+          `built application: no registered module declares ` +
           `implement(${operation.name}, { … }) — check that the feature ` +
-          `owning it is part of the assembly argument. Available subjects: ` +
+          `owning it is part of the build argument. Available subjects: ` +
           `${this.#busSubjects().join(', ') || '(none)'}.`,
       );
     }
@@ -338,7 +338,7 @@ export class TestApp {
     await this.#wired.close();
   }
 
-  /** `await using app = await assembleTest({ … })` */
+  /** `await using app = await buildTest({ … })` */
   async [Symbol.asyncDispose](): Promise<void> {
     await this.close();
   }
@@ -433,9 +433,9 @@ export class TestApp {
       .join(', ');
 
     throw new Error(
-      `Endpoint '${String(endpoint?.pattern)}' is not part of the assembled ` +
+      `Endpoint '${String(endpoint?.pattern)}' is not part of the built ` +
         `application: it is declared by a module that was not registered, or ` +
-        `by a feature that the assembly argument left out. Available handles: ` +
+        `by a feature that the build argument left out. Available handles: ` +
         `${available || '(none)'}.`,
     );
   }
@@ -486,7 +486,7 @@ function assertEmitting(
  * Собирает тестовое приложение и останавливает его после фазы 3 WIRE.
  *
  * Та же декларация, что у `main.ts`, плюс аргумент сборки, `overrides`,
- * `stubs` и конфиг теста; те же fail-fast'ы ASSEMBLE — раскрытие веток
+ * `stubs` и конфиг теста; те же fail-fast'ы BUILD — раскрытие веток
  * переключателей, сверка требуемых транспортов, формы io против
  * способностей транспорта, ацикличность графа и объявленные политики.
  *
@@ -499,7 +499,7 @@ function assertEmitting(
  * ```typescript
  * import { app } from './app.js';
  *
- * await using testApp = await assembleTest(app, {
+ * await using testApp = await buildTest(app, {
  *   args: { features: 'users', storage: 'local' },
  *   overrides: [
  *     [UsersRepository, inMemoryUsersRepo()],
@@ -509,19 +509,19 @@ function assertEmitting(
  * });
  * ```
  */
-export async function assembleTest<
+export async function buildTest<
   const L extends readonly TestOverride[],
   const S extends readonly AnySwitch[] = readonly AnySwitch[],
 >(
   app: App<S>,
-  options: TestAssemblyOptions<L, S> & {
+  options: TestBuildOptions<L, S> & {
     overrides?: ValidatedOverrides<L>;
   } = {},
 ): Promise<TestApp> {
   if (!isApp(app)) {
     throw new TypeError(
-      'assembleTest(app, options): the first argument must be an ' +
-        'application declaration created by makeApp({ … }); the assembly ' +
+      'buildTest(app, options): the first argument must be an ' +
+        'application declaration created by makeApp({ … }); the build ' +
         'dictionary is not accepted here.',
     );
   }

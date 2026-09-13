@@ -135,7 +135,7 @@ export interface RequestOperation<
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
 > extends Operation<I, O, E, 'request'> {
   /**
-   * DI-токен вызывающей стороны: член семейства `PortFamily` с именем
+   * DI-токен вызывающей стороны: токен семейства `PortFamily` с именем
    * операции в параметре.
    */
   readonly caller: PortToken<RequestOperation<I, O, E>>;
@@ -148,7 +148,7 @@ export interface EmittingOperation<
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   K extends 'command' | 'event' = 'command' | 'event',
 > extends Operation<I, O, E, K> {
-  /** DI-токен эмиттера: член `EmitterFamily` с именем операции в параметре */
+  /** DI-токен эмиттера: токен семейства `EmitterFamily` с именем операции в параметре */
   readonly emitter: EmitterToken<EmittingOperation<I, O, E, K>>;
 }
 

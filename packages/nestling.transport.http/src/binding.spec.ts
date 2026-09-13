@@ -8,7 +8,7 @@
 
 import type { BindPlacement } from './binding.js';
 import {
-  assemblePayload,
+  buildPayload,
   computeHttpBinding,
   httpBindingOf,
   query,
@@ -82,7 +82,7 @@ describe('readQuery — повторный ключ даёт массив', () =
   });
 });
 
-describe('assemblePayload — strict-приём', () => {
+describe('buildPayload — strict-приём', () => {
   it('приоритет: path > пометка > остальное', () => {
     const binding = computeHttpBinding({
       method: 'PATCH',
@@ -91,7 +91,7 @@ describe('assemblePayload — strict-приём', () => {
       bind: { name: query() },
     });
 
-    const payload = assemblePayload(binding, {
+    const payload = buildPayload(binding, {
       query: { name: 'from-query', extra: 'ignored' },
       body: { id: 'from-body', name: 'from-body', email: 'a@b.c' },
       params: { id: '42' },
@@ -111,7 +111,7 @@ describe('assemblePayload — strict-приём', () => {
       input: Input,
     });
 
-    const payload = assemblePayload(binding, {
+    const payload = buildPayload(binding, {
       query: { name: 'Alice' },
       body: undefined,
       params: {},
@@ -128,7 +128,7 @@ describe('assemblePayload — strict-приём', () => {
       bind: { name: query() },
     });
 
-    const payload = assemblePayload(binding, {
+    const payload = buildPayload(binding, {
       query: {},
       body: { name: 'Alice', id: '1' },
       params: {},
@@ -145,7 +145,7 @@ describe('assemblePayload — strict-приём', () => {
     });
 
     expect(
-      assemblePayload(binding, {
+      buildPayload(binding, {
         query: {},
         body: [{ id: '1' }],
         params: {},
@@ -162,7 +162,7 @@ describe('assemblePayload — strict-приём', () => {
 
     // Схема отчитается о недостающих полях по именам, а не «expected object»
     expect(
-      assemblePayload(binding, { query: {}, body: undefined, params: {} }),
+      buildPayload(binding, { query: {}, body: undefined, params: {} }),
     ).toEqual({});
   });
 });

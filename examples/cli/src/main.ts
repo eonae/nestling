@@ -13,7 +13,7 @@ import { makeDispatch } from '@nestlingjs/app';
 import { CliTransport } from '@nestlingjs/transport.cli';
 
 /**
- * CLI без `assemble`: аргументы есть — выполняется одна команда,
+ * CLI без `build`: аргументы есть — выполняется одна команда,
  * аргументов нет — открывается REPL.
  *
  * Контейнер здесь не нужен: команды зависят только от клиента сервиса, а

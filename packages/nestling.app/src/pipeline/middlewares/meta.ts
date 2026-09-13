@@ -1,6 +1,6 @@
 import type { EmptyInput } from '../core/index.js';
 import { RequestId } from '../core/index.js';
-import type { PreUnitFn } from '../core/types/index.js';
+import type { PreStepFn } from '../core/types/index.js';
 
 /**
  * Добавляет `requestId` в контекст запроса.
@@ -9,7 +9,7 @@ import type { PreUnitFn } from '../core/types/index.js';
  * случайный.
  *
  * Писатель — сама переменная {@link RequestId}: слой, композированный от
- * этого юнита, автоматически удовлетворяет политике
+ * этого шага, автоматически удовлетворяет политике
  * `everyEndpoint(…).hasVar(RequestId)`, а глубокий сервис читает значение
  * через `Ctx(RequestId)` — без протаскивания параметром.
  *
@@ -19,7 +19,7 @@ import type { PreUnitFn } from '../core/types/index.js';
  *   .pre(withRequestId());
  * ```
  */
-export function withRequestId(): PreUnitFn<EmptyInput, { requestId: string }> {
+export function withRequestId(): PreStepFn<EmptyInput, { requestId: string }> {
   return RequestId.provide((ctx) => {
     const requestId = ctx.raw.attributes['x-request-id'];
 

@@ -3,7 +3,7 @@
  * `Port`, `Emitter`, `PortMeta`, `EmitMeta`.
  *
  * Отдельный файл: на семейства ссылаются и операция (`.caller` / `.emitter`
- * — члены семейств), и модуль ядра в `@nestlingjs/app` (рецепты). Общий
+ * — токены семейств), и модуль ядра в `@nestlingjs/app` (рецепты). Общий
  * модуль-лист разрывает цикл импортов.
  */
 
@@ -153,7 +153,7 @@ export interface Emitter<
 }
 
 /**
- * Семейство портов: один член на операцию вида `request`.
+ * Семейство портов: один DI-токен на операцию вида `request`.
  *
  * Рецепт регистрирует модуль ядра в `@nestlingjs/app`. `deps: [C.caller]`
  * создаёт один узел графа для этой операции; операция, которую никто не
@@ -164,7 +164,7 @@ export interface Emitter<
 export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
 
 /**
- * Семейство эмиттеров: один член на операцию вида `command` или `event`
+ * Семейство эмиттеров: один DI-токен на операцию вида `command` или `event`
  * (см. {@link PortFamily}).
  *
  * @internal Пользовательский код получает DI-токен через `Operation.emitter`
@@ -173,11 +173,11 @@ export const EmitterFamily = makeTokenFamily<Emitter<any>, [name: string]>(
   'Emitter',
 );
 
-/** DI-токен порта операции: член семейства, типизированный операцией */
+/** DI-токен порта операции: токен семейства, типизированный операцией */
 export type PortToken<C extends RequestOperation<any, any, any>> = Token<
   Port<C>
 >;
 
-/** DI-токен эмиттера операции: член семейства, типизированный операцией */
+/** DI-токен эмиттера операции: токен семейства, типизированный операцией */
 export type EmitterToken<C extends EmittingOperation<any, any, any, any>> =
   Token<Emitter<C>>;

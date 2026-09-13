@@ -25,7 +25,7 @@ application writes the adapter.
 ## Minimal example
 
 ```typescript
-// The plugin is assembled in the composition root: the transaction
+// The plugin is built in the composition root: the transaction
 // variable, the DI token of the storage and the list of operations that
 // travel through the outbox.
 export const appOutbox = outbox({

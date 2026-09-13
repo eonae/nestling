@@ -1,5 +1,5 @@
 /**
- * Шов тестового корня: тот же `AssembledApp`, остановленный на фазе 3 WIRE.
+ * Шов тестового корня: тот же `BuiltApp`, остановленный на фазе 3 WIRE.
  *
  * Живёт conditional subpath'ом `@nestlingjs/app/testing` — условие
  * `"testing"` включено только в тест-раннере, поэтому прод-импорт не
@@ -14,8 +14,8 @@
  */
 
 import type { App } from '../root/app.js';
-import { AssembledApp, isApp } from '../root/app.js';
-import type { AssembleArgs } from '../root/args.js';
+import { BuiltApp, isApp } from '../root/app.js';
+import type { BuildArgs } from '../root/args.js';
 import type { TestSubstitutions, WiredApp } from '../root/plan.js';
 import { makePlan, TEST_SEAM } from '../root/plan.js';
 
@@ -39,16 +39,16 @@ export interface WireOptions<
 > extends TestSubstitutions {
   /**
    * Аргумент сборки — тот же, что в бою: опечатка падает на фазе
-   * ASSEMBLE.
+   * BUILD.
    */
-  args?: AssembleArgs<S>;
+  args?: BuildArgs<S>;
 }
 
 /**
- * Проводит приложение по фазам `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE`
+ * Проводит приложение по фазам `0 BOOTSTRAP → 1 BUILD → 2 INIT → 3 WIRE`
  * и останавливается.
  *
- * Те же fail-fast'ы ASSEMBLE, что и в бою: сверка требуемых транспортов,
+ * Те же fail-fast'ы BUILD, что и в бою: сверка требуемых транспортов,
  * проверка форм io против их способностей, ацикличность графа, политики
  * декларации. START не выполняется — ни `@OnStart`, ни `serve`, ни
  * обработчики сигналов процесса, ни строка состава в stdout.
@@ -78,7 +78,7 @@ export async function wireApp<const S extends readonly AnySwitch[]>(
   }
 
   const { args, ...substitutions } = options;
-  const assembled = new AssembledApp(makePlan(app.spec, args, substitutions));
+  const built = new BuiltApp(makePlan(app.spec, args, substitutions));
 
-  return await assembled[TEST_SEAM]();
+  return await built[TEST_SEAM]();
 }

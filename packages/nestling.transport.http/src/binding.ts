@@ -92,7 +92,7 @@ function asRecord(value: unknown): Record<string, unknown> {
  * присланное не в своё место, в payload не попадает и проваливает обычную
  * валидацию.
  */
-export function assemblePayload(
+export function buildPayload(
   binding: HttpBinding,
   sources: PayloadSources,
 ): unknown {
