@@ -18,11 +18,12 @@ npm install @nestlingjs/subscriptions
 ## Минимальный пример
 
 ```typescript
+import { RequestId } from '@nestlingjs/app';
 import { subscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
 
 // 1. Плагин: создаётся один раз в композиционном корне
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { userId?: string }).userId,
+  identity: RequestId, // подписанта называет переменная контекста
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true, // факты жизненного цикла как операции
   node: process.env.HOSTNAME,
@@ -42,12 +43,18 @@ export const Feed = httpEndpoint.get('/api/feed', {
 
 - **Подключение** — `subscriptions`, `SubscriptionsOptions`, `tracked`,
   `TrackSubscription`, `UntrackSubscription`.
+- **Источники опций** — `computed`, `IdentitySource`, `IdentityVar`,
+  `IdentityFn`, `LabelsSource`.
 - **Реестр** — `SubscriptionRegistry`, `SubscriptionInfo`,
   `SubscriptionFilter`, `SubscriptionKind`, `TrackedSubscription`,
   `SubscriptionKilledError`, `CloseReason`.
 - **Факты жизненного цикла** ([design](../../docs/design/operations.md)) —
   `SubscriptionOpened`, `SubscriptionClosed`, `SubscriptionOpenedFact`,
   `SubscriptionClosedFact`, `SubscriptionEvent`.
+
+`identity` принимает контекстную переменную либо функцию от контекста.
+Накопленный вход функция не видит — ключ из нескольких переменных
+собирает `computed([TenantId, UserId], (_ctx, tenant, user) => …)`.
 
 Факты публикуются операциями, только если у плагина задано `publish: true`.
 

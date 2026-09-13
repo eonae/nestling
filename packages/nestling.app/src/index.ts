@@ -71,7 +71,7 @@ export type { Fields, Logger, LogLevel } from './logger/index.js';
 export { Metrics$, RootMetrics$ } from './metrics/index.js';
 export type { MetricAttributes, Metrics } from './metrics/index.js';
 
-// ./pipeline/index.js — 60
+// ./pipeline/index.js — 61
 export {
   assertLayerFailsDeclared,
   bindInputStream,
@@ -87,6 +87,7 @@ export {
   handlerClassOf,
   isAsyncIterable,
   isDone,
+  isContextVar,
   isEndpointDefinition,
   isMidStreamFailure,
   makeEmptyContext,

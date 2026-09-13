@@ -5,20 +5,24 @@ import {
   WatchSubscriptions,
 } from './subscriptions.endpoint.js';
 
-import { makePlugin } from '@nestlingjs/app';
+import { makePlugin, RequestId } from '@nestlingjs/app';
 import { subscriptions } from '@nestlingjs/subscriptions';
 import { httpProbes } from '@nestlingjs/transport.http';
 
 /**
  * Реестр подписок из пакета `@nestlingjs/subscriptions`.
  *
- * `identity` и `labels` вычисляются из контекста запроса: что считать
- * подписчиком, решает приложение. `publish: false` — фактов открытия и
- * закрытия в шину не уходит: процесс один, и реестр этого процесса виден
- * целиком через `GET /ops/subscriptions`.
+ * Подписанта называет переменная `RequestId`: реестр читает её значение
+ * по ключу, а формы накопленного входа не знает. Что переменную кладёт
+ * каждый HTTP-endpoint, требует политика `hasVar` в `app.ts` — промах
+ * ловится на сборке, а не пустым `identity` в списке подписок.
+ *
+ * `publish: false` — фактов открытия и закрытия в шину не уходит: процесс
+ * один, и реестр этого процесса виден целиком через
+ * `GET /ops/subscriptions`.
  */
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: false,
 });

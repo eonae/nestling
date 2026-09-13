@@ -69,7 +69,7 @@ await app.assemble().run();
   `DeferredPreUnitFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
   `EndpointMeta`, `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`,
   `everyEndpoint`, `ExtendableContext`, `FinallyUnitFn`, `HandlerClass`,
-  `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isDone`,
+  `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isContextVar`, `isDone`,
   `isEndpointDefinition`, `isMidStreamFailure`, `makeEmptyContext`,
   `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
   `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreUnitFn`,

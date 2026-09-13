@@ -7,6 +7,7 @@
  * путём, тем же, что и при дисконнекте клиента.
  */
 
+import { valueOfVar } from './computed.js';
 import { SubscriptionKilledError } from './errors.js';
 import type {
   SubscriptionClosed,
@@ -24,30 +25,86 @@ import type {
 } from './types.js';
 import { kindOfOutput } from './types.js';
 
-import type { AnyInput, ExtendableContext, Outcome } from '@nestlingjs/app';
+import type {
+  AnyInput,
+  EmptyInput,
+  ExtendableContext,
+  Outcome,
+  ReadonlyContextVar,
+} from '@nestlingjs/app';
+import { isContextVar } from '@nestlingjs/app';
 import type { Emitter } from '@nestlingjs/operations';
 import { Topic } from '@nestlingjs/operations';
 
-/** Контекст запроса в терминах реестра: конкретный input ему безразличен */
+/**
+ * Контекст запроса в терминах реестра: конкретный input ему безразличен.
+ *
+ * Форма внутренняя: наружу уходят источники опций, а они накопленного
+ * входа не видят.
+ */
 export type SubscriptionContext = ExtendableContext<AnyInput>;
 
-/** Извлекает подписанта из контекста запроса */
-export type IdentityExtractor = (
-  ctx: SubscriptionContext,
+/** Переменная, годная в `identity`: её значение — строка */
+export type IdentityVar = ReadonlyContextVar<string | undefined>;
+
+/**
+ * Вычисление подписанта по контексту запроса.
+ *
+ * Накопленный вход здесь пуст: значения переменных приходят аргументами
+ * из `computed`, а читать `input` мимо переменных незачем — поле,
+ * названное строкой, переживёт переименование переменной молча.
+ */
+export type IdentityFn = (
+  ctx: ExtendableContext<EmptyInput>,
 ) => string | undefined;
 
-/** Извлекает метки подписки из контекста запроса */
-export type LabelsExtractor = (
-  ctx: SubscriptionContext,
+/** Кто подписан: контекстная переменная либо вычисление по контексту */
+export type IdentitySource = IdentityVar | IdentityFn;
+
+/**
+ * Метки подписки — вычисление по контексту.
+ *
+ * Формы переменной у меток нет: значение здесь словарь, а переменной
+ * такого типа не встречается.
+ */
+export type LabelsSource = (
+  ctx: ExtendableContext<EmptyInput>,
 ) => Record<string, string>;
+
+/**
+ * Приводит опцию `identity` к единственной внутренней форме — функции.
+ *
+ * Разбор идёт один раз, при создании реестра: `open()` стоит на горячем
+ * пути, до вызова хендлера, и о формах опции знать не должен.
+ */
+function readerOf(source?: IdentitySource): IdentityFn | undefined {
+  if (source === undefined || !isContextVar(source)) {
+    return source;
+  }
+
+  const { key } = source;
+
+  // Значение приходит из пайплайна, а не из объявления: переменную мог
+  // не положить ни один юнит этого endpoint'а, а положенное — оказаться
+  // не строкой. Оба случая дают подписку без `identity`: броска здесь
+  // нет намеренно, иначе реестр уронил бы запрос, к наблюдаемости
+  // отношения не имеющий. Гарантию «переменная объявлена» даёт политика
+  // сборки `everyEndpoint(…).hasVar(…)` — до первого запроса, а не на
+  // каждом
+  return (ctx) => {
+    const value = valueOfVar(ctx, key);
+
+    return typeof value === 'string' ? value : undefined;
+  };
+}
 
 /** Опции, которые нужны самому реестру (модуль добавляет к ним `publish`) */
 export interface RegistryOptions {
-  /** Кто подписан: экстрактор решает композиция, реестр только зовёт */
-  readonly identity?: IdentityExtractor;
+  /** Кто подписан: переменную или вычисление выбирает композиция */
+  readonly identity?: IdentitySource;
 
   /** Метки подписки — тот же принцип, что у `identity` */
-  readonly labels?: LabelsExtractor;
+  readonly labels?: LabelsSource;
 
   /** Буфер ленты на одного наблюдателя; политика — `drop-oldest` */
   readonly feedBuffer?: number;
@@ -131,6 +188,11 @@ export class SubscriptionRegistry {
 
   readonly #options: RegistryOptions;
 
+  /** Опции, разобранные до функций: форму значения `open()` не знает */
+  readonly #readIdentity?: IdentityFn;
+
+  readonly #readLabels?: LabelsSource;
+
   readonly #openedEmitter?: Emitter<typeof SubscriptionOpened>;
 
   readonly #closedEmitter?: Emitter<typeof SubscriptionClosed>;
@@ -156,6 +218,8 @@ export class SubscriptionRegistry {
     closedEmitter?: Emitter<typeof SubscriptionClosed>,
   ) {
     this.#options = options;
+    this.#readIdentity = readerOf(options.identity);
+    this.#readLabels = options.labels;
     this.#feed = new Topic<SubscriptionEvent>({
       buffer: options.feedBuffer ?? DEFAULT_FEED_BUFFER,
       onSlowConsumer: 'drop-oldest',
@@ -266,8 +330,8 @@ export class SubscriptionRegistry {
       transport: ctx.endpoint.transport,
       pattern: ctx.endpoint.pattern,
       kind: kindOfOutput(ctx.endpoint),
-      identity: this.#options.identity?.(ctx),
-      labels: Object.freeze({ ...this.#options.labels?.(ctx) }),
+      identity: this.#readIdentity?.(ctx),
+      labels: Object.freeze({ ...this.#readLabels?.(ctx) }),
       startedAt: Date.now(),
     };
 

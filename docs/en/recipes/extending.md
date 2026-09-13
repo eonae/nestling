@@ -1,6 +1,6 @@
 # Extend the kernel with your own package
 
-> Guide to the current API; verified against `890d758b`.
+> Guide to the current API; verified against `771744f7`.
 > Target description: [design/principles.md](../design/principles.md), the
 > "Kernel boundary" section, and [design/streaming.md](../design/streaming.md)
 > §4.1. Rationale: the entries [ideas.md](../../decisions/ideas.md)
@@ -372,12 +372,16 @@ Connecting it in the application:
 ```typescript
 // src/app.ts (fragment)
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
   node: 'api-1',
 });
 ```
+
+A context variable names the subscriber: the registry reads its value by
+the key and does not know the shape of the accumulated input — neither
+in types nor at runtime.
 
 The recipe [Who is connected right now and how to disconnect
 them](./ops.md) shows how operations use this.

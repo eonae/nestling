@@ -1,6 +1,6 @@
 # Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `890d758b`.
+> Гайд по текущему API; сверено с кодом `771744f7`.
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
@@ -355,12 +355,15 @@ yarn workspace @nestlingjs/subscriptions test
 ```typescript
 // src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
   node: 'api-1',
 });
 ```
+
+Подписанта называет контекстная переменная: реестр читает её значение по
+ключу и формы накопленного входа не знает — ни в типах, ни в рантайме.
 
 Как этим пользуется эксплуатация, показывает рецепт [«Кто сейчас
 подключён и как его отключить»](./ops.md).

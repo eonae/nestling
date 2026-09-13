@@ -1,6 +1,6 @@
 # 14. Separate the second area
 
-> Guide to the current API; verified against `890d758b`.
+> Guide to the current API; verified against `771744f7`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "Feature boundary" and "Plugin" sections, and
 > [design/operations.md](../design/operations.md). Why: entries
@@ -309,20 +309,24 @@ is declared right here.
 A parameterized plugin is a function that returns a value:
 
 ```typescript
-// src/app.ts (fragment)
+// src/ops/ops.plugin.ts (fragment)
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: false,
 });
 ```
 
 `subscriptions(options)` from the `@nestlingjs/subscriptions` package
-assembles a subscription registry. The `identity` and `labels` parameters
-are functions that compute the subscriber and the record labels from the
-context of the request. The `publish: true` flag would turn on publishing
-subscription open and close events: whoever collects the picture across
-all the processes listens to them.
+assembles a subscription registry. `identity` names a context variable:
+the registry takes its value by the key and does not know the shape of
+the accumulated input. `labels` is a function of the context; the
+accumulated input is out of its reach too, and the values of variables
+come to it as arguments from
+`computed([TenantId, UserId], (_ctx, tenant, user) => …)`. The
+`publish: true` flag would turn on publishing subscription open and close
+events: whoever collects the picture across all the processes listens to
+them.
 
 The DI token check is built the same way:
 

@@ -29,6 +29,7 @@ export type {
 export {
   collectPropagatedContext,
   contextVar,
+  isContextVar,
   propagatedKeys,
 } from './variable.js';
 export {

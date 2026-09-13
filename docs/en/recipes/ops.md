@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `890d758b`.
+> Guide to the current API; verified against `771744f7`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
@@ -24,11 +24,12 @@ primitives and connects as a plugin; the kernel knows nothing about it.
 
 ```typescript
 // src/app.ts (fragment)
+import { everyEndpoint, RequestId } from '@nestlingjs/app';
 import { subscriptions } from '@nestlingjs/subscriptions';
 // …
 
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
   node: 'api-1',
@@ -42,6 +43,10 @@ export const app = makeApp({
     appSubscriptions,
     // …
   ],
+  policies: [
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId),
+    // …
+  ],
   // …
 });
 ```
@@ -53,13 +58,29 @@ subscription layer's class units: an endpoint with the `tracked` layer
 in an assembly without `appSubscriptions` stops the start at the
 ASSEMBLE phase, because an unregistered class unit is not created.
 
-The options describe composition decisions. `identity` computes the
-subscriber from the request context: here it is the `requestId` of the
+The options describe composition decisions. `identity` names the
+subscriber with a context variable: here it is `RequestId` of the
 `observability` layer, and in an application with authentication its
-place would be taken by the user's identifier. `labels` adds labels to
-the record. `publish: true` turns on publishing the opening and
-closing facts as operations (see below); it is off by default. `node`
-names the process in the facts.
+place would be taken by a variable holding the user's identifier. The
+registry reads the value of the variable by its key and does not know
+the shape of the accumulated input.
+
+The pipeline is what puts the variable in, so on an endpoint without it
+the entry would appear without `identity` — silently. The
+`everyEndpoint({ … }).hasVar(RequestId)` policy catches that: a miss
+stops the assembly instead of giving out an empty column in the list of
+subscriptions.
+
+The second shape of `identity` is a function of the context. The
+accumulated input is out of its reach: a key made of several variables
+is assembled by `computed([TenantId, UserId], (_ctx, tenant, user) =>
+…)` — it reads the values by the keys of the variables and passes them
+to the computation as arguments. The same shape works in `labels`,
+which adds labels to the record.
+
+`publish: true` turns on publishing the opening and closing facts as
+operations (see below); it is off by default. `node` names the process
+in the facts.
 
 ## The `tracked` layer on a subscription endpoint
 

@@ -235,7 +235,7 @@ class Topic<T> {
 
 ```typescript
 const appSubscriptions = subscriptions({          // параметризованный модуль
-  identity: (ctx) => (ctx.input as { userId?: string }).userId,
+  identity: RequestId,                            // подписанта называет переменная
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,                                  // факты операциями, opt-in
   node: process.env.HOSTNAME,
@@ -279,6 +279,14 @@ interface SubscriptionRegistry {
   узла, поэтому картину по кластеру собирает приёмник этих событий.
   Кластерного завершения подписок в V1 нет — см.
   [deferred.md](../decisions/deferred.md).
+- Подписанта называет контекстная переменная, а не чтение накопленного
+  входа. Реестр берёт значение по ключу переменной и формы `input` не
+  знает ни в типах, ни в рантайме; значения нет — запись появляется без
+  `identity`. Что переменную кладёт каждый трекаемый endpoint, требует
+  политика `everyEndpoint({ … }).hasVar(…)`. Вторая форма опции —
+  функция от контекста: её накопленный вход пуст, а значения нескольких
+  переменных она получает аргументами из `computed([TenantId, UserId],
+  (_ctx, tenant, user) => …)`.
 - Обязательность слоя задаётся политикой, а не скрытым механизмом:
   `everyEndpoint({ … }).hasLayer(tracked)` ([composition.md](./composition.md)).
 

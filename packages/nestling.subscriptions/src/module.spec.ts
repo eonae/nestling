@@ -26,6 +26,8 @@ import {
   makeEndpoint,
   makeFeature,
   makePipeline,
+  RequestId,
+  withRequestId,
 } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { events, Ok } from '@nestlingjs/operations';
@@ -251,6 +253,70 @@ describe('subscriptions(): реестр в собранном приложени
         }),
       ),
     ).rejects.toThrow(/@nestlingjs\/subscriptions/);
+  });
+});
+
+describe('subscriptions(): подписанта называет переменная', () => {
+  it('снимок несёт значение переменной, положенной пайплайном', async () => {
+    const observability = makePipeline().pre(withRequestId());
+
+    const Identified = makeEndpoint({
+      transport: TestTransport$,
+      pattern: 'ticks:identified',
+      output: events(Tick),
+      pipeline: compose(observability, tracked),
+      handler: async (
+        _payload: unknown,
+        meta: {
+          requestId: string;
+          subscription: { id: string; signal: AbortSignal };
+        },
+      ): Output<AsyncIterable<Tick>> => new Ok(ticks(meta.subscription.signal)),
+    });
+
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions({ identity: RequestId })],
+        features: [
+          makeFeature({ name: 'module:identified', endpoints: [Identified] }),
+        ],
+        transports: [testTransport()],
+      }),
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const registry = testApp.get(SubscriptionRegistry)!;
+    const response = await testApp.call(Identified);
+    const stream = streamOf<Tick>(response);
+
+    await stream.next();
+
+    const [info] = registry.list();
+    expect(info.identity).toEqual(expect.any(String));
+    expect(registry.list({ identity: info.identity })).toHaveLength(1);
+
+    await stream.return?.();
+  });
+
+  it('оставляет подписку без identity, когда переменной в пайплайне нет', async () => {
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions({ identity: RequestId })],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const registry = testApp.get(SubscriptionRegistry)!;
+    const response = await testApp.call(Ticks);
+    const stream = streamOf<Tick>(response);
+
+    await stream.next();
+
+    expect(registry.list()[0].identity).toBeUndefined();
+
+    await stream.return?.();
   });
 });
 

@@ -1,6 +1,6 @@
 # 14. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `890d758b`.
+> Гайд по текущему API; сверено с кодом `771744f7`.
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -299,17 +299,20 @@ export const appObservability: Plugin = makePlugin({
 Параметризованный плагин — функция, которая возвращает значение:
 
 ```typescript
-// src/app.ts (фрагмент)
+// src/ops/ops.plugin.ts (фрагмент)
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: false,
 });
 ```
 
 `subscriptions(options)` из пакета `@nestlingjs/subscriptions` собирает
-реестр подписок. Параметры `identity` и `labels` — функции, которые
-вычисляют подписчика и метки записи из контекста запроса. Флаг
+реестр подписок. `identity` называет контекстную переменную: реестр берёт
+её значение по ключу, а формы накопленного входа не знает. `labels` —
+функция от контекста; накопленный вход ей тоже недоступен, и значения
+переменных она получает аргументами из
+`computed([TenantId, UserId], (_ctx, tenant, user) => …)`. Флаг
 `publish: true` включил бы публикацию событий открытия и закрытия
 подписки: их слушает тот, кто собирает картину по всем процессам.
 

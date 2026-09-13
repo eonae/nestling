@@ -190,7 +190,20 @@ export const declaredVarOf = (unit: unknown): AnyContextVar | undefined =>
     ? (unit as { [DECLARED_VAR]?: AnyContextVar })[DECLARED_VAR]
     : undefined;
 
-/** Проверяет, что значение — контекстная переменная, а не строка-ключ */
+/**
+ * Отличает контекстную переменную от любого другого значения.
+ *
+ * Признак — строковый ключ на объявлении, поэтому предикат узнаёт
+ * переменную любого объявителя: и пользовательскую `contextVar`, и
+ * read-only {@link Signal}.
+ *
+ * Публичен ради опций, принимающих переменную **либо** функцию
+ * (`subscriptions({ identity: RequestId })`): форму значения различает
+ * тот, кто владеет объявлением переменной, а не каждый потребитель
+ * собственной копией проверки.
+ *
+ * @param value - Значение опции: переменная, функция или что угодно ещё
+ */
 export const isContextVar = (value: unknown): value is AnyContextVar =>
   typeof value === 'object' &&
   value !== null &&

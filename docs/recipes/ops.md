@@ -1,6 +1,6 @@
 # Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `890d758b`.
+> Гайд по текущему API; сверено с кодом `771744f7`.
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок», и [design/composition.md](../design/composition.md)
 > §6 «Узлы ядра: пробы и логгер». Почему так: записи
@@ -22,11 +22,12 @@
 
 ```typescript
 // src/app.ts (фрагмент)
+import { everyEndpoint, RequestId } from '@nestlingjs/app';
 import { subscriptions } from '@nestlingjs/subscriptions';
 // …
 
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
   node: 'api-1',
@@ -40,6 +41,10 @@ export const app = makeApp({
     appSubscriptions,
     // …
   ],
+  policies: [
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId),
+    // …
+  ],
   // …
 });
 ```
@@ -51,12 +56,26 @@ export const app = makeApp({
 `appSubscriptions` останавливает старт на фазе ASSEMBLE, потому что
 незарегистрированный класс-юнит не создаётся.
 
-Опции описывают решения композиции. `identity` вычисляет подписчика из
-контекста запроса: здесь это `requestId` слоя `observability`, в
-приложении с аутентификацией на его месте был бы идентификатор
-пользователя. `labels` добавляет метки к записи. `publish: true`
-включает публикацию фактов открытия и закрытия операциями (см. далее); по
-умолчанию она выключена. `node` называет процесс в фактах.
+Опции описывают решения композиции. `identity` называет подписчика
+контекстной переменной: здесь это `RequestId` слоя `observability`, в
+приложении с аутентификацией на её месте была бы переменная с
+идентификатором пользователя. Реестр читает значение переменной по её
+ключу и формы накопленного входа не знает.
+
+Переменную кладёт пайплайн, поэтому на endpoint'е без неё запись
+появилась бы без `identity` — молча. Это ловит политика
+`everyEndpoint({ … }).hasVar(RequestId)`: промах останавливает сборку, а
+не отдаёт пустой столбец в списке подписок.
+
+Вторая форма `identity` — функция от контекста. Накопленный вход ей
+недоступен: ключ из нескольких переменных собирает
+`computed([TenantId, UserId], (_ctx, tenant, user) => …)` — оно читает
+значения по ключам переменных и отдаёт их вычислению аргументами. Та же
+форма работает и в `labels`, который добавляет метки к записи.
+
+`publish: true` включает публикацию фактов открытия и закрытия
+операциями (см. далее); по умолчанию она выключена. `node` называет
+процесс в фактах.
 
 ## Слой `tracked` на endpoint'е подписки
 

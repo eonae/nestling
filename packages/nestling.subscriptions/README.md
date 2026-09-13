@@ -18,11 +18,12 @@ npm install @nestlingjs/subscriptions
 ## Minimal example
 
 ```typescript
+import { RequestId } from '@nestlingjs/app';
 import { subscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
 
 // 1. The plugin: created once in the composition root
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { userId?: string }).userId,
+  identity: RequestId, // a context variable names the subscriber
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true, // lifecycle facts as operations
   node: process.env.HOSTNAME,
@@ -42,12 +43,19 @@ export const Feed = httpEndpoint.get('/api/feed', {
 
 - **Connection** — `subscriptions`, `SubscriptionsOptions`, `tracked`,
   `TrackSubscription`, `UntrackSubscription`.
+- **Option sources** — `computed`, `IdentitySource`, `IdentityVar`,
+  `IdentityFn`, `LabelsSource`.
 - **Registry** — `SubscriptionRegistry`, `SubscriptionInfo`,
   `SubscriptionFilter`, `SubscriptionKind`, `TrackedSubscription`,
   `SubscriptionKilledError`, `CloseReason`.
 - **Lifecycle facts** ([design](../../docs/en/design/operations.md)) —
   `SubscriptionOpened`, `SubscriptionClosed`, `SubscriptionOpenedFact`,
   `SubscriptionClosedFact`, `SubscriptionEvent`.
+
+`identity` takes either a context variable or a function of the context.
+The function does not see the accumulated input — a key made of several
+variables is assembled by
+`computed([TenantId, UserId], (_ctx, tenant, user) => …)`.
 
 The facts are published as operations only if the plugin has
 `publish: true` set.
