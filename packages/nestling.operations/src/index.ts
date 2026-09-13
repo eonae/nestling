@@ -73,6 +73,7 @@ export type {
 export {
   assertFormsSupported,
   assertIoDeclaration,
+  declaredOutcomes,
   describeForm,
   describeOutcomes,
   events,
@@ -100,6 +101,7 @@ export type {
   AnyStreamForm,
   BindableFields,
   ChainStep,
+  DeclaredOutcome,
   EmptyInput,
   FilePart,
   FilesOf,

@@ -181,7 +181,7 @@ describe('правило шины остаётся отдельным', () => {
       endpoints: [
         implement(Signed, {
           subscriber: 'audit',
-          handler: async () => new Ok(undefined),
+          handler: async () => Ok.noContent(),
         }),
       ],
     });
@@ -190,7 +190,7 @@ describe('правило шины остаётся отдельным', () => {
       endpoints: [
         implement(Signed, {
           subscriber: 'mailer',
-          handler: async () => new Ok(undefined),
+          handler: async () => Ok.noContent(),
         }),
       ],
     });

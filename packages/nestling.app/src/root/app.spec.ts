@@ -338,8 +338,10 @@ describe('build — fail-fast фазы BUILD', () => {
     const Streaming = makeEndpoint({
       transport: TestTransport$('default'),
       pattern: 'GET /stream',
-      output: stream(z.object({ id: z.string() })) as never,
-      handler: async () => new Ok({} as never),
+      output: stream(z.object({ id: z.string() })),
+      handler: async function* () {
+        yield { id: '1' };
+      },
     });
 
     const transport = new MockTransport();

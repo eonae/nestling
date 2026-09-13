@@ -10,6 +10,7 @@ import type {
   AnyFail,
   AnyFailDefinition,
   AnyInput,
+  AnyOk,
   EndpointMeta,
   ExtendableContext,
   Raw,
@@ -191,7 +192,7 @@ export function normalizePortResponse(
   response: ResponseContext,
   runtime: PortRuntime,
   original?: unknown,
-): Ok<unknown> | AnyFail {
+): AnyOk | AnyFail {
   if (response.isSuccess) {
     return new Ok(response.status, response.value as never);
   }
@@ -238,8 +239,8 @@ export function normalizePortResponse(
  */
 function validateOutput(
   operation: AnyOperation,
-  result: Ok<unknown> | AnyFail,
-): Ok<unknown> | AnyFail {
+  result: AnyOk | AnyFail,
+): AnyOk | AnyFail {
   if (!(result instanceof Ok)) {
     return result;
   }

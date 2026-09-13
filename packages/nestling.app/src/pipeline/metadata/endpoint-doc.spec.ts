@@ -43,13 +43,13 @@ describe('doc — секция на значении декларации', () =
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      doc: { summary: 'List users', status: 'ok' },
+      doc: { summary: 'List users' },
       handler: ListHandler,
     });
 
     const resolved = List.resolve(() => new ListHandler({ now: () => 0 }));
 
-    expect(resolved.doc).toEqual({ summary: 'List users', status: 'ok' });
+    expect(resolved.doc).toEqual({ summary: 'List users' });
   });
 
   it('декларация без секции поля не несёт', () => {

@@ -281,11 +281,11 @@ describe('App.check() — опубликованные операции в от�
           endpoints: [
             implement(OrderPlaced, {
               subscriber: 'billing',
-              handler: async () => new Ok(undefined),
+              handler: async () => Ok.noContent(),
             }),
             implement(OrderPlaced, {
               subscriber: 'analytics',
-              handler: async () => new Ok(undefined),
+              handler: async () => Ok.noContent(),
             }),
           ],
         }),

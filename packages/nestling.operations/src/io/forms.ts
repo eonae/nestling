@@ -537,6 +537,47 @@ export function describeOutcomes(
   ) as (readonly [SuccessStatus, OutcomeForm])[];
 }
 
+/**
+ * Объявленный исход: статус и форма его тела.
+ *
+ * Форма `undefined` означает исход без тела — ветку `none()` или
+ * декларацию без `output`.
+ */
+export interface DeclaredOutcome {
+  readonly status: SuccessStatus;
+  readonly form?: unknown;
+}
+
+/**
+ * Объявленные исходы декларации: развилка отдаёт свои ветки, одиночная
+ * форма — один исход с объявленным статусом.
+ *
+ * Умолчание статуса считается здесь, и другого в системе нет: рантайм,
+ * генератор документации и клиент читают эти же пары. `ok` при
+ * объявленном `output`, `no_content` без него.
+ *
+ * @param output - Значение слота `output`
+ * @param status - Значение поля `status`
+ */
+export function declaredOutcomes(
+  output?: unknown,
+  status?: SuccessStatus,
+): readonly DeclaredOutcome[] {
+  if (isOutcomes(output)) {
+    return describeOutcomes(output).map(([branchStatus, form]) =>
+      isNone(form) ? { status: branchStatus } : { status: branchStatus, form },
+    );
+  }
+
+  const single = status ?? (output === undefined ? 'no_content' : 'ok');
+
+  return [
+    output === undefined
+      ? { status: single }
+      : { status: single, form: output },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Описатель и media types
 // ---------------------------------------------------------------------------
