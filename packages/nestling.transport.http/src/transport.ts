@@ -18,7 +18,7 @@ import {
 import type { HttpRequest } from './request.js';
 import { HttpRouter } from './router.js';
 import type { HttpServer } from './server.js';
-import { httpServer, HttpServer$ } from './server.js';
+import { HttpServer$, server as declareServer } from './server.js';
 import { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
 
 import type {
@@ -573,7 +573,7 @@ export const http = <const Name extends string = typeof DEFAULT_INSTANCE>(
 ): TransportDeclaration<Name> => {
   const {
     name = DEFAULT_INSTANCE as Name,
-    server = httpServer({ name }),
+    server = declareServer({ name }),
     ...transportOptions
   } = options;
   const token = HttpTransport$(name);

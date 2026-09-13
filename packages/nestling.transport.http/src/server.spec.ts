@@ -3,15 +3,15 @@
  * обработчиков и `404` от сервера.
  */
 
-import { httpServerKeys } from './config.js';
-import { HttpServer, httpServer, HttpServer$ } from './server.js';
+import { serverKeys } from './config.js';
+import { HttpServer, HttpServer$, server } from './server.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { bootstrapConfig, configKernel } from '@nestlingjs/app';
 import { ContainerBuilder } from '@nestlingjs/container';
 
 /** Строит контейнер с kernel-модулем конфига и объявленными серверами */
-async function build(...declarations: ReturnType<typeof httpServer>[]) {
+async function build(...declarations: ReturnType<typeof server>[]) {
   const builder = new ContainerBuilder().register(
     configKernel(await bootstrapConfig([])),
   );
@@ -61,21 +61,21 @@ async function get(baseUrl: string, path: string) {
   return { status: response.status, body: await response.text() };
 }
 
-describe('httpServer() — секция на экземпляр', () => {
+describe('server() — секция на экземпляр', () => {
   it('экземпляр по умолчанию читает ключи пакета без добавки', () => {
-    expect([...httpServerKeys().names]).toEqual(['HTTP_PORT', 'HTTP_HOST']);
+    expect([...serverKeys().names]).toEqual(['HTTP_PORT', 'HTTP_HOST']);
   });
 
   it('именованный экземпляр читает свои ключи', () => {
-    expect([...httpServerKeys('admin').names]).toEqual([
+    expect([...serverKeys('admin').names]).toEqual([
       'HTTP_ADMIN_PORT',
       'HTTP_ADMIN_HOST',
     ]);
   });
 
   it('повторное объявление одного имени даёт тот же DI-токен', () => {
-    expect(httpServer({ name: 'admin' }).token).toBe(
-      httpServer({ name: 'admin' }).token,
+    expect(server({ name: 'admin' }).token).toBe(
+      server({ name: 'admin' }).token,
     );
   });
 
@@ -84,9 +84,9 @@ describe('httpServer() — секция на экземпляр', () => {
 
     try {
       // Валится только админский: значение своего ключа читает каждый сам
-      await expect(
-        build(httpServer(), httpServer({ name: 'admin' })),
-      ).rejects.toThrow(/HTTP_ADMIN_PORT/);
+      await expect(build(server(), server({ name: 'admin' }))).rejects.toThrow(
+        /HTTP_ADMIN_PORT/,
+      );
     } finally {
       restore();
     }
@@ -96,7 +96,7 @@ describe('httpServer() — секция на экземпляр', () => {
     const restore = withEnv({ HTTP_PORT: 'abc' });
 
     try {
-      await expect(build(httpServer())).rejects.toThrow(/HTTP_PORT/);
+      await expect(build(server())).rejects.toThrow(/HTTP_PORT/);
     } finally {
       restore();
     }
@@ -108,12 +108,12 @@ describe('HttpServer — сокет и адрес', () => {
     const restore = withEnv({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' });
 
     try {
-      const container = await build(httpServer());
-      const server = container.getOrThrow(HttpServer$('default'));
+      const container = await build(server());
+      const instance = container.getOrThrow(HttpServer$('default'));
 
-      expect(server.address()).toBeNull();
+      expect(instance.address()).toBeNull();
 
-      await server.release();
+      await instance.release();
     } finally {
       restore();
     }
@@ -123,20 +123,20 @@ describe('HttpServer — сокет и адрес', () => {
     const restore = withEnv({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' });
 
     try {
-      const container = await build(httpServer());
-      const server = container.getOrThrow(HttpServer$('default'));
+      const container = await build(server());
+      const instance = container.getOrThrow(HttpServer$('default'));
 
-      await server.listen();
+      await instance.listen();
 
-      const address = server.address();
+      const address = instance.address();
       expect(address).not.toBeNull();
       expect(address?.port).toBeGreaterThan(0);
 
-      await server.drain();
-      expect(server.address()).toBeNull();
+      await instance.drain();
+      expect(instance.address()).toBeNull();
 
       // После дренажа освобождение ресурса ничего не делает
-      await expect(server.release()).resolves.toBeUndefined();
+      await expect(instance.release()).resolves.toBeUndefined();
     } finally {
       restore();
     }
@@ -145,11 +145,11 @@ describe('HttpServer — сокет и адрес', () => {
 
 describe('HttpServer — цепочка обработчиков', () => {
   it('запрос, который не взял никто, получает 404 от сервера', async () => {
-    const server = new HttpServer({ port: 0, host: '127.0.0.1' });
-    server.attach(async () => false);
+    const instance = new HttpServer({ port: 0, host: '127.0.0.1' });
+    instance.attach(async () => false);
 
-    await server.listen();
-    const baseUrl = `http://127.0.0.1:${server.address()?.port}`;
+    await instance.listen();
+    const baseUrl = `http://127.0.0.1:${instance.address()?.port}`;
 
     try {
       const response = await get(baseUrl, '/nowhere');
@@ -157,15 +157,15 @@ describe('HttpServer — цепочка обработчиков', () => {
       expect(response.status).toBe(404);
       expect(response.body).toBe('Not Found');
     } finally {
-      await server.drain();
+      await instance.drain();
     }
   });
 
   it('обработчики вызываются в порядке присоединения', async () => {
-    const server = new HttpServer({ port: 0, host: '127.0.0.1' });
+    const instance = new HttpServer({ port: 0, host: '127.0.0.1' });
     const calls: string[] = [];
 
-    server.attach(async (request, response) => {
+    instance.attach(async (request, response) => {
       calls.push('first');
       if (request.url !== '/first') {
         return false;
@@ -175,7 +175,7 @@ describe('HttpServer — цепочка обработчиков', () => {
       return true;
     });
 
-    server.attach(async (request, response) => {
+    instance.attach(async (request, response) => {
       calls.push('second');
       if (request.url !== '/second') {
         return false;
@@ -185,8 +185,8 @@ describe('HttpServer — цепочка обработчиков', () => {
       return true;
     });
 
-    await server.listen();
-    const baseUrl = `http://127.0.0.1:${server.address()?.port}`;
+    await instance.listen();
+    const baseUrl = `http://127.0.0.1:${instance.address()?.port}`;
 
     try {
       expect(await get(baseUrl, '/second')).toEqual({
@@ -200,21 +200,21 @@ describe('HttpServer — цепочка обработчиков', () => {
       expect(direct.body).toBe('first');
       expect(calls).toEqual(['first']);
     } finally {
-      await server.drain();
+      await instance.drain();
     }
   });
 
   it('присоединение после старта — ошибка', async () => {
-    const server = new HttpServer({ port: 0, host: '127.0.0.1' });
+    const instance = new HttpServer({ port: 0, host: '127.0.0.1' });
 
-    await server.listen();
+    await instance.listen();
 
     try {
-      expect(() => server.attach(async () => false)).toThrow(
+      expect(() => instance.attach(async () => false)).toThrow(
         /already listening/,
       );
     } finally {
-      await server.drain();
+      await instance.drain();
     }
   });
 });

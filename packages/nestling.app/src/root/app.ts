@@ -62,7 +62,6 @@ import type {
   ITransport,
   ServerDeclaration,
   TransportDeclaration,
-  TransportEntry,
 } from '../transport/index.js';
 import { makeDispatch } from '../transport/index.js';
 
@@ -262,7 +261,7 @@ const APP_BRAND = Symbol.for('nestling:app');
  * ```
  */
 export function makeApp<
-  const T extends readonly Branchable<TransportEntry>[] = [],
+  const T extends readonly Branchable<TransportDeclaration>[] = [],
   const S extends readonly AnySwitch[] = [],
 >(spec: AppSpec<T, S> = {}): App<S> {
   return new App<S>(normalizeSpec(spec));
@@ -487,10 +486,10 @@ export class AssembledApp {
   #transports: readonly TransportDeclaration[] = [];
 
   /**
-   * Серверы сборки после раскрытия веток, в порядке объявления.
+   * Серверы сборки после раскрытия веток, без повторов.
    *
-   * Собраны из элементов `transports:` и из полей `server` объявлений
-   * транспортов, без повторов.
+   * Источник один — поле `server` объявления транспорта; порядок задаёт
+   * первое упоминание.
    */
   #serverDecls: readonly ServerDeclaration[] = [];
 

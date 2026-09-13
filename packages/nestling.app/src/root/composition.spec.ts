@@ -11,7 +11,7 @@ import type { Port } from '../ports/index.js';
 import { implement } from '../ports/index.js';
 import { transportValue } from '../transport/index.js';
 
-import { testServer } from './__fixtures__/test-server.js';
+import { testServer, testTransport } from './__fixtures__/test-server.js';
 import {
   ALL_FORMS,
   testEndpoint,
@@ -160,13 +160,13 @@ describe('resolveComposition', () => {
     expect(namesOf(composition.features)).toEqual(['users', 'quotas']);
   });
 
-  it('транспорты и серверы разделены после раскрытия веток', () => {
+  it('сервер приходит по ссылке транспорта после раскрытия веток', () => {
     const server = testServer({ marks: [] });
 
     const composition = resolveComposition(
       normalizeSpec({
         endpoints: [ping('/ping')],
-        transports: [transport(), server],
+        transports: [testTransport({ server, marks: [] })],
         switches: [Storage],
       }),
       { storage: 'local' },

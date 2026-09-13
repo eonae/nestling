@@ -1,6 +1,6 @@
 # 7. The port and the database address from the environment
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `users-service` (2026-09-13).
 > Target description: [design/config.md](../design/config.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-08] Kernel/user space; конфиг как token-families; плагины`,
@@ -180,7 +180,7 @@ It is not the transport but the server that reads the port and the host — the
 node that holds the socket. It has its own keys: `HTTP_PORT` and `HTTP_HOST`,
 `3000` and `0.0.0.0` by default. `http()` has no address option at all: the
 address changes without rebuilding the image, so it is set only by a variable.
-A second server gets its own keys by name: `httpServer({ name: 'admin' })`
+A second server gets its own keys by name: `server({ name: 'admin' })`
 reads `HTTP_ADMIN_PORT` and `HTTP_ADMIN_HOST`. A test assembly needs no port at
 all: it does not open a socket.
 

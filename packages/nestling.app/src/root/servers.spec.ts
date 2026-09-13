@@ -1,5 +1,5 @@
 /**
- * Серверы в корне: регистрация вложенного объявления, порядок START и
+ * Серверы в корне: регистрация по ссылке из транспорта, порядок START и
  * SHUTDOWN, доступ к объявленным серверам.
  */
 
@@ -17,7 +17,7 @@ import { makeApp } from './app.js';
 import { describe, expect, it } from '@jest/globals';
 import { Resource } from '@nestlingjs/container';
 
-describe('serverы в `transports:` — регистрация', () => {
+describe('серверы по ссылке `server` — регистрация', () => {
   it('транспорт заводит свой сервер: два узла на одно объявление', async () => {
     const marks: string[] = [];
     const server = testServer({ marks });
@@ -38,12 +38,15 @@ describe('serverы в `transports:` — регистрация', () => {
     await app.close();
   });
 
-  it('сервер, названный дважды, регистрируется один раз', async () => {
+  it('сервер, названный двумя транспортами, регистрируется один раз', async () => {
     const marks: string[] = [];
     const server = testServer({ marks });
 
     const app = makeApp({
-      transports: [server, testTransport({ server, marks })],
+      transports: [
+        testTransport({ name: 'first', server, marks }),
+        testTransport({ name: 'second', server, marks }),
+      ],
     }).assemble();
 
     await app.run();
@@ -59,9 +62,56 @@ describe('serverы в `transports:` — регистрация', () => {
 
     expect(() =>
       makeApp({
-        transports: [testServer({ marks }), testServer({ marks })],
+        transports: [
+          testTransport({
+            name: 'first',
+            server: testServer({ marks }),
+            marks,
+          }),
+          testTransport({
+            name: 'second',
+            server: testServer({ marks }),
+            marks,
+          }),
+        ],
       }),
     ).toThrow(/Two different server declarations are named 'default'/);
+  });
+
+  it('объявление сервера в `transports:` отвергается на ASSEMBLE', () => {
+    const marks: string[] = [];
+    const server = testServer({ name: 'api', marks });
+
+    // Компилятор такой список отвергает; проверка нужна пути из
+    // JavaScript, поэтому тип здесь снимается намеренно
+    expect(() =>
+      makeApp({
+        transports: [server] as unknown as [],
+      }),
+    ).toThrow(
+      /'transports' takes transport declarations only.+server declaration named 'api'.+http\({ server: theServer }\)/s,
+    );
+  });
+
+  it('сервер, на который никто не ссылается, узла не заводит', async () => {
+    const marks: string[] = [];
+    const server = testServer({ marks });
+
+    // Объявление создано, но ни одному транспорту не передано
+    testServer({ name: 'orphan', marks });
+
+    const app = makeApp({
+      transports: [testTransport({ server, marks })],
+    }).assemble();
+
+    await app.run();
+
+    expect(app.servers.has('orphan')).toBe(false);
+    expect(app.servers.size).toBe(1);
+    expect(marks).not.toContain('acquire:orphan');
+    expect(marks).not.toContain('listen:orphan');
+
+    await app.close();
   });
 });
 
@@ -107,7 +157,6 @@ describe('START — сокет открывается последним', () =>
 
     const app = makeApp({
       transports: [
-        server,
         testTransport({ name: 'first', server, marks }),
         testTransport({ name: 'second', server, marks }),
       ],
