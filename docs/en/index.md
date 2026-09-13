@@ -20,7 +20,7 @@ const app = makeApp({
   transports: [http()],
 });
 
-await app.assemble().run();
+await app.build().run();
 ```
 
 ::::cards

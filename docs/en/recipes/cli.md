@@ -1,6 +1,6 @@
 # A CLI tool on the same primitives
 
-> Guide to the current API; verified against `648a64dc`.
+> Guide to the current API; verified against `3ea8ea87`.
 > Target description: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
