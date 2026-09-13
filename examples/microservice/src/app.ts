@@ -1,6 +1,5 @@
 import { ops } from './ops/index.js';
 import { authed } from './auth.js';
-import { metricsPlugin, prometheusExporter } from './metrics.js';
 import { traced } from './observability.js';
 import { db } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
@@ -9,13 +8,8 @@ import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
 import { mcp, McpTransport$ } from '@nestlingjs/mcp';
 import { makeOpenapi } from '@nestlingjs/openapi';
+import { prometheus } from '@nestlingjs/prometheus';
 import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
-
-/**
- * Адаптер метрик: он же корень, под которым ядро считает запросы, и он же
- * узел графа, который читает endpoint `GET /metrics`.
- */
-export const exporter = prometheusExporter();
 
 /**
  * Переключатель состава: документация нужна в dev-контуре и не нужна за
@@ -55,7 +49,9 @@ export const app = makeApp({
   plugins: [
     ops,
     db,
-    metricsPlugin(exporter),
+    // Экспозиция метрик: плагин читает store ядра и отдаёт текст по
+    // `GET /metrics`. Накопленное держит ядро, настраивать нечего
+    prometheus(),
     // Документ строится на фазе BUILD из тех же деклараций, которые
     // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
     DocsEnabled.when(openapi),
@@ -71,7 +67,6 @@ export const app = makeApp({
       info: { name: 'microservice', version: '1.0.0' },
     }),
   ],
-  metrics: exporter,
   policies: [
     // У каждого HTTP-endpoint'а есть слой наблюдаемости
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(

@@ -32,6 +32,7 @@ export type {
   MetricsMembers,
   MetricsOf,
   MetricsWriter,
+  NoAttributes,
   Open,
 } from './declaration.js';
 export {

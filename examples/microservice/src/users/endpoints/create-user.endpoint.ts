@@ -3,19 +3,24 @@ import { transactional } from '../../persistence.js';
 import { ActivityHub } from '../activity.hub.js';
 import type { CreateUserInput } from '../user.js';
 import { EmailTaken } from '../users.errors.js';
+import { UsersMetrics } from '../users.metrics.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import type { MetricsOf } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import type { DeclaredOutput, OutputFormOf } from '@nestlingjs/operations';
 import { Ok } from '@nestlingjs/operations';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-@Handler([UsersRepository$, ActivityHub])
+@Handler([UsersRepository$, ActivityHub, UsersMetrics])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
     private readonly activity: ActivityHub,
+    // Писатель метрик приходит из графа по группе-DI-токену: имя метрики
+    // в точке записи не пишется
+    private readonly metrics: MetricsOf<typeof UsersMetrics>,
   ) {}
 
   async handle(
@@ -27,16 +32,22 @@ export class CreateUserHandler {
     const { dryRun, ...data } = input;
 
     if (await this.users.byEmail(data.email)) {
+      this.metrics.created.add({ outcome: 'email_taken' });
+
       return EmailTaken({ email: data.email });
     }
 
     // Проверка без записи: исход `ok`, то есть 200 — записи не было, и
     // обещать 201 нельзя
     if (dryRun) {
+      this.metrics.created.add({ outcome: 'dry_run' });
+
       return new Ok({ id: 'dry-run', ...data });
     }
 
     const user = await this.users.insert(data);
+
+    this.metrics.created.add({ outcome: 'stored' });
 
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);

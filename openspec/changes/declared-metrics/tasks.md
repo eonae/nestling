@@ -62,7 +62,7 @@
   группы с атрибутами
 - [x] 4.2 Шов тестового корня отдаёт store; подмена `[RootMetrics$, …]`
   удалена из `test-composition-root`
-- [ ] 4.3 `metrics.spec.ts` пакета переписана; README пакета обновлён
+- [x] 4.3 `metrics.spec.ts` пакета переписана; README пакета обновлён
 
 ## 5. Пакет `@nestlingjs/prometheus`
 
@@ -82,11 +82,11 @@
 
 ## 6. Примеры
 
-- [ ] 6.1 `examples/microservice`: `src/metrics.ts` удалён, группа метрик
+- [x] 6.1 `examples/microservice`: `src/metrics.ts` удалён, группа метрик
   примера объявлена, `prometheus()` в `plugins:`, `src/app.ts` обновлён
-- [ ] 6.2 `examples/modular-app`: то же плюс переписанная `src/metrics.spec.ts`
+- [x] 6.2 `examples/modular-app`: то же плюс переписанная `src/metrics.spec.ts`
   против store и экспозиции
-- [ ] 6.3 Имён `MetricsExporter`, `MetricsExporter$`, `prometheusExporter` и
+- [x] 6.3 Имён `MetricsExporter`, `MetricsExporter$`, `prometheusExporter` и
   `metricsPlugin` в `examples/` не осталось
 - [ ] 6.4 `e2e` примеров проходят; экспозиция свежеподнятого примера
   содержит нулевые ряды

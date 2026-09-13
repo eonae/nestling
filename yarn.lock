@@ -1643,6 +1643,7 @@ __metadata:
     "@nestlingjs/mcp": "workspace:*"
     "@nestlingjs/openapi": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/prometheus": "workspace:*"
     "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/subscriptions": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
@@ -1666,6 +1667,7 @@ __metadata:
     "@nestlingjs/inbox": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/outbox": "workspace:*"
+    "@nestlingjs/prometheus": "workspace:*"
     "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
     "@nestlingjs/transport.http": "workspace:*"
@@ -2463,7 +2465,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestlingjs/prometheus@workspace:packages/nestling.prometheus":
+"@nestlingjs/prometheus@workspace:*, @nestlingjs/prometheus@workspace:packages/nestling.prometheus":
   version: 0.0.0-use.local
   resolution: "@nestlingjs/prometheus@workspace:packages/nestling.prometheus"
   dependencies:

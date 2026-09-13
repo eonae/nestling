@@ -70,14 +70,16 @@ export {
 } from './logger/index.js';
 export type { LogField, LogFieldSpec } from './logger/index.js';
 
-// ./metrics/index.js — 33
+// ./metrics/index.js — 45
 export {
   counter,
   findSeries,
   findSeriesOne,
   histogram,
   KernelMetrics,
+  makeCatalog,
   makeMetrics,
+  makeWriter,
   MetricsStore,
   MetricsStore$,
   open,
@@ -89,19 +91,30 @@ export type {
   AttributeSpec,
   AttributesSpec,
   CatalogMetric,
+  CounterDeclaration,
   CounterSeries,
   CounterWriter,
   HistogramBucket,
+  HistogramDeclaration,
+  HistogramOptions,
   HistogramSeries,
   HistogramWriter,
   Member,
+  MembersOf,
   MetricAttributes,
+  MetricDeclaration,
+  MetricOptions,
   MetricSeries,
   MetricsCatalog,
+  MetricsContribution,
   MetricsGroup,
+  MetricsMembers,
   MetricsOf,
   MetricSink,
   MetricsSnapshot,
+  MetricsWriter,
+  NoAttributes,
+  Open,
 } from './metrics/index.js';
 
 // ./pipeline/index.js — 61

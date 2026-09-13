@@ -6,15 +6,25 @@
  * в имени метрики в тесте так же невыразима, как в коде.
  */
 
+import { spyLogger } from './logger.js';
+
 import type {
   AnyMember,
+  AnyMetricsGroup,
   HistogramSeries,
   MetricAttributes,
   MetricSeries,
+  MetricsOf,
   MetricsSnapshot,
   MetricsStore,
 } from '@nestlingjs/app';
-import { findSeries, findSeriesOne } from '@nestlingjs/app';
+import {
+  findSeries,
+  findSeriesOne,
+  makeCatalog,
+  makeWriter,
+  MetricsStore as MetricsStoreClass,
+} from '@nestlingjs/app';
 
 /**
  * Метрики тестового приложения: снимок store и адресация ряда.
@@ -94,4 +104,45 @@ export class TestMetrics {
   ): readonly MetricSeries[] {
     return findSeries(this.snapshot(), member, attributes);
   }
+}
+
+/** Писатель группы и чтение его записей — для теста без приложения */
+export interface GroupMetrics<G extends AnyMetricsGroup> {
+  /** Писатель группы: его принимает класс, который метрику пишет */
+  readonly metrics: MetricsOf<G>;
+
+  /** Чтение накопленного: тот же доступ, что у тестового приложения */
+  readonly read: TestMetrics;
+}
+
+/**
+ * Писатель одной группы для теста класса без контейнера.
+ *
+ * Юнит-тест создаёт класс через `new`, а писателя обычно раздаёт граф.
+ * Здесь он собирается из каталога с одной группой — тем же кодом, что и
+ * на сборке приложения.
+ *
+ * @param group - Группа метрик
+ * @returns Писателя и чтение его записей
+ *
+ * @example
+ * ```typescript
+ * const users = metricsFor(UsersMetrics);
+ * const handler = new CreateUserHandler(repo, hub(), users.metrics);
+ *
+ * await handler.handle({ name: 'Carol', email: 'carol@example.com' });
+ *
+ * expect(users.read.counter(UsersMetrics.members.created, { outcome: 'stored' }))
+ *   .toBe(1);
+ * ```
+ */
+export function metricsFor<G extends AnyMetricsGroup>(
+  group: G,
+): GroupMetrics<G> {
+  const store = new MetricsStoreClass(
+    makeCatalog([{ group, owner: 'unit test' }]),
+    spyLogger().logger,
+  );
+
+  return { metrics: makeWriter(group, store), read: new TestMetrics(store) };
 }

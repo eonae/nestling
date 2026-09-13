@@ -1,9 +1,10 @@
 import { transactional } from '../../persistence.js';
 import { User } from '../user.js';
+import { UsersMetrics } from '../users.metrics.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestlingjs/app';
+import type { MetricsOf, Output } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { stream } from '@nestlingjs/operations';
 import { httpEndpoint } from '@nestlingjs/transport.http';
@@ -27,11 +28,15 @@ const MAX_ROWS = 10_000;
 /** Пауза между строками, после которой запрос отклоняется: ответ `504` */
 const GAP_TIMEOUT_MS = 30_000;
 
-@Handler([UsersRepository$])
+@Handler([UsersRepository$, UsersMetrics])
 export class ImportUsersHandler {
-  constructor(private readonly users: UsersRepository) {}
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly metrics: MetricsOf<typeof UsersMetrics>,
+  ) {}
 
   async handle(rows: AsyncIterableIterator<ImportRow>): Output<ImportResult> {
+    const startedAt = performance.now();
     let imported = 0;
     let skipped = 0;
 
@@ -46,6 +51,8 @@ export class ImportUsersHandler {
       await this.users.insert(row);
       imported += 1;
     }
+
+    this.metrics['import.duration'].record(performance.now() - startedAt);
 
     return { imported, skipped };
   }
