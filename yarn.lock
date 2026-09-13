@@ -2384,6 +2384,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestlingjs/logging.pino@workspace:packages/nestling.logging.pino":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/logging.pino@workspace:packages/nestling.logging.pino"
+  dependencies:
+    "@nestlingjs/logging": "workspace:*"
+    pino: "npm:^10.0.0"
+    typescript: "npm:5.7.3"
+  peerDependencies:
+    pino: ^10.0.0
+  languageName: unknown
+  linkType: soft
+
 "@nestlingjs/logging@workspace:*, @nestlingjs/logging@workspace:packages/nestling.logging":
   version: 0.0.0-use.local
   resolution: "@nestlingjs/logging@workspace:packages/nestling.logging"
@@ -11319,7 +11331,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pino@npm:^9.14.0 || ^10.1.0":
+"pino@npm:^10.0.0, pino@npm:^9.14.0 || ^10.1.0":
   version: 10.3.1
   resolution: "pino@npm:10.3.1"
   dependencies:
