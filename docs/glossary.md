@@ -48,6 +48,7 @@
 | пользовательский код | user space |
 | Standard Schema | стандартная схема |
 | форма io | io-форма, форма ввода-вывода |
+| исход (успешный) | вариант ответа, success case |
 <!-- docs-style: on -->
 
 ## Контейнер (`@nestlingjs/container`)
@@ -208,6 +209,10 @@
 - **Форма io** — вид входа или выхода endpoint'а: `value` (обычное
   значение), `stream(T)` (поток значений), `events(T)` (события SSE),
   `multipart()` и `upload()` (файлы).
+- **Исход** — успешный ответ endpoint'а: статус (`ok`, `created`,
+  `accepted`, `no_content`) и форма его тела. Один исход объявляется полем
+  `status`, несколько — развилкой `outputs({ ok: User, accepted: Job })` в
+  слоте `output`; `none()` объявляет исход без тела.
 - **Паттерн** — строковый адрес endpoint'а внутри транспорта:
   `GET /users/:id`, `users:list`, `users.create`.
 - **Bind-карта** (`bind`) — указание, из какой части HTTP-запроса брать

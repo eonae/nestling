@@ -97,15 +97,18 @@ several endpoints and should not repeat in every handler.
     return removed ? Ok.noContent() : UserNotFound({ id: input.id });
 ```
 
-A bare value from the handler answers `200`. `Ok.created(value)`
-answers `201`, `Ok.noContent()` answers `204` with no body,
-`Ok.accepted(value)` answers `202`. `Ok` carries no headers: the HTTP
-response form `HttpResponse.of(value, { headers })` sets them. The
-success status for the OpenAPI document is named in `doc.status`
-(`'ok'`, `'created'`, `'accepted'`, `'no_content'`), as for
-`DeleteUser`. The second argument of `Ok` holds the response headers;
-they don't depend on the transport, and the transport decides what to
-do with them.
+A bare value from the handler answers with the declared status.
+`Ok.created(value)` answers `201`, `Ok.noContent()` answers `204` with no
+body, `Ok.accepted(value)` answers `202`. `Ok` carries no headers: the
+HTTP response form `HttpResponse.of(value, { headers })` sets them.
+
+The outcome is declared by the `status` field of the declaration (`'ok'`,
+`'created'`, `'accepted'`, `'no_content'`), as for `DeleteUser`. The
+handler answers with the `Ok` of a declared outcome: another status does
+not compile, and from JavaScript the boundary replaces it with
+`internal_error`. Several outcomes are declared by a branching
+`outputs({ ok: User, accepted: Job })` in the `output` slot, and then the
+handler picks the branch by returning its `Ok`.
 
 ## `providers:` and `modules:` on a feature
 

@@ -139,11 +139,8 @@ the tags and the success status are declared in the `doc:` slot:
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
-  doc: {
-    summary: 'Удалить пользователя',
-    tags: ['users'],
-    status: 'no_content',
-  },
+  status: 'no_content',
+  doc: { summary: 'Удалить пользователя', tags: ['users'] },
   pipeline: transactional,
   handler: DeleteUserHandler,
 });
@@ -154,8 +151,12 @@ export const DeleteUser = httpEndpoint.delete('/users/:id', {
 | `summary`, `description` | the name and the description of the operation |
 | `tags` | the grouping of operations in the document |
 | `deprecated` | a deprecation mark |
-| `status` | the status of a successful response; `ok` by default, `no_content` without `output` |
 | `hidden` | the reason the endpoint does not reach the document |
+
+The status of a successful response is declared by the `status` field at
+the top level, not in `doc`: it is the response contract on the wire. By
+default it is `ok`, and for a declaration with no `output` it is
+`no_content`.
 
 `operationId` is not declared. It is taken from the name of the operation,
 if the endpoint implements one, otherwise from the method and the path:
@@ -193,7 +194,7 @@ declaration into an operation:
 
 ```typescript
 // src/api/operations.ts
-import { body, makeRequest, query } from '@nestlingjs/operations';
+import { body, makeRequest, outputs, query } from '@nestlingjs/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
 
@@ -214,15 +215,20 @@ export const CreateUser = makeRequest({
     bind: { dryRun: query(), name: body() },
   },
   input: CreateUserInput,
-  output: User,
+  output: outputs({ ok: User, created: User }),
   errors: [EmailTaken, Unauthorized],
-  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'created' },
+  doc: { summary: 'Создать пользователя', tags: ['users'] },
 });
 ```
 
 An operation is a value: a name, the `input` and `output` schemas, the
-`errors:` list and the `doc:` slot. The `http:` section describes the
-address; an operation without it is rejected the moment the
+`errors:` list and the `doc:` slot. The branching `outputs({ … })` in the
+`output` slot declares two successful outcomes: a write answers
+`201 Created`, and a check without a write (`dryRun`) answers `200 OK`.
+The document describes both codes, and the handler picks the outcome by
+returning `Ok.created(user)` or `new Ok(user)`. A single outcome is
+declared by the `status: 'created'` field next to a plain `output`. The
+`http:` section describes the address; an operation without it is rejected the moment the
 `httpEndpoint.implement` declaration is created. The string
 `'GET /users/:id'` fits an operation without marks; the `{ method, path }`
 object is needed when there is a `bind`, `rawBody` or `sse`.

@@ -175,7 +175,8 @@ class KillSubscriptionHandler {
 export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound],
-  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
+  status: 'no_content',
+  doc: { summary: 'Завершить подписку', tags: ['ops'] },
   pipeline: authed,
   handler: KillSubscriptionHandler,
 });

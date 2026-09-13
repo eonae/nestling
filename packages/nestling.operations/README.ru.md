@@ -32,8 +32,9 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
+  status: 'created', // объявленный исход: ответ уходит кодом 201
   errors: [EmailTaken],
-  doc: { summary: 'Create user', tags: ['users'], status: 'created' },
+  doc: { summary: 'Create user', tags: ['users'] },
 });
 ```
 
@@ -50,6 +51,7 @@ export const CreateUser = makeRequest({
   `InvokeArgs`, `KernelPortFail`, `lookupOperation`, `makeCommand`,
   `makeEvent`, `makeRequest`, `MetaOf`, `Operation`, `OperationFailsOf`,
   `OperationKind`, `OperationSpec`, `OutputFormOf`, `OutputOf`, `Port`,
+  `StatusOf`,
   `PortFamily`, `PortMeta`, `PortResult`, `PortToken`, `RequestOperation`,
   `UndeclaredHandlerFails`, `ValidateHandlerFails`, `ValidateOperationFails`.
 - **Результат и отказы** ([design](../../docs/design/errors.md)) — `AnyFail`,
@@ -59,20 +61,25 @@ export const CreateUser = makeRequest({
   `FailDefinitionWithoutDetails`, `FailOf`, `FailOfDef`, `FailOptions`,
   `FailResponseOf`, `FailsOf`, `FailSpecWithDetails`, `FailSpecWithoutDetails`,
   `InternalError`, `isCategory`, `isFail`, `isFailDefinition`,
-  `isKernelFailCode`, `KernelFail`, `makeFail`, `Ok`, `Output`, `OutputSync`,
-  `PayloadTooLarge`, `ProcessingStatus`, `ResponseLike`, `statuses`,
-  `SuccessStatus`, `successStatuses`, `Timeout`.
+  `isKernelFailCode`, `isSuccessStatus`, `KernelFail`, `makeFail`, `Ok`,
+  `AnyOk`, `assertSuccessStatus`, `DeclaredOk`, `DeclaredOutput`,
+  `DeclaredOutputSync`, `DeclaredStatuses`, `EffectiveStatus`, `OutcomeOks`,
+  `Output`, `OutputSync`, `PayloadTooLarge`, `ProcessingStatus`,
+  `ResponseLike`, `statuses`, `SuccessStatus`, `successStatuses`, `Timeout`.
 - **Формы io** ([design](../../docs/design/endpoints.md)) — `AnyInput`,
   `AnyMultipartForm`, `AnyOutput`, `AnyPayload`, `AnyStreamForm`,
-  `assertFormSlots`, `assertFormsSupported`, `BindableFields`, `ChainStep`,
-  `describeForm`, `EmptyInput`, `events`, `FilePart`, `FilesOf`,
-  `FormBearingDefinition`, `FormDescriptor`, `FormKind`, `FormLeaf`, `FormSlot`,
-  `InferInput`, `InferOutput`, `IOPrimitive`, `isForm`, `isPrimitiveLeaf`,
-  `isStreamKind`, `isUploadSpec`, `ItemOptions`, `LeafType`, `makeSummary`,
-  `mediaTypeOf`, `multipart`, `MultipartForm`, `nameOfForm`, `stream`,
-  `StreamForm`, `StreamFormOptions`, `StreamKind`, `StreamSummary`,
-  `TransportCapabilities`, `upload`, `UploadOptions`, `UploadSpec`,
-  `ValidateOutputForm`.
+  `AnyOutcomesForm`, `assertFormsSupported`, `assertIoDeclaration`,
+  `BindableFields`, `ChainStep`, `DeclaredOutcome`, `declaredOutcomes`,
+  `describeForm`, `describeOutcomes`, `EmptyInput`, `events`, `FilePart`,
+  `FilesOf`, `FormBearingDefinition`, `FormDescriptor`, `FormKind`,
+  `FormLeaf`, `FormSlot`, `InferInput`, `InferOutput`, `IOPrimitive`,
+  `isForm`, `isNone`, `isOutcomes`, `isPrimitiveLeaf`, `isStreamKind`,
+  `isUploadSpec`, `ItemOptions`, `LeafType`, `makeSummary`, `mediaTypeOf`,
+  `multipart`, `MultipartForm`, `nameOfForm`, `none`, `NoneForm`,
+  `OutcomeForm`, `OutcomeMap`, `outputs`, `OutcomesForm`, `OutcomeValue`,
+  `OutcomeValues`, `stream`, `StreamForm`, `StreamFormOptions`, `StreamKind`,
+  `StreamSummary`, `TransportCapabilities`, `upload`, `UploadOptions`,
+  `UploadSpec`, `ValidateOutputForm`.
 - **HTTP-адрес** ([design](../../docs/design/transports.md)) — `assertHttpPath`,
   `BindMap`, `BindMark`, `BindPlace`, `BindPlacement`, `body`,
   `buildHttpBinding`, `computeHttpBinding`, `ComputeHttpBindingOptions`,

@@ -103,11 +103,8 @@ Pre-шаги внешнего слоя выполняются раньше, по
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
-  doc: {
-    summary: 'Удалить пользователя',
-    tags: ['users'],
-    status: 'no_content',
-  },
+  status: 'no_content',
+  doc: { summary: 'Удалить пользователя', tags: ['users'] },
   pipeline: authed,
   handler: DeleteUserHandler,
 });

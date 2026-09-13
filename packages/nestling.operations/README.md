@@ -33,8 +33,9 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
+  status: 'created', // the declared outcome: the response goes out with 201
   errors: [EmailTaken],
-  doc: { summary: 'Create user', tags: ['users'], status: 'created' },
+  doc: { summary: 'Create user', tags: ['users'] },
 });
 ```
 
@@ -52,7 +53,8 @@ it, and the caller `CreateUser.caller` is injected by a DI token.
   `lookupOperation`, `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`,
   `Operation`, `OperationFailsOf`, `OperationKind`, `OperationSpec`,
   `OutputFormOf`, `OutputOf`, `Port`, `PortFamily`, `PortMeta`,
-  `PortResult`, `PortToken`, `RequestOperation`, `UndeclaredHandlerFails`,
+  `PortResult`, `PortToken`, `RequestOperation`, `StatusOf`,
+  `UndeclaredHandlerFails`,
   `ValidateHandlerFails`, `ValidateOperationFails`.
 - **Result and failures** ([design](../../docs/en/design/errors.md)) —
   `AnyFail`, `AnyFailDefinition`, `assertFailCode`, `BadRequest`,
@@ -61,20 +63,26 @@ it, and the caller `CreateUser.caller` is injected by a DI token.
   `FailDefinitionWithDetails`, `FailDefinitionWithoutDetails`, `FailOf`,
   `FailOfDef`, `FailOptions`, `FailResponseOf`, `FailsOf`,
   `FailSpecWithDetails`, `FailSpecWithoutDetails`, `InternalError`,
+  `AnyOk`, `assertSuccessStatus`, `DeclaredOk`, `DeclaredOutput`,
+  `DeclaredOutputSync`, `DeclaredStatuses`, `EffectiveStatus`,
   `isCategory`, `isFail`, `isFailDefinition`, `isKernelFailCode`,
-  `KernelFail`, `makeFail`, `Ok`, `Output`, `OutputSync`,
-  `PayloadTooLarge`, `ProcessingStatus`, `ResponseLike`, `statuses`,
-  `SuccessStatus`, `successStatuses`, `Timeout`.
+  `isSuccessStatus`, `KernelFail`, `makeFail`, `Ok`, `OutcomeOks`,
+  `Output`, `OutputSync`, `PayloadTooLarge`, `ProcessingStatus`,
+  `ResponseLike`, `statuses`, `SuccessStatus`, `successStatuses`,
+  `Timeout`.
 - **Io shapes** ([design](../../docs/en/design/endpoints.md)) —
   `AnyInput`, `AnyMultipartForm`, `AnyOutput`, `AnyPayload`,
-  `AnyStreamForm`, `assertFormSlots`, `assertFormsSupported`,
-  `BindableFields`, `ChainStep`, `describeForm`, `EmptyInput`, `events`,
-  `FilePart`, `FilesOf`, `FormBearingDefinition`, `FormDescriptor`,
-  `FormKind`, `FormLeaf`, `FormSlot`, `InferInput`, `InferOutput`,
-  `IOPrimitive`, `isForm`, `isPrimitiveLeaf`, `isStreamKind`,
-  `isUploadSpec`, `ItemOptions`, `LeafType`, `makeSummary`, `mediaTypeOf`,
-  `multipart`, `MultipartForm`, `nameOfForm`, `stream`, `StreamForm`,
-  `StreamFormOptions`, `StreamKind`, `StreamSummary`,
+  `AnyOutcomesForm`, `AnyStreamForm`, `assertFormsSupported`,
+  `assertIoDeclaration`, `BindableFields`, `ChainStep`, `DeclaredOutcome`,
+  `declaredOutcomes`, `describeForm`, `describeOutcomes`, `EmptyInput`,
+  `events`, `FilePart`, `FilesOf`, `FormBearingDefinition`,
+  `FormDescriptor`, `FormKind`, `FormLeaf`, `FormSlot`, `InferInput`,
+  `InferOutput`, `IOPrimitive`, `isForm`, `isNone`, `isOutcomes`,
+  `isPrimitiveLeaf`, `isStreamKind`, `isUploadSpec`, `ItemOptions`,
+  `LeafType`, `makeSummary`, `mediaTypeOf`, `multipart`, `MultipartForm`,
+  `nameOfForm`, `none`, `NoneForm`, `OutcomeForm`, `OutcomeMap`,
+  `OutcomesForm`, `OutcomeValue`, `OutcomeValues`, `outputs`, `stream`,
+  `StreamForm`, `StreamFormOptions`, `StreamKind`, `StreamSummary`,
   `TransportCapabilities`, `upload`, `UploadOptions`, `UploadSpec`,
   `ValidateOutputForm`.
 - **HTTP address** ([design](../../docs/en/design/transports.md)) —
