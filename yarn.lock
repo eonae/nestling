@@ -1635,6 +1635,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@examples/cli@workspace:examples/cli":
+  version: 0.0.0-use.local
+  resolution: "@examples/cli@workspace:examples/cli"
+  dependencies:
+    "@examples/microservice": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/client": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*"
+    "@nestlingjs/transport.cli": "workspace:*"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@examples/container@workspace:examples/container":
   version: 0.0.0-use.local
   resolution: "@examples/container@workspace:examples/container"
@@ -1645,7 +1660,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@examples/microservice@workspace:examples/microservice":
+"@examples/microservice@workspace:*, @examples/microservice@workspace:examples/microservice":
   version: 0.0.0-use.local
   resolution: "@examples/microservice@workspace:examples/microservice"
   dependencies:

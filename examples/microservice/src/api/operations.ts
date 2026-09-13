@@ -13,6 +13,38 @@ import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 import { body, makeRequest, query } from '@nestlingjs/operations';
 import { z } from 'zod';
 
+// Схемы и отказы уезжают вместе с операциями: потребитель API импортирует
+// один файл
+export { CreateUserInput, User } from '../users/user.js';
+export { EmailTaken, UserNotFound } from '../users/users.errors.js';
+export { Unauthorized } from '../errors.js';
+
+// GET без тела: поля `input` читаются из query-строки. Query несёт строки,
+// число из них делает схема
+export const ListUsersInput = z.object({
+  limit: z.coerce.number().int().positive().optional(),
+});
+
+export type ListUsersInput = z.infer<typeof ListUsersInput>;
+
+export const ListUsers = makeRequest({
+  name: 'users.list',
+  http: 'GET /users',
+  input: ListUsersInput,
+  output: z.array(User),
+  doc: { summary: 'Список пользователей', tags: ['users'] },
+});
+
+/**
+ * Адрес выгрузки.
+ *
+ * Константой, а не операцией: выгрузка отдаёт поток NDJSON и заголовок с
+ * именем файла, а типизированный клиент строится только над операциями,
+ * вход и выход которых — значения. Адрес назван здесь один раз, и его
+ * читают и сервер, и тот, кто выгрузку скачивает.
+ */
+export const EXPORT_USERS_PATH = '/users/export';
+
 export const GetUserInput = z.object({ id: z.string() });
 
 export type GetUserInput = z.infer<typeof GetUserInput>;

@@ -1,3 +1,4 @@
+import { EXPORT_USERS_PATH } from '../../api/operations.js';
 import { observability } from '../../observability.js';
 import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
@@ -33,7 +34,7 @@ export class ExportUsersHandler {
  * Форма `stream(T)` на выходе: хендлер возвращает `AsyncIterable`,
  * транспорт отдаёт NDJSON. `Content-Type` задаёт форма, не хендлер.
  */
-export const ExportUsers = httpEndpoint.get('/users/export', {
+export const ExportUsers = httpEndpoint.get(EXPORT_USERS_PATH, {
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
   pipeline: observability,

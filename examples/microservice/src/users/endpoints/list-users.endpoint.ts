@@ -1,21 +1,14 @@
+import type { ListUsersInput } from '../../api/operations.js';
+import { ListUsers as ListUsersOperation } from '../../api/operations.js';
 import { AppConfig } from '../../app.config.js';
 import { observability } from '../../observability.js';
-import { User } from '../user.js';
+import type { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Config, Output } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { httpEndpoint } from '@nestlingjs/transport.http';
-import { z } from 'zod';
-
-// GET без тела: поля `input` читаются из query-строки. Query несёт строки,
-// число из них делает схема
-const ListUsersInput = z.object({
-  limit: z.coerce.number().int().positive().optional(),
-});
-
-type ListUsersInput = z.infer<typeof ListUsersInput>;
 
 /**
  * Хендлер — класс с методом `handle`. Экземпляр создаёт фреймворк:
@@ -35,10 +28,11 @@ export class ListUsersHandler {
   }
 }
 
-export const ListUsers = httpEndpoint.get('/users', {
-  input: ListUsersInput,
-  output: z.array(User),
-  doc: { summary: 'Список пользователей', tags: ['users'] },
+/**
+ * Адрес, схемы и описание живут в операции `api/operations.ts`: ту же
+ * операцию импортирует клиент командной строки.
+ */
+export const ListUsers = httpEndpoint.implement(ListUsersOperation, {
   pipeline: observability,
   handler: ListUsersHandler,
 });

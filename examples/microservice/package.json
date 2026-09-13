@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "main": "dist/bundle.js",
+  "exports": {
+    "./operations": "./src/api/operations.ts"
+  },
   "scripts": {
     "clear": "rm -rf dist",
     "db:up": "docker compose up -d --wait",
