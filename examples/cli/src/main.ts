@@ -10,7 +10,6 @@ import {
 } from './commands/index.js';
 
 import { makeDispatch } from '@nestlingjs/app';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { CliTransport } from '@nestlingjs/transport.cli';
 
 /**
@@ -25,9 +24,6 @@ const argv = process.argv.slice(2);
 const cli = new CliTransport({
   mode: argv.length > 0 ? 'argv' : 'repl',
   argv,
-  // Конвертер нужен команде `create-user`: её вопросы выводятся из
-  // JSON Schema формы входа, а Standard Schema интроспекции не даёт
-  converters: [zodConverter()],
 });
 
 const dispatch = makeDispatch([

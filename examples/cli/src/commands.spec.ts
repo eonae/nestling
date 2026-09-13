@@ -20,7 +20,6 @@ import {
   jest,
 } from '@jest/globals';
 import { makeDispatch } from '@nestlingjs/app';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { CliTransport, parseArgv } from '@nestlingjs/transport.cli';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
@@ -67,7 +66,6 @@ describe('команды через execute', () => {
     cli = new CliTransport({
       mode: 'argv',
       argv: [],
-      converters: [zodConverter()],
     });
     await cli.serve(
       makeDispatch([Help, CreateUser, ListUsers]),
@@ -145,7 +143,6 @@ describe('create-user: недостающее спрашивается', () => {
       input: answers('Alice\n', 'alice@example.com\n', 'n\n'),
       output: collecting(printed),
       interactive: true,
-      converters: [zodConverter()],
     });
 
     await cli.serve(makeDispatch([CreateUser]), new AbortController().signal);
@@ -172,7 +169,6 @@ describe('create-user: недостающее спрашивается', () => {
       input: answers('alice@example.com\n', 'n\n'),
       output: collecting(printed),
       interactive: true,
-      converters: [zodConverter()],
     });
 
     await cli.serve(makeDispatch([CreateUser]), new AbortController().signal);
@@ -198,7 +194,6 @@ describe('create-user: недостающее спрашивается', () => {
       argv: [],
       input: answers('Alice\n'),
       output: collecting(printed),
-      converters: [zodConverter()],
     });
 
     await cli.serve(makeDispatch([CreateUser]), new AbortController().signal);
