@@ -1,6 +1,6 @@
 # 13. Give the frontend the documentation and the client
 
-> Guide to the current API; verified against `7e80fcd8`.
+> Guide to the current API; verified against `e2500af3`.
 > Target description: [design/schemas.md](../design/schemas.md) §2.1 and
 > [design/operations.md](../design/operations.md) §5. Why: entries
 > [ideas.md](../../decisions/ideas.md)
