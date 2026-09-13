@@ -1,16 +1,16 @@
 ## 1. `microservice`
 
-- [ ] 1.1 Переименовать `examples/users-service` в `examples/microservice`, имя пакета — `@examples/microservice`; обновить `ci.yml` (шаг `db:migrate`), корневые `README.md` и `README.ru.md`
-- [ ] 1.2 Перенести из `app-with-http` живую ленту: `events(T)`, `sse:`, `Topic`, отмена по `AbortSignal`
-- [ ] 1.3 Перенести реестр подписок (`@nestlingjs/subscriptions`) и endpoint списка подписок
-- [ ] 1.4 Перенести транспорт MCP: инструменты агента на том же сокете, конвертеры общие с документом OpenAPI
-- [ ] 1.5 Перенести пробы `httpProbes()` и переключатель состава документации
-- [ ] 1.6 Перенести метрики из `split-nats`: адаптер Prometheus, опция `metrics`, endpoint `/metrics`
-- [ ] 1.7 Перенести endpoint webhook'а с проверкой подписи (источник рецепта `webhook.md`)
-- [ ] 1.8 Свести `app.ts`: плагины, транспорты и политики одного сервиса; проверить, что файл читается сверху вниз
-- [ ] 1.9 Перенести тесты `e2e` (`users-crud`, `files`, `streaming`, `mcp`, `webhook`) и helpers; убедиться, что `test:e2e` поднимает приложение
-- [ ] 1.10 Написать `examples/microservice/README.md`: что показывает, как поднять, что потрогать
-- [ ] 1.11 Проверить обвязку: `.env.example`, `docker-compose.yml`, миграции drizzle, скрипты `package.json`
+- [x] 1.1 Переименовать `examples/users-service` в `examples/microservice`, имя пакета — `@examples/microservice`; обновить `ci.yml` (шаг `db:migrate`), корневые `README.md` и `README.ru.md`
+- [x] 1.2 Перенести из `app-with-http` живую ленту: `events(T)`, `sse:`, `Topic`, отмена по `AbortSignal`
+- [x] 1.3 Перенести реестр подписок (`@nestlingjs/subscriptions`) и endpoint списка подписок
+- [x] 1.4 Перенести транспорт MCP: инструменты агента на том же сокете, конвертеры общие с документом OpenAPI
+- [x] 1.5 Перенести пробы `httpProbes()` и переключатель состава документации
+- [x] 1.6 Перенести метрики из `split-nats`: адаптер Prometheus, опция `metrics`, endpoint `/metrics`
+- [x] 1.7 Перенести endpoint webhook'а с проверкой подписи (источник рецепта `webhook.md`)
+- [x] 1.8 Свести `app.ts`: плагины, транспорты и политики одного сервиса; проверить, что файл читается сверху вниз
+- [x] 1.9 Перенести тесты `e2e` (`users-crud`, `files`, `streaming`, `mcp`, `webhook`) и helpers; убедиться, что `test:e2e` поднимает приложение
+- [x] 1.10 Написать `examples/microservice/README.md`: что показывает, как поднять, что потрогать
+- [x] 1.11 Проверить обвязку: `.env.example`, `docker-compose.yml`, миграции drizzle, скрипты `package.json`
 
 ## 2. `modular-app`
 

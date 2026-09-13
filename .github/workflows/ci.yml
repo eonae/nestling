@@ -71,7 +71,7 @@ jobs:
       - run: yarn install --immutable
 
       # Схема примера накатывается до тестов: спеки читают ту же базу
-      - run: yarn workspace @examples/users-service run db:migrate
+      - run: yarn workspace @examples/microservice run db:migrate
         env:
           DATABASE_URL: postgresql://nestling:nestling@localhost:5432/nestling
 
