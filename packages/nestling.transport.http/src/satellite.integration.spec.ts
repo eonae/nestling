@@ -154,6 +154,7 @@ class SatelliteTransport implements ITransport {
       pattern: match.route.declaration.pattern,
       input: match.route.declaration.input,
       output: match.route.declaration.output,
+      status: match.route.declaration.status,
       errors: match.route.declaration.errors,
     };
 
@@ -179,6 +180,7 @@ const GetUser = httpEndpoint.get('/users/:id', {
 const CreateUser = httpEndpoint.post('/users', {
   input: z.object({ name: z.string() }),
   output: User,
+  status: 'created',
   handler: ({ name }) => Ok.created({ id: 'u-1', name }),
 });
 

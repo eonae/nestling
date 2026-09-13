@@ -85,6 +85,15 @@ export type EffectiveStatus<O, S extends SuccessStatus = never> = [S] extends [
   : S;
 
 /**
+ * Объявленное множество статусов декларации: ключи развилки или статус
+ * единственного исхода.
+ */
+export type DeclaredStatuses<O, S extends SuccessStatus = never> =
+  O extends OutcomesForm<infer M>
+    ? keyof M & SuccessStatus
+    : EffectiveStatus<O, S>;
+
+/**
  * Дискриминированный юнион `Ok` по исходам развилки: у каждой ветки свой
  * статус и своё значение.
  */

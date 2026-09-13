@@ -407,6 +407,9 @@ export class HttpTransport implements ITransport {
         pattern: declaration.pattern,
         input: declaration.input,
         output: declaration.output,
+        // Объявленные исходы едут тем же путём: рантайм ставит статус
+        // голому значению и сверяет статус `Ok` по ним
+        status: declaration.status,
         // Объявленные отказы попадают в проверку `errors` только через
         // контекст: глобального реестра нет
         errors: declaration.errors,

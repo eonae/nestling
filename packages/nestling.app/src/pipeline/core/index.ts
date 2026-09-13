@@ -74,6 +74,7 @@ export type {
   DeclaredOutcome,
   DeclaredOutput,
   DeclaredOutputSync,
+  DeclaredStatuses,
   EmptyInput,
   FailCode,
   FailCreateOptions,

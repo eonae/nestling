@@ -520,6 +520,7 @@ function httpBindingFor(
   http: unknown,
   input: unknown,
   output: unknown,
+  status: unknown,
 ): HttpBinding {
   const where = `Operation '${name}'`;
   const section = parseHttpSection(http, where);
@@ -533,6 +534,7 @@ function httpBindingFor(
     rawBody: section.rawBody,
     input,
     output,
+    status,
     sse: section.sse,
     // Имя операции хранится на карте: реализация получает ту же карту, и
     // по ней интроспекция HTTP-декларации узнаёт операцию
@@ -709,7 +711,7 @@ function declare(
     value.durable = durable;
   }
   if (http !== undefined) {
-    value.http = httpBindingFor(name, http, input, output);
+    value.http = httpBindingFor(name, http, input, output, status);
   }
 
   defineInvokers(value, kind);

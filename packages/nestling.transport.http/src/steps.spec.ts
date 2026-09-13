@@ -19,6 +19,7 @@ import type {
   ResponseContext,
 } from '@nestlingjs/app';
 import { makeEmptyContext, makePipeline, Ok } from '@nestlingjs/app';
+import { z } from 'zod';
 
 const http: HttpRequest = {
   method: 'GET',
@@ -34,7 +35,12 @@ const raw: Raw = {
   attributes: http.headers,
 };
 
-const endpoint: EndpointMeta = { transport: 'http', pattern: 'GET /users' };
+const endpoint: EndpointMeta = {
+  transport: 'http',
+  pattern: 'GET /users',
+  // Выход объявлен: шаги проверяются на ответе со значением
+  output: z.unknown(),
+};
 
 /**
  * Контекст запроса со стартовым полем `http`, как его кладёт транспорт.
@@ -43,8 +49,11 @@ const endpoint: EndpointMeta = { transport: 'http', pattern: 'GET /users' };
  * тест подставляет контекст в `executeWithHandler` уже собранного
  * пайплайна.
  */
-const contextOf = (request: HttpRequest = http): ExtendableContext<any> =>
-  makeEmptyContext(raw, endpoint, undefined, {
+const contextOf = (
+  request: HttpRequest = http,
+  meta: EndpointMeta = endpoint,
+): ExtendableContext<any> =>
+  makeEmptyContext(raw, meta, undefined, {
     http: request,
   }) as ExtendableContext<any>;
 
@@ -128,7 +137,13 @@ describe('withClientIp — адрес сокета', () => {
 describe('httpAccessLog — строка доступа', () => {
   it('несёт метод, путь, статус, исход и счётчики байтов', async () => {
     const { logger, entries } = spyLogger();
-    const ctx = contextOf();
+    // Исход `created` объявлен декларацией: иначе граница заменила бы
+    // ответ на `internal_error`
+    const ctx = contextOf(http, {
+      ...endpoint,
+      output: z.object({ id: z.string() }),
+      status: 'created',
+    });
     ctx.summary.bytesIn = 12;
     ctx.summary.bytesOut = 34;
 

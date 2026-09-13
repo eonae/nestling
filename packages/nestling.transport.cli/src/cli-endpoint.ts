@@ -17,6 +17,7 @@ import type {
   FailsOf,
   HandlerClass,
   Pipeline,
+  SuccessStatus,
   ValidateOutputForm,
 } from '@nestlingjs/app';
 import { DEFAULT_INSTANCE, makeEndpoint } from '@nestlingjs/app';
@@ -61,12 +62,23 @@ export interface CliEndpointDictionary<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  S extends SuccessStatus = never,
 > {
   /** Форма io для input: значение или `stream(...)` */
   input?: I;
 
-  /** Форма io для output (см. `ValidateOutputForm`) */
+  /**
+   * Форма io для output или развилка исходов `outputs({ … })`
+   * (см. `ValidateOutputForm`)
+   */
   output?: O & ValidateOutputForm<O>;
+
+  /**
+   * Статус единственного успешного исхода. У терминала своего кода нет:
+   * статус читают наблюдатели и реализация той же операции на другом
+   * транспорте.
+   */
+  status?: S;
 
   /**
    * Объявленные отказы команды. Транспорт поле не интерпретирует — только
@@ -135,29 +147,37 @@ export interface CliEndpointDictionary<
  */
 export function cliEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  R extends AnyHandlerResult<O> = AnyHandlerResult<O>,
+  S extends SuccessStatus = never,
+  R extends AnyHandlerResult<O, S> = AnyHandlerResult<O, S>,
 >(
   command: string,
-  declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
+  declaration: CliEndpointDictionary<I, O, P, PN, E, PF, S> & {
     handler: CheckedHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function cliEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, AnyFail> = HandlerClass<I, O, P, AnyFail>,
+  S extends SuccessStatus = never,
+  C extends HandlerClass<I, O, P, AnyFail, S> = HandlerClass<
+    I,
+    O,
+    P,
+    AnyFail,
+    S
+  >,
 >(
   command: string,
-  declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
+  declaration: CliEndpointDictionary<I, O, P, PN, E, PF, S> & {
     handler: C &
       ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
   },
@@ -170,7 +190,8 @@ export function cliEndpoint(
     any,
     unknown,
     readonly AnyFailDefinition[],
-    AnyFail
+    AnyFail,
+    SuccessStatus
   > & {
     handler: unknown;
   },

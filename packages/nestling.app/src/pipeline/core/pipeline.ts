@@ -488,7 +488,9 @@ export interface Pipeline<
       meta: (TAcc extends { payload: unknown }
         ? Omit<TAcc, 'payload'>
         : TAcc) & { signal: AbortSignal },
-    ) => OutputSync<TOutput, AnyFail> | Output<TOutput, AnyFail>,
+    ) =>
+      | OutputSync<TOutput, AnyFail, SuccessStatus>
+      | Output<TOutput, AnyFail, SuccessStatus>,
     ctx: ExtendableContext<TAcc>,
     options?: ExecuteOptions,
   ): Promise<ResponseContext<TOutput>>;

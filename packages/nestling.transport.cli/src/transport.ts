@@ -277,6 +277,8 @@ export class CliTransport implements ITransport {
       pattern: route.pattern,
       input: route.input,
       output: route.output,
+      // Объявленные исходы едут тем же путём, что и отказы
+      status: route.status,
       // Объявленные отказы попадают в проверку границы только так:
       // декларация → транспорт → контекст, без глобального реестра.
       errors: route.errors,

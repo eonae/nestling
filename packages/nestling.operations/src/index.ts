@@ -190,6 +190,7 @@ export type {
 export type {
   DeclaredOutput,
   DeclaredOutputSync,
+  DeclaredStatuses,
   EffectiveStatus,
   OutcomeOks,
   Output,

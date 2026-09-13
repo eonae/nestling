@@ -319,6 +319,7 @@ describe('отказ регистрации несовместимых форм'
     const Upload = cliEndpoint('upload', {
       input: multipart({ files: { report: upload() } }),
       pipeline: makePipeline(),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 

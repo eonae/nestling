@@ -715,6 +715,9 @@ export class NatsBus implements IMessageBus, ITransport {
       pattern: route.pattern,
       input: route.input,
       output: route.output,
+      // Объявленные исходы едут тем же путём: статус ответа шина несёт как
+      // есть, а рантайм сверяет его по ним
+      status: route.status,
       errors: route.errors,
     };
 

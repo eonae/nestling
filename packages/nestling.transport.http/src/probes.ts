@@ -11,7 +11,12 @@
 
 import { httpEndpoint } from './helpers.js';
 
-import type { Health, HealthReport, Plugin } from '@nestlingjs/app';
+import type {
+  Health,
+  HealthReport,
+  LivenessReport,
+  Plugin,
+} from '@nestlingjs/app';
 import { Health$, makeFail, makePlugin, Ok } from '@nestlingjs/app';
 import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { Handler } from '@nestlingjs/container';
@@ -33,6 +38,15 @@ const reportSchema: StandardSchemaV1<unknown, HealthReport> = {
     version: 1,
     vendor: 'nestling',
     validate: (value) => ({ value: value as HealthReport }),
+  },
+};
+
+/** Схема тела liveness-пробы; собрана так же, как {@link reportSchema} */
+const livenessSchema: StandardSchemaV1<unknown, LivenessReport> = {
+  '~standard': {
+    version: 1,
+    vendor: 'nestling',
+    validate: (value) => ({ value: value as LivenessReport }),
   },
 };
 
@@ -112,12 +126,16 @@ export function httpProbes(options: HttpProbesOptions = {}): Plugin {
     endpoints: [
       httpEndpoint.get(liveness, {
         ...(on === undefined ? {} : { on }),
+        // Тело пробы — отчёт: выход объявлен схемой, которая пропускает
+        // его как есть
+        output: livenessSchema,
         detached: REASON,
         doc: { hidden: REASON },
         handler: LivenessHandler,
       }),
       httpEndpoint.get(readiness, {
         ...(on === undefined ? {} : { on }),
+        output: reportSchema,
         errors: [NotReady],
         detached: REASON,
         doc: { hidden: REASON },

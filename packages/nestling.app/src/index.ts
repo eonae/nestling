@@ -55,6 +55,7 @@ export type {
   Health,
   HealthCheck,
   HealthReport,
+  LivenessReport,
   HealthStatus,
 } from './health/index.js';
 
@@ -116,6 +117,9 @@ export type {
   ContextVarDeclarator,
   ContextVarOptions,
   CtxReader,
+  DeclaredOutput,
+  DeclaredOutputSync,
+  DeclaredStatuses,
   DeferredPreStepFn,
   Done,
   EndpointDefinition,
@@ -250,23 +254,29 @@ export type {
   LogMethod,
 } from '@nestlingjs/logging';
 
-// @nestlingjs/operations — 45
+// @nestlingjs/operations — 52
 export {
   assertConverters,
   assertFormsSupported,
   BadRequest,
+  declaredOutcomes,
   describeForm,
+  describeOutcomes,
   events,
   Fail,
   InternalError,
   isFail,
+  isNone,
+  isOutcomes,
   isPrimitiveLeaf,
   jsonSchema,
   leafJsonSchema,
   makeFail,
   mediaTypeOf,
   multipart,
+  none,
   Ok,
+  outputs,
   PayloadTooLarge,
   stream,
   Timeout,
@@ -289,6 +299,7 @@ export type {
   InferOutput,
   Output,
   OutputSync,
+  SuccessStatus,
   Port,
   PortMeta,
   PortResult,

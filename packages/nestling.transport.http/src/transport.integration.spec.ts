@@ -38,6 +38,7 @@ import {
   makePipeline,
   multipart,
   Ok,
+  outputs,
   PayloadTooLarge,
   stream,
   Timeout,
@@ -277,6 +278,7 @@ describe('HttpTransport — error response safety', () => {
     routesOf(transport).push(
       httpEndpoint.post('/boom', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw new Error('db password invalid');
         },
@@ -286,6 +288,7 @@ describe('HttpTransport — error response safety', () => {
       httpEndpoint.post('/fail', {
         pipeline: makePipeline(),
         errors: [EmailTaken],
+        output: z.unknown(),
         handler: () => {
           throw EmailTaken({ field: 'email' });
         },
@@ -296,6 +299,7 @@ describe('HttpTransport — error response safety', () => {
     routesOf(transport).push(
       httpEndpoint.post('/undeclared', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw Fail.conflict('Email already taken', { field: 'email' });
         },
@@ -305,6 +309,7 @@ describe('HttpTransport — error response safety', () => {
       httpEndpoint.post('/rate-limited', {
         pipeline: makePipeline(),
         errors: [RateLimited],
+        output: z.unknown(),
         handler: () => {
           throw RateLimited();
         },
@@ -314,6 +319,7 @@ describe('HttpTransport — error response safety', () => {
       httpEndpoint.post('/timeout', {
         pipeline: makePipeline(),
         errors: [UpstreamTimeout],
+        output: z.unknown(),
         handler: () => {
           throw UpstreamTimeout();
         },
@@ -325,6 +331,7 @@ describe('HttpTransport — error response safety', () => {
     routesOf(exposed).push(
       httpEndpoint.post('/boom', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw new Error('boom');
         },
@@ -428,6 +435,7 @@ describe('HttpTransport — error response safety', () => {
     routesOf(hooked).push(
       httpEndpoint.post('/undeclared', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw Fail.notFound('order 42');
         },
@@ -502,18 +510,21 @@ describe('HttpTransport — один формат отказа на все пу�
       httpEndpoint.post('/declared', {
         pipeline: makePipeline(),
         errors: [EmailTaken],
+        output: z.unknown(),
         handler: () => {
           throw EmailTaken({ field: 'email' });
         },
       }),
       httpEndpoint.post('/boom', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw new Error('boom');
         },
       }),
       httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
+        output: z.unknown(),
         handler: () => new Ok({ ok: true }),
       }),
     );
@@ -595,6 +606,7 @@ describe('HttpTransport — категория отказа и заголовк�
     routesOf(transport).push(
       httpEndpoint.post('/too-large', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw PayloadTooLarge({ limit: 10 });
         },
@@ -603,6 +615,7 @@ describe('HttpTransport — категория отказа и заголовк�
     routesOf(transport).push(
       httpEndpoint.post('/slow', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => {
           throw Timeout();
         },
@@ -611,6 +624,7 @@ describe('HttpTransport — категория отказа и заголовк�
     routesOf(transport).push(
       httpEndpoint.post('/orders', {
         output: z.object({ id: z.string() }),
+        status: 'created',
         handler: async () =>
           HttpResponse.of(Ok.created({ id: '42' }), {
             headers: {
@@ -693,6 +707,7 @@ describe('HttpTransport — request validation errors', () => {
     routesOf(transport).push(
       httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
+        output: z.unknown(),
         handler: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
@@ -701,6 +716,7 @@ describe('HttpTransport — request validation errors', () => {
     routesOf(transport).push(
       httpEndpoint.post('/fallback', {
         input: z.object({ name: z.string() }),
+        output: z.unknown(),
         handler: (payload: { name: string }) => ({ ok: payload.name }),
       }),
     );
@@ -709,6 +725,7 @@ describe('HttpTransport — request validation errors', () => {
     routesOf(transport).push(
       httpEndpoint.post('/async-schema', {
         input: asyncSchema,
+        output: z.unknown(),
         handler: () => new Ok({ ok: true }),
       }),
     );
@@ -717,6 +734,7 @@ describe('HttpTransport — request validation errors', () => {
     routesOf(transport).push(
       httpEndpoint.post('/async-schema-bare', {
         input: asyncSchema,
+        output: z.unknown(),
         handler: () => new Ok({ ok: true }),
       }),
     );
@@ -725,6 +743,7 @@ describe('HttpTransport — request validation errors', () => {
     routesOf(transport).push(
       httpEndpoint.post('/not-a-schema', {
         input: notASchema,
+        output: z.unknown(),
         handler: () => new Ok({ ok: true }),
       }),
     );
@@ -866,6 +885,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     routesOf(transport).push(
       httpEndpoint.post('/users', {
         input: z.object({ name: z.string() }),
+        output: z.unknown(),
         handler: (payload: { name: string }) => new Ok(payload),
       }),
     );
@@ -874,6 +894,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     routesOf(transport).push(
       httpEndpoint.patch('/users/:id', {
         input: z.object({ id: z.string(), name: z.string() }),
+        output: z.unknown(),
         handler: (payload: { id: string; name: string }) => new Ok(payload),
       }),
     );
@@ -882,6 +903,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     routesOf(transport).push(
       httpEndpoint.get('/tags', {
         input: z.object({ tag: z.array(z.string()) }),
+        output: z.unknown(),
         handler: (payload: { tag: string[] }) => new Ok(payload),
       }),
     );
@@ -891,6 +913,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
       httpEndpoint.get('/multi', {
         input: z.object({ tag: z.array(z.string()) }),
         bind: { tag: query({ multiple: true }) },
+        output: z.unknown(),
         handler: (payload: { tag: string[] }) => new Ok(payload),
       }),
     );
@@ -900,6 +923,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
       httpEndpoint.post('/marked', {
         input: z.object({ name: z.string(), dryRun: z.string().optional() }),
         bind: { dryRun: query() },
+        output: z.unknown(),
         handler: (payload: { name: string; dryRun?: string }) =>
           new Ok(payload),
       }),
@@ -913,6 +937,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
           files: { avatar: upload() },
         }),
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: (payload: {
           fields: { id: string };
           files: { avatar: FilePart };
@@ -931,6 +956,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
           fields: z.object({ title: z.string().min(1) }),
           files: { report: upload() },
         }),
+        output: z.unknown(),
         handler: (payload: {
           fields: { title: string };
           files: { report: FilePart };
@@ -948,6 +974,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         input: z.object({ event: z.string() }),
         rawBody: true,
         pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(captureRawBody),
+        output: z.unknown(),
         handler: (payload: { event: string }) => new Ok(payload),
       }),
     );
@@ -1084,6 +1111,7 @@ describe('HttpTransport — тело читается только по треб
     routesOf(transport).push(
       httpEndpoint.get('/search', {
         input: z.object({ q: z.string() }),
+        output: z.unknown(),
         handler: (payload: { q: string }) => new Ok(payload),
       }),
     );
@@ -1092,6 +1120,7 @@ describe('HttpTransport — тело читается только по треб
         input: z.object({ event: z.string() }),
         rawBody: true,
         pipeline: makePipeline<{ rawBody: Uint8Array }>(),
+        output: z.unknown(),
         handler: (payload: { event: string }) => new Ok(payload),
       }),
     );
@@ -1145,12 +1174,14 @@ describe('HttpTransport — body size limits', () => {
     routesOf(small).push(
       httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
+        output: z.unknown(),
         handler: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
     routesOf(small).push(
       httpEndpoint.post('/stream', {
         input: stream(z.object({ n: z.number() })),
+        output: z.unknown(),
         handler: async (payload: AsyncIterable<unknown>) => {
           let count = 0;
           for await (const item of payload) {
@@ -1165,6 +1196,7 @@ describe('HttpTransport — body size limits', () => {
       httpEndpoint.post('/stream-piped', {
         input: stream(z.object({ n: z.number() })),
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: async (payload: AsyncIterable<unknown>) => {
           let count = 0;
           for await (const item of payload) {
@@ -1180,6 +1212,7 @@ describe('HttpTransport — body size limits', () => {
     routesOf(unlimited).push(
       httpEndpoint.post('/json', {
         input: z.object({ name: z.string() }),
+        output: z.unknown(),
         handler: (payload: { name: string }) =>
           new Ok({ length: payload.name.length }),
       }),
@@ -1252,6 +1285,7 @@ describe('HttpServer — timeouts and graceful drain', () => {
     routesOf(transport).push(
       httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => new Ok({ pong: true }),
       }),
     );
@@ -1285,6 +1319,7 @@ describe('HttpServer — timeouts and graceful drain', () => {
     routesOf(transport).push(
       httpEndpoint.post('/hang', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         handler: () => new Promise<never>(() => {}), // никогда не резолвится
       }),
@@ -1337,6 +1372,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     routesOf(transport).push(
       httpEndpoint.get('/slow', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: handle,
       }),
     );
@@ -1364,6 +1400,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     routesOf(transport).push(
       httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           captured = meta.signal;
           return new Ok({ pong: true });
@@ -1392,6 +1429,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     routesOf(transport).push(
       httpEndpoint.post('/graceful', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: handle,
       }),
     );
@@ -1420,6 +1458,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const { handle, started, aborted } = makeAwaitingHandler();
     routesOf(transport).push(
       httpEndpoint.get('/raw', {
+        output: z.unknown(),
         handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           const result = handle(_payload, meta);
           return result.then((ok) => ok.value);
@@ -1448,6 +1487,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     routesOf(transport).push(
       httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => new Ok({ pong: true }),
       }),
     );
@@ -1478,6 +1518,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     routesOf(transport).push(
       httpEndpoint.get('/ping', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => new Ok({ pong: true }),
       }),
     );
@@ -1508,6 +1549,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     routesOf(transport).push(
       httpEndpoint.get('/hold', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           signals.push(meta.signal);
           if (signals.length === 3) {
@@ -1579,6 +1621,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     routesOf(transport).push(
       httpEndpoint.get('/users/42', {
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: () => new Ok({ id: '42', name: 'Алиса' }),
       }),
     );
@@ -1601,6 +1644,8 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     routesOf(transport).push(
       httpEndpoint.get('/plain', {
         pipeline: makePipeline(),
+        output: z.unknown(),
+        status: 'created',
         handler: () =>
           HttpResponse.of(Ok.created('hello'), {
             headers: {
@@ -1692,6 +1737,77 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     await shutdown(transport);
   });
 
+  it('объявленный статус уходит своим кодом', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint.post('/users', {
+        output: z.object({ id: z.string() }),
+        status: 'created',
+        handler: async () => Ok.created({ id: 'u-1' }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const response = await fetch(`${baseUrl}/users`, { method: 'POST' });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ id: 'u-1' });
+
+    await shutdown(transport);
+  });
+
+  it('декларация без выхода отвечает 204 и без тела', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint.delete('/users/:id', {
+        input: z.object({ id: z.string() }),
+        handler: async () => Ok.noContent(),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const response = await fetch(`${baseUrl}/users/42`, { method: 'DELETE' });
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe('');
+
+    await shutdown(transport);
+  });
+
+  it('развилка исходов отвечает кодом своей ветки', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint.post('/jobs', {
+        input: z.object({ async: z.boolean() }),
+        output: outputs({
+          ok: z.object({ id: z.string() }),
+          accepted: z.object({ jobId: z.string() }),
+        }),
+        handler: async (input) =>
+          input.async ? Ok.accepted({ jobId: 'j-1' }) : new Ok({ id: 'r-1' }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const done = await fetch(`${baseUrl}/jobs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ async: false }),
+    });
+    const queued = await fetch(`${baseUrl}/jobs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ async: true }),
+    });
+
+    expect(done.status).toBe(200);
+    expect(await done.json()).toEqual({ id: 'r-1' });
+    expect(queued.status).toBe(202);
+    expect(await queued.json()).toEqual({ jobId: 'j-1' });
+
+    await shutdown(transport);
+  });
+
   it('статус вызова перекрывает объявленный', async () => {
     const transport = makeTransport();
     routesOf(transport).push(
@@ -1736,6 +1852,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
       httpEndpoint.get('/foreign', {
         // Форму чужого транспорта типы отвергают; здесь проверяется
         // рантайм-граница, до которой значение может дойти из JS-кода
+        output: z.unknown(),
         handler: (() => ({
           [TRANSPORT_RESPONSE]: true,
           transport: 'cli',
@@ -1772,6 +1889,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
           limit: z.coerce.number().optional(),
         }),
         pipeline: observe,
+        output: z.unknown(),
         handler: (input) => new Ok(input),
       }),
     );

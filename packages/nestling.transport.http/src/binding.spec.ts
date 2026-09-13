@@ -32,6 +32,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$('default'),
       pattern: 'GET /ping',
+      output: z.unknown(),
       handler: async () => new Ok({ pong: true }),
     });
 
@@ -48,6 +49,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
     const Raw = makeEndpoint({
       transport: HttpTransport$('default'),
       pattern: 'GET /users/:id',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 

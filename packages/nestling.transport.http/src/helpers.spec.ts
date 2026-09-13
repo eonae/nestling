@@ -14,6 +14,7 @@ import {
   isEndpointDefinition,
   makePipeline,
   Ok,
+  outputs,
   stream,
   transportNameOf,
 } from '@nestlingjs/app';
@@ -25,12 +26,14 @@ type Equal<A, B> =
     : false;
 type Expect<T extends true> = T;
 
-const handle = async () => new Ok({});
+// Хендлер деклараций без `output`: такой endpoint отвечает `no_content`
+const handle = async () => Ok.noContent();
 
 describe('httpEndpoint', () => {
   it('собирает pattern из метода и пути и ставит бренд', () => {
     const CreateUser = httpEndpoint.post('/api/users', {
       input: z.object({ name: z.string() }),
+      output: z.unknown(),
       handler: async (input) => new Ok({ name: input.name }),
     });
 
@@ -44,6 +47,7 @@ describe('httpEndpoint', () => {
   it('`on:` выбирает именованный экземпляр транспорта', () => {
     const Metrics = httpEndpoint.get('/metrics', {
       on: 'admin',
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -72,6 +76,7 @@ describe('httpEndpoint', () => {
   it('разные path-параметры в одном шаблоне допустимы', () => {
     const GetOrder = httpEndpoint.get('/users/:id/orders/:orderId', {
       input: z.object({ id: z.string(), orderId: z.string() }),
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -133,6 +138,7 @@ describe('PathParams', () => {
   it('path остаётся литеральным типом декларации', () => {
     const GetUser = httpEndpoint.get('/users/:id', {
       input: z.object({ id: z.string() }),
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -154,6 +160,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
         tags: z.array(z.string()).optional(),
       }),
       bind: { expand: query(), tags: query({ multiple: true }) },
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -188,6 +195,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
 
     const GetUser = httpEndpoint.get('/api/users/:id', {
       input: z.object({ id: z.string() }),
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -205,6 +213,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
         // По типам допустимо (место с методом не сверяется) — правило
         // проверяется в рантайме, при создании значения
         bind: { filter: body() },
+        output: z.unknown(),
         handler: handle,
       }),
     ).toThrow(/'filter' is bound to the body, but 'GET' has no request body/);
@@ -227,6 +236,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       input: UpdateUserInput,
       // @ts-expect-error: поля 'expnd' в схеме нет
       bind: { expnd: query() },
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -239,6 +249,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
         input: UpdateUserInput,
         // @ts-expect-error: 'id' — path-параметр шаблона, перебиндить нельзя
         bind: { id: query() },
+        output: z.unknown(),
         handler: handle,
       }),
     ).toThrow(/'id' is the path parameter ':id'/);
@@ -248,6 +259,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     const Ok200 = httpEndpoint.patch('/users/:id', {
       input: UpdateUserInput,
       bind: { expand: query() },
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -262,6 +274,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       // Текст диагностики зафиксирован снапшотом:
       // packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -273,6 +286,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       input: z.object({ id: z.string() }),
       rawBody: true,
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -284,12 +298,14 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       input: z.object({ id: z.string() }),
       rawBody: true,
       pipeline: makePipeline(),
+      output: z.unknown(),
       handler: handle,
     });
 
     const WithoutRawBody = httpEndpoint.post('/plain', {
       input: z.object({ id: z.string() }),
       pipeline: makePipeline(),
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -302,6 +318,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
 
     const Health = httpEndpoint.get('/health', {
       detached: reason,
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -312,6 +329,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     expect(() =>
       httpEndpoint.get('/health', {
         detached: '  ',
+        output: z.unknown(),
         handler: handle,
       }),
     ).toThrow(/'detached' must state a reason/);
@@ -329,9 +347,62 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     ).toThrow(/'redirect' is not compatible with a stream\(\.{3}\) output/);
   });
 
+  it('редирект и объявленный статус вместе не объявляются', () => {
+    expect(() =>
+      httpEndpoint.get('/go', {
+        redirect: 302,
+        status: 'created',
+        handler: handle,
+      }),
+    ).toThrow(
+      /'status: "created"' is declared next to 'redirect: 302'.*3xx code and carries no body/s,
+    );
+  });
+
+  it('редирект и развилка исходов вместе не объявляются', () => {
+    expect(() =>
+      httpEndpoint.get('/go', {
+        redirect: 302,
+        output: outputs({
+          ok: z.object({ id: z.string() }),
+          created: z.object({ id: z.string() }),
+        }),
+        handler: handle as never,
+      }),
+    ).toThrow(
+      /outputs\({ … }\) declares successful outcomes next to 'redirect: 302'/,
+    );
+  });
+
+  it('объявленный статус хранится на декларации', () => {
+    const Create = httpEndpoint.post('/users', {
+      output: z.object({ id: z.string() }),
+      status: 'created',
+      handler: async () => Ok.created({ id: 'u-1' }),
+    });
+
+    expect(Create.status).toBe('created');
+  });
+
+  it('развилка исходов лежит в слоте `output`', () => {
+    const form = outputs({
+      ok: z.object({ id: z.string() }),
+      accepted: z.object({ jobId: z.string() }),
+    });
+
+    const Create = httpEndpoint.post('/users', {
+      output: form,
+      handler: async () => Ok.accepted({ jobId: 'j-1' }),
+    });
+
+    expect(Create.output).toBe(form);
+    expect('status' in Create).toBe(false);
+  });
+
   it('объявленный редирект хранится на bind-карте', () => {
     const Go = httpEndpoint.get('/go', {
       redirect: 303,
+      output: z.unknown(),
       handler: handle,
     });
 
@@ -343,6 +414,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     // остаются за рантаймом
     const Opaque = httpEndpoint.post('/opaque', {
       input: 'text',
+      output: z.unknown(),
       handler: handle,
     });
 
