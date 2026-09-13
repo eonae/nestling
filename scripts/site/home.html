@@ -12,18 +12,45 @@
 <body data-root="{{root}}" data-lang-root="{{langroot}}" data-mode="tree" class="home">
 
 <header class="topbar">
-  <a class="brand" href="{{home}}"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">{{tagline}}</span></a>
-  <span class="spacer"></span>
+  <a class="brand" href="{{home}}">
+    {{mark}}
+    Nestling <span class="ver">{{version}}</span></a>
+<nav>
 {{toplinks}}
+</nav>
+  <span class="spacer"></span>
 {{search}}
 {{langs}}
-  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="{{themelabel}}">☾</button>
+  <button class="icon-btn" id="theme-btn" type="button" onclick="__toggleTheme()" aria-label="{{themelabel}}">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.4 9.6A5.8 5.8 0 0 1 6.4 2.6a5.8 5.8 0 1 0 7 7Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  </button>
 </header>
 
 <main class="content">
-<article class="article">
-{{article}}
-</article>
+<div class="home-wrap">
+
+<section class="hero">
+  <div>
+    <h1>{{title}}</h1>
+{{lead}}
+    <div class="cta">
+{{cta}}
+    </div>
+  </div>
+{{example}}
+</section>
+
+{{principles}}
+
+<section class="home-cols">
+{{cols}}
+</section>
+
+<footer class="home-foot">
+{{foot}}
+</footer>
+
+</div>
 </main>
 
 <script>

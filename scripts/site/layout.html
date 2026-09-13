@@ -12,13 +12,21 @@
 <body data-root="{{root}}" data-lang-root="{{langroot}}" data-mode="{{mode}}">
 
 <header class="topbar">
-  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="{{menu}}">☰</button>
-  <a class="brand" href="{{home}}"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">{{tagline}}</span></a>
-  <span class="spacer"></span>
+  <button class="icon-btn menu-btn" type="button" onclick="__toggleMenu()" aria-label="{{menu}}">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="{{home}}">
+    {{mark}}
+    Nestling <span class="ver">{{version}}</span></a>
+<nav>
 {{toplinks}}
+</nav>
+  <span class="spacer"></span>
 {{search}}
 {{langs}}
-  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="{{themelabel}}">☾</button>
+  <button class="icon-btn" id="theme-btn" type="button" onclick="__toggleTheme()" aria-label="{{themelabel}}">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.4 9.6A5.8 5.8 0 0 1 6.4 2.6a5.8 5.8 0 1 0 7 7Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  </button>
 </header>
 
 <div class="backdrop" onclick="__closeMenu()"></div>

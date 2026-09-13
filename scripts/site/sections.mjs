@@ -149,11 +149,12 @@ export const TOP_LINKS = [
  */
 export const UI = {
   en: {
-    tagline: 'docs',
     menu: 'Menu',
     theme: 'Theme',
     language: 'Language',
-    search: 'Search the documentation',
+    search: 'Search',
+    copy: 'copy',
+    copied: 'copied',
     prev: '← Back',
     next: 'Next →',
     empty: 'Nothing found for',
@@ -166,11 +167,12 @@ export const UI = {
     notFoundLink: 'To the start of the documentation',
   },
   ru: {
-    tagline: 'документация',
     menu: 'Меню',
     theme: 'Тема',
     language: 'Язык',
-    search: 'Поиск по документации',
+    search: 'Поиск',
+    copy: 'копировать',
+    copied: 'скопировано',
     prev: '← Назад',
     next: 'Далее →',
     empty: 'Ничего не нашлось по',

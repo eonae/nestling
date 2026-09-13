@@ -1,24 +1,41 @@
-# Nestling — документация
+# Бэкенд, собранный из значений
 
 Nestling — TypeScript-фреймворк для бэкенда: меньше, современнее и строже
-NestJS. Приложение на нём собирается из деклараций-значений: endpoint,
-операция, пайплайн, фича и модуль — это обычные константы, а контейнер
-проверяет весь граф зависимостей на старте.
+NestJS. Приложение собирается из деклараций-значений: endpoint, операция,
+пайплайн, фича и модуль — обычные константы. Контейнер проверяет весь
+граф зависимостей на старте.
+
+[Начать за пять минут](./guide/01-first-service.md)
+[npm i @nestlingjs/app](https://www.npmjs.com/package/@nestlingjs/app)
+
+```typescript
+const ListUsers = httpEndpoint.get('/users', {
+  output: z.array(User),
+  handler: async () => [{ id: '1', name: 'Alice' }],
+});
+
+const app = makeApp({
+  endpoints: [ListUsers],
+  transports: [http()],
+});
+
+await app.assemble().run();
+```
 
 ::::cards
-:::card 🪄 No runtime magic
+:::card No runtime magic
 Зависимости перечислены списком DI-токенов на стандартных декораторах.
 `reflect-metadata` нет, скрытых соглашений по именам нет.
 :::
-:::card 🛡 Guarantee over convention
+:::card Guarantee over convention
 Цикл в графе, недостающая зависимость или endpoint без обязательного слоя
 останавливают сборку, а не запрос.
 :::
-:::card 📐 Schema-first
+:::card Schema-first
 Схемы `input`, `output` и `errors` задают проверку, типы хендлера,
 типизированный клиент и документ OpenAPI.
 :::
-:::card 📄 Декларации — значения
+:::card Декларации — значения
 Модуль — это объект, а не класс с декоратором. Значение можно собрать
 функцией, положить в массив и передать дальше.
 :::

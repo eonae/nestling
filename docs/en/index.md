@@ -1,25 +1,42 @@
-# Nestling — documentation
+# A backend put together from values
 
 Nestling is a TypeScript backend framework: smaller, more modern and
-stricter than NestJS. An application on it is put together from
-declarations that are values: an endpoint, an operation, a pipeline, a
-feature and a module are ordinary constants, and the container checks the
-whole dependency graph at startup.
+stricter than NestJS. An application is put together from declarations
+that are values: an endpoint, an operation, a pipeline, a feature and a
+module are ordinary constants. The container checks the whole dependency
+graph at startup.
+
+[Start in five minutes](./guide/01-first-service.md)
+[npm i @nestlingjs/app](https://www.npmjs.com/package/@nestlingjs/app)
+
+```typescript
+const ListUsers = httpEndpoint.get('/users', {
+  output: z.array(User),
+  handler: async () => [{ id: '1', name: 'Alice' }],
+});
+
+const app = makeApp({
+  endpoints: [ListUsers],
+  transports: [http()],
+});
+
+await app.assemble().run();
+```
 
 ::::cards
-:::card 🪄 No runtime magic
+:::card No runtime magic
 Dependencies are listed as DI tokens on standard decorators. There is no
 `reflect-metadata` and there are no hidden conventions about names.
 :::
-:::card 🛡 Guarantee over convention
+:::card Guarantee over convention
 A cycle in the graph, a missing dependency or an endpoint without a
 required layer stop the assembly, not the request.
 :::
-:::card 📐 Schema-first
+:::card Schema-first
 The `input`, `output` and `errors` schemas define the validation, the
 types of the handler, the typed client and the OpenAPI document.
 :::
-:::card 📄 Declarations are values
+:::card Declarations are values
 A module is an object, not a class with a decorator. A value can be built
 by a function, put into an array and passed on.
 :::

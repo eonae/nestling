@@ -232,23 +232,35 @@ const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
 // `{#id}` на заголовках, `{.class}` на абзацах, ссылках и ячейках таблиц.
 md.use(attrs, { allowedAttributes: ['id', 'class'] });
 
+/** Виды врезок: имя контейнера называет вид, оформление даёт тема */
+const NOTE_KINDS = ['note', 'tip', 'important', 'warning', 'caution'];
+
+/** Имена контейнеров, которые знает генератор */
+const CONTAINERS = [...NOTE_KINDS, 'cards', 'card'];
+
+/** Место контейнера в тексте: его называет сообщение об ошибке */
+const placeOf = (token, env) =>
+  `${env.file ?? ''}${token.map ? `:${token.map[0] + 1}` : ''}`;
+
 /**
- * :::note Заголовок          → <div class="note">
- * :::note good Заголовок     → <div class="note good">
- * :::note warn Заголовок     → <div class="note warn">
+ * :::warning Порядок важен → <div class="note note-warning">
+ * :::tip                   → заголовком печатается имя вида
  */
-md.use(container, 'note', {
-  validate: (params) => /^note(\s|$)/.test(params.trim()),
-  render(tokens, idx) {
-    if (tokens[idx].nesting !== 1) return '</div>\n';
-    const m = /^note\s*(good|warn)?\s*([\s\S]*)$/.exec(tokens[idx].info.trim());
-    const variant = m[1] ? ` ${m[1]}` : '';
-    const title = (m[2] || '').trim();
-    if (!title)
-      throw new BuildError('У :::note обязателен заголовок: `:::note Заголовок`');
-    return `<div class="note${variant}">\n<span class="note-t">${md.renderInline(title)}</span>\n`;
-  },
-});
+for (const kind of NOTE_KINDS) {
+  md.use(container, kind, {
+    validate: (params) => new RegExp(`^${kind}(\\s|$)`).test(params.trim()),
+    render(tokens, idx) {
+      if (tokens[idx].nesting !== 1) return '</div>\n';
+      const title = tokens[idx].info.trim().slice(kind.length).trim();
+      const label = title || kind[0].toUpperCase() + kind.slice(1);
+
+      return (
+        `<div class="note note-${kind}">\n` +
+        `<span class="note-t">${md.renderInline(label)}</span>\n`
+      );
+    },
+  });
+}
 
 /** ::::cards … :::: — сетка карточек. */
 md.use(container, 'cards', {
@@ -257,23 +269,61 @@ md.use(container, 'cards', {
     tokens[idx].nesting === 1 ? '<div class="grid">\n' : '</div>\n',
 });
 
-/** :::card 🧩 Заголовок — одна карточка внутри ::::cards. */
+/** :::card Заголовок — одна карточка внутри ::::cards. */
 md.use(container, 'card', {
   validate: (params) => /^card(\s|$)/.test(params.trim()),
-  render(tokens, idx) {
+  render(tokens, idx, options, env) {
     if (tokens[idx].nesting !== 1) return '</div>\n';
-    const rest = tokens[idx].info.trim().slice('card'.length).trim();
-    const m = /^(\S+)\s+([\s\S]+)$/.exec(rest);
-    if (!m)
+    const title = tokens[idx].info.trim().slice('card'.length).trim();
+
+    if (!title) {
       throw new BuildError(
-        `:::card ждёт «иконку и заголовок», получено: ${rest || '(пусто)'}`,
+        `${placeOf(tokens[idx], env)}: у :::card обязателен заголовок`,
       );
-    return (
-      `<div class="card"><span class="ic">${m[1]}</span>` +
-      `<h3 class="card-t">${md.renderInline(m[2])}</h3>`
+    }
+
+    return `<div class="card"><h3 class="card-t">${md.renderInline(title)}</h3>`;
+  },
+});
+
+/**
+ * Неизвестное имя контейнера останавливает сборку.
+ *
+ * Нераспознанный `:::` markdown-it печатает абзацем: опечатка в имени
+ * вида тихо превратила бы врезку в строку с двоеточиями.
+ */
+md.use(container, 'unknown', {
+  validate: (params) => {
+    const name = params.trim().split(/\s/)[0];
+
+    return Boolean(name) && !CONTAINERS.includes(name);
+  },
+  render(tokens, idx, options, env) {
+    if (tokens[idx].nesting !== 1) return '';
+    const name = tokens[idx].info.trim().split(/\s/)[0];
+
+    throw new BuildError(
+      `${placeOf(tokens[idx], env)}: неизвестный контейнер ':::${name}'. ` +
+        `Известны: ${CONTAINERS.join(', ')}`,
     );
   },
 });
+
+/**
+ * Первая цитата раздела — плашка «сверено с кодом».
+ *
+ * Плашка открывает раздел и говорит, чему верить на этой странице: у
+ * главы это сверка с примером, у design-дока — целевое состояние, у
+ * README пакета — статус. Остальные цитаты остаются цитатами.
+ */
+md.renderer.rules.blockquote_open = (tokens, idx, options, env, self) => {
+  if (!env.metaShown) {
+    tokens[idx].attrJoin('class', 'meta');
+    env.metaShown = true;
+  }
+
+  return self.renderToken(tokens, idx, options, env);
+};
 
 /**
  * Первая строка-комментарий с путём становится подписью блока.
@@ -290,13 +340,19 @@ function fileOf(code) {
   return m ? m[1] : '';
 }
 
-/** Шапка блока кода: три точки, имя файла и язык */
-function renderCodeHead(file, lang) {
-  const dots = '<span class="dot"></span>'.repeat(3);
+/**
+ * Шапка блока кода: подпись файла, язык и кнопка копирования.
+ *
+ * Подписи может не быть, языка — тоже; кнопка стоит всегда, потому что
+ * копируют любой блок. Её подпись приходит из `env`: страница английского
+ * дерева русских слов не показывает.
+ */
+function renderCodeHead(file, lang, ui) {
   const name = file ? `<span class="fname">${escapeHtml(file)}</span>` : '';
-  const label = lang ? `<span class="lang">${escapeHtml(lang)}</span>` : '';
+  const label = `<span class="lang">${lang ? escapeHtml(lang) : ''}</span>`;
+  const copy = `<button class="copy" type="button">${escapeHtml(ui.copy)}</button>`;
 
-  return `<div class="code-head">${dots}${name}${label}</div>`;
+  return `<div class="code-head">${name}${label}${copy}</div>`;
 }
 
 /**
@@ -305,7 +361,7 @@ function renderCodeHead(file, lang) {
  * Шапка блока и разметка подсветки пишутся сразу: браузеру доделывать
  * нечего.
  */
-md.renderer.rules.fence = (tokens, idx) => {
+md.renderer.rules.fence = (tokens, idx, options, env) => {
   const info = tokens[idx].info.trim();
   const alias = info.split(/\s/)[0];
   const lang = LANG_ALIAS[alias] ?? alias;
@@ -316,7 +372,7 @@ md.renderer.rules.fence = (tokens, idx) => {
 
   return (
     `<div class="code"${fileAttr}${langAttr}>` +
-    renderCodeHead(file, lang) +
+    renderCodeHead(file, lang, env.ui) +
     `<pre><code>${highlight(code, lang)}</code></pre></div>\n`
   );
 };
@@ -869,6 +925,20 @@ function repositoryUrl() {
 
 const REPOSITORY = repositoryUrl();
 
+/**
+ * Версия в шапке сайта: версия пакета `@nestlingjs/app`.
+ *
+ * Это та версия, которую читатель ставит себе; корневой `package.json`
+ * не публикуется, и его версия ничего читателю не говорит.
+ */
+function appVersion() {
+  const path = join(ROOT, 'packages', 'nestling.app', 'package.json');
+
+  return `v${JSON.parse(readFileSync(path, 'utf8')).version}`;
+}
+
+const VERSION = appVersion();
+
 /** Ссылка в файл репозитория: он не стал разделом, значит читается на GitHub */
 function githubHref(abs, anchor) {
   const kind = statSync(abs).isDirectory() ? 'tree' : 'blob';
@@ -1046,7 +1116,7 @@ function renderTopLinks(byId, from, form, lang) {
     const page = byId.get(id);
 
     return page
-      ? `  <a class="tlink hide-sm" href="${escapeAttr(form.href(from, page))}">` +
+      ? `  <a href="${escapeAttr(form.href(from, page))}">` +
           `${escapeHtml(label[lang])}</a>`
       : '';
   })
@@ -1054,11 +1124,28 @@ function renderTopLinks(byId, from, form, lang) {
     .join('\n');
 }
 
-/** Поле поиска: индекс подгружается по первому обращению, сервер не нужен */
+/** Подсказка сочетания: на не-Apple раскладку её меняет скрипт страницы */
+const SEARCH_KEY = '⌘K';
+
+/** Лупа в поле поиска */
+const SEARCH_ICON =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+  '<circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.5"/>' +
+  '<path d="m10.6 10.6 3 3" stroke="currentColor" stroke-width="1.5" ' +
+  'stroke-linecap="round"/></svg>';
+
+/**
+ * Поле поиска: индекс подгружается по первому обращению, сервер не нужен.
+ *
+ * Подсказка сочетания стоит в поле: `⌘K` и `Ctrl+K` открывают поиск с
+ * любой страницы, и читателю не нужно искать это сочетание опытом.
+ */
 const searchBox = (ui) =>
   '  <div class="search">\n' +
-  `    <input id="q" type="search" placeholder="${escapeAttr(ui.search)}" ` +
-  `autocomplete="off" aria-label="${escapeAttr(ui.search)}">\n` +
+  `    <div class="search-field">${SEARCH_ICON}` +
+  `<input id="q" type="search" placeholder="${escapeAttr(ui.search)}" ` +
+  `autocomplete="off" aria-label="${escapeAttr(ui.search)}">` +
+  `<kbd>${SEARCH_KEY}</kbd></div>\n` +
   '    <div class="results" id="results" hidden></div>\n' +
   '  </div>';
 
@@ -1090,12 +1177,33 @@ function renderLangs(page, present, ui) {
   );
 }
 
-/** Птенец из шапки, отрисованный в иконку вкладки */
+/** Марка в шапке: птенец в гнезде, нарисованный контуром по цвету акцента */
+const MARK =
+  '<svg class="mark" width="19" height="19" viewBox="0 0 19 19" fill="none" ' +
+  'aria-hidden="true"><path d="M2.6 10.4a6.9 6.9 0 0 0 13.8 0" ' +
+  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+  '<circle cx="9.5" cy="6.6" r="2.4" fill="currentColor"/></svg>';
+
+/** Та же марка, отрисованная в иконку вкладки: на 16px контур не читается */
 const FAVICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">\n' +
-  '  <rect width="64" height="64" rx="14" fill="#e07a3e"/>\n' +
-  '  <text x="32" y="45" font-size="38" text-anchor="middle">🐣</text>\n' +
+  '  <rect width="64" height="64" rx="14" fill="#bd5527"/>\n' +
+  '  <path d="M14 35a18 18 0 0 0 36 0" stroke="#fdfcfa" stroke-width="5" ' +
+  'stroke-linecap="round" fill="none"/>\n' +
+  '  <circle cx="32" cy="25" r="6.4" fill="#fdfcfa"/>\n' +
   '</svg>\n';
+
+/**
+ * Веб-шрифты темы: их подключает только дерево страниц.
+ *
+ * `nestling-docs.html` открывают из файловой системы без сети — ждать
+ * недоступный ресурс ему незачем, и он остаётся на системном гротеске.
+ */
+const FONT_LINKS =
+  '<link rel="preconnect" href="https://fonts.googleapis.com">\n' +
+  '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+  '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?' +
+  'family=Geist:wght@400;500;600&amp;family=Geist+Mono&amp;display=swap">';
 
 /* ------------------------------------------------------------- метаданные */
 
@@ -1168,16 +1276,180 @@ const absoluteUrl = (base, route) =>
 /** Разметка одного раздела: бейдж, статья и пейджер */
 function renderArticle(page, neighbours, byPath, form, ui) {
   const text = rewriteLinks(page.source, page, byPath, form);
-  const article = anchorHeadings(md.render(text), page, form);
+  const env = { file: rel(page.path), ui };
+  const article = anchorHeadings(md.render(text, env), page, form);
   const pager = page.kind === 'home' ? '' : renderPager(neighbours, page, form, ui);
 
   return renderBadge(page) + article + pager;
 }
 
+/* ------------------------------------------------------- стартовая страница */
+
+/**
+ * Блоки текста верхнего уровня: заголовок, абзац, список, забор кода,
+ * контейнер. Внутренние токены остаются внутри своего блока.
+ */
+function topBlocks(tokens) {
+  const blocks = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (token.level !== 0 || token.nesting === -1) {
+      continue;
+    }
+
+    if (token.nesting === 0) {
+      blocks.push({ type: token.type, tag: token.tag, tokens: [token] });
+      continue;
+    }
+
+    let depth = 0;
+    let end = i;
+
+    while (end < tokens.length) {
+      depth += tokens[end].nesting;
+      if (depth === 0) break;
+      end++;
+    }
+
+    blocks.push({ type: token.type, tag: token.tag, tokens: tokens.slice(i, end + 1) });
+    i = end;
+  }
+
+  return blocks;
+}
+
+/** Ссылка markdown: подпись и адрес */
+const LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+/** Абзац, в котором кроме ссылок ничего нет: он даёт кнопки первого экрана */
+function ctaLinks(block) {
+  if (block.type !== 'paragraph_open') {
+    return null;
+  }
+
+  const content = block.tokens[1]?.content ?? '';
+
+  if (content.replace(LINK_RE, '').trim() !== '') {
+    return null;
+  }
+
+  const links = [...content.matchAll(LINK_RE)];
+
+  return links.length > 0 ? links : null;
+}
+
+/** Кнопки первого экрана: первая ссылка — главная, остальные — контуром */
+const renderCta = (links, env) =>
+  links
+    .map(
+      ([, label, href], index) =>
+        `    <a class="${index === 0 ? 'btn' : 'btn-ghost'}" ` +
+        `href="${escapeAttr(href)}">${md.renderInline(label, env)}</a>`,
+    )
+    .join('\n');
+
+/**
+ * Части стартовой страницы, разобранные из `docs/index.md`.
+ *
+ * Состав страницы задаёт текст, а не шаблон. Заголовок первого уровня и
+ * первый абзац открывают первый экран, абзац из одних ссылок даёт
+ * кнопки, первый забор кода — пример рядом с ними, `::::cards` —
+ * принципы. Раздел `##` со списком становится колонкой входов, раздел
+ * без списка — строкой статуса под ними.
+ */
+function homeParts(text, page, form, env) {
+  const tokens = md.parse(text, env);
+  const render = (group) => md.renderer.render(group, md.options, env);
+  const headings = [...page.headings];
+  const sections = [];
+
+  const parts = { title: '', lead: '', cta: '', example: '', principles: '' };
+
+  for (const block of topBlocks(tokens)) {
+    if (block.tag === 'h1') {
+      parts.title = md.renderInline(block.tokens[1].content, env);
+      continue;
+    }
+
+    if (block.tag === 'h2' || block.tag === 'h3') {
+      const heading = headings.shift();
+
+      if (heading && !block.tokens[0].attrGet('id')) {
+        block.tokens[0].attrSet('id', form.headingId(page, heading.anchor));
+      }
+    }
+
+    if (block.tag === 'h2') {
+      sections.push({ heading: render(block.tokens), body: '', list: false });
+      continue;
+    }
+
+    // Всё, что стоит после первого `##`, принадлежит своему разделу
+    const section = sections.at(-1);
+
+    if (section) {
+      section.body += render(block.tokens);
+      section.list ||= block.type === 'bullet_list_open' || block.type === 'ordered_list_open';
+      continue;
+    }
+
+    if (block.type === 'container_cards_open') {
+      parts.principles = render(block.tokens);
+      continue;
+    }
+
+    if (block.type === 'fence') {
+      parts.example ||= render(block.tokens);
+      continue;
+    }
+
+    const links = ctaLinks(block);
+
+    if (links) {
+      parts.cta = renderCta(links, env);
+      continue;
+    }
+
+    if (!parts.lead) {
+      parts.lead = render(block.tokens).replace('<p>', () => '<p class="lead">');
+    }
+  }
+
+  return {
+    ...parts,
+    columns: sections.filter((section) => section.list),
+    foot: sections.filter((section) => !section.list),
+  };
+}
+
+/** Места лендинга: их наполняет `docs/index.md`, разобранный на части */
+function fillHome(html, page, byPath, ui) {
+  const text = rewriteLinks(page.source, page, byPath, TREE);
+  const env = { file: rel(page.path), ui };
+  const parts = homeParts(text, page, TREE, env);
+
+  const columns = parts.columns
+    .map((section) => `  <div>\n${section.heading}${section.body}  </div>`)
+    .join('\n');
+  const foot = parts.foot.map((section) => section.heading + section.body).join('');
+
+  let filled = fill(html, '{{title}}', parts.title);
+  filled = fill(filled, '{{lead}}', parts.lead);
+  filled = fill(filled, '{{cta}}', parts.cta);
+  filled = fill(filled, '{{example}}', parts.example);
+  filled = fill(filled, '{{principles}}', parts.principles);
+  filled = fill(filled, '{{cols}}', columns);
+
+  return fill(filled, '{{foot}}', foot);
+}
+
 function renderTreePage(page, parts, options) {
   const { layout, homeLayout, styles, script, byId, byPath, base, ui, present } =
     options;
-  const template = page.kind === 'home' ? homeLayout : layout;
+  const home = page.kind === 'home';
+  const template = home ? homeLayout : layout;
   const root = TREE.root(page);
   const canonical = base ? absoluteUrl(base, page.route) : '';
   const alternates = alternatesOf(page, base, present);
@@ -1185,7 +1457,7 @@ function renderTreePage(page, parts, options) {
   let html = fill(
     template,
     '{{head}}',
-    renderHead(page, { root, base, canonical, alternates, ui }),
+    `${FONT_LINKS}\n${renderHead(page, { root, base, canonical, alternates, ui })}`,
   );
   html = fill(html, '{{styles}}', styles);
   html = fill(html, '{{lang}}', escapeAttr(page.lang));
@@ -1193,18 +1465,21 @@ function renderTreePage(page, parts, options) {
   html = fill(html, '{{langroot}}', escapeAttr(TREE.langRoot(page)));
   html = fill(html, '{{mode}}', 'tree');
   html = fill(html, '{{home}}', escapeAttr(TREE.href(page, byId.get('home'))));
-  html = fill(html, '{{tagline}}', escapeHtml(ui.tagline));
+  html = fill(html, '{{mark}}', MARK);
+  html = fill(html, '{{version}}', escapeHtml(VERSION));
   html = fill(html, '{{menu}}', escapeAttr(ui.menu));
   html = fill(html, '{{themelabel}}', escapeAttr(ui.theme));
   html = fill(html, '{{langs}}', renderLangs(page, present, ui));
   html = fill(html, '{{toplinks}}', renderTopLinks(byId, page, TREE, page.lang));
   html = fill(html, '{{search}}', searchBox(ui));
 
-  if (page.kind !== 'home') {
+  if (home) {
+    html = fillHome(html, page, byPath, ui);
+  } else {
     html = fill(html, '{{sidebar}}', renderSidebar(options.pages, page, TREE));
+    html = fill(html, '{{article}}', renderArticle(page, parts, byPath, TREE, ui));
   }
 
-  html = fill(html, '{{article}}', renderArticle(page, parts, byPath, TREE, ui));
   html = fill(html, '{{script}}', uiScript(ui) + script);
 
   return html;
@@ -1247,7 +1522,8 @@ function renderSingleFile(pages, options) {
   html = fill(html, '{{langroot}}', '');
   html = fill(html, '{{mode}}', 'single');
   html = fill(html, '{{home}}', `#${escapeAttr(start.id)}`);
-  html = fill(html, '{{tagline}}', escapeHtml(ui.tagline));
+  html = fill(html, '{{mark}}', MARK);
+  html = fill(html, '{{version}}', escapeHtml(VERSION));
   html = fill(html, '{{menu}}', escapeAttr(ui.menu));
   html = fill(html, '{{themelabel}}', escapeAttr(ui.theme));
   html = fill(html, '{{langs}}', '');
@@ -1334,17 +1610,18 @@ const notFoundHtml = (styles, base) => {
     '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
     `<title>${escapeHtml(ui.notFoundTitle)} — ${SITE_NAME}</title>\n` +
     '<meta name="robots" content="noindex">\n' +
+    `${FONT_LINKS}\n` +
     `<style>\n${styles}\n</style>\n</head>\n<body class="home">\n` +
     '<header class="topbar">\n' +
-    `  <a class="brand" href="${home}">` +
-    '<span class="logo">🐣</span> Nestling ' +
-    `<span class="tag hide-sm">${escapeHtml(ui.tagline)}</span></a>\n` +
+    `  <a class="brand" href="${home}">${MARK} Nestling ` +
+    `<span class="ver">${escapeHtml(VERSION)}</span></a>\n` +
     '</header>\n' +
-    '<main class="content"><article class="article">\n' +
+    '<main class="content"><div class="home-wrap notfound">' +
+    '<article class="article">\n' +
     `<h1>${escapeHtml(ui.notFoundHead)}</h1>\n` +
     `<p>${escapeHtml(ui.notFoundText)}</p>\n` +
     `<p><a href="${home}">${escapeHtml(ui.notFoundLink)}</a></p>\n` +
-    '</article></main>\n</body>\n</html>\n'
+    '</article></div></main>\n</body>\n</html>\n'
   );
 };
 
