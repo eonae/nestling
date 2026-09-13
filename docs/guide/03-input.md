@@ -1,6 +1,6 @@
 # 3. Принять данные и не пропустить мусор
 
-> Гайд по текущему API; сверено с кодом `02d6b233`.
+> Гайд по текущему API; сверено с кодом `648a64dc`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:

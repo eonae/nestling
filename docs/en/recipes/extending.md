@@ -1,6 +1,6 @@
 # Extend the kernel with your own package
 
-> Guide to the current API; verified against `02d6b233`.
+> Guide to the current API; verified against `648a64dc`.
 > Target description: [design/principles.md](../design/principles.md), the
 > "Kernel boundary" section, and [design/streaming.md](../design/streaming.md)
 > §4.1. Rationale: the entries [ideas.md](../../decisions/ideas.md)
