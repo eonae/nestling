@@ -70,7 +70,9 @@
   "dependencies": {
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/common.misc": "workspace:*",
-    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
+    "zod": "^4.0.0"
   },
   "peerDependencies": {
     "@nestlingjs/inbox": "workspace:*",
@@ -94,7 +96,6 @@
     "@types/pg": "^8.23.0",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.16.0",
-    "typescript": "5.7.3",
-    "zod": "^4.0.0"
+    "typescript": "5.7.3"
   }
 }

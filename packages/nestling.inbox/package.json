@@ -49,7 +49,9 @@
   "dependencies": {
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/common.misc": "workspace:*",
-    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nestlingjs/testing": "workspace:*",

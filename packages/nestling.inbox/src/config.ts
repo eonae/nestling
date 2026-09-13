@@ -6,9 +6,8 @@
  * транспортов.
  */
 
-import { flag, int } from './schema.js';
-
 import { makeConfig } from '@nestlingjs/app';
+import { flag, int } from '@nestlingjs/schema.zod';
 
 /** Срок хранения отметки по умолчанию: семь суток */
 const DEFAULT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,13 +31,13 @@ export const InboxConfig = makeConfig('inbox', {
    * (5 минут по умолчанию), а окно повторов доставки — конфигурация
    * потока вне Nestling, поэтому умолчание взято с запасом: семь суток.
    */
-  retentionMs: int(DEFAULT_RETENTION_MS, 0),
+  retentionMs: int().min(0).default(DEFAULT_RETENTION_MS),
 
   /** Пауза между проходами уборщика */
-  sweepIntervalMs: int(60_000, 0),
+  sweepIntervalMs: int().min(0).default(60_000),
 
   /** Сколько отметок уборщик удаляет за один проход */
-  batchSize: int(500, 1),
+  batchSize: int().min(1).default(500),
 
   /**
    * Чистит ли таблицу этот процесс.
@@ -47,7 +46,7 @@ export const InboxConfig = makeConfig('inbox', {
    * две реплики уборщика конкурируют за одну таблицу, и платить этим без
    * нужды незачем.
    */
-  sweep: flag(true),
+  sweep: flag().default(true),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */

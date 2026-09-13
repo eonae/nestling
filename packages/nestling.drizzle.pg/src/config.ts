@@ -10,10 +10,11 @@
  */
 
 import { DEFAULT_CONNECTION } from './naming.js';
-import { flag, int, str } from './schema.js';
 
 import type { ConfigKeys } from '@nestlingjs/app';
 import { makeConfig, secret } from '@nestlingjs/app';
+import { flag, int } from '@nestlingjs/schema.zod';
+import { z } from 'zod';
 
 /**
  * Секция одного соединения.
@@ -31,22 +32,22 @@ export const DatabaseConfig = makeConfig.family(
   'database',
   {
     /** Адрес базы целиком, вместе с пользователем и паролем */
-    url: secret(str()),
+    url: secret(z.string().min(1)),
 
     /** Сколько соединений держит пул */
-    poolMax: int(10, 1),
+    poolMax: int().min(1).default(10),
 
     /** Сколько ждать свободного соединения пула */
-    connectTimeoutMs: int(5000, 0),
+    connectTimeoutMs: int().min(0).default(5000),
 
     /** Через сколько простоя соединение закрывается */
-    idleTimeoutMs: int(10_000, 0),
+    idleTimeoutMs: int().min(0).default(10_000),
 
     /** Потолок времени одного запроса в транзакции; `0` — без потолка */
-    statementTimeoutMs: int(0, 0),
+    statementTimeoutMs: int().min(0).default(0),
 
     /** Подключаться ли по TLS */
-    ssl: flag(false),
+    ssl: flag().default(false),
   },
   (derived) => ({
     /** Хост адреса: то, что можно писать в лог */

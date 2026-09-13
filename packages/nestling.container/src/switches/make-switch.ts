@@ -41,7 +41,13 @@ export const unknownValueMessage = (
   `Switch '${name}' has no value ${JSON.stringify(given)}. ` +
   `Allowed values: ${values.map((value) => `'${value}'`).join(', ')}.`;
 
-/** Строит Standard Schema значений переключателя с умолчанием */
+/**
+ * Строит Standard Schema значений переключателя с умолчанием.
+ *
+ * Написана вручную — редкий случай, когда вендорская схема не подходит, и
+ * причина не в нейтральности: у контейнера две зависимости, и обе свои.
+ * Третьей ради перечисления из двух значений он не заводит.
+ */
 function makeSchema<Values extends string>(
   name: string,
   values: readonly Values[],
