@@ -1,6 +1,6 @@
 # 7. The port and the database address from the environment
 
-> Guide to the current API; verified against `20e63d95`.
+> Guide to the current API; verified against `c05b4909`.
 > Target description: [design/config.md](../design/config.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-08] Kernel/user space; конфиг как token-families; плагины`,

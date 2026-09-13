@@ -1,6 +1,6 @@
 # 12. Files and large exports
 
-> Guide to the current API; verified against `20e63d95`.
+> Guide to the current API; verified against `c05b4909`.
 > Target description: [design/endpoints.md](../design/endpoints.md) §5 and
 > [design/streaming.md](../design/streaming.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)

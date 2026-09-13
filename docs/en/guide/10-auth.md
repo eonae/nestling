@@ -1,6 +1,6 @@
 # 10. Let only your own through
 
-> Guide to the current API; verified against `20e63d95`.
+> Guide to the current API; verified against `c05b4909`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/composition.md](../design/composition.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
