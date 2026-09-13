@@ -1,6 +1,6 @@
 # 1. Bring up a service that answers a request
 
-> Guide to the current API; verified against `c05b4909`.
+> Guide to the current API; verified against `02d6b233`.
 > Target description: [design/composition.md](../design/composition.md),
 > [design/endpoints.md](../design/endpoints.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
