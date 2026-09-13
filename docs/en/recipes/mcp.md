@@ -29,17 +29,18 @@ export const app = makeApp({
     mcp({
       server: api,
       info: { name: 'users-api', version: '1.0.0' },
-      converters: openapiOptions.converters,
     }),
   ],
 });
 ```
 
 `info` reaches the agent in the answer to `initialize`: by the name and
-the version it shows the user whose permission it asks for a call.
-`converters` translate the schemas into JSON Schema — the same list the
-OpenAPI document takes. The path is set by `path`, and by default it is
-`POST /mcp`.
+the version it shows the user whose permission it asks for a call. The
+schemas are translated into JSON Schema by the same machinery as for the
+OpenAPI document, and with the same silence: the converter of the vendor
+the framework writes its own schemas in is substituted by default. The
+`converters` list is for an application on another validator. The path is
+set by `path`, and by default it is `POST /mcp`.
 
 ## A tool from a declared operation
 

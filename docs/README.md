@@ -171,7 +171,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/agent-skill`](../packages/nestling.agent-skill/) | Скилл Claude Code про Nestling и команда, которая кладёт его в проект |
 | [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
-| [`@nestlingjs/schema.zod`](../packages/nestling.schema.zod/) | Конвертер схем zod в JSON Schema: документ OpenAPI, снимок конфигурации, вопросы CLI |
+| [`@nestlingjs/schema.zod`](../packages/nestling.schema.zod/) | Всё, что фреймворк делает с zod: конвертер схем в JSON Schema, билдеры полей секций и модели со сверкой с TypeScript-типом |
 | [`@nestlingjs/drizzle.pg`](../packages/nestling.drizzle.pg/) | PostgreSQL на drizzle-orm: соединение, транзакция запроса и адаптеры хранилищ outbox'а и приёма |
 | [`@nestlingjs/inbox`](../packages/nestling.inbox/) | Транзакционный приём: отметка «обработано» коммитится с бизнес-изменением, повтор доставки не доходит до хендлера |
 | [`@nestlingjs/outbox`](../packages/nestling.outbox/) | Транзакционный emit: событие пишется в базу транзакцией запроса, relay публикует его после коммита |
@@ -179,7 +179,6 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
 | [`@nestlingjs/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, слой в декларации endpoint'а, список зависимостей класса против параметров конструктора |
 | [`@nestlingjs/mcp`](../packages/nestling.mcp/) | MCP входящим транспортом: инструмент агента — endpoint, схемы и описания берутся с декларации |
-| [`@nestlingjs/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
 
 ### Внутренние
 

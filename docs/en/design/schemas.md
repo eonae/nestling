@@ -26,11 +26,24 @@ no validator.
 
 Inside the framework, there is one validator: zod. The schemas the
 framework itself writes (the configuration sections of packages, the
-field helpers) are written in it, and the packages that need JSON
-Schema take the zod converter by default (§2). For an application this
-is an implementation choice, not a requirement: an application on
-another validator assembles and works, and passes its own converter
-wherever a document is needed.
+records of facts, the field helpers) are written in it, and the packages
+that need JSON Schema take the zod converter by default (§2). For an
+application this is an implementation choice, not a requirement: an
+application on another validator assembles and works, and passes its own
+converter wherever a document is needed.
+
+**The boundary runs along the public API.** No exported type, parameter
+or return value of the framework packages names a validator; the one
+exception is named by the name of the package —
+`@nestlingjs/schema.zod`. The dependency of a package on zod is visible
+to the application only as a line in `node_modules`, whereas a vendor in
+a **type** would take away its choice of its own validator. So a schema
+the framework writes and that goes into a public type (the record of a
+fact) is declared with the neutral type
+`StandardSchemaV1<unknown, T>`: the value stays a zod schema and is
+translated by the usual converter, while the type names no vendor. The
+check is mechanical: `yarn verify` lists the barrel exports of every
+published package and looks for the name of a validator in their types.
 
 **One point of validation.** Every validation in the kernel goes
 through one function, `validateSync(schema, value, message)`:
@@ -148,11 +161,20 @@ validator. It is written in ten lines on top of the validator's own
 converter (`z.toJSONSchema()` and its counterparts).
 
 Everything the framework does with zod lives in one package,
-`@nestlingjs/schema.zod`: the `zodConverter()` converter, the section
-field helpers `int()` and `flag()` — open builders the caller extends
-with bounds and a default (`int().min(1).default(500)`) — and the
-`makeModel` and `fromType` models, which check a schema against an
-existing TypeScript type.
+`@nestlingjs/schema.zod`: the `zodConverter()` converter, the converter
+list resolution `withZodDefault()`, the section field helpers `int()` and
+`flag()` — open builders the caller extends with bounds and a default
+(`int().min(1).default(500)`) — and the `makeModel`, `fromScratch` and
+`fromType` models, which check a schema against an existing TypeScript
+type.
+
+The default is substituted by the consumer itself —
+`withZodDefault(converters)` at the point where it reads the caller's
+list. The function appends `zodConverter()` to the list and skips that
+step if a converter for the `zod` vendor is already there. Hence both
+halves of the promise: the list **adds** a converter for another vendor
+without losing zod, and **replaces** the zod converter with its own. An
+empty list and no list at all give the same result.
 
 ### 2.1. OpenAPI: an opt-in module
 
@@ -161,17 +183,16 @@ openapi({ info: { title: 'My API', version: '1.0.0' }, pipeline: observability }
 ```
 
 The document is needed in two modes — served by an endpoint, and
-sitting as a file among the build artifacts. Hence the package has
-three surfaces; the first is shared by both modes. The fourth row of
-the table belongs to `@nestlingjs/app`: it is the entry point through
-which the CI mode gets the composition of the application.
+sitting as a file among the build artifacts. One value serves both, so
+the package has two surfaces. The third row of the table belongs to
+`@nestlingjs/app`: it is the entry point through which the build mode
+gets the composition of the application.
 
 | Surface | What it does |
 |---|---|
-| `buildOpenApiDocument(discovery)` | a pure function of the result of `app.discover(args)`: it takes its options from the `openapi()` plugin of the declaration; no container, no transports |
-| `app.discover(args?)` | the input of the generator: phase 0 of the declaration gives out the composition by value, with no graph and no sources. The CI document is built with the same assembly argument that starts the process ([composition.md](./composition.md)) |
-| `openapi(options)` | a parameterized infrastructure module: it builds the document on phase 1 ASSEMBLE and serves it through an endpoint (`GET /openapi.json`) |
+| `openapi(options)` | the publisher plugin: it builds the document on phase 1 ASSEMBLE and serves it through an endpoint (`GET /openapi.json`). Its own `document(discovery)` method builds the document from the result of `app.discover(args)` — with no container, no transports and no running application |
 | `OpenApiDocument$` | the DI token of the ready document; the endpoint is a way to serve it, not the place where it comes into being |
+| `app.discover(args?)` | the input of the generator: phase 0 of the declaration gives out the composition by value, with no graph and no sources. The document for the artifacts is built with the same assembly argument that starts the process ([composition.md](./composition.md)) |
 
 - `@nestlingjs/openapi` accepts the same `SchemaDocConverter` as the
   snapshot of operations, and introduces no type of its own. It takes
@@ -184,16 +205,22 @@ which the CI mode gets the composition of the application.
   diagnostic fails the assembly before INIT and before the socket
   opens. There is no lazy build. The check is exhaustive: the
   violations of every endpoint are gathered into one message.
-- `openapi(...)` returns an ordinary parameterized infrastructure
-  module; the kernel has no "plugin" primitive. The `path`, `pipeline`
-  and `detached` options let you apply the same root policies to the
+- `openapi(...)` returns an ordinary plugin value with parameters; the
+  plugin role brings in no new primitives. The `path`, `pipeline` and
+  `detached` options let you apply the same root policies to the
   document endpoint as to the other HTTP endpoints.
+- The method and the provider factory call one internal function: the
+  document from the build artifacts and the document served by
+  `GET /openapi.json` coincide by construction. The method works even
+  when the plugin never made it into the composition: the value lives in
+  the declaration, and the switch branch (`Docs.when(…)`) decides only
+  the fate of the endpoint. The document for a contour with the
+  documentation turned off is built by the same call.
 - The module reads the composition of the application from
   `Discovery$` ([composition.md](./composition.md)): this way it sees
   the selected topology with no duplication of `select`. The CI script
   takes the same composition from `app.discover(args)`, and the
-  document options come from the plugin in the declaration: `info` is
-  written once.
+  document options come from the plugin itself: `info` is written once.
 - Besides JSON Schema, the document is assembled from the
   declarations: the `doc:` slot (§2.2); `errors:` become `responses`,
   with `InternalError` as the default response

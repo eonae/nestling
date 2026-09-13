@@ -209,9 +209,11 @@ the declared sections and does not reach the sources:
 ## Field descriptions in the snapshot
 
 The snapshot gives the descriptions, defaults and enumerations of
-fields if you pass it a schema converter, the same `zodConverter` from
-`@nestlingjs/schema.zod` that builds the OpenAPI document in chapter
-[13](../guide/13-openapi-and-client.md):
+fields if you pass it a schema converter — the same `zodConverter` from
+`@nestlingjs/schema.zod` that the document generator from chapter
+[13](../guide/13-openapi-and-client.md) substitutes by default. Here
+there is no default: the list stays the caller's data, and without it
+the snapshot is the same as before.
 
 ```typescript
 import { zodConverter } from '@nestlingjs/schema.zod';
@@ -226,10 +228,14 @@ The key's description carries the JSON Schema of its leaf and the
 outcome of the conversion. There are three outcomes: `declared` means
 the schema was declared by an annotation, `converted` means a
 converter obtained it, and `unconvertible` means the list has no
-converter for this vendor. The last one tells apart "no converter was
-passed" from "the field has no description." The description, default
-and enumeration sit as fields of the schema itself: `description`,
-`default` and `enum`.
+converter for this vendor. The last one tells apart "there is no
+converter for this vendor" from "the field has no description." The
+description, default and enumeration sit as fields of the schema
+itself: `description`, `default` and `enum`.
+
+The sections of the framework packages themselves arrive with the
+`converted` outcome: they are written in the same validator whose
+converter was passed in the list.
 
 This snapshot builds the table of variables for deployment
 documentation. Whoever writes the documentation chooses the Markdown,

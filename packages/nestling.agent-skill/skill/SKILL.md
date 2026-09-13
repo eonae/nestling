@@ -188,6 +188,6 @@ Take one when its line describes the problem at hand:
 | `@nestlingjs/outbox` | an event must leave even if the process dies right after the commit: the record goes into the transaction that changed the data, and the send happens after it. The first thing asked for once a service has both a database and a bus |
 | `@nestlingjs/client` | a browser or another service calls these operations: `makeClient(record, config)` turns the declarations into a typed API. The other first request, and the reason an operation file imports nothing but schemas |
 | `@nestlingjs/subscriptions` | streams and SSE are open and someone has to list them, close one, or watch the list change |
-| `@nestlingjs/models` | the TypeScript type exists already — generated from proto, GraphQL or OpenAPI — and a schema has to describe exactly it |
+| `@nestlingjs/schema.zod` | the TypeScript type exists already — generated from proto, GraphQL or OpenAPI — and a schema has to describe exactly it; or the schemas are written in a validator other than the one the framework uses, and its converter has to be passed to `converters` |
 | `@nestlingjs/transport.cli` | the same endpoints and layers are wanted as commands, with stdin as the stream |
 | `@nestlingjs/eslint-plugin` | the three rules an editor can check: an import past a barrel, a declaration without the required layer, and a dependency list that does not match the constructor; the last one fills an empty `@Component()` in with `--fix` |

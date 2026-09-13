@@ -143,13 +143,14 @@ host (localhost):
 }
 ```
 
-A command with a policy needs a schema converter: the question is
-derived from the JSON Schema of the `input` form, and Standard Schema
-gives no introspection. The list is passed as a transport option,
-`cli({ converters: [zodConverter()] })` from `@nestlingjs/schema.zod`.
-With no converter, `serve` fails with the command's name and its
-schema's vendor, instead of silently asking questions by field names
-alone.
+The question is derived from the JSON Schema of the `input` form:
+Standard Schema gives no introspection, so someone has to translate the
+schema. Declaring that someone is not needed — the transport
+substitutes the converter of the vendor the framework writes its own
+schemas in. An application on another validator passes its own list
+through `cli({ converters })`. A schema that no converter translated
+fails `serve` with the command's name and its schema's vendor, instead
+of silently asking questions by field names alone.
 
 Questions are asked only while the input is a terminal and the `CI`
 variable is not set. In a pipeline, the command reaches validation and
@@ -231,7 +232,6 @@ const argv = process.argv.slice(2);
 const cli = new CliTransport({
   mode: argv.length > 0 ? 'argv' : 'repl',
   argv,
-  converters: [zodConverter()],
 });
 
 const dispatch = makeDispatch([Help, Greet, Deploy, ProcessStdin]);
@@ -283,11 +283,7 @@ describe('команды через execute', () => {
 
   beforeEach(async () => {
     // An empty `argv`: `serve` registers the commands and runs nothing
-    cli = new CliTransport({
-      mode: 'argv',
-      argv: [],
-      converters: [zodConverter()],
-    });
+    cli = new CliTransport({ mode: 'argv', argv: [] });
     await cli.serve(
       makeDispatch([Help, Greet, Deploy, ProcessStdin]),
       new AbortController().signal,
@@ -339,7 +335,6 @@ const cli = new CliTransport({
   input: answers('2\n', 'y\n', '\n'),
   output: collecting(printed),
   interactive: true,
-  converters: [zodConverter()],
 });
 
 await cli.serve(makeDispatch([Deploy]), new AbortController().signal);

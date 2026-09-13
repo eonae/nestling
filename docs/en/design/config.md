@@ -44,6 +44,18 @@ export class OrdersService {
   binding sources all work with the fields of the record and do not
   look inside the schemas. The fields are validated independently of
   each other.
+- **An empty key value means no value.** `KEY=` in the environment or in
+  a file reads as "the key is not set": the kernel reduces the empty
+  string to `undefined` before the field schema is called, and the schema
+  decides from there — `default` gives the default, a required field
+  gives a failure. The rule lives in one place in the kernel and acts the
+  same on both reading paths: the projection of a section from the graph
+  and the primary read of phase 0 (`load`). The field schemas need to
+  know nothing about it — neither ours nor the user's. The rule does not
+  change the order of the lookup: the value is taken from the first
+  binding that covers the key, and an empty string does not send the
+  reader on to the next source — otherwise `KEY=` in a local file would
+  silently clear the way for a value from the machine.
 - The wrappers combine in one order only: `secret()` outside, `from()`
   inside. The reverse order does not compile, and it gives an error at
   the declaration site naming the correct order. The wrappers take no
@@ -387,6 +399,12 @@ describes what a person writes into the environment. A table of
 variables for deployment documentation is built from the snapshot.
 With no `converters`, the snapshot stays the same — it has no JSON
 Schema fields.
+
+The sections of the framework itself are translated by the usual
+converter: they are written in the same validator as the schemas of the
+application ([schemas.md §1](./schemas.md)). There is no default in
+`describeConfig` all the same — the converter list stays the caller's
+data.
 
 The derived fields of a section stand in the snapshot as a separate
 list: the field name, the list of dependencies and the secrecy mark.

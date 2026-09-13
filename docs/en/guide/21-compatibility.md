@@ -74,10 +74,12 @@ chapter: it contains the `operations` field with descriptors of the
 published operations. A descriptor describes the name, the kind, the
 `input` and `output` shapes, and the list of failures with their codes
 and categories. A vendor converter translates the leaf schemas into
-JSON Schema, the same `zodConverter` that builds the OpenAPI document
-in chapter [13](./13-openapi-and-client.md). With no converter a leaf
-is marked opaque, and a comparison against it gives the `unknown`
-verdict.
+JSON Schema — the same `zodConverter` the document generator from
+chapter [13](./13-openapi-and-client.md) substitutes by default. Here
+there is no default: `checkTopologies` takes the list explicitly,
+because the structural check lives in the kernel and the converter lives
+outside it. With no converter a leaf is marked opaque, and a comparison
+against it gives the `unknown` verdict.
 
 `snapshotOperations(reports)` reduces the matrix into one snapshot by
 union. The snapshot is built from discovery, that is, from the
