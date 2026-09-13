@@ -1,11 +1,12 @@
-import type { HttpOutput } from './response.js';
+import type { HttpDeclaredResult } from './response.js';
 
 import type { HandlerMeta } from '@nestlingjs/app';
 import type {
   AnyOperation,
   InputOf,
   OperationFailsOf,
-  OutputOf,
+  OutputFormOf,
+  StatusOf,
 } from '@nestlingjs/operations';
 
 /**
@@ -63,5 +64,7 @@ export interface HttpHandler<C extends AnyOperation> {
   handle(
     input: InputOf<C>,
     meta: HttpHandlerMeta,
-  ): HttpOutput<OutputOf<C>, OperationFailsOf<C>>;
+  ): Promise<
+    HttpDeclaredResult<OutputFormOf<C>, OperationFailsOf<C>, StatusOf<C>>
+  >;
 }

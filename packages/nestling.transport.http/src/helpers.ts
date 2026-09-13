@@ -1,7 +1,7 @@
 import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import type { HttpRequest } from './request.js';
-import type { HttpResponse } from './response.js';
+import type { HttpDeclaredResult } from './response.js';
 import { HttpTransport$ } from './token.js';
 
 import type {
@@ -13,8 +13,6 @@ import type {
   AnyOutput,
   AnyPayload,
   CheckedHandlerFn,
-  DeclaredOutputSync,
-  DeclaredStatuses,
   EmptyInput,
   EndpointDefinition,
   FailsOf,
@@ -35,7 +33,6 @@ import type {
   HandlerResultOf,
   HttpMethod,
   InferInput,
-  InferOutput,
   InputFormOf,
   OperationFailsOf,
   OutputFormOf,
@@ -116,20 +113,6 @@ export type HttpHandlerFn<
   payload: InferInput<I>,
   meta: HttpMetaOf<P>,
 ) => HttpDeclaredResult<O, E, S> | Promise<HttpDeclaredResult<O, E, S>>;
-
-/**
- * Результат HTTP-хендлера: объявленные исходы плюс HTTP-форма ответа.
- *
- * Конверт `HttpResponse` несёт тот же статус: заголовки и cookie ответ
- * получает от транспорта, а исход по-прежнему объявляет декларация.
- */
-type HttpDeclaredResult<
-  O extends AnyOutput,
-  E extends AnyFail,
-  S extends SuccessStatus,
-> =
-  | DeclaredOutputSync<O, E, S>
-  | HttpResponse<InferOutput<O>, DeclaredStatuses<O, S>>;
 
 /** Класс-хендлер анонимной HTTP-декларации: класс с методом `handle` */
 export type HttpHandlerClass<

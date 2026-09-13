@@ -377,8 +377,10 @@ stay portable to the bus. A handler without `meta.http` and without
 A handler class declares an interface: `implements Handler<typeof Op>`
 takes the types of the input, the result and the failures from the
 operation, `implements HttpHandler<typeof Op>` does the same with
-`meta.http` and `HttpOutput`. Both names come from one import together
-with the role decorator.
+`meta.http` and `HttpResponse`. Both take the result status from the
+declared outcomes: for an operation with `status: 'created'` the `handle`
+method returns `Ok.created(...)`, and `new Ok(...)` does not compile. Both
+names come from one import together with the role decorator.
 
 ## Transport steps
 

@@ -3,6 +3,10 @@ import { HTTP_TRANSPORT_NAME } from './token.js';
 import type {
   AnyFail,
   AnyFailDefinition,
+  AnyOutput,
+  DeclaredOutputSync,
+  DeclaredStatuses,
+  InferOutput,
   OutputSync,
   RedirectStatus,
   SuccessStatus,
@@ -205,3 +209,20 @@ export type HttpOutput<
   E extends AnyFailDefinition | AnyFail = never,
   S extends SuccessStatus = 'ok',
 > = Promise<HttpOutputSync<TValue, E, S>>;
+
+/**
+ * Результат HTTP-хендлера: объявленные исходы плюс HTTP-форма ответа.
+ *
+ * Конверт `HttpResponse` несёт тот же статус: заголовки и cookie ответ
+ * получает от транспорта, а исход по-прежнему объявляет декларация.
+ *
+ * Тип один на обе формы хендлера: его читает слот `handler` анонимной
+ * декларации и интерфейс `HttpHandler` класса-хендлера операции.
+ */
+export type HttpDeclaredResult<
+  O extends AnyOutput,
+  E extends AnyFailDefinition | AnyFail,
+  S extends SuccessStatus,
+> =
+  | DeclaredOutputSync<O, E, S>
+  | HttpResponse<InferOutput<O>, DeclaredStatuses<O, S>>;
