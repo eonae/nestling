@@ -62,12 +62,15 @@ SHALL NOT заводить.
 значениями, а не пересказывать форму `input` аннотацией или приведением.
 
 Значения SHALL читаться из накопленного `input` по ключам переменных;
-отсутствующее значение SHALL приходить в `compute` как `undefined`.
+отсутствующее значение SHALL приходить в `compute` как `undefined`. Тип
+каждого значения SHALL быть объединением типа объявления с `undefined`:
+вычисление обязано различать отсутствие, и приведения для этого ему
+SHALL NOT требоваться.
 
 #### Scenario: Ключ из двух переменных
 
 - **WHEN** опция задана как
-  `identity: computed([TenantId, UserId], (_ctx, tenant, user) => tenant + ':' + user)`
+  ``identity: computed([TenantId, UserId], (_ctx, tenant, user) => `${tenant}:${user}`)``
 - **THEN** снимок несёт склеенный ключ, а `tenant` и `user` типизированы
   объявлениями переменных
 

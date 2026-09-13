@@ -256,7 +256,7 @@ The surface of the package:
 
 ```typescript
 const appSubscriptions = subscriptions({          // a parameterized module
-  identity: (ctx) => (ctx.input as { userId?: string }).userId,
+  identity: RequestId,                            // a variable names the subscriber
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,                                  // facts as operations, opt-in
   node: process.env.HOSTNAME,
@@ -304,6 +304,16 @@ Properties important for the model:
   builds the picture across the cluster. V1 has no cluster-wide
   termination of subscriptions — see
   [deferred.md](../../decisions/deferred.md).
+- A context variable names the subscriber, not a read of the
+  accumulated input. The registry takes the value by the key of the
+  variable and does not know the shape of `input`, neither in types nor
+  at runtime; when there is no value, the entry appears without
+  `identity`. That every tracked endpoint puts the variable in is
+  required by the `everyEndpoint({ … }).hasVar(…)` policy. The second
+  shape of the option is a function of the context: its accumulated
+  input is empty, and the values of several variables come to it as
+  arguments from `computed([TenantId, UserId], (_ctx, tenant, user) =>
+  …)`.
 - Whether the layer is mandatory is set by a policy, not by a hidden
   mechanism: `everyEndpoint({ … }).hasLayer(tracked)`
   ([composition.md](./composition.md)).

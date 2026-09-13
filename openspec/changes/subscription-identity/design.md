@@ -84,21 +84,37 @@ export type IdentitySource = IdentityVar | IdentityFn;
 ```typescript
 export function computed<const V extends readonly AnyContextVar[], T>(
   vars: V,
-  compute: (ctx: ExtendableContext<EmptyInput>, ...values: VarValues<V>) => T,
+  compute: (
+    ctx: ExtendableContext<EmptyInput>,
+    ...values: VarValues<[...V]>
+  ) => T,
 ): (ctx: ExtendableContext<EmptyInput>) => T;
 ```
 
 Форма повторяет `Var.provide(deps, compute)` ядра: список первым
 аргументом, контекст первым параметром вычисления, значения следом.
-Приложение называет **значения**, а не пересказывает форму `input`:
+Приложение называет **значения**, а не пересказывает форму `input`.
+Список раскрывается спредом (`[...V]`): модификатор `const` выводит его
+readonly-кортежем, а rest-параметр readonly-кортежа не принимает — тот же
+приём стоит у `provide(deps, compute)` ядра.
 
 ```typescript
 identity: computed([TenantId, UserId], (_ctx, tenant, user) => `${tenant}:${user}`),
 ```
 
 `VarValues<V>` — кортежный mapped type: `{ [I in keyof V]: V[I] extends
-ReadonlyContextVar<infer T> ? T : never }`. Сложных конструкций вроде
-`UnionToIntersection` здесь нет намеренно: тип попадает в бюджет пакета.
+ReadonlyContextVar<infer T> ? T | undefined : never }`. Сложных конструкций
+вроде `UnionToIntersection` здесь нет намеренно: тип попадает в бюджет
+пакета.
+
+`| undefined` в значении — не перестраховка, а то же решение 5 в типах:
+переменную кладёт пайплайн, и на endpoint'е, который её не объявил,
+значения нет. Тип без `undefined` заставил бы вычисление приводить
+значение руками — то самое приведение, ради ухода от которого change и
+сделан. Обе формы опции поэтому говорят об отсутствии одинаково:
+`IdentityVar` принимает `ReadonlyContextVar<string | undefined>`,
+`IdentityFn` возвращает `string | undefined`, значения `computed` —
+`T | undefined`.
 
 Хелпер читает значения из `ctx.input` по ключам переменных и зовёт
 `compute`. Результат — обычная функция от контекста, поэтому форм в типе
@@ -123,7 +139,7 @@ labels: (ctx) => ({ transport: ctx.endpoint.transport }),
 «почти правильно» прочитать накопленный вход мимо переменных. Кому вход
 нужен — берёт `computed`.
 
-`labels` получает ту же типизацию (`LabelsFn`, `computed` применим и к
+`labels` получает ту же типизацию (`LabelsSource`, `computed` применим и к
 нему), но формы переменной не получает: метки — словарь, переменной
 такого типа в коде не встречается. Это зафиксировано в Non-goals.
 

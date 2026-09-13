@@ -355,12 +355,15 @@ yarn workspace @nestlingjs/subscriptions test
 ```typescript
 // src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
   node: 'api-1',
 });
 ```
+
+Подписанта называет контекстная переменная: реестр читает её значение по
+ключу и формы накопленного входа не знает — ни в типах, ни в рантайме.
 
 Как этим пользуется эксплуатация, показывает рецепт [«Кто сейчас
 подключён и как его отключить»](./ops.md).

@@ -18,7 +18,7 @@ import type { CtxReader } from './reader.js';
 import { ContextVarUnavailableError, Ctx, makeCtxReader } from './reader.js';
 import type { ContextPhase } from './store.js';
 import { makeCell, runInScope } from './store.js';
-import { contextVar, declaredVarOf } from './variable.js';
+import { contextVar, declaredVarOf, isContextVar } from './variable.js';
 import { RequestId, Signal, Trace } from './well-known.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -95,6 +95,27 @@ describe('contextVar — объявление переменной', () => {
     expect(() => (contextVar as (key: string) => unknown)('requestId')).toThrow(
       /takes no arguments/,
     );
+  });
+});
+
+describe('isContextVar — форма значения опции', () => {
+  it('отличает переменную от функции', () => {
+    expect(isContextVar(RequestId)).toBe(true);
+    expect(
+      isContextVar(
+        (ctx: { endpoint: { transport: string } }) => ctx.endpoint.transport,
+      ),
+    ).toBe(false);
+  });
+
+  it('узнаёт read-only переменную: форма объявления у неё та же', () => {
+    expect(isContextVar(Signal)).toBe(true);
+  });
+
+  it('не принимает за переменную строку-ключ и пустое значение', () => {
+    expect(isContextVar('requestId')).toBe(false);
+    expect(isContextVar(null)).toBe(false);
+    expect(isContextVar({ key: 42 })).toBe(false);
   });
 });
 

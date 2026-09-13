@@ -6,9 +6,10 @@
  * (`@nestlingjs/app`), `AbortSignal`, DI (`@nestlingjs/container`),
  * `Topic` (`@nestlingjs/operations`) и операции (`@nestlingjs/operations`).
  *
- * Наружу уходят четыре вещи: реестр (DI-токен и его API), слой `tracked`,
- * фабрика модуля и типы модели — плюс две `event`-операции, которыми
- * пакет публикует факты жизненного цикла.
+ * Наружу уходят пять вещей: реестр (DI-токен и его API), слой `tracked`,
+ * фабрика модуля, типы модели и источники опций (`computed` с типами
+ * `identity`/`labels`) — плюс две `event`-операции, которыми пакет
+ * публикует факты жизненного цикла.
  *
  * Класс-юниты слоя (`TrackSubscription`/`UntrackSubscription`) тоже
  * экспортируются, но звать их руками не нужно: их регистрирует модуль.
@@ -23,11 +24,18 @@ export type {
   SubscriptionClosedFact,
   SubscriptionOpenedFact,
 } from './operations.js';
+export { computed } from './computed.js';
 export { SubscriptionKilledError } from './errors.js';
 export { tracked, TrackSubscription, UntrackSubscription } from './layer.js';
 export { subscriptions } from './module.js';
 export type { SubscriptionsOptions } from './module.js';
 export { SubscriptionRegistry } from './registry.js';
+export type {
+  IdentityFn,
+  IdentitySource,
+  IdentityVar,
+  LabelsSource,
+} from './registry.js';
 export type {
   CloseReason,
   SubscriptionEvent,

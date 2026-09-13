@@ -47,11 +47,17 @@ export interface SubscriptionsOptions extends RegistryOptions {
  * теми, кому нужно: повторный вызов даст другое значение под тем же именем
  * и уронит сборку (идентичность модуля — значение).
  *
+ * Подписанта называет контекстная переменная: реестр читает её значение
+ * по ключу и формы накопленного `input` не знает. Что переменную кладёт
+ * каждый трекаемый endpoint, проверяет политика сборки
+ * `everyEndpoint({ … }).hasVar(RequestId)` — до первого запроса, а не на
+ * каждом. Ключ из нескольких переменных собирает `computed`.
+ *
  * @example
  * ```typescript
  * // src/infrastructure.ts
  * export const appSubscriptions = subscriptions({
- *   identity: (ctx) => (ctx.input as { userId?: string }).userId,
+ *   identity: RequestId,
  *   publish: true,
  *   node: process.env.HOSTNAME,
  * });

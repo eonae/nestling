@@ -372,12 +372,16 @@ Connecting it in the application:
 ```typescript
 // src/app.ts (fragment)
 export const appSubscriptions = subscriptions({
-  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
   node: 'api-1',
 });
 ```
+
+A context variable names the subscriber: the registry reads its value by
+the key and does not know the shape of the accumulated input — neither
+in types nor at runtime.
 
 The recipe [Who is connected right now and how to disconnect
 them](./ops.md) shows how operations use this.
