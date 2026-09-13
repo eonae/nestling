@@ -349,10 +349,7 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    *
    * @example
    * ```typescript
-   * const document = buildOpenApiDocument(app.discover(args).endpoints, {
-   *   info: { title: 'Users API', version: '1.0.0' },
-   *   converters: [zodConverter()],
-   * });
+   * const document = appOpenapi.document(app.discover(args));
    * ```
    */
   discover(args?: AssembleArgs<S>): EndpointDiscovery {
