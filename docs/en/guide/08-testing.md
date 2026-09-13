@@ -1,6 +1,6 @@
 # 8. Make sure it works without starting a server
 
-> Guide to the current API; verified against `dfbe8e76`.
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/testing.md](../design/testing.md). Why: entry
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
