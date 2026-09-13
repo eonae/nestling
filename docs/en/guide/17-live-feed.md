@@ -268,6 +268,6 @@ whose `value` is an `AsyncIterableIterator`: the test reads events
 through `next()` with no transport. The subscription registry's tests
 in `app.spec.ts` are built the same way.
 
-The `users` feature depends on quotas, but a feature's test must not
+The `users` feature depends on the mailing, but a feature's test must not
 bring up the neighbour: [18. Test a feature without its
 neighbours](./18-testing-features.md).

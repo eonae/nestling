@@ -9,12 +9,13 @@
 > `Модель композиции: фича, плагин, операция` and
 > `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 
-The `users` and `notifications` features work in one process and talk through
-operations. The load on quotas is different, and there is a wish to
-deploy it as a separate service. Rewriting the calls to `notifications.check-address`
-and the subscription to `users.registered` is not wanted: let the same
-features work in two processes, with a broker carrying the messages
-between them.
+The `users` and `notifications` features work in one process and talk
+through operations. The mailing is slow, it retries and it scales apart
+from taking registrations, so there is a wish to deploy it as a separate
+service. Rewriting the calls to `notifications.check-address` and the
+subscription to `users.registered` is not wanted: let the same features
+work in two processes, with a broker carrying the messages between
+them.
 
 The opposite direction gives the local run. The same declaration with
 `assemble('all')` brings up every feature in one process, and the
@@ -83,7 +84,7 @@ export class RegistrationService {
     private readonly registered: Emitter<typeof UserRegistered>,
   ) {}
 
-  /** Registers a user: returns `false` if the quota is exhausted */
+  /** Registers a user: returns `false` if the address is rejected */
   async register(email: string): Promise<boolean> {
     const claim = await this.addresses.call({ email });
 
@@ -305,8 +306,8 @@ every call to an operation as a message, even when the owner works in
 this same process. On the in-process bus this means an asynchronous
 barrier, a copy of the payload, and a check of the response against
 the `output` schema. This way calls go through a path close to the
-network one, before a broker even appears. A test for both policies
-lies in `examples/app-with-http/src/app.spec.ts`.
+network one, before a broker even appears. A test for both policies is
+written next to the rest of the application's tests.
 
 The test brings up both processes in one jest process on top of the
 `NatsDouble` broker double, and no network is needed:

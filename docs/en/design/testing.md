@@ -280,7 +280,7 @@ implementation.
 
 ```typescript
 const published = new Set(
-  (await checkTopologies(app, ['all', 'orders', 'quotas']))
+  (await checkTopologies(app, ['all', 'orders', 'notifications']))
     .flatMap(({ report }) => report.operations.map((c) => c.name)),
 );
 

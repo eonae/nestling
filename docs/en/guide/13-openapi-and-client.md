@@ -104,9 +104,9 @@ synchronous, and it needs no `await`.
 
 It needs the assembly argument for the same reason `assemble` does:
 without the argument the document would describe every declared feature,
-while the process would bring up only the selected ones. `app-with-http`
-declares three features and the `docs` switch, and the difference shows
-right away:
+while the process would bring up only the selected ones. An application
+with two features and the `docs` switch shows the difference right
+away:
 
 ```bash
 yarn openapi

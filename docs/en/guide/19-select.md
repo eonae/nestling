@@ -282,9 +282,9 @@ the configuration section.
       'ops',
     ]);
 
-    // `users` calls `notifications.check-address`, so the closure over the operations
-    // pulls in the quotas feature. Nobody calls `ops`, and it arrives
-    // only by an explicit selection
+    // `users` calls `notifications.check-address`, so the closure over
+    // the operations pulls in the mailing feature. Nobody calls `ops`,
+    // and it arrives only by an explicit selection
     expect(reports[1].report.features).toEqual(['users', 'notifications']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),

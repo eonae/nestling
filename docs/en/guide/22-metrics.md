@@ -119,8 +119,8 @@ scope name needs `Metrics$('orders')`.
 ## The adapter and the `/metrics` endpoint
 
 The kernel does not know where the numbers go: it has no export format.
-The `split-nats` example writes the adapter itself — it is what checks
-that the public boundary of the kernel is enough.
+The application writes the adapter itself — it is what checks that the
+public boundary of the kernel is enough.
 
 ```typescript
 // src/metrics.ts
@@ -160,7 +160,7 @@ export function metricsPlugin(exporter: MetricsExporter): Plugin {
   }
 
   return makePlugin({
-    name: 'split-nats-metrics',
+    name: 'metrics',
     providers: [valueProvider(MetricsExporter$, exporter)],
     endpoints: [
       httpEndpoint.get('/metrics', {

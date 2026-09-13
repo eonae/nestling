@@ -12,7 +12,8 @@ Chapter 1 put together a service from one file. From here the application
 grows, and it grows by one scheme: endpoints, providers, modules, features,
 switches. This chapter names all five concepts at once, so that later chapters
 introduce each of them as already known. It adds no code: the following
-chapters return to `users-service` and take only the words from here.
+chapters return to the service of chapter 1 and take only the words from
+here.
 
 ## The root: what the application is
 

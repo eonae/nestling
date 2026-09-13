@@ -5,9 +5,10 @@
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
 
-The `users` feature calls `notifications.check-address` and sends `users.registered`
-and `notifications.forget-address`. The quotas team has not written the
-implementation yet, and the registration tests are needed now. And the
+The `users` feature calls `notifications.check-address` and sends
+`users.registered` and `notifications.forget-address`. The mailing team
+has not written the implementation yet, and the registration tests are
+needed now. And the
 other way round: the feature needs checking alone, without its
 neighbours, so that the test depends neither on their code nor on the
 broker.
@@ -252,11 +253,11 @@ same `overrides` list.
 `null` if the node is not in the graph. `testApp.features` lists the
 selected features after the closure over the calls.
 
-The `isolated.spec.ts` file consists entirely of this chapter's tests:
-assembling one feature, stubs with a success and with a failure,
+It is convenient to keep this chapter's tests in one `isolated.spec.ts`
+file: assembling one feature, stubs with a success and with a failure,
 `testApp.emit`, and checking `testApp.stubbed` against the matrix. The
-`contextValue` tests and the graph composition tests lie in the
-`app-with-http` example's `app.spec.ts`.
+`contextValue` tests and the graph composition tests stay in
+`app.spec.ts` next to the rest of the application's tests.
 
 ```bash
 yarn test

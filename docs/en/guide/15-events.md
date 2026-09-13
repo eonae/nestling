@@ -7,17 +7,18 @@
 > `[2026-07-08] Порты: межфичевое общение через контракты` and
 > `[2026-07-31] Порты: бюджет вызова моментом, ключ идемпотентности у команд`.
 
-The quotas feature must learn about every user created, but the response
-to the client must not wait for it to process the fact. Tomorrow the
-mailing feature will want to know the same thing, and the registration
-code must not change. Quotas also keep a log of registrations, and the
-log must tell a repeated delivery of one message apart from a new
-registration.
+The mailing feature must learn about every user created, but the response
+to the client must not wait for the letter to go out. Tomorrow analytics
+will want to know the same thing, and the registration code must not
+change. The reverse holds too: a deleted user must be forgotten by the
+mailing, such a request has exactly one receiver, and he must tell a
+repeated delivery of one message apart from a new request.
 
 ```typescript
 // src/operations.ts
 export const UserRegisteredInput = z.object({
   id: z.string(),
+  name: z.string(),
   email: z.string(),
 });
 
@@ -43,7 +44,7 @@ class WelcomeEmailHandler {
   constructor(private readonly logger: Logger) {}
 
   async handle(payload: UserRegisteredInput) {
-    this.logger.info('quota bookkeeping', {
+    this.logger.info('welcome email sent', {
       userId: payload.id,
       email: payload.email,
     });
@@ -128,15 +129,12 @@ enough.
 
 ## A command with an idempotency key
 
-The record in the quotas log is written not by an event but by a
-command:
+The request to take an address out of the mailings is carried not by an
+event but by a command:
 
 ```typescript
 // src/operations.ts
-export const ForgetAddressInput = z.object({
-  userId: z.string(),
-  email: z.string(),
-});
+export const ForgetAddressInput = z.object({ email: z.string() });
 
 export type ForgetAddressInput = z.infer<typeof ForgetAddressInput>;
 
@@ -155,21 +153,21 @@ only when the publisher has passed it
 ([chapter 16](./16-durable-events.md)).
 
 ```typescript
-// src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
     // A command: the caller sets the idempotency key so that a retry
     // after a failure carries the same key. Without a key the port
     // would generate a new one
     await this.forget.emit(
-      { userId: user.id, email: user.email },
-      { idempotencyKey: user.id },
+      { email: removed.email },
+      { idempotencyKey: removed.id },
     );
 ```
 
-The idempotency key is the identity of an intent. The registration of
-one user remains one intent even if the process crashed after `insert`
-and repeated the `emit`, so the key is taken as `user.id`. A command
-without an explicit key still leaves with one: the emitter generates
-it, and it stays the same for every repeated delivery of one `emit`.
+The idempotency key is the identity of an intent. The deletion of one
+user remains one intent even if the process crashed after `delete` and
+repeated the `emit`, so the key is taken as its identifier. A command
+without an explicit key still leaves with one: the emitter generates it,
+and it stays the same for every repeated delivery of one `emit`.
 
 The command's owner reads the key from the context:
 
@@ -177,10 +175,10 @@ The command's owner reads the key from the context:
 // src/features/notifications/forget-address.endpoint.ts
 @Handler([Suppressions])
 class ForgetAddressHandler {
-  constructor(private readonly journal: Suppressions) {}
+  constructor(private readonly suppressions: Suppressions) {}
 
   async handle(payload: ForgetAddressInput) {
-    this.journal.record(payload.userId);
+    this.suppressions.forget(payload.email);
   }
 }
 
@@ -194,15 +192,19 @@ export const ForgetAddressImpl = implement(ForgetAddress, {
 // src/features/notifications/suppressions.ts
 @Component([Logger$.auto, Ctx(IdempotencyKey)])
 export class Suppressions {
+  readonly #blocked = new Map<string, string>();
+
   constructor(
     private readonly logger: Logger,
     private readonly intent: CtxReader<string>,
   ) {}
 
-  /** Records the registration together with the idempotency key */
-  record(userId: string): void {
+  /** Takes the address out of the mailings together with the idempotency key */
+  forget(email: string): void {
+    this.#blocked.set(email, 'user asked to be forgotten');
+
     this.logger.debug('address forgotten', {
-      userId,
+      email,
       intent: this.intent.get(),
     });
   }
@@ -211,22 +213,21 @@ export class Suppressions {
 
 `withIdempotencyKey()` is a ready pre-unit from `@nestlingjs/app`: it
 takes the key from the call parameters and declares the
-`IdempotencyKey` context variable. The log reads it through
+`IdempotencyKey` context variable. The service reads it through
 `Ctx(IdempotencyKey)`, the same way the store read `RequestId` in
-[chapter 9](./09-logging.md). The example does no deduplication by the
-key: the kernel delivers the key to the handler, and what to do with it
-is up to the command's owner.
+[chapter 9](./09-logging.md). There is no deduplication by the key here:
+the kernel delivers the key to the handler, and what to do with it is up
+to the command's owner.
 
 A policy checks that the unit stands in the implementation's pipeline:
 
 ```typescript
 // src/app.ts
-    // The implementation of the signup command puts the idempotency
-    // key into the context: a service deep in the graph reads it
-    // through `Ctx`
+    // The implementation of the command puts the idempotency key into
+    // the context: a service deep in the graph reads it through `Ctx`
     everyEndpoint({
       transport: BusTransport$,
-      pattern: /^quotas\.record-signup$/,
+      pattern: /^notifications\.forget-address$/,
     }).hasVar(IdempotencyKey, 'idempotencyKey'),
 ```
 
@@ -245,7 +246,7 @@ requires the pipeline to declare the variable. Without
 | event | `makeEvent` | any number of subscribers | no | no | allowed |
 
 A request fits when you cannot go on without a response: registration
-waits to see whether a slot in the quota is claimed. An event fits when
+waits to see whether a letter reaches that address. An event fits when
 a fact has already happened and the subscribers decide who needs it. A
 command fits when there is exactly one receiver and a repeated delivery
 needs to be told apart from a new intent.
@@ -259,19 +260,20 @@ API_TOKEN=secret WEBHOOK_SECRET=hook NESTLING_LOG_LEVEL=debug \
   yarn start:dev
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-  -d '{"name":"User 1","email":"user1@example.com"}'
+  -d '{"name":"Carol","email":"carol@example.com"}'
+curl -X DELETE localhost:3000/users/3 -H 'authorization: Bearer secret'
 ```
 
 ```
-2026-09-06T12:00:00.000Z DEBUG DbUsersRepository insert user1@example.com requestId=b7600481-…
-2026-09-06T12:00:00.001Z INFO  WelcomeEmailHandler quota bookkeeping userId=3 email=user1@example.com
-2026-09-06T12:00:00.002Z DEBUG Suppressions address forgotten userId=3 intent=3
-2026-09-06T12:00:00.003Z INFO  AuditOutcome POST /users created requestId=b7600481-… outcome=completed
+2026-09-06T12:00:00.000Z DEBUG DbUsersRepository insert carol@example.com requestId=b7600481-…
+2026-09-06T12:00:00.001Z INFO  WelcomeEmailHandler welcome email sent userId=3 email=carol@example.com
+2026-09-06T12:00:00.002Z INFO  AuditOutcome POST /users created requestId=b7600481-… outcome=completed
+2026-09-06T12:00:01.000Z DEBUG Suppressions address forgotten email=carol@example.com intent=3
 ```
 
-The second line is written by the event's subscriber, the third by the
-log: the key that arrived is the user's identifier. The subscriber and
-the log work in their own request context: the values of the caller's
+The second line is written by the event's subscriber, the last by the
+command's owner: the key that arrived is the identifier of the deleted
+user. Both work in their own request context: the values of the caller's
 context, including `requestId`, do not reach the implementation.
 
 ## Checking
@@ -283,33 +285,33 @@ it('доставляет ключ идемпотентности команды 
   await using testApp = await assembleTest(app, {
     ...testConfig,
     overrides: [
-      [UsersRepository$, inMemoryUsersRepo()],
+      [UsersRepository$, inMemoryUsersRepo([alice])],
       [RootLogger$, spy.logger],
     ],
   });
 
-  unwrap(await createUser(testApp, 'signed'));
+  unwrap(await deleteUser(testApp, alice.id));
 
   // `emit` finishes on delivery, not on processing
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  // The caller set the user's id as the key, and the log got it
-  const recorded = spy.entries.find(
+  // The caller set the user's id as the key, and the command's owner got it
+  const forgotten = spy.entries.find(
     (entry) => entry.message === 'address forgotten',
   );
-  expect(recorded?.fields).toEqual({
+  expect(forgotten?.fields).toEqual({
     scope: 'Suppressions',
-    userId: expect.any(String),
-    intent: recorded?.fields.userId,
+    email: alice.email,
+    intent: alice.id,
   });
 });
 ```
 
-The test creates a user through the full pipeline and finds the log
-record by its `message`. The pause of one tick is needed because `emit`
-finishes on delivery, and the command's handler runs after it. The
-record's `intent` field matches `userId`: the value the caller set
-reached the service deep in the graph with no parameter.
+The test deletes a user through the full pipeline and finds the record of
+the command's owner by its `message`. The pause of one tick is needed
+because `emit` finishes on delivery, and the command's handler runs after
+it. The record's `intent` field matches the user's identifier: the value
+the caller set reached the service deep in the graph with no parameter.
 
 The neighbour in the process is not the only one who wants to know
 about the new user: so does the client in the browser.

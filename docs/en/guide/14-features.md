@@ -9,18 +9,18 @@
 > `[2026-07-08] Порты: межфичевое общение через контракты` and
 > `[2026-07-08] Kernel/user space; конфиг как token-families; плагины`.
 
-A quota limits user registration, and another team owns it. The quota code
-must live apart: it has its own services, its own tests and its own
-owner. The users feature must not inject the quota service, because one
-day quotas will move into a separate process, and the registration code
-must not change because of it. The observability layer and the DI token
-check stay shared between both areas.
+A letter goes out to every new user, and another team owns the mailing.
+The mailing code must live apart: it has its own services, its own tests
+and its own owner. The users feature must not inject the mailing service,
+because one day the mailing moves into a separate process, and the
+registration code must not change because of it. The observability layer
+and the Bearer token check stay shared between both areas.
 
-The service from part 1 continues in `app-with-http`. The files are laid
-out by area: the features live in `src/features/<name>/`, the shared
+The service from part 1 grows into an application. The files are laid out
+by area: the features live in `src/features/<name>/`, the shared
 infrastructure in `src/plugins/<name>/`, the application declaration in
-`src/app.ts`. The code of the endpoints, the store and the config is the
-same as in `users-service`.
+`src/app.ts`. The code of the endpoints, the store and the config does not
+change.
 
 ## The second feature
 
@@ -28,20 +28,16 @@ same as in `users-service`.
 // src/features/notifications/suppressions.ts
 @Component([])
 export class Suppressions {
-  /** The user limit; deliberately small in the example */
-  readonly limit = 5;
+  readonly #blocked = new Map<string, string>();
 
-  #used = 0;
+  /** The reason for the refusal, or `undefined` when the address is fine */
+  reasonFor(email: string): string | undefined {
+    return this.#blocked.get(email);
+  }
 
-  /** Claims a spot or answers "no spots left" */
-  claim(): { ok: true; remaining: number } | { ok: false } {
-    if (this.#used >= this.limit) {
-      return { ok: false };
-    }
-
-    this.#used += 1;
-
-    return { ok: true, remaining: this.limit - this.#used };
+  /** Takes the address out of the mailings */
+  suppress(email: string, reason: string): void {
+    this.#blocked.set(email, reason);
   }
 }
 ```
@@ -50,14 +46,16 @@ export class Suppressions {
 // src/features/notifications/notifications.feature.ts
 export const NotificationsFeature = makeFeature({
   name: 'notifications',
-  providers: [Suppressions, Suppressions],
+  providers: [Suppressions, Mailer],
   endpoints: [CheckAddressImpl, WelcomeEmail, ForgetAddressImpl],
 });
 ```
 
 The `notifications` feature is declared the same way as `users`: a name,
-providers and endpoints. `Suppressions` is not exported outward and does
-not end up in the `deps` of other features.
+providers and endpoints. `Suppressions` is the list of addresses that
+letters do not go to; the knowledge belongs to whoever sends those
+letters. The class is not exported outward and does not end up in the
+`deps` of other features.
 
 ## The feature boundary
 
@@ -101,10 +99,10 @@ import {
 } from '@nestlingjs/operations';
 import { z } from 'zod';
 
-/** The "quota exhausted" failure. It arrives over the network as a code and is restored into a `Fail` */
+/** The "address rejected" failure. It arrives over the network as a code and is restored into a `Fail` */
 export const AddressRejected = makeFail('conflict:address_rejected', {
-  details: z.object({ limit: z.number() }),
-  message: (d) => `User quota of ${d.limit} is exhausted`,
+  details: z.object({ email: z.string(), reason: z.string() }),
+  message: (d) => `Address ${d.email} is not deliverable: ${d.reason}`,
 });
 
 export const CheckAddressInput = z.object({ email: z.string() });
@@ -114,7 +112,7 @@ export type CheckAddressInput = z.infer<typeof CheckAddressInput>;
 export const CheckAddress = makeRequest({
   name: 'notifications.check-address',
   input: CheckAddressInput,
-  output: z.object({ remaining: z.number() }),
+  output: z.object({ deliverable: z.boolean() }),
   errors: [AddressRejected],
 });
 // …
@@ -142,16 +140,16 @@ class CheckAddressHandler {
   ) {}
 
   async handle(payload: CheckAddressInput) {
-    const claimed = this.notifications.check-address();
+    const reason = this.suppressions.reasonFor(payload.email);
 
-    if (!claimed.ok) {
-      this.logger.info('quota exhausted', { email: payload.email });
+    if (reason !== undefined) {
+      this.logger.info('address rejected', { email: payload.email });
 
       // The caller gets a `Fail` and recognizes it through `AddressRejected.is()`
-      return AddressRejected({ limit: this.suppressions.size });
+      return AddressRejected({ email: payload.email, reason });
     }
 
-    return { remaining: claimed.remaining };
+    return { deliverable: true };
   }
 }
 
@@ -179,7 +177,7 @@ assembly.
 
 ```typescript
 // src/features/users/endpoints/create-user.endpoint.ts
-const QUOTA_CALL_BUDGET_MS = 500;
+const CHECK_BUDGET_MS = 500;
 
 @Handler([
   UsersRepository$,
@@ -200,17 +198,17 @@ export class CreateUserHandler {
       return EmailTaken({ email: payload.email });
     }
     // …
-    const claimed = await this.addresses.call(
+    const checked = await this.addresses.call(
       { email: payload.email },
-      { deadline: deadlineIn(QUOTA_CALL_BUDGET_MS) },
+      { deadline: deadlineIn(CHECK_BUDGET_MS) },
     );
 
-    if (claimed.isFail) {
+    if (checked.isFail) {
       // The neighbour's failure is declared in `errors:` of the operation
       // and goes to the client as is. An exhausted budget arrives as the
       // kernel code `timeout`: kernel failures enter `Output` without a
       // declaration, so no type cast is needed here
-      return claimed;
+      return checked;
     }
 
     const user = await this.users.insert({
@@ -234,7 +232,7 @@ of type `Port<typeof CheckAddress>` with a `call(input, meta?)` method. The
 call is always asynchronous and always returns `Ok` or `Fail`, even when
 the implementation runs in the same process. The caller parses the
 failure: the set of its responses is closed — the declared failures plus
-the kernel codes — the type of `claimed` holds nothing else, and a
+the kernel codes — the type of `checked` holds nothing else, and a
 `default` branch at the call site is not needed.
 
 The second argument of `call` is the call parameters. `deadline` sets the
@@ -276,13 +274,13 @@ lists it. If it did not, the `pipeline` slot would not compile, and the
 constructor would throw an error when the declaration is created, naming
 the missing codes.
 
-The sixth registration in a row gets `429`:
+A registration to a rejected address gets `409`:
 
 ```bash
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-  -d '{"name":"User 6","email":"user6@example.com"}'
-# {"error":"User quota of 5 is exhausted","code":"conflict:address_rejected","details":{"limit":5}}
+  -d '{"name":"Eve","email":"eve@example.invalid"}'
+# {"error":"Address eve@example.invalid is not deliverable: domain does not accept mail","code":"conflict:address_rejected","details":{"email":"eve@example.invalid","reason":"domain does not accept mail"}}
 ```
 
 ## What is shared goes into plugins
@@ -315,17 +313,16 @@ A parameterized plugin is a function that returns a value:
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
-  publish: true,
-  node: 'app-with-http',
+  publish: false,
 });
 ```
 
 `subscriptions(options)` from the `@nestlingjs/subscriptions` package
 assembles a subscription registry. The `identity` and `labels` parameters
 are functions that compute the subscriber and the record labels from the
-context of the request. The `node` parameter is the name of the node in
-the registry. The `publish: true` flag turns on publishing subscription
-open and close events.
+context of the request. The `publish: true` flag would turn on publishing
+subscription open and close events: whoever collects the picture across
+all the processes listens to them.
 
 The DI token check is built the same way:
 
@@ -388,7 +385,7 @@ module, lists the endpoints.
 ```typescript
 // src/app.ts
 export const app = makeApp({
-  features: [UsersFeature, NotificationsFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -423,23 +420,19 @@ same name, and the assembly would stop.
 
 ```typescript
 // src/app.spec.ts
-it('возвращает отказ соседней фичи при исчерпанной квоте', async () => {
+it('возвращает отказ соседней фичи на отвергнутый адрес', async () => {
   await using testApp = await assembleTest(app, {
     ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
-  for (const index of [1, 2, 3, 4, 5]) {
-    unwrap(await createUser(testApp, String(index)));
-  }
-
   // The failure crossed the boundary of the calling endpoint without being
   // replaced with `InternalError`: its `errors:` declares the neighbour's
   // failure alongside its own
-  expect(await createUser(testApp, 'sixth')).toMatchObject({
+  expect(await createUser(testApp, 'eve@example.invalid')).toMatchObject({
     isSuccess: false,
-    status: 'too_many_requests',
-    value: { code: AddressRejected.code, details: { limit: 5 } },
+    status: 'conflict',
+    value: { code: AddressRejected.code },
   });
 });
 ```
@@ -457,15 +450,13 @@ call through the bus as a message. The call code does not change.
 
 ```bash
 API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
-for i in 1 2 3 4 5 6; do
-  curl -s -X POST localhost:3000/users \
-    -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-    -d "{\"name\":\"User $i\",\"email\":\"user$i@example.com\"}"; echo
-done
+curl -s -X POST localhost:3000/users \
+  -H 'authorization: Bearer secret' -H 'content-type: application/json' \
+  -d '{"name":"Carol","email":"carol@example.com"}'
 ```
 
 The same run with `NESTLING_PORTS_DISPATCH=always-remote` sends the
 `notifications.check-address` call through the in-process bus.
 
-Quotas learn about a new user not by a request, but by an event:
+The mailing learns about a new user not by a request, but by an event:
 [15. Tell the neighbours what happened](./15-events.md).

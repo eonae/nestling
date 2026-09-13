@@ -74,11 +74,12 @@
 - A handler function is named after the operation in lowerCamelCase
   with the `Handler` suffix: `getUserHandler`.
 - The implementation of an operation (`implement`) is a value with the
-  `Impl` suffix: `ClaimQuotaImpl`. Its handler class is named after the
-  operation: `ClaimQuotaHandler`.
+  `Impl` suffix: `CheckAddressImpl`. Its handler class is named after the
+  operation: `CheckAddressHandler`.
 - An event subscriber is a value `<Event>In<Feature>`:
-  `UserRegisteredInQuotas`. Its handler class adds the same suffix:
-  `UserRegisteredInQuotasHandler`. The feature name in the value matches
+  `UserRegisteredInNotifications`. Its handler class adds the same
+  suffix: `UserRegisteredInNotificationsHandler`. The feature name in the
+  value matches
   the `subscriber:` string.
 
 ## Switches
@@ -114,7 +115,8 @@
 - One endpoint per file: `<name-with-hyphens>.endpoint.ts`, for example
   `get-user.endpoint.ts`. The implementation of an operation is also an
   endpoint, so the file is named the same way:
-  `claim-quota.endpoint.ts`, `user-registered-in-quotas.endpoint.ts`.
+  `check-address.endpoint.ts`,
+  `user-registered-in-notifications.endpoint.ts`.
 - Implementations declared right in the feature file are moved to their
   own files as soon as there is more than one: the feature file lists
   the composition and does not hold the execution.
