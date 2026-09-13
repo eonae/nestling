@@ -109,7 +109,7 @@ Heartbeat-кадры SSE SHALL NOT участвовать в лимитах и S
 запросов до `closeTimeout` (дефолт 10s) и принудительно закрыть оставшиеся
 соединения по его истечении. `drain()` SHALL завершаться за конечное время
 при наличии живых keep-alive соединений. Опция `closeTimeout` SHALL
-задаваться аргументом `httpServer()`.
+задаваться аргументом `server()`.
 
 `close()` транспорта SHALL взводить сигналы всех in-flight запросов (см.
 capability `http-request-cancellation`) и SHALL NOT трогать сокет.

@@ -23,10 +23,10 @@
 транспорта SHALL инжектироваться контейнером, а его создание и остановка
 SHALL идти по графу наравне с прочими узлами.
 
-Поле `transports:` в `makeApp` SHALL быть местом этих объявлений. Оно
-SHALL принимать и объявления серверов (capability
-`http-server-resource`); объявления SHALL различаться дискриминатором, а
-не догадкой по форме.
+Поле `transports:` в `makeApp` SHALL быть местом этих объявлений и SHALL
+принимать только их. Сервер, которому транспорт передаёт сокет
+(capability `http-server-resource`), SHALL попадать в сборку по ссылке
+`server` объявления транспорта, а не элементом списка.
 
 Прямое конструирование (`new HttpTransport(server, options)`) SHALL
 оставаться доступным для standalone-пути и SHALL NOT требовать
@@ -38,6 +38,12 @@ SHALL принимать и объявления серверов (capability
 - **WHEN** `makeApp({ features: [OrdersFeature], transports: [http()] })`
 - **THEN** транспорт и его сервер создаются контейнером на фазе INIT, а их
   остановка идёт вместе с прочими узлами графа
+
+#### Scenario: Сервер в списке — ошибка типов
+
+- **WHEN** автор пишет `transports: [api, http({ server: api })]`
+- **THEN** это ошибка типов: `transports:` принимает только объявления
+  транспортов
 
 #### Scenario: Транспорт приходит модулем фичи
 
@@ -111,14 +117,14 @@ SHALL проверяться регистрацией (`container.has(token)`), 
 `http-server-resource`). `@nestlingjs/transport.http` SHALL объявлять
 конфиг-секцию сервера с префиксом по имени экземпляра (`HTTP_PORT`,
 `HTTP_HOST`, `HTTP_ADMIN_PORT`, `HTTP_ADMIN_HOST`) и читать её в
-провайдере сервера. Опций `port` и `host` у фабрик `httpServer()` и
+провайдере сервера. Опций `port` и `host` у фабрик `server()` и
 `http()` SHALL NOT быть: значение приходит только из конфига. Наружу из
-пакета SHALL отдаваться только `httpServerKeys(name?)` — токен секции
+пакета SHALL отдаваться только `serverKeys(name?)` — токен секции
 SHALL NOT экспортироваться.
 
 Опции транспорта, не зависящие от окружения (`maxBodySize`,
 `sseHeartbeat`), SHALL оставаться аргументом `http()`. Таймауты
-`node:http` SHALL переходить аргументом `httpServer()`.
+`node:http` SHALL переходить аргументом `server()`.
 
 #### Scenario: Порт из env
 
