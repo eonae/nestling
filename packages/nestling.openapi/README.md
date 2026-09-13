@@ -11,41 +11,43 @@ code is not needed.
 ## Install
 
 ```bash
-npm install @nestlingjs/openapi @nestlingjs/schema.zod
+npm install @nestlingjs/openapi
 ```
 
-`@nestlingjs/schema.zod` is needed if the schemas are written in zod.
-For another validator, its converter is connected.
+The converter for the vendor the framework writes its own schemas in
+comes as a dependency of the package. An application on another
+validator needs that validator's converter — it is passed in the
+`converters` list.
 
 ## Minimal example
 
 ```typescript
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/schema.zod';
+
+export const appOpenapi = openapi({
+  info: { title: 'Users API', version: '1.0.0' },
+  pipeline: observability, // if the root policy requires the layer
+});
 
 makeApp({
   features: [UsersFeature],
-  plugins: [
-    openapi({
-      info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
-      pipeline: observability, // if the root policy requires the layer
-    }),
-  ],
+  plugins: [appOpenapi],
   transports: [http()],
 });
 // GET /openapi.json
+
+// The same document for the build artifacts, without starting the app:
+appOpenapi.document(app.discover(args));
 ```
 
 ## Exports
 
 | Name | What it does |
 |---|---|
-| `openapi` | a plugin: builds the document on the ASSEMBLE phase and serves it as an endpoint |
-| `buildOpenApiDocument` | a pure function: the document from `app.discover(args).endpoints` |
+| `openapi` | a plugin: builds the document on the ASSEMBLE phase, serves it as an endpoint, and gives it as a value through the `document(discovery)` method |
 | `OpenApiDocument$` | the DI token of the ready document |
-| `hiddenEndpoints` | the endpoints hidden by the `doc.hidden` field |
-| `OpenApiOptions` | `info`, `converters`, `servers`, `security`, `externalDocs` |
+| `OpenApiPlugin` | the plugin value: an ordinary unit of the composition plus the `document` method |
+| `OpenApiOptions` | `info`, the optional `converters`, `servers`, `security`, `externalDocs` |
 | `OpenApiServeOptions` | the plugin options: `path`, `pipeline`, `detached`, `announceHidden` |
 | `OpenApiDocument` | the whole document |
 | `OpenApiInfo` | the `info` section |
@@ -62,4 +64,6 @@ makeApp({
 ## Package boundaries
 
 The package does not ship Swagger UI, does not derive `servers` from
-the configuration, and does not generate AsyncAPI.
+the configuration, and does not generate AsyncAPI. Its public types do
+not name a validator: the schema comes from the application, and the
+translation into JSON Schema comes from a converter.

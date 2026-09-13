@@ -11,17 +11,17 @@ MCP как входящий транспорт приложения. Инстр�
 ## Установка
 
 ```bash
-npm install @nestlingjs/mcp @nestlingjs/schema.zod
+npm install @nestlingjs/mcp
 ```
 
-`@nestlingjs/schema.zod` нужен, если схемы написаны на zod. Для другого
-валидатора подключается его конвертер.
+Конвертер схем вендора, на котором написаны схемы фреймворка, приходит
+зависимостью пакета. Приложению на другом валидаторе нужен его конвертер —
+он передаётся списком `converters`.
 
 ## Минимальный пример
 
 ```typescript
 import { mcp, mcpTool } from '@nestlingjs/mcp';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { http, server } from '@nestlingjs/transport.http';
 
 export const GetUserTool = mcpTool.implement(GetUser, {
@@ -38,7 +38,6 @@ makeApp({
     mcp({
       server: api,
       info: { name: 'users-api', version: '1.0.0' },
-      converters: [zodConverter()],
     }),
   ],
 });
