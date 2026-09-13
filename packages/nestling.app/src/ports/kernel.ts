@@ -10,7 +10,6 @@
  * операции.
  */
 
-import type { Logger } from '../logger/interface.js';
 import { Logger$ } from '../logger/tokens.js';
 import type { Metrics } from '../metrics/index.js';
 import { configuredMetrics, RootMetrics$ } from '../metrics/index.js';
@@ -45,6 +44,7 @@ import {
   familyProvider,
   makeTokenFamily,
 } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 import type { AnyOperation, Emitter, Port } from '@nestlingjs/operations';
 import {
   EmitterFamily,

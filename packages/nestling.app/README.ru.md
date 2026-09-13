@@ -93,13 +93,13 @@ await app.build().run();
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
   `TransportDeclaration`, `transportValue`.
 - **Наблюдаемость и пробы** ([design](../../docs/design/container.md)) —
-  `Fields`, `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
-  `HealthStatus`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
-  `makeKernelLogger`, `MetricAttributes`, `Metrics`, `Metrics$`,
-  `registerHealth`, `RootLogger$`, `RootMetrics$`.
+  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
+  `HealthStatus`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
+  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`,
+  `Metrics`, `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
 - **Реэкспорт соседей** — [`@nestlingjs/operations`](../nestling.operations/)
-  (45 имён) и [`@nestlingjs/common.misc`](../common.misc/) (8 имён); перечни в
-  их README.
+  (45 имён), [`@nestlingjs/logging`](../nestling.logging/) (6 имён) и
+  [`@nestlingjs/common.misc`](../common.misc/) (8 имён); перечни в их README.
 - **Подпуть `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
   `WiredEndpoint`, `WireOptions`.
 

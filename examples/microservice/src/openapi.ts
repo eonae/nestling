@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- скрипт печатает путь и состав документа */
 /**
  * Документ OpenAPI для CI: фаза 0 декларации плюс метод плагина.
  *
@@ -22,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 import { app, appOpenapi } from './app.js';
 
+import { makeConsoleLogger } from '@nestlingjs/app';
+
 /** Аргумент сборки — аргумент командной строки; без него состав по умолчанию */
 const args = process.argv[2];
 
@@ -35,4 +36,9 @@ const file = resolve(
 
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
 
-console.log(`${file}: ${Object.keys(document.paths).length} path(s)`);
+// Скрипт вне приложения берёт логгер той же фабрикой, что и корень: вывод
+// читается тем же глазом и тем же грепом, что и вывод сервиса
+makeConsoleLogger().info('document written', {
+  file,
+  paths: Object.keys(document.paths).length,
+});

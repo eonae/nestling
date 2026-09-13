@@ -6,17 +6,16 @@
  * замены не видят.
  */
 
-import type { Logger } from './interface.js';
-
 import { makeToken, makeTokenFamily } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 
 /**
  * Корень логгера.
  *
- * Kernel-модуль объявляет под ним `ConsoleLogger` умолчанием; провайдер
- * приложения заменяет умолчание без ошибки дубля. Провайдер под этим
- * DI-токеном не может зависеть от `Logger$(x)`: это цикл, и сборка назовёт
- * его путь.
+ * Значение регистрируется сборкой: логгер из опции `logging` корня или
+ * штатный, и оба обёрнуты декоратором полей корреляции. Провайдер
+ * приложения под этим DI-токеном — ошибка дубля: второго способа задать
+ * корень нет.
  */
 export const RootLogger$ = makeToken<Logger>('RootLogger');
 

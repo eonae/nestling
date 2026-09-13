@@ -8,7 +8,6 @@
  */
 
 import { spyLogger } from '../../logger/__fixtures__/spy.js';
-import type { Logger } from '../../logger/interface.js';
 
 import type { EndpointMeta, ResponseContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
@@ -17,6 +16,7 @@ import type { PreStepFn } from './types/step.js';
 import { compose, makePipeline } from './pipeline.js';
 
 import type { Schema, StandardSchemaV1 } from '@nestlingjs/common.misc';
+import type { Logger } from '@nestlingjs/logging';
 import type { AnyPayload } from '@nestlingjs/operations';
 import {
   makeFail,

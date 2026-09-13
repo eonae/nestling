@@ -1,5 +1,4 @@
-import { defaultLogger } from '../../logger/console.js';
-import type { Logger } from '../../logger/interface.js';
+import { defaultLogger } from '../../logger/standalone.js';
 import type { Metrics } from '../../metrics/interface.js';
 import { KERNEL_METRICS } from '../../metrics/names.js';
 
@@ -42,6 +41,7 @@ import { isDone } from './done.js';
 import type { Constructor } from '@nestlingjs/common.misc';
 import type { InjectionToken } from '@nestlingjs/container';
 import { tokenId } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 import type {
   AnyFail,
   AnyFailDefinition,

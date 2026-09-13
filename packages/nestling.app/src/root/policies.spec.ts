@@ -264,7 +264,7 @@ describe('detached — поверхность для аудита', () => {
     const withDetached = makeApp({
       features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
       transports: [asTransport(new MockTransport())],
-      logger: detachedProbe.logger,
+      logging: { logger: detachedProbe.logger },
     }).build();
 
     await withDetached.run();
@@ -287,7 +287,7 @@ describe('detached — поверхность для аудита', () => {
     const clean = makeApp({
       features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
       transports: [asTransport(new MockTransport())],
-      logger: cleanProbe.logger,
+      logging: { logger: cleanProbe.logger },
     }).build();
 
     await clean.run();

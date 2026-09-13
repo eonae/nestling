@@ -219,7 +219,7 @@ describe('openapi(...) — плагин-издатель', () => {
       features: [UsersModule],
       plugins: [openapi({ info, converters: [zodConverter()] })],
       transports: [asHttpTransport(new SpyTransport())],
-      logger: spy.logger,
+      logging: { logger: spy.logger },
     }).build();
 
     await app.run();
@@ -263,7 +263,7 @@ describe('openapi(...) — плагин-издатель', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(new SpyTransport())],
-      logger: spy.logger,
+      logging: { logger: spy.logger },
     }).build();
 
     await app.run();

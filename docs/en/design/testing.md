@@ -213,7 +213,18 @@ family member is built as `root.child({ scope })`
 child logger writes into the same list. A test checks `entries` by
 field, not by parsing `stderr`. The same logger is passed straight
 into a step that takes a `Logger` argument, or into
-`makeDispatch(endpoints, { logger })` with no `App`.
+`makeDispatch(endpoints, { logger })` with no `App`. The spy gets
+correlation fields the same way the standard logger does: the root
+decorator mixes them in ([container.md](./container.md), "The kernel
+logger").
+
+Without the substitution the run is silent: `buildTest` adds a source
+with `NESTLING_LOG_LEVEL=silent` at the lowest priority, so the output of
+a test is the report of the runner, not the build entries of each of
+hundreds of runs. Entries are brought back by the test's own `config:`;
+the substitution of the root works regardless of the threshold — the
+threshold cuts entries off inside the standard logger, and a substituted
+root never reaches it.
 
 ### The transport
 

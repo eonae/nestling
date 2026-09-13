@@ -64,9 +64,9 @@ describe('contextKernel в корне', () => {
   });
 
   it('без читателей приложения ни один узел Ctx не создаётся', async () => {
-    // `ConsoleLogger` (логгер по умолчанию) читает `requestId` из
-    // ambient-контекста напрямую, минуя DI: корень создаётся на фазе 0,
-    // раньше первого узла графа, и зависеть от `Ctx(RequestId)` не может
+    // Поля корреляции ставит декоратор корня: он читает ячейку запроса
+    // напрямую, минуя DI. Корень создаётся на фазе 0, раньше первого узла
+    // графа, и зависеть от `Ctx(RequestId)` не может
     const wired = await wireApp(
       makeApp({
         transports: [
@@ -93,7 +93,7 @@ describe('contextKernel в корне', () => {
             capabilities: VALUE_ONLY,
           }),
         ],
-        logger: probe.logger,
+        logging: { logger: probe.logger },
       }),
     );
 

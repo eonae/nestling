@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- скрипт печатает, что положил на шину */
 /**
  * Внешний клиент: кладёт команду на шину.
  *
@@ -13,22 +12,16 @@
 
 import { ForgetUser, RegisterUser } from './operations.js';
 
-import type { Logger } from '@nestlingjs/app';
+import { makeConsoleLogger } from '@nestlingjs/app';
 import { NatsBus } from '@nestlingjs/transport.nats';
 
 /**
- * Логгер шины: записи о доставке уходят в консоль скрипта.
+ * Логгер скрипта: та же фабрика, что даёт умолчание корня.
  *
  * Логгер приложения сюда не приходит: внешний отправитель ничего не знает
- * ни о контейнере, ни о его графе.
+ * ни о контейнере, ни о его графе. Записи о доставке шина пишет в него же.
  */
-const logger: Logger = {
-  debug: console.debug,
-  info: console.info,
-  warn: console.warn,
-  error: console.error,
-  child: () => logger,
-};
+const logger = makeConsoleLogger();
 
 const email = process.argv[2] ?? 'carol@example.com';
 const forget = process.argv.includes('--forget');
@@ -46,10 +39,10 @@ const context = { tenantId: 'acme' };
 
 if (forget) {
   await bus.publish(ForgetUser.name, { email }, { context });
-  console.log(`published ${ForgetUser.name} for ${email}`);
+  logger.info('published', { operation: ForgetUser.name, email });
 } else {
   await bus.publish(RegisterUser.name, { name: 'Carol', email }, { context });
-  console.log(`published ${RegisterUser.name} for ${email}`);
+  logger.info('published', { operation: RegisterUser.name, email });
 }
 
 await bus.close();

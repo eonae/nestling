@@ -1,0 +1,61 @@
+{
+  "name": "@nestlingjs/logging",
+  "version": "0.2.0",
+  "description": "Интерфейс логгера Nestling и штатная реализация: четыре уровня, три формы вызова, дочерний логгер с привязками, вывод в stderr текстом или JSON",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "logging",
+    "logger"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.logging"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.logging#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "devDependencies": {
+    "@nestlingjs/operations": "workspace:*",
+    "typescript": "5.7.3"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
+  }
+}

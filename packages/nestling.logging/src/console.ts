@@ -1,22 +1,42 @@
 /**
- * `ConsoleLogger` — реализация логгера по умолчанию.
+ * Штатный логгер: каждая запись уходит в `process.stderr` одной строкой.
  *
- * Единственное место ядра, которое пишет в поток процесса: каждая запись
- * уходит в `process.stderr` одной строкой. `stderr`, а не `stdout`: у
- * CLI-транспорта `stdout` занят результатом команды, и лог не должен в
- * него попадать.
+ * `stderr`, а не `stdout`: у CLI-транспорта `stdout` занят результатом
+ * команды, и лог не должен в него попадать.
  *
- * Класс не экспортируется из пакета: реализации ядра приватны, как у
- * конфига и портов. Наружу идут интерфейс, DI-токены и ключи секции.
+ * Класс реализации наружу не идёт — пакет отдаёт фабрику
+ * {@link makeConsoleLogger}. Полей корреляции логгер не ставит: их
+ * подмешивает декоратор корня из `@nestlingjs/app`, а скрипт вне
+ * приложения запроса не обрабатывает.
  */
 
-import {
-  ambientRequestId,
-  ambientTraceId,
-} from '../pipeline/core/context/index.js';
-
-import type { LogConfig, LogFormat } from './config.js';
 import type { Fields, Logger, LogLevel, LogMethod } from './interface.js';
+
+/** Формат строки в `stderr` */
+export type LogFormat = 'text' | 'json';
+
+/**
+ * Порог записи: уровень или `silent`.
+ *
+ * `silent` отсекает все четыре уровня. Уровнем записи он не бывает: в
+ * `LogLevel` его нет, потому что писать им нечем.
+ */
+export type LogThreshold = LogLevel | 'silent';
+
+/** Опции штатного логгера */
+export interface ConsoleLoggerOptions {
+  /** Порог записи; умолчание — `info` */
+  readonly level?: LogThreshold;
+
+  /** Формат строки; умолчание — `text` */
+  readonly format?: LogFormat;
+}
+
+/** Опции с подставленными умолчаниями — то, с чем работает реализация */
+interface ResolvedOptions {
+  readonly level: LogThreshold;
+  readonly format: LogFormat;
+}
 
 /** Порядок уровней: запись ниже порога отбрасывается */
 const RANK: Readonly<Record<LogLevel, number>> = {
@@ -24,6 +44,12 @@ const RANK: Readonly<Record<LogLevel, number>> = {
   info: 1,
   warn: 2,
   error: 3,
+};
+
+/** Порог: `silent` стоит выше любого уровня, поэтому под него не проходит ничто */
+const THRESHOLD: Readonly<Record<LogThreshold, number>> = {
+  ...RANK,
+  silent: 4,
 };
 
 /** Первый аргумент метода уровня: одна из трёх форм вызова */
@@ -157,33 +183,28 @@ function formatError(err: unknown): string {
 }
 
 /**
- * Логгер по умолчанию: уровень и формат из секции `nestlingLog`,
- * идентификатор запроса из контекста, записи в `process.stderr`.
+ * Штатный логгер: порог и формат из опций, записи в `process.stderr`.
  *
  * - `text`: `<время ISO> <УРОВЕНЬ> <scope> <сообщение> key=value …`;
  *   значения-объекты через `JSON.stringify`; `err` — `err=<name>: <message>`
  *   и стек на следующих строках.
- * - `json`: одна строка с полями `time`, `level`, привязками, `requestId`,
- *   `traceId`, `msg`, полями вызова и `err` в виде
- *   `{ name, message, stack, cause? }`.
+ * - `json`: одна строка с полями `time`, `level`, привязками, `msg`,
+ *   полями вызова и `err` в виде `{ name, message, stack, cause? }`.
  *
- * `requestId` и `traceId` читаются из ambient-контекста запроса в момент
- * записи и добавляются полями, если они есть и поля не заданы вызовом. Вне
- * запроса полей нет. Узлом графа логгер не является: корень создаётся на
- * фазе 0, раньше первого узла, поэтому зависеть от `Ctx(RequestId)` и
- * `Ctx(Trace)` он не может.
+ * Ячейку запроса логгер не читает: поля корреляции ставит декоратор
+ * корня, и любая другая реализация получает их тем же способом.
  */
-export class ConsoleLogger implements Logger {
-  readonly #config: LogConfig;
+class ConsoleLogger implements Logger {
+  readonly #options: ResolvedOptions;
   readonly #bindings: Fields;
   readonly #threshold: number;
   readonly #format: LogFormat;
 
-  constructor(config: LogConfig, bindings: Fields = {}) {
-    this.#config = config;
+  constructor(options: ResolvedOptions, bindings: Fields = {}) {
+    this.#options = options;
     this.#bindings = bindings;
-    this.#threshold = RANK[config.level];
-    this.#format = config.format;
+    this.#threshold = THRESHOLD[options.level];
+    this.#format = options.format;
   }
 
   readonly debug: LogMethod = (first: FirstArgument, second?: Fields): void =>
@@ -198,9 +219,9 @@ export class ConsoleLogger implements Logger {
   readonly error: LogMethod = (first: FirstArgument, second?: Fields): void =>
     this.#write('error', first, second);
 
-  /** Дочерний логгер с той же секцией и объединёнными привязками */
+  /** Дочерний логгер с теми же опциями и объединёнными привязками */
   child(bindings: Fields): Logger {
-    return new ConsoleLogger(this.#config, {
+    return new ConsoleLogger(this.#options, {
       ...this.#bindings,
       ...bindings,
     });
@@ -215,25 +236,8 @@ export class ConsoleLogger implements Logger {
     const { err, ...rest } = fields;
 
     // Порядок полей и есть порядок в строке: время, уровень, привязки
-    // (`scope` среди них), идентификаторы запроса и трассы, сообщение,
-    // поля, ошибка
-    const data: Record<string, unknown> = { ...this.#bindings };
-
-    const requestId = ambientRequestId();
-    if (
-      requestId !== undefined &&
-      !('requestId' in rest) &&
-      !('requestId' in data)
-    ) {
-      data.requestId = requestId;
-    }
-
-    const traceId = ambientTraceId();
-    if (traceId !== undefined && !('traceId' in rest) && !('traceId' in data)) {
-      data.traceId = traceId;
-    }
-
-    Object.assign(data, rest);
+    // (`scope` среди них), сообщение, поля вызова, ошибка
+    const data: Record<string, unknown> = { ...this.#bindings, ...rest };
 
     const time = new Date().toISOString();
     const line =
@@ -309,13 +313,26 @@ function formatText(
 }
 
 /**
- * Логгер для standalone-путей без `App`: `makeDispatch`, `new InProcessBus()`.
+ * Создаёт штатный логгер: записи уходят в `process.stderr` одной строкой
+ * каждая.
  *
- * Без секции: уровень `info`, формат `text`. Правило «незадекларированный
- * отказ не проглатывается молча» держится на нём. Из пакета не
- * экспортируется.
+ * Его берут и приложение умолчанием корня, и код вне приложения: скрипт
+ * генерации, миграция, standalone-диспетчер. Формат строки один и тот же,
+ * поэтому вывод скрипта читается тем же глазом и тем же грепом, что и
+ * вывод сервиса.
+ *
+ * @param options - Порог записи и формат строки; умолчания `info` и `text`
+ * @returns Логгер
+ *
+ * @example
+ * ```typescript
+ * const logger = makeConsoleLogger({ format: 'json' });
+ *
+ * logger.info('document written', { path });
+ * ```
  */
-export const defaultLogger: Logger = new ConsoleLogger({
-  level: 'info',
-  format: 'text',
-});
+export const makeConsoleLogger = (options: ConsoleLoggerOptions = {}): Logger =>
+  new ConsoleLogger({
+    level: options.level ?? 'info',
+    format: options.format ?? 'text',
+  });

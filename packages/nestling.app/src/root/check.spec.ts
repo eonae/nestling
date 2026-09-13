@@ -347,7 +347,7 @@ describe('шов @nestlingjs/app/testing — фазы 0–3', () => {
             }),
           ],
           transports: [asTransport(transport)],
-          logger: probe.logger,
+          logging: { logger: probe.logger },
         }),
       );
 

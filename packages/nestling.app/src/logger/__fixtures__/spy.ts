@@ -6,7 +6,7 @@
  * пакета, а не наоборот.
  */
 
-import type { Fields, Logger, LogLevel } from '../interface.js';
+import type { Fields, Logger, LogLevel } from '@nestlingjs/logging';
 
 export interface SpyEntry {
   readonly level: LogLevel;
@@ -48,7 +48,7 @@ const makeLogger = (entries: SpyEntry[], bindings: Fields): Logger => ({
     record(entries, bindings, 'warn', first, second),
   error: (first: string | Error | Fields, second?: Fields) =>
     record(entries, bindings, 'error', first, second),
-  child: (extra) => makeLogger(entries, { ...bindings, ...extra }),
+  child: (extra: Fields) => makeLogger(entries, { ...bindings, ...extra }),
 });
 
 /** Создаёт логгер-шпион: записи всех дочерних логгеров идут в один список */

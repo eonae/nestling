@@ -10,7 +10,7 @@
  */
 
 import type { ConfigBinding } from '../config/index.js';
-import type { Logger } from '../logger/index.js';
+import type { LogFieldSpec } from '../logger/index.js';
 import type { Metrics } from '../metrics/index.js';
 import type {
   AnyEndpointDefinition,
@@ -41,6 +41,7 @@ import type {
   TokenOverride,
 } from '@nestlingjs/container';
 import { branchCandidates } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 
 /**
  * Имена транспортов, годных в роль интеркома.
@@ -53,6 +54,38 @@ import { branchCandidates } from '@nestlingjs/container';
 export type IntercomName<
   T extends readonly Branchable<TransportDeclaration>[],
 > = Extract<T[number], BusDeclaration>['name'];
+
+/**
+ * Логирование приложения: корневой логгер и поля корреляции.
+ *
+ * Оба поля необязательны. Без `logger` корнем служит штатный логгер от
+ * снимка секции `nestlingLog`. Без `fields` действует умолчание
+ * `[RequestId, logField(Trace, 'traceId', (t) => t.traceId)]` — те же два
+ * поля, что ставились раньше.
+ */
+export interface LoggingOptions {
+  /**
+   * Корневой логгер приложения — готовое значение.
+   *
+   * Единственный способ заменить штатный логгер: провайдер под
+   * `RootLogger$` в `providers:` становится ошибкой дубля. Значение
+   * обязано быть готовым: корень существует раньше графа и потому не может
+   * зависеть от его узлов. Записи всех фаз, включая предупреждения
+   * сборки, уходят сюда, а члены `Logger$(scope)` строятся от него.
+   */
+  readonly logger?: Logger;
+
+  /**
+   * Поля корреляции: контекстные переменные, значения которых уходят в
+   * каждую запись.
+   *
+   * Переменная без обёртки даёт поле с именем переменной и значением
+   * целиком; `logField(Var, name, select?)` задаёт имя и проекцию. Свои
+   * поля объявляет и плагин — полем `logFields`. Пустой список отключает
+   * корреляцию.
+   */
+  readonly fields?: readonly LogFieldSpec[];
+}
 
 /**
  * Общая часть словаря `makeApp`: поля, которые есть у всех трёх форм
@@ -84,15 +117,11 @@ export interface AppSpecCommon<
   switches?: S;
 
   /**
-   * Корневой логгер приложения — готовое значение.
+   * Логирование приложения: корневой логгер и поля корреляции.
    *
-   * Единственный способ заменить `ConsoleLogger` ядра: провайдер под
-   * `RootLogger$` в `providers:` становится ошибкой дубля. Значение
-   * обязано быть готовым: корень существует раньше графа и потому не может
-   * зависеть от его узлов. Записи всех фаз, включая предупреждения
-   * сборки, уходят сюда, а токены семейства `Logger$(scope)` строятся от него.
+   * Логгер и состав его полей — одна настройка, и стоят они рядом.
    */
-  logger?: Logger;
+  logging?: LoggingOptions;
 
   /**
    * Корень метрик приложения — готовое значение.
@@ -203,7 +232,7 @@ export const APP_SPEC_FIELDS = [
   'intercom',
   'config',
   'policies',
-  'logger',
+  'logging',
   'metrics',
 ] as const;
 
@@ -240,8 +269,8 @@ export interface NormalizedAppSpec {
   readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
 
-  /** Корневой логгер корня; без него им служит `ConsoleLogger` ядра */
-  readonly logger?: Logger;
+  /** Логирование корня; без опции — штатный логгер и умолчание полей */
+  readonly logging?: LoggingOptions;
 
   /** Корень метрик; без него им служит пустая реализация ядра */
   readonly metrics?: Metrics;
@@ -646,7 +675,7 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
     ...(intercom ? { intercom } : {}),
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],
-    ...(spec.logger ? { logger: spec.logger } : {}),
+    ...(spec.logging ? { logging: spec.logging } : {}),
     ...(spec.metrics ? { metrics: spec.metrics } : {}),
   };
 }

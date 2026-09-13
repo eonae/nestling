@@ -94,13 +94,13 @@ await app.build().run();
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
   `TransportDeclaration`, `transportValue`.
 - **Observability and probes** ([design](../../docs/en/design/container.md)) —
-  `Fields`, `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
-  `HealthStatus`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
-  `makeKernelLogger`, `MetricAttributes`, `Metrics`, `Metrics$`,
-  `registerHealth`, `RootLogger$`, `RootMetrics$`.
+  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
+  `HealthStatus`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
+  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`,
+  `Metrics`, `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
 - **Re-export of neighbours** — [`@nestlingjs/operations`](../nestling.operations/)
-  (45 names) and [`@nestlingjs/common.misc`](../common.misc/) (8 names); the
-  lists are in their README.
+  (45 names), [`@nestlingjs/logging`](../nestling.logging/) (6) and
+  [`@nestlingjs/common.misc`](../common.misc/) (8); the lists are in their README.
 - **Subpath `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
   `WiredEndpoint`, `WireOptions`.
 

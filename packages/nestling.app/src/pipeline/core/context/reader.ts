@@ -10,8 +10,6 @@
 import { currentCell } from './store.js';
 import type { AnyContextVar } from './variable.js';
 import { isContextVar, SIGNAL_KEY } from './variable.js';
-import type { TraceContext } from './well-known.js';
-import { RequestId, Trace } from './well-known.js';
 
 import type { Token } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
@@ -161,41 +159,16 @@ export const makeCtxReader = (key: string): AnyCtxReader => ({
 });
 
 /**
- * Идентификатор текущего запроса из ambient-контекста или `undefined` вне
- * запроса.
+ * Значение переменной в накопленном `input` текущего запроса или
+ * `undefined` вне запроса.
  *
- * Чтение мимо графа: корневой логгер существует раньше узлов, поэтому
- * зависеть от ридера `Ctx(RequestId)` он не может, а поле `requestId` в
- * записи обязан ставить.
+ * Чтение мимо графа: декоратор полей корреляции оборачивает корневой
+ * логгер на фазе 0, раньше первого узла, поэтому ридер `Ctx(Var)` ему
+ * недоступен. Читается `input`, и только он: сигнал запроса лежит в самой
+ * ячейке, а полем записи он не бывает.
  *
+ * @param key - Ключ переменной
+ * @returns Значение или `undefined`
  * @internal
  */
-export const ambientRequestId = (): string | undefined => {
-  const value = currentCell()?.input[RequestId.key];
-
-  return typeof value === 'string' ? value : undefined;
-};
-
-/**
- * Трасса текущего запроса из ambient-контекста или `undefined` вне запроса
- * и в запросе без `withTracing()`.
- *
- * Чтение мимо графа, по той же причине, что у {@link ambientRequestId}.
- *
- * @internal
- */
-export const ambientTrace = (): TraceContext | undefined => {
-  const value = currentCell()?.input[Trace.key] as TraceContext | undefined;
-
-  return typeof value?.traceId === 'string' ? value : undefined;
-};
-
-/**
- * Идентификатор трассы текущего запроса или `undefined`, если трассы нет.
- *
- * Им корневой логгер ставит поле `traceId`: зависеть от ридера
- * `Ctx(Trace)` он не может — он существует раньше узлов графа.
- *
- * @internal
- */
-export const ambientTraceId = (): string | undefined => ambientTrace()?.traceId;
+export const ambientValue = (key: string): unknown => currentCell()?.input[key];

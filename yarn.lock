@@ -2281,6 +2281,7 @@ __metadata:
   dependencies:
     "@nestlingjs/common.misc": "workspace:*"
     "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/logging": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -2380,6 +2381,15 @@ __metadata:
     "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@nestlingjs/logging@workspace:*, @nestlingjs/logging@workspace:packages/nestling.logging":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/logging@workspace:packages/nestling.logging"
+  dependencies:
+    "@nestlingjs/operations": "workspace:*"
+    typescript: "npm:5.7.3"
   languageName: unknown
   linkType: soft
 

@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- скрипт печатает результат вызовов */
 /**
  * Внешний потребитель API: скрипт, который создаёт и читает пользователя.
  *
@@ -13,7 +12,16 @@ import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 
 import { CreateUser, GetUser } from './operations.js';
 
+import { makeConsoleLogger } from '@nestlingjs/app';
 import { makeClient } from '@nestlingjs/client';
+
+/**
+ * Логгер скрипта: та же фабрика, что даёт умолчание корня.
+ *
+ * Приложение сюда не импортируется, поэтому ни контейнера, ни его логгера
+ * здесь нет — а формат строки остаётся тем же, что у сервиса.
+ */
+const logger = makeConsoleLogger();
 
 /** Имена методов задаёт потребитель: ключи объекта */
 const api = makeClient(
@@ -34,30 +42,36 @@ async function main(): Promise<void> {
   // Ответ — `Ok | Fail`; отказ узнаётся по коду, `instanceof` после
   // сериализации не работает
   if (EmailTaken.is(created)) {
-    console.log(`email taken: ${created.details.email}`);
+    logger.warn('email taken', { email: created.details.email });
     return;
   }
 
   if (created.isFail) {
-    console.log(`request failed: ${created.code} ${created.message}`);
+    logger.error('request failed', {
+      code: created.code,
+      reason: created.message,
+    });
     return;
   }
 
-  console.log(`created ${created.value.id}`);
+  logger.info('user created', { id: created.value.id });
 
   const fetched = await api.getUser({ id: created.value.id });
 
   if (UserNotFound.is(fetched)) {
-    console.log(`user ${fetched.details.id} disappeared`);
+    logger.warn('user disappeared', { id: fetched.details.id });
     return;
   }
 
   if (fetched.isFail) {
-    console.log(`request failed: ${fetched.code} ${fetched.message}`);
+    logger.error('request failed', {
+      code: fetched.code,
+      reason: fetched.message,
+    });
     return;
   }
 
-  console.log(`fetched ${fetched.value.name}`);
+  logger.info('user fetched', { name: fetched.value.name });
 }
 
 await main();

@@ -724,3 +724,113 @@ describe('buildTest — логгер ядра', () => {
     });
   });
 });
+
+/** Перехватывает строки, ушедшие в `stderr`, на время вызова */
+const captureStderr = async (body: () => Promise<void>): Promise<string[]> => {
+  const lines: string[] = [];
+  const spy = jest
+    .spyOn(process.stderr, 'write')
+    .mockImplementation((chunk: unknown) => {
+      lines.push(String(chunk));
+
+      return true;
+    });
+
+  try {
+    await body();
+  } finally {
+    spy.mockRestore();
+  }
+
+  return lines;
+};
+
+/** Приложение с одним endpoint'ом и сервисом, который пишет в лог */
+const writingApp = () => {
+  @Component([Logger$.auto])
+  class Greeter {
+    constructor(private readonly logger: Logger) {}
+
+    greet(): string {
+      this.logger.info('greeting');
+
+      return 'hi';
+    }
+  }
+
+  @Handler([Greeter])
+  class GreetHandler {
+    constructor(private readonly greeter: Greeter) {}
+
+    handle() {
+      return new Ok({ text: this.greeter.greet() });
+    }
+  }
+
+  const Greet = httpEndpoint.get('/greet', {
+    output: z.object({ text: z.string() }),
+    handler: GreetHandler,
+  });
+
+  return {
+    Greet,
+    app: makeApp({
+      features: [
+        makeFeature({
+          name: 'greet',
+          providers: [Greeter],
+          endpoints: [Greet],
+        }),
+      ],
+      transports: [asHttpTransport(new SpyTransport())],
+    }),
+  };
+};
+
+describe('buildTest — тихий прогон', () => {
+  it('прогон не пишет в stderr ни одной записи', async () => {
+    const { app, Greet } = writingApp();
+
+    const lines = await captureStderr(async () => {
+      await using testApp = await buildTest(app);
+
+      await testApp.call(Greet);
+    });
+
+    expect(lines).toEqual([]);
+  });
+
+  it('уровень из config: возвращает записи', async () => {
+    const { app, Greet } = writingApp();
+
+    const lines = await captureStderr(async () => {
+      await using testApp = await buildTest(app, {
+        config: vars({ NESTLING_LOG_LEVEL: 'info' }),
+      });
+
+      await testApp.call(Greet);
+    });
+
+    expect(lines.some((line) => line.includes('greeting'))).toBe(true);
+  });
+
+  it('подмена RootLogger$ видит записи запроса молчащего прогона', async () => {
+    const { app, Greet } = writingApp();
+    const spy = spyLogger();
+
+    const lines = await captureStderr(async () => {
+      await using testApp = await buildTest(app, {
+        overrides: [[RootLogger$, spy.logger]],
+      });
+
+      await testApp.call(Greet);
+    });
+
+    expect(lines).toEqual([]);
+    expect(spy.entries).toContainEqual({
+      level: 'info',
+      message: 'greeting',
+      fields: { scope: 'Greeter' },
+    });
+  });
+});

@@ -1,6 +1,6 @@
 # 9. See every request in the log
 
-> Guide to the current API; verified against `3ea8ea87`.
+> Guide to the current API; verified against `2ef7b6a6`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/container.md](../design/container.md), the "Kernel logger" section.
 > Why: entries [ideas.md](../../decisions/ideas.md)
@@ -73,12 +73,13 @@ level and the format:
 
 | Variable | Values | Default |
 |---|---|---|
-| `NESTLING_LOG_LEVEL` | `debug`, `info`, `warn`, `error` | `info` |
+| `NESTLING_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` | `info` |
 | `NESTLING_LOG_FORMAT` | `text`, `json` | `text` |
 
-A record below the set level is dropped. A typo in the value stops the
-start: this is an ordinary config section, and an invalid value is checked
-at build, as in [chapter 7](./07-config.md).
+A record below the set level is dropped; `silent` cuts off all four
+levels. A typo in the value stops the start: this is an ordinary config
+section, and an invalid value is checked at build, as in
+[chapter 7](./07-config.md).
 
 ## The observability layer
 
@@ -125,8 +126,8 @@ export class AuditOutcome {
     res: ResponseContext,
     ctx: ExtendableContext<{ requestId?: string }>,
   ): void {
-    // The kernel logger puts the request identifier into the record: it
-    // reads it from the context itself, and no prefix is written by hand
+    // The kernel puts the request identifier into the record: it is a
+    // declared correlation field, and no prefix is written by hand
     this.logger.info(`${ctx.raw.pattern} ${res.status}`, { outcome });
   }
 }
@@ -165,10 +166,12 @@ step expects from the context: the field is declared optional, because
 A field outside the declared type does not compile.
 
 The request identifier is in the audit record even though the step does
-not pass it. The kernel logger reads `requestId` from the context of the
-request itself and adds it as a field to every record made inside the
-request. Outside a request, for example during a resource acquisition, the
-field is absent.
+not pass it. `requestId` is a declared **correlation field**: the kernel
+reads it from the context of the request and adds it as a field to every
+record made inside the request. Outside a request, for example during a
+resource acquisition, the field is absent. What else goes into records as
+a field is set by the `logging` option of the root —
+[below](#your-own-logger).
 
 `observability` is a layer: one `makePipeline()` call with a chain of
 methods, an ordinary value. It is exported and connected to every endpoint.
@@ -277,8 +280,10 @@ methods.
 
 The store puts `requestId` into the record field itself, because it needs
 the value: this is its own way of reading the context. A logger record
-does not need this: the field that a call did not set, the kernel logger
-adds on its own. This is how `AuditOutcome` above works.
+does not need this: the field that a call did not set, the kernel adds on
+its own. This is how `AuditOutcome` above works. A call field is stronger
+than a correlation field: an explicit value of the caller stays in the
+record.
 
 The `hasVar` build policy checks that the variable is declared on every
 route where it is read: [chapter 10](./10-auth.md).
@@ -287,9 +292,9 @@ route where it is read: [chapter 10](./10-auth.md).
 
 `withTracing()` is the second step of the layer. It puts the `Trace`
 variable into the context, with a value of the shape
-`{ traceId, spanId, parentSpanId?, sampled }`, and the kernel logger adds
-`traceId` as a field to every record inside the request — the same way
-it adds `requestId`:
+`{ traceId, spanId, parentSpanId?, sampled }`, and the kernel adds
+`traceId` as a field to every record inside the request — the same way it
+adds `requestId`: this is the second correlation field of the default.
 
 ```text
 2026-09-12T20:03:49.400Z INFO  UsersService created requestId=7f3a… traceId=4bf92f35…
@@ -328,14 +333,14 @@ outer layer runs later than that of the inner one.
 ## Your own logger
 
 By default the kernel logger writes to `stderr` as text or JSON. A logging
-library connects through the `logger` field of the root:
+library connects through the `logger` field of the `logging` dictionary:
 
 ```typescript
 // app.ts
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
-  logger: pinoAdapter(pino()),
+  logging: { logger: pinoAdapter(pino()) },
 });
 ```
 
@@ -345,7 +350,80 @@ warnings. The value is ready-made: the root logger is created before the
 graph, so it cannot depend on its nodes — everything it needs is passed to
 it. There is no second way to declare the root: a provider under
 `RootLogger$` in `providers:` is a build error, and its text names the
-`logger` option.
+`logging` option.
+
+Someone else's implementation gets correlation fields for free: the kernel
+mixes them in, not the logger. The `Logger` interface lives in a separate
+package, `@nestlingjs/logging` — an adapter needs the interface, not the
+whole kernel:
+
+```typescript
+import type { Logger } from '@nestlingjs/logging';
+```
+
+A script next to the application — a document generator, a migration, an
+external client — takes a ready logger from the same factory:
+
+```typescript
+// src/openapi.ts
+import { makeConsoleLogger } from '@nestlingjs/app';
+
+makeConsoleLogger().info('document written', { file, paths: 12 });
+```
+
+The line format is the same as the one the service writes, so the output
+of the script reads with the same eye and the same grep.
+
+## The set of correlation fields
+
+A correlation field is a context variable whose value goes into every
+record. The set is given by `logging.fields`:
+
+```typescript
+// app.ts
+import { logField, makeApp, RequestId, Trace } from '@nestlingjs/app';
+
+export const app = makeApp({
+  features: [UsersFeature],
+  transports: [http()],
+  logging: {
+    fields: [
+      RequestId,
+      logField(Trace, 'traceId', (trace) => trace.traceId),
+      logField(TenantId, 'tenant'),
+    ],
+  },
+});
+```
+
+The default is the first two lines of the list: `requestId` and `traceId`.
+These are exactly the ones standing in the records of the examples above.
+
+A variable without a wrapper gives a field with the name of the variable
+and the value as a whole: `RequestId` is `requestId: '7f3a…'`. The
+`logField(Var, name, select?)` wrapper sets the name of the field, and the
+third argument sets what part of the value goes into it. A projection is
+needed for variables that are objects: `Trace` carries `traceId`, `spanId`
+and `sampled`, while the record needs the trace identifier — records of two
+processes are searched by it.
+
+An empty list, `fields: []`, turns correlation off: records come out
+without fields from the context.
+
+A plugin declares its own fields too, through the `logFields` field:
+
+```typescript
+export const tenancy = makePlugin({
+  name: '@acme/tenancy',
+  logFields: [logField(TenantId, 'tenant')],
+  // …
+});
+```
+
+This way an observability plugin puts its own field in itself, and the
+application does not have to write about it. The lists of the root and of
+the connected plugins are added up at build. Two declarations with one
+field name stop the start: the message names the name and both declarers.
 
 ## Check
 
@@ -369,7 +447,11 @@ it('пишет запись аудита через логгер ядра', asyn
   expect(spy.entries).toContainEqual({
     level: 'info',
     message: 'GET /users/:id ok',
-    fields: { scope: 'AuditOutcome', outcome: 'completed' },
+    fields: {
+      scope: 'AuditOutcome',
+      outcome: 'completed',
+      requestId: expect.any(String),
+    },
   });
 });
 ```
@@ -381,7 +463,14 @@ the `overrides` of the test root intercepts the records of every member of
 phase. The `testApp.call` call passes through the whole pipeline, so
 `.finally` runs, and the audit record ends up in `spy.entries`. Each record
 is `{ level, message, fields }`; the `scope` field carries the scope of the
-family member.
+family member, and `requestId` is a correlation field: the spy gets it the
+same way the standard logger does.
+
+Without the override the test run is silent: `buildTest` brings the
+application up with `NESTLING_LOG_LEVEL=silent`, so the output of the test
+is the report of the runner, not the build records of each of hundreds
+of runs. Records in `stderr` are brought back by an own
+`config: vars({ NESTLING_LOG_LEVEL: 'info' })`.
 
 A request for a nonexistent user leaves a `GET /users/:id not_found`
 record in the log with the `outcome=failed` field: a handler failure

@@ -196,7 +196,13 @@ there too.
   declares it in a shorter way, with the `health(signal)` method.
 - **Kernel logger** (`логгер ядра`) — the `Logger` interface, the root
   `RootLogger$` and the family `Logger$(scope)`; the kernel writes only
-  through it.
+  through it. The interface and the standard implementation live in
+  `@nestlingjs/logging`, the DI tokens in `@nestlingjs/app`.
+- **Correlation field** (`поле корреляции`) — a context variable whose
+  value the kernel adds as a field to every record inside a request. The
+  set is declared by the root's `logging.fields` option and a plugin's
+  `logFields` field; `logField(Var, name, select?)` sets the field name
+  and the projection of the value.
 
 ## Endpoints and declarations
 

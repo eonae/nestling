@@ -11,12 +11,12 @@ import { readSectionSnapshot } from '../config/index.js';
 
 import type { LogConfig } from './config.js';
 import { NESTLING_LOG_PREFIX } from './config.js';
-import { ConsoleLogger } from './console.js';
-import type { Logger } from './interface.js';
 import { Logger$, RootLogger$ } from './tokens.js';
 
 import type { Module } from '@nestlingjs/container';
 import { factoryProvider, familyProvider } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
+import { makeConsoleLogger } from '@nestlingjs/logging';
 
 /** Токен семейства как дочерний логгер корня с привязкой области */
 const memberOf = (scope: string) =>
@@ -25,11 +25,11 @@ const memberOf = (scope: string) =>
   ]);
 
 /**
- * Создаёт корневой логгер ядра: `ConsoleLogger` от снимка секции
+ * Создаёт корневой логгер ядра: штатный логгер от снимка секции
  * `nestlingLog`.
  *
- * Зовётся на фазе 0, когда контейнера ещё нет: уровень и формат приходят
- * из снимка, а не из графа. Опция `logger` корня заменяет результат
+ * Зовётся на фазе 0, когда контейнера ещё нет: порог и формат приходят из
+ * снимка, а не из графа. Поле `logging.logger` корня заменяет результат
  * целиком.
  *
  * @param reader - Читалка со снимком фазы 0
@@ -37,7 +37,7 @@ const memberOf = (scope: string) =>
  * @internal
  */
 export const makeKernelLogger = (reader: ConfigReader): Logger =>
-  new ConsoleLogger(
+  makeConsoleLogger(
     readSectionSnapshot<LogConfig>(NESTLING_LOG_PREFIX, reader),
   );
 

@@ -16,12 +16,16 @@ import type {
 } from '../config/index.js';
 import { bootstrapConfig, configKernel, toBindings } from '../config/index.js';
 import { registerHealth } from '../health/index.js';
-import type { Logger } from '../logger/index.js';
+import type { LogFieldsPlan } from '../logger/index.js';
 import {
+  collectLogFields,
+  DEFAULT_LOG_FIELDS,
   Logger$,
   loggerKernel,
   makeKernelLogger,
+  ROOT_FIELDS_OWNER,
   RootLogger$,
+  withLogFields,
 } from '../logger/index.js';
 import type { Metrics } from '../metrics/index.js';
 import {
@@ -109,8 +113,9 @@ import {
   tokenId,
   valueProvider,
 } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 
-export type { AppSpec, NormalizedAppSpec } from './plan.js';
+export type { AppSpec, LoggingOptions, NormalizedAppSpec } from './plan.js';
 export type { BuildArgs, BuildObject, SwitchFields } from './args.js';
 
 /** Endpoint в отчёте `check()`: чем обслуживается и кем объявлен */
@@ -559,11 +564,11 @@ export class BuiltApp {
 
     // 0 BOOTSTRAP — резолв выбора, подъём источников конфига и корневой
     // логгер: единственный ввод-вывод до INIT
-    const { reader, root } = await this.#bootstrap();
+    const { reader, root, logFields } = await this.#bootstrap();
     this.#reader = reader;
 
     // 1 BUILD — граф, discovery и все fail-fast'ы до захвата ресурсов
-    const { container, discovery } = this.#build(reader, root);
+    const { container, discovery } = this.#build(reader, root, logFields);
     this.#container = container;
 
     // Канал остановки создаётся до INIT: его получают и `acquire` ресурсов,
@@ -630,12 +635,15 @@ export class BuiltApp {
   async [CHECK_SEAM](options: CheckOptions): Promise<CheckReport> {
     // Переданный `config` заменяет привязки декларации целиком: с
     // `config: vars({ … })` проверка обходится без источников
-    const { reader, root } = await this.#bootstrap(
+    const { reader, root, logFields } = await this.#bootstrap(
       options.config === undefined ? undefined : toBindings(options.config),
     );
 
     try {
-      return this.#report(this.#build(reader, root).discovery, options);
+      return this.#report(
+        this.#build(reader, root, logFields).discovery,
+        options,
+      );
     } finally {
       // Контейнер проверка не разрушает, поэтому источники закрываются
       // сразу после отчёта — иначе они остались бы открытыми
@@ -685,11 +693,11 @@ export class BuiltApp {
 
     // 0 BOOTSTRAP — привязки прогона уже в плане: тест изолирован от
     // источников приложения так же, как от `process.env`
-    const { reader, root } = await this.#bootstrap();
+    const { reader, root, logFields } = await this.#bootstrap();
     this.#reader = reader;
 
     // 1 BUILD — те же fail-fast'ы, что и в бою
-    const { container, discovery } = this.#build(reader, root);
+    const { container, discovery } = this.#build(reader, root, logFields);
     this.#container = container;
 
     this.#shutdown = new AbortController();
@@ -850,12 +858,18 @@ export class BuiltApp {
    * получает свой логгер сразу — накопленные ею предупреждения уходят в
    * тот же логгер, что и записи фазы RUN.
    *
+   * Корень оборачивается декоратором полей корреляции: поля получает любая
+   * реализация, а не только штатная. Список полей на этой фазе — поля
+   * корня: состав плагинов известен фазе 1, а запросов здесь ещё нет.
+   *
    * @param config - Привязки, заменяющие привязки плана целиком; проверка
    * передаёт сюда свой `config:`
    */
-  async #bootstrap(
-    config?: readonly ConfigBinding[],
-  ): Promise<{ reader: ConfigReader; root: Logger }> {
+  async #bootstrap(config?: readonly ConfigBinding[]): Promise<{
+    reader: ConfigReader;
+    root: Logger;
+    logFields: LogFieldsPlan;
+  }> {
     this.#select();
 
     const { spec } = this.#plan;
@@ -864,11 +878,23 @@ export class BuiltApp {
       ...(config ?? this.#plan.config ?? spec.config),
     ]);
 
-    const root = spec.logger ?? makeKernelLogger(reader);
+    const logFields: LogFieldsPlan = {
+      fields: collectLogFields([
+        {
+          owner: ROOT_FIELDS_OWNER,
+          fields: spec.logging?.fields ?? DEFAULT_LOG_FIELDS,
+        },
+      ]),
+    };
+
+    const root = withLogFields(
+      spec.logging?.logger ?? makeKernelLogger(reader),
+      logFields,
+    );
 
     reader.attachLogger(root.child({ scope: 'nestling:config' }));
 
-    return { reader, root };
+    return { reader, root, logFields };
   }
 
   /**
@@ -886,16 +912,35 @@ export class BuiltApp {
    *
    * @param reader - Читалка со снимком фазы 0
    * @param root - Корневой логгер, созданный на фазе 0
+   * @param logFields - Список полей корреляции; здесь он дополняется
+   * полями подключённых плагинов
    */
   #build(
     reader: ConfigReader,
     root: Logger,
+    logFields: LogFieldsPlan,
   ): {
     container: BuiltContainer;
     discovery: EndpointDiscovery;
   } {
     const { spec } = this.#plan;
     const bundles = this.#bundles();
+
+    // Поля корреляции — после раскрытия веток переключателей: до него
+    // состав плагинов неизвестен. Список ложится в тот же объект, который
+    // декоратор корня читает на каждой записи
+    logFields.fields = collectLogFields([
+      {
+        owner: ROOT_FIELDS_OWNER,
+        fields: spec.logging?.fields ?? DEFAULT_LOG_FIELDS,
+      },
+      ...this.#alwaysOn
+        .filter(({ role }) => role === 'plugin')
+        .map(({ name, logFields: fields }) => ({
+          owner: `plugin '${name}'`,
+          fields,
+        })),
+    ]);
 
     const builder = new ContainerBuilder({
       overrides: this.#plan.overrides,
@@ -1094,9 +1139,10 @@ export class BuiltApp {
     } catch (error) {
       throw new Error(
         `A provider for 'RootLogger' is declared by the application, but the ` +
-          `root logger is set by the 'logger' option of makeApp({ … }) — it ` +
+          `root logger is set by the 'logging' option of makeApp({ … }) — it ` +
           `exists before the graph, so records of phases 0 and 1 go to it too. ` +
-          `Remove the provider and pass the logger as 'logger: <value>'.`,
+          `Remove the provider and pass the logger as ` +
+          `'logging: { logger: <value> }'.`,
         { cause: error },
       );
     }

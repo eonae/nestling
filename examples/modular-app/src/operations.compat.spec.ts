@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- отчёт совместимости печатается человеку */
 /**
  * Отчёт совместимости операций.
  *
@@ -14,6 +13,7 @@ import { app } from './app.js';
 import { CHECK_OPTIONS, TOPOLOGIES } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
+import { makeConsoleLogger } from '@nestlingjs/app';
 import type { OperationSnapshot } from '@nestlingjs/testing';
 import {
   checkTopologies,
@@ -24,6 +24,9 @@ import {
 } from '@nestlingjs/testing';
 
 const BASELINE_PATH = new URL('../operations.snapshot.json', import.meta.url);
+
+/** Отчёт печатается человеку: тест вне приложения берёт свой логгер */
+const logger = makeConsoleLogger();
 
 /** Снимок в репозитории — обычный файл */
 const readBaseline = (): OperationSnapshot =>
@@ -40,7 +43,7 @@ describe('отчёт совместимости операций', () => {
     const current = await currentSnapshot();
     const report = diffOperations(readBaseline(), current);
 
-    console.log(formatCompatibility(report));
+    logger.info(formatCompatibility(report));
 
     // Это проверка теста, а не фреймворка: осознанный breaking делается
     // сменой имени операции и перезаписью снимка

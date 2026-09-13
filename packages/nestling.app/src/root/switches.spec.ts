@@ -423,7 +423,7 @@ describe('выбор в отчёте и на старте', () => {
       endpoints: [ping()],
       switches: [Storage, Debug],
       transports: [asTransport()],
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build({ storage: 's3' });
 
     await app.run();
@@ -441,7 +441,7 @@ describe('выбор в отчёте и на старте', () => {
     const app = makeApp({
       endpoints: [ping()],
       transports: [asTransport()],
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build();
 
     await app.run();

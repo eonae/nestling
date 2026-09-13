@@ -24,9 +24,6 @@ import { CliTransport, parseArgv } from '@nestlingjs/transport.cli';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 
-/** Глушит вывод справки в тесте */
-const drop = (): void => undefined;
-
 /** Поток ввода из готовых ответов — по строке на вопрос */
 const answers = (...lines: readonly string[]): Readable =>
   Readable.from(lines.map((line) => Buffer.from(line)));
@@ -78,13 +75,23 @@ describe('команды через execute', () => {
     jest.restoreAllMocks();
   });
 
-  it('печатает справку и возвращает подтверждение', async () => {
-    const log = jest.spyOn(console, 'log').mockImplementation(drop);
+  it('отдаёт справку потоком строк: печатает её транспорт', async () => {
+    const chunks: string[] = [];
+    const printing = new CliTransport({
+      mode: 'argv',
+      argv: [],
+      output: collecting(chunks),
+    });
 
-    const response = await cli.execute(parseArgv(['help']));
+    await printing.serve(makeDispatch([Help]), new AbortController().signal);
 
-    expect(response.value).toEqual({ message: 'Help displayed' });
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('create-user'));
+    // Результат команды уходит на `stdout` транспорта, а не записью лога
+    const response = await printing.execute(parseArgv(['help']));
+
+    expect(response.isSuccess).toBe(true);
+    expect(chunks.join('')).toContain('create-user');
+
+    await printing.close();
   });
 
   it('не знает команду, которой нет в dispatch', async () => {
