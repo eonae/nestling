@@ -781,8 +781,19 @@ kernel-секция `nestlingLog`: `NESTLING_LOG_LEVEL` (`debug` | `info` |
 (`makeDispatch`, `new InProcessBus()`) используют штатный логгер с
 умолчаниями, поэтому незадекларированный отказ не проглатывается молча.
 В тесте записи перехватывает `spyLogger()` через подмену `RootLogger$`
-([testing.md](./testing.md)). `@nestlingjs/logging.pino` даёт `pinoLogger(options)` для поля
-`logging.logger`: пишет в `stderr`, человекочитаемый формат без
-`pino-pretty`.
+([testing.md](./testing.md)). `@nestlingjs/logging.pino` даёт
+`pinoLogger({ level?, format?, pino? })` для поля `logging.logger`.
+Умолчания — `info` и `text`; `level` принимает вдобавок уровни pino,
+отображая `trace` на `debug` и `fatal` на `error`, а поле `pino` передаёт
+библиотеке остальное: redaction, сериализаторы,
+семплирование. Записи уходят в `stderr` своим синхронным писателем —
+без `pino.transport`, `pino-pretty` и второго потока вывода. В `text`
+строку печатает `formatLine` из `@nestlingjs/logging`, поэтому вывод
+совпадает со штатным логгером до байта; в `json` строку пишет сам pino —
+набор ключей тот же, порядок его. Ключи, которыми держится формат
+(`level`, `timestamp`, `formatters`, `base`, `messageKey`, `errorKey`,
+`transport` и вложенный `serializers.err`), заняты адаптером: переданный
+ключ даёт отказ с именем ключа и заменой.
+
 Скрипт вне приложения создаёт логгер ядра фабрикой
 `makeConsoleLogger(options)` из `@nestlingjs/logging`.

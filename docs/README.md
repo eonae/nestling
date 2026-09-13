@@ -143,7 +143,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Двадцать два каталога `packages/`. Ядро — три из них: `@nestlingjs/container`,
+Двадцать три каталога `packages/`. Ядро — три из них: `@nestlingjs/container`,
 `@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -172,6 +172,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/agent-skill`](../packages/nestling.agent-skill/) | Скилл Claude Code про Nestling и команда, которая кладёт его в проект |
 | [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
+| [`@nestlingjs/logging.pino`](../packages/nestling.logging.pino/) | pino под интерфейсом `Logger`: redaction и сериализаторы библиотеки при формате строки, общем со штатным логгером |
 | [`@nestlingjs/schema.zod`](../packages/nestling.schema.zod/) | Всё, что фреймворк делает с zod: конвертер схем в JSON Schema, билдеры полей секций и модели со сверкой с TypeScript-типом |
 | [`@nestlingjs/drizzle.pg`](../packages/nestling.drizzle.pg/) | PostgreSQL на drizzle-orm: соединение, транзакция запроса и адаптеры хранилищ outbox'а и приёма |
 | [`@nestlingjs/inbox`](../packages/nestling.inbox/) | Транзакционный приём: отметка «обработано» коммитится с бизнес-изменением, повтор доставки не доходит до хендлера |

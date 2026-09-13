@@ -43,8 +43,13 @@ logger.child({ scope: 'openapi' }).warn(new Error('schema skipped'));
 | `LogFormat` | формат строки: `text` или `json` |
 | `ConsoleLoggerOptions` | опции фабрики: `level` и `format` |
 | `makeConsoleLogger` | штатный логгер; умолчания `info` и `text` |
+| `LogEntry` | запись, готовая к печати: время, уровень, сообщение, поля |
+| `formatLine` | строка записи выбранного формата |
+| `serializeError` | ошибка полями `name`, `message`, `stack`, `cause` |
 
-Класс реализации наружу не идёт: логгер создаёт фабрика.
+Класс реализации наружу не идёт: логгер создаёт фабрика. Формат,
+наоборот, публичный: им печатает и штатный логгер, и сателлит
+`@nestlingjs/logging.pino`, поэтому реализация у формата одна.
 
 ## Границы пакета
 
