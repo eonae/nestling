@@ -101,8 +101,6 @@ export {
   TransportClosingError,
   transportNameOf,
   UndeclaredDoneError,
-  withIdentity,
-  withPermissions,
   withRequestId,
   withTracing,
 } from './pipeline/index.js';

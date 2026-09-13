@@ -192,8 +192,8 @@ payload. Раскладку path/query/body по bind-карте проверя�
 и ядра, и приложения: член семейства строится как `root.child({ scope })`
 ([container.md](./container.md), «Логгер ядра»), а дочерний логгер
 шпиона пишет в тот же список. Тест проверяет `entries` по полям, а не
-разбирает `stderr`. Тот же логгер передаётся напрямую в юнит
-(`withRequestLogging(spy.logger)`) или в `makeDispatch(endpoints, { logger })`
+разбирает `stderr`. Тот же логгер передаётся напрямую в юнит, который
+принимает `Logger` аргументом, или в `makeDispatch(endpoints, { logger })`
 без `App`.
 
 ### Транспорт

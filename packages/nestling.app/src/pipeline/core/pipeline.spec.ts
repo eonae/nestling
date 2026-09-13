@@ -11,14 +11,11 @@
  * 6. TNeeds: класс-юнит блокирует исполнение до bind().
  */
 
-import { spyLogger } from '../../logger/__fixtures__/spy.js';
 // Публичная поверхность пакета: `AfterUnitFn` удалён вместе с фазой `.after`
 // (change pipeline-drop-after). Если тип вернётся в экспорт — директива
 // станет неиспользованной и tsc сообщит об этом.
 // @ts-expect-error: AfterUnitFn больше не экспортируется из @nestlingjs/app
 import type { AfterUnitFn } from '../index.js';
-import { withIdentity, withPermissions } from '../middlewares/index.js';
-import { withRequestLogging } from '../middlewares/logging.js';
 import { withRequestId } from '../middlewares/meta.js';
 
 import { withTiming } from './__test-helpers__/middleware.js';
@@ -47,7 +44,22 @@ const mockAuthenticator = async (): Promise<User> => ({
   email: 'john.doe@example.com',
 });
 
-const mockLogger = spyLogger().logger;
+// `withIdentity`/`withPermissions` не публичный API (change
+// pipeline-stale-units): локальные версии с тем же типовым эффектом —
+// зависимость pre-юнита от поля, добавленного предыдущим.
+function withIdentity<TUser>(
+  authenticate: () => Promise<TUser> | TUser,
+): PreUnitFn<EmptyInput, { identity: TUser }> {
+  return async () => ({ identity: await authenticate() });
+}
+
+function withPermissions<TPermissions, TIdentity>(
+  getPermissions: (identity: TIdentity) => Promise<TPermissions> | TPermissions,
+): PreUnitFn<{ identity: TIdentity }, { permissions: TPermissions }> {
+  return async (ctx) => ({
+    permissions: await getPermissions(ctx.input.identity),
+  });
+}
 
 // ============================================================================
 // Утилиты для типовых проверок
@@ -114,7 +126,6 @@ describe('Pipeline v2 — накопление input pre-юнитами', () => 
   it('накапливает поля через цепочку pre-юнитов', () => {
     const pipeline = makePipeline()
       .pre(withTiming)
-      .pre(withRequestLogging(mockLogger))
       .pre(withIdentity<User>(mockAuthenticator))
       .pre(withPayload);
 

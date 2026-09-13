@@ -75,8 +75,7 @@ await app.assemble().run();
   `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
   `ResponseContext`, `Signal`, `SuccessResponseContext`, `Trace`,
   `TraceContext`, `traceparent`, `TransportClosingError`, `transportNameOf`,
-  `UndeclaredDoneError`, `UnitResolver`, `withIdentity`, `withPermissions`,
-  `withRequestId`, `withTracing`.
+  `UndeclaredDoneError`, `UnitResolver`, `withRequestId`, `withTracing`.
 - **Порты и шина** ([design](../../docs/design/operations.md)) —
   `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
   `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,

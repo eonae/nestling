@@ -141,7 +141,8 @@ SHALL оставаться экспортом своего модуля и SHALL
 
 #### Scenario: У имени появился читатель
 
-- **WHEN** новый пакет импортирует `withRequestLogging` из `@nestlingjs/app`
+- **WHEN** новый пакет импортирует `readSectionSnapshot` из
+  `@nestlingjs/app`
 - **THEN** имя возвращается в `src/index.ts` одной строкой, и это не ломающее
   изменение
 

@@ -1,12 +1,12 @@
 /**
  * Фикстура: pre-юнит требует поля, которого в накопленном input ещё нет
- * (`withPermissions` читает `identity`, а `withIdentity` не вызван).
+ * (`needsIdentity` читает `identity`, а её никто не добавил).
  */
 
-import { makePipeline, withPermissions } from '@nestlingjs/app';
+import { makePipeline } from '@nestlingjs/app';
 
-import type { User } from '../support/fixture-kit.js';
+import { needsIdentity } from '../support/fixture-kit.js';
 
 export const pipeline = makePipeline().pre(
-  withPermissions<string[], User>(() => ['read']),
+  needsIdentity({ permissions: ['read'] }),
 );

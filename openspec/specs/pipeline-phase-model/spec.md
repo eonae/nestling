@@ -22,7 +22,7 @@
 
 #### Scenario: Сборка слоя из фаз
 
-- **WHEN** объявлен `makePipeline().pre(withRequestId()).pre(withIdentity(auth)).catch(mapError).finally(audit)`
+- **WHEN** объявлен `makePipeline().pre(withRequestId()).pre(withTracing()).catch(mapError).finally(audit)`
 - **THEN** получается исполнимый пайплайн; тип накопленного input отражает
   добавки pre-юнитов в порядке объявления
 

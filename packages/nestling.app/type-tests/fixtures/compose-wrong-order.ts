@@ -7,22 +7,17 @@
  * не покрыто.
  */
 
-import {
-  compose,
-  makePipeline,
-  withIdentity,
-  withPermissions,
-} from '@nestlingjs/app';
+import { compose, makePipeline } from '@nestlingjs/app';
 
 import type { User } from '../support/fixture-kit.js';
-import { authenticate } from '../support/fixture-kit.js';
+import { addField, needsIdentity, testUser } from '../support/fixture-kit.js';
 
 const authed = makePipeline<{ requestId: string }>().pre(
-  withIdentity<User>(authenticate),
+  addField({ identity: testUser }),
 );
 
 const authorized = makePipeline<{ identity: User }>().pre(
-  withPermissions<string[], User>(() => ['read']),
+  needsIdentity({ permissions: ['read'] }),
 );
 
 export const composed = compose(authorized, authed);

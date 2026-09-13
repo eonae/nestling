@@ -1473,10 +1473,10 @@ function unhandledBody(
  * @example
  * ```typescript
  * const base = makePipeline().pre(withRequestId());
- * const authed = makePipeline<{ requestId: string }>()
- *   .pre(withIdentity(verifyToken))
- *   .catch(mapAuthError);
- * const pipeline = compose(base, authed);
+ * const withIdempotency = makePipeline<{ requestId: string }>()
+ *   .pre(withIdempotencyKey())
+ *   .catch(mapIdempotencyError);
+ * const pipeline = compose(base, withIdempotency);
  * ```
  */
 export function makePipeline<

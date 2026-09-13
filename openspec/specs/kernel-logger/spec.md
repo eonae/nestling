@@ -243,19 +243,6 @@ INIT.
 - **WHEN** `makeDispatch([Ping], { logger: spy.logger })`
 - **THEN** запись о незадекларированном отказе попадает в `spy.entries`
 
-### Requirement: `withRequestLogging` принимает `Logger` ядра
-
-`withRequestLogging(logger)` SHALL принимать `Logger` из `@nestlingjs/app`
-и писать `info` с сообщением о начале обработки и полями `transport` и
-`pattern`. Локального интерфейса `Logger` у юнита SHALL NOT существовать.
-
-#### Scenario: Запись о начале обработки
-
-- **WHEN** пайплайн с `.pre(withRequestLogging(spy.logger))` исполняет
-  `GET /users`
-- **THEN** в `spy.entries` есть `info` с `transport: 'http'` и
-  `pattern: 'GET /users'`
-
 ### Requirement: `spyLogger()` — записи значениями
 
 `@nestlingjs/testing` SHALL экспортировать `spyLogger()`, возвращающий
