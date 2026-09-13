@@ -1,6 +1,6 @@
 # 8. Убедиться, что работает, без запуска сервера
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/testing.md](../design/testing.md). Почему так:
 > запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestlingjs/testing`)».
@@ -10,7 +10,7 @@
 юнит-тест хендлера, в котором нет ни контейнера, ни приложения, ни базы.
 
 ```typescript
-// examples/users-service/src/app.ts (фрагмент)
+// src/app.ts (фрагмент)
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
@@ -24,7 +24,7 @@ export const app = makeApp({
 состава в тест не копируется: `assembleTest` принимает саму декларацию.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 import { app } from './app.js';
 
 /** Конфиг теста: объект вместо `process.env` */
@@ -69,7 +69,7 @@ export default {
 ## Вызов через полный пайплайн
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -102,7 +102,7 @@ payload. `unwrap` возвращает значение успешного от�
 код и детали, а `status` равен категории кода:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
@@ -113,7 +113,7 @@ expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
 ## Подмена узлов графа
 
 ```typescript
-// examples/users-service/src/testing.ts
+// src/testing.ts
 export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
   const rows: User[] = seed.map((user) => ({ ...user }));
 
@@ -130,7 +130,7 @@ export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
 же коммите.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -158,7 +158,7 @@ DI-токена, которого нет в графе, останавливае
 догадкой.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
   await using testApp = await assembleTest(app, {
     config: vars({
@@ -181,7 +181,7 @@ it('читает размер страницы из конфига', async () =>
 ## Юнит-тест хендлера
 
 ```typescript
-// шаг главы 8; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 describe('CreateUserHandler', () => {
   it('создаёт пользователя и отвечает статусом created', async () => {
     const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
@@ -205,7 +205,7 @@ describe('CreateUserHandler', () => {
 пайплайн.
 
 ```bash
-yarn workspace @examples/users-service test
+yarn test
 ```
 
 Сервис собран и покрыт тестами. Следующая часть готовит его к

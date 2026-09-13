@@ -28,11 +28,10 @@ The tasks that come up outside this order are moved into
 read when needed. The list of what the framework checks before the first
 request lies in a separate reference, [guarantees.md](../guarantees.md).
 
-The code of all the chapters lies in `examples/*`. Part 1 builds
-`users-service`, part 2 continues it in `app-with-http` and `split-nats`.
-A snippet in a chapter starts with the path to the file of the example and
-matches it. A snippet that shows an intermediate step is marked with the
-comment «chapter step»; the final version of the file is named next to it.
+The code of the chapters is written for the text: a snippet starts with a
+path inside your project and reads on the spot. The applications assembled
+in full lie in [`examples/`](../../../examples/) — a chapter links to them
+where that helps, but it does not retell their code.
 
 ## Concept map
 
@@ -83,32 +82,32 @@ introduces are not in the map — the map describes the reading order.
 
 ## Part 1. The service
 
-| Chapter | Task | Example |
-|---|---|---|
-| [1. Bring up a service that answers a request](./01-first-service.md) | an endpoint, `makeApp`, the `http()` transport | `users-service` |
-| [2. What an application consists of](./02-composition.md) | the three root shapes, providers, modules, features, switches, the assembly argument | `users-service` |
-| [3. Accept data and let no rubbish through](./03-input.md) | the `input` schema, path and query, `bind`, the `400` response | `users-service` |
-| [4. Tell the client what went wrong](./04-errors.md) | `makeFail`, a code with a category, `errors:`, `Ok.created` | `users-service` |
-| [5. A handler as a class](./05-handler-class.md) | the `handler` field, `@Handler`, a unit test through `new` | `users-service` |
-| [6. Where the handler gets the repository from](./06-repository.md) | the DI token of an interface, `providers`, class roles, resources, value providers | `users-service` |
-| [7. The port and the database address from the environment](./07-config.md) | `makeConfig`, keys, `secret`, fail-fast | `users-service` |
-| [8. Make sure it works without starting a server](./08-testing.md) | `assembleTest(app, …)`, `overrides`, `vars`, a unit test of a handler | `users-service` |
-| [9. See every request in the log](./09-logging.md) | the pipeline `.pre` and `.finally`, a layer, `compose`, `Ctx(RequestId)` | `users-service` |
-| [10. Let only your own through](./10-auth.md) | a pre-unit with a failure, the context of a layer, the `hasLayer` and `hasVar` policies, `detached`, `HttpResponse` and transport units | `users-service` |
-| [11. Write to the database in the request transaction](./11-database.md) | `drizzlePg`, a transaction in a context variable, drizzle-kit migrations | `users-service` |
-| [12. Files and large exports](./12-files-and-streams.md) | `multipart`, `upload`, `stream(T)` on the input and on the output | `users-service` |
-| [13. Give the frontend the documentation and the client](./13-openapi-and-client.md) | `openapi()`, `doc:`, an operation with `http:`, `makeClient` | `users-service` |
+| Chapter | Task |
+|---|---|
+| [1. Bring up a service that answers a request](./01-first-service.md) | an endpoint, `makeApp`, the `http()` transport |
+| [2. What an application consists of](./02-composition.md) | the three root shapes, providers, modules, features, switches, the assembly argument |
+| [3. Accept data and let no rubbish through](./03-input.md) | the `input` schema, path and query, `bind`, the `400` response |
+| [4. Tell the client what went wrong](./04-errors.md) | `makeFail`, a code with a category, `errors:`, `Ok.created` |
+| [5. A handler as a class](./05-handler-class.md) | the `handler` field, `@Handler`, a unit test through `new` |
+| [6. Where the handler gets the repository from](./06-repository.md) | the DI token of an interface, `providers`, class roles, resources, value providers |
+| [7. The port and the database address from the environment](./07-config.md) | `makeConfig`, keys, `secret`, fail-fast |
+| [8. Make sure it works without starting a server](./08-testing.md) | `assembleTest(app, …)`, `overrides`, `vars`, a unit test of a handler |
+| [9. See every request in the log](./09-logging.md) | the pipeline `.pre` and `.finally`, a layer, `compose`, `Ctx(RequestId)` |
+| [10. Let only your own through](./10-auth.md) | a pre-unit with a failure, the context of a layer, the `hasLayer` and `hasVar` policies, `detached`, `HttpResponse` and transport units |
+| [11. Write to the database in the request transaction](./11-database.md) | `drizzlePg`, a transaction in a context variable, drizzle-kit migrations |
+| [12. Files and large exports](./12-files-and-streams.md) | `multipart`, `upload`, `stream(T)` on the input and on the output |
+| [13. Give the frontend the documentation and the client](./13-openapi-and-client.md) | `openapi()`, `doc:`, an operation with `http:`, `makeClient` |
 
 ## Part 2. The application
 
-| Chapter | Task | Example |
-|---|---|---|
-| [14. Separate the second area](./14-features.md) | the feature boundary, the `request` operation, `implement`, `.caller`, plugins, modules | `app-with-http` |
-| [15. Tell the neighbours what happened](./15-events.md) | `event`, `command`, `subscriber`, the idempotency key | `app-with-http` |
-| [16. Do not lose an event when the process falls](./16-durable-events.md) | `outboxed(Op)`, the relay, the inbox mark, the early success of a subscriber | `users-service` |
-| [17. A live feed for the client](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` | `app-with-http` |
-| [18. Test a feature without its neighbours](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` | `app-with-http`, `split-nats` |
-| [19. Start only a part of the features](./19-select.md) | `assemble(args)`, `includeDeps`, composition switches, `load()` before assembly, `check()` | `app-with-http` |
-| [20. Spread the features across processes](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` | `split-nats` |
-| [21. Do not break the neighbours when an operation changes](./21-compatibility.md) | the version in the name, the snapshot of operations, `diffOperations` | `app-with-http` |
-| [22. Count requests and calls between processes](./22-metrics.md) | `Metrics`, the `metrics` option, `Metrics$.auto`, kernel metrics, the adapter and `/metrics` | `split-nats` |
+| Chapter | Task |
+|---|---|
+| [14. Separate the second area](./14-features.md) | the feature boundary, the `request` operation, `implement`, `.caller`, plugins, modules |
+| [15. Tell the neighbours what happened](./15-events.md) | `event`, `command`, `subscriber`, the idempotency key |
+| [16. Do not lose an event when the process falls](./16-durable-events.md) | `outboxed(Op)`, the relay, the inbox mark, the early success of a subscriber |
+| [17. A live feed for the client](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` |
+| [18. Test a feature without its neighbours](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` |
+| [19. Start only a part of the features](./19-select.md) | `assemble(args)`, `includeDeps`, composition switches, `load()` before assembly, `check()` |
+| [20. Spread the features across processes](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
+| [21. Do not break the neighbours when an operation changes](./21-compatibility.md) | the version in the name, the snapshot of operations, `diffOperations` |
+| [22. Count requests and calls between processes](./22-metrics.md) | `Metrics`, the `metrics` option, `Metrics$.auto`, kernel metrics, the adapter and `/metrics` |

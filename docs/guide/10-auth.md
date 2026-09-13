@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -15,7 +15,7 @@
 endpoint'е должно быть нельзя.
 
 ```typescript
-// examples/users-service/src/errors.ts
+// src/errors.ts
 import { makeFail } from '@nestlingjs/operations';
 
 /** Отказ проверки Bearer-токена. Его возвращает pre-юнит слоя `authed`. */
@@ -28,7 +28,7 @@ export const Unauthorized = makeFail('unauthorized', {
 Статус `unauthorized` транспорт переводит в HTTP-код `401`.
 
 ```typescript
-// examples/users-service/src/auth.ts
+// src/auth.ts
 import type { Config, EmptyInput, ExtendableContext } from '@nestlingjs/app';
 import { compose, makePipeline } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
@@ -99,7 +99,7 @@ Pre-юниты внешнего слоя выполняются раньше, п
 ## Подключение слоя и политики
 
 ```typescript
-// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
@@ -170,7 +170,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 объявляет политики сборки:
 
 ```typescript
-// шаг главы 9; итоговая версия: examples/users-service/src/app.ts
+// src/app.ts
 import { everyEndpoint } from '@nestlingjs/app';
 import { http, HttpTransport$ } from '@nestlingjs/transport.http';
 
@@ -231,7 +231,7 @@ Fix each handle by composing the required layer into its 'pipeline:', or opt out
 Присутствие переменной требует второй предикат:
 
 ```typescript
-// examples/users-service/src/app.ts
+// src/app.ts
 everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
   RequestId,
   'requestId',
@@ -262,7 +262,7 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 каждый опрос. Endpoint выводится из-под политик полем `detached`:
 
 ```typescript
-// examples/users-service/src/ops.plugin.ts
+// src/ops.plugin.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
@@ -291,7 +291,7 @@ true` нет. Причина видна в диффе, печатается пр
 про тот же инвариант прямо в редакторе:
 
 ```javascript
-// examples/users-service/eslint.config.js
+// eslint.config.js
 export default [
   ...createEslintConfig(import.meta.url),
   {
@@ -317,7 +317,7 @@ export default [
 HTTP. Их задаёт форма ответа своего транспорта:
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/login.endpoint.ts
+// src/users/endpoints/login.endpoint.ts
 @Handler([UsersRepository$])
 export class LoginHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -398,7 +398,7 @@ const httpBase = makePipeline<HttpStartContext>()
 ## Проверка
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
   const repo = inMemoryUsersRepo([alice]);
   await using testApp = await assembleTest(app, {
@@ -442,7 +442,7 @@ it('создаёт пользователя по Bearer-токену из кон
 не копию её словаря.
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl -X POST http://localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'

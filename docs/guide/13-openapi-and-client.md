@@ -1,6 +1,6 @@
 # 13. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `users-service`, `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -14,7 +14,7 @@
 отказов в декларациях.
 
 ```typescript
-// examples/users-service/src/app.ts
+// src/app.ts
 import { openapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/schema.zod';
 
@@ -74,7 +74,7 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 незачем: документ строится из декларации чистой функцией.
 
 ```typescript
-// examples/app-with-http/src/openapi.ts
+// src/openapi.ts
 import { writeFileSync } from 'node:fs';
 
 import { app, openapiOptions } from './app.js';
@@ -100,14 +100,14 @@ writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
 
 Аргумент сборки нужен ему по той же причине, по какой нужен `assemble`:
 без аргумента документ описывал бы все объявленные фичи, а процесс
-поднимал бы выбранные. `app-with-http` объявляет три фичи и переключатель
-`docs`, и разница видна сразу:
+поднимал бы выбранные. Приложение с двумя фичами и переключателем `docs`
+показывает разницу сразу:
 
 ```bash
-yarn workspace @examples/app-with-http openapi
+yarn openapi
 # …/openapi.json: 11 path(s)
 
-yarn workspace @examples/app-with-http openapi users
+yarn openapi users
 # …/openapi.json: 8 path(s) — три пути `/ops/subscriptions…` в документ не попали
 ```
 
@@ -128,7 +128,7 @@ JSON Schema описывает данные, но не саму операцию
 статус успеха объявляются в слоте `doc:`:
 
 ```typescript
-// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
@@ -157,7 +157,7 @@ endpoint реализует операцию, иначе из метода и п
 Служебный endpoint убирается из документа полем `hidden` с причиной:
 
 ```typescript
-// examples/users-service/src/ops.plugin.ts
+// src/ops.plugin.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
@@ -183,7 +183,7 @@ endpoint'ов плагин печатает при старте:
 зависимости. Эти части выносятся из декларации в операцию:
 
 ```typescript
-// examples/users-service/src/api/operations.ts
+// src/api/operations.ts
 import { body, makeRequest, query } from '@nestlingjs/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -228,7 +228,7 @@ export const CreateUser = makeRequest({
 Реализация подключает операцию вторым конструктором транспорта:
 
 ```typescript
-// examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 @Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -257,7 +257,7 @@ export const GetUser = httpEndpoint.implement(GetUserOperation, {
 ## Клиент
 
 ```typescript
-// examples/users-service/src/api/client.ts
+// src/api/client.ts
 import { makeClient } from '@nestlingjs/client';
 
 /** Имена методов задаёт потребитель: ключи объекта */
@@ -318,8 +318,8 @@ await main();
 Запустите сервер и скрипт:
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
-API_TOKEN=secret yarn workspace @examples/users-service client
+API_TOKEN=secret yarn start:dev
+API_TOKEN=secret yarn client
 # created 3
 # fetched Carol
 ```

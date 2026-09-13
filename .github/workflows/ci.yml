@@ -53,11 +53,18 @@ jobs:
     env:
       # Тесты гейтятся своей переменной: боевой ключ `DATABASE_URL` в
       # окружении прогона ломал бы спеки, которые проверяют поведение
-      # конфига при отсутствующем ключе
+      # конфига при отсутствующем ключе. Баз две: таблица пользователей
+      # есть у обоих примеров, а миграции у них разные
       TEST_DATABASE_URL: postgresql://nestling:nestling@localhost:5432/nestling
+      MODULAR_TEST_DATABASE_URL: postgresql://nestling:nestling@localhost:5432/modular
 
     steps:
+      # Полная история: плашка главы называет коммит, с которым текст
+      # сверяли, и `docs:audit` разрешает этот хэш в репозитории. В клоне
+      # глубиной один коммит разрешать нечего
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Yarn берётся из репозитория (`yarnPath` в `.yarnrc.yml`), запустить
       # его умеет corepack — на runner'е предустановлен yarn другой версии
@@ -70,10 +77,16 @@ jobs:
 
       - run: yarn install --immutable
 
-      # Схема примера накатывается до тестов: спеки читают ту же базу
-      - run: yarn workspace @examples/users-service run db:migrate
+      # Схемы примеров накатываются до тестов: спеки читают те же базы
+      - run: yarn workspace @examples/microservice run db:migrate
         env:
           DATABASE_URL: postgresql://nestling:nestling@localhost:5432/nestling
+
+      - run: psql "$TEST_DATABASE_URL" -c 'create database modular'
+
+      - run: yarn workspace @examples/modular-app run db:migrate
+        env:
+          DATABASE_URL: ${{ env.MODULAR_TEST_DATABASE_URL }}
 
       # build, typecheck, lint, test, type-budget и smoke — по всем пакетам
       - run: yarn verify

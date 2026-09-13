@@ -91,9 +91,8 @@ for (const f of mdFiles(join(EN, 'design')).filter((f) => f !== 'README.md')) {
 
 // ── 2. Плашка «сверено с кодом» в главах и рецептах + её свежесть ──────────
 // Плашку несёт каждый .md обеих папок жанра, кроме их оглавлений
-// README.md. Файлов-исключений по имени нет: приложений с буквой не
-// существует, а рецепт без примера-источника не заводится. Плашка может
-// называть несколько примеров через запятую.
+// README.md. Плашка называет не пример, а точку сверки: короткий хэш
+// коммита, на котором текст сверяли с кодом.
 
 const GUIDE = join(DOCS, 'guide');
 const RECIPES = join(DOCS, 'recipes');
@@ -103,20 +102,43 @@ const recipeFiles = mdFiles(RECIPES).filter((f) => f !== 'README.md');
 /** Форма плашки на каждом языке: русская «сверено с кодом», английская «verified against» */
 const PLATE = {
   ru: {
-    re: /сверено с кодом\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i,
-    shape: 'сверено с кодом `<пример>` (YYYY-MM-DD)',
+    re: /сверено с кодом\s+`([0-9a-f]{7,40})`/i,
+    shape: 'сверено с кодом `<хэш>`',
   },
   en: {
-    re: /verified against\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i,
-    shape: 'verified against `<example>` (YYYY-MM-DD)',
+    re: /verified against\s+`([0-9a-f]{7,40})`/i,
+    shape: 'verified against `<hash>`',
   },
 };
 
-/** Дата плашки по языку: ключ — «жанр/файл», общий для пары */
-const plateDates = { ru: new Map(), en: new Map() };
+/** Код глав описывает фреймворк: свежесть считается по исходникам пакетов */
+const WATCHED = 'packages/*/src/*';
 
 /**
- * Проверяет плашки одного языка и свежесть примеров, на которые они ссылаются.
+ * Мелкий клон: истории в нём нет, и хэш плашки в ней не разрешается.
+ *
+ * ERROR на каждую главу в таком клоне ничего не сообщает о тексте,
+ * поэтому проверки свежести пропускаются целиком — с одним WARN о причине.
+ */
+const shallow = git('rev-parse', '--is-shallow-repository') === 'true';
+if (shallow) {
+  add('WARN', 'guide-plate', DOCS,
+    'мелкий клон: хэши плашек не разрешаются, проверки свежести пропущены');
+}
+
+/** Разрешает короткий хэш в полный; пустая строка — коммита нет */
+const resolveHash = (hash) => git('rev-parse', '--verify', `${hash}^{commit}`);
+
+/** Сколько коммитов легло в код пакетов после этой точки сверки */
+const commitsSince = (hash) =>
+  Number(git('rev-list', '--count', `${hash}..HEAD`, '--', WATCHED) || '0');
+
+/** Хэш плашки по языку: ключ — «жанр/файл», общий для пары */
+const plateHashes = { ru: new Map(), en: new Map() };
+
+/**
+ * Проверяет плашки одного языка и свежесть кода пакетов после их точки
+ * сверки.
  *
  * Файл, которого на этом языке нет, пропускается: его отсутствие — забота
  * инварианта `lang-parity`, и второе сообщение о том же было бы шумом.
@@ -132,31 +154,23 @@ function checkPlates(entries, lang) {
         `нет плашки «${PLATE[lang].shape}» в первых 12 строках`);
       continue;
     }
-    const [, examples, checkedAt] = m;
-    plateDates[lang].set(`${genre}/${f}`, checkedAt);
 
-    for (const example of [...examples.matchAll(/`([^`]+)`/g)].map((x) => x[1])) {
-      // Обычно текст сверен с примером; рецепт про сателлит — с пакетом
-      const pkg = [`examples/${example}`, `packages/${example}`]
-        .find((p) => existsSync(join(ROOT, p)));
-      if (!pkg) {
-        add('ERROR', 'guide-example', file,
-          `нет ни examples/${example}, ни packages/${example}`);
-        continue;
-      }
-      // Манифест не в счёт: `lerna version` меняет в нём одно поле `version`,
-      // и без этого исключения каждый релиз помечал бы устаревшими все главы
-      // сразу. Сниппеты сверяются с кодом примера, а не с его манифестом
-      const code = [pkg, `:(exclude)${pkg}/package.json`];
-      const lastCommit = git('log', '-1', '--format=%cs', '--', ...code);
-      if (lastCommit && lastCommit > checkedAt) {
-        add('WARN', 'guide-stale', file,
-          `пример ${example} менялся ${lastCommit}, глава сверена ${checkedAt} — нужна пересверка`);
-      }
-      if (git('status', '--porcelain', '--', ...code)) {
-        add('WARN', 'guide-stale', file,
-          `в ${pkg} есть незакоммиченные изменения — после них пересверь главу`);
-      }
+    const [, hash] = m;
+    if (shallow) continue;
+
+    const full = resolveHash(hash);
+    if (!full) {
+      add('ERROR', 'guide-plate', file,
+        `хэш ${hash} не разрешается в коммит репозитория`);
+      continue;
+    }
+    plateHashes[lang].set(`${genre}/${f}`, full);
+
+    const behind = commitsSince(full);
+    if (behind > 0) {
+      add('WARN', 'guide-stale', file,
+        `после ${hash} в ${WATCHED} легло ${behind} коммит(ов) — нужна пересверка ` +
+        `(git log ${hash}..HEAD -- '${WATCHED}')`);
     }
   }
 }
@@ -171,13 +185,29 @@ checkPlates(chapterEntries(DOCS), 'ru');
 checkPlates(chapterEntries(EN), 'en');
 
 // Перевод отстал от правки — предупреждение: главу догоняют тем же
-// change'ом, но правило, которое ломает сборку на дате, останавливало бы
-// работу на ровном месте.
-for (const [key, checkedAt] of plateDates.en) {
-  const original = plateDates.ru.get(key);
-  if (original && checkedAt < original) {
-    add('WARN', 'lang-stale', join(EN, key),
-      `перевод сверен ${checkedAt}, оригинал ${original} — перевод отстал от правки`);
+// change'ом, но правило, которое ломает сборку, останавливало бы работу
+// на ровном месте. Отстал он тогда, когда его точка сверки — строгий
+// предок точки оригинала.
+if (!shallow) {
+  for (const [key, translated] of plateHashes.en) {
+    const original = plateHashes.ru.get(key);
+    if (!original || translated === original) continue;
+
+    const isAncestor = (() => {
+      try {
+        execFileSync('git', ['merge-base', '--is-ancestor', translated, original],
+          { cwd: ROOT, stdio: 'ignore' });
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+
+    if (isAncestor) {
+      add('WARN', 'lang-stale', join(EN, key),
+        `перевод сверен с ${translated.slice(0, 8)}, оригинал с ${original.slice(0, 8)} — ` +
+        'перевод отстал от правки');
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 # 16. Do not lose an event when the process falls
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/persistence.md](../design/persistence.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-07] Транзакционный outbox: точка врезки, предпосылка транзакции и результат замера границы`
@@ -34,14 +34,14 @@ The outbox store is declared on the same connection, and the
 DI token of the store:
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const outboxStore = pgOutboxStore(db);
 
-// examples/users-service/src/app.ts
+// src/app.ts
 export const appOutbox = outbox({
   transaction: db.tx,
   store: outboxStore.token,
-  operations: [UserCreated],
+  operations: [UserRegistered],
 });
 ```
 
@@ -53,12 +53,12 @@ call site of `emit` names it, and more on that below.
 In the handler one line changes: the one that names the dependency:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.ts
-@Handler([UsersRepository$, outboxed(UserCreated)])
+// src/features/users/endpoints/create-user.endpoint.ts
+@Handler([UsersRepository$, outboxed(UserRegistered)])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly userCreated: OutboxEmitter<typeof UserCreated>,
+    private readonly userRegistered: OutboxEmitter<typeof UserRegistered>,
   ) {}
 
   async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
@@ -69,7 +69,7 @@ export class CreateUserHandler {
     // the process crashes right after the commit, the event still
     // goes out. The partition is the user's identifier: their events
     // are delivered in order
-    await this.userCreated.emit(
+    await this.userRegistered.emit(
       { id: user.id, name: user.name, email: user.email },
       { partitionKey: user.id },
     );
@@ -79,10 +79,10 @@ export class CreateUserHandler {
 }
 ```
 
-`outboxed(UserCreated)` replaces `UserCreated.emitter`. The value is
-`OutboxEmitter<typeof UserCreated>`: the kernel's emitter whose `meta`
+`outboxed(UserRegistered)` replaces `UserRegistered.emitter`. The value is
+`OutboxEmitter<typeof UserRegistered>`: the kernel's emitter whose `meta`
 dictionary gains the record's partition. It is assignable to
-`Emitter<typeof UserCreated>`, so a handler that does not need the
+`Emitter<typeof UserRegistered>`, so a handler that does not need the
 partition declares the dependency by the old type. The partition is
 the unit of order: the events of one user are delivered in the order
 they were created, and there is no order between different users. The
@@ -91,7 +91,7 @@ record. What `emit` does changes too: it writes one row into the store
 with the caller's transaction, and it sends nothing to the bus during
 the request.
 
-The kernel's DI token stays in place: `UserCreated.emitter` still sends
+The kernel's DI token stays in place: `UserRegistered.emitter` still sends
 at once. A send from `@OnStart` or from a background job, where there
 is no transaction, is written with exactly this emitter. The
 transactional `emit` outside a transaction neither stays silent nor
@@ -140,7 +140,7 @@ package provides it. Its precondition is the same as the outbox's: the
 application opens the transaction, and the store arrives as a DI token.
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const inboxStore = pgInboxStore(db);
 
 export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
@@ -154,8 +154,8 @@ The subscriber composes the inbox layer **inside** the transaction
 layer:
 
 ```typescript
-// examples/users-service/src/users/endpoints/welcome-email.endpoint.ts
-export const WelcomeEmail = implement(UserCreated, {
+// src/features/notifications/welcome-email.endpoint.ts
+export const WelcomeEmail = implement(UserRegistered, {
   subscriber: 'welcome-email',
   pipeline: compose(subscribed, appInbox.layer),
   handler: WelcomeEmailHandler,
@@ -166,7 +166,7 @@ The layer does two things. Its first unit puts the idempotency key
 from the message envelope into the context, and the handler reads it
 as the familiar `meta.idempotencyKey`. The second calls the store: the
 mark is set by the pair "the endpoint's pattern and the key". For an
-event's subscriber the pattern looks like `users.created@welcome-email`,
+event's subscriber the pattern looks like `users.registered@welcome-email`,
 so two subscribers of one event deduplicate independently.
 
 If the mark already existed, the unit returns `done()`, an early
@@ -223,7 +223,7 @@ assembly stops after the WIRE phase and does not run `@OnStart`
 ([chapter 8](./08-testing.md)), so the test makes the pass itself:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('кладёт событие в outbox и доставляет его проходом relay', async () => {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {
@@ -285,7 +285,7 @@ replicas of the sweeper would compete for one table.
 
 ```bash
 OUTBOX_RELAY=false INBOX_SWEEP=false \
-  yarn workspace @examples/users-service start:dev
+  yarn start:dev
 ```
 
 The delivery delay shows through the `outbox.published` operation: the
@@ -302,7 +302,7 @@ published record back to the `pending` state, the way a relay that
 crashed between the publish and the mark would.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('повторная публикация записи не вызывает хендлер второй раз', async () => {
   // … creating the user and the first relay pass
   const connection = testApp.get(db.connection);

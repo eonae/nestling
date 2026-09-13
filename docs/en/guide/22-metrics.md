@@ -1,6 +1,6 @@
 # 22. Count requests and calls between processes
 
-> Guide to the current API; verified against `split-nats` (2026-09-13).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/container.md](../design/container.md), the
 > "Kernel metrics" section, [design/pipeline.md](../design/pipeline.md) §2
 > and [design/operations.md](../design/operations.md) §2.3. Why: entry
@@ -45,12 +45,12 @@ that writes to `stderr` until a library is connected.
 The `metrics` option of the root sets the implementation:
 
 ```typescript
-// examples/split-nats/src/app.ts
+// src/app.ts
 export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
   return makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [metricsPlugin(exporter)],
     transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
@@ -119,11 +119,11 @@ scope name needs `Metrics$('orders')`.
 ## The adapter and the `/metrics` endpoint
 
 The kernel does not know where the numbers go: it has no export format.
-The `split-nats` example writes the adapter itself — it is what checks
-that the public boundary of the kernel is enough.
+The application writes the adapter itself — it is what checks that the
+public boundary of the kernel is enough.
 
 ```typescript
-// examples/split-nats/src/metrics.ts
+// src/metrics.ts
 export interface MetricsExporter extends Metrics {
   render(): string;
 }
@@ -148,7 +148,7 @@ becomes the root, and as a provider of the plugin it becomes the node of
 the graph that the `/metrics` endpoint reads.
 
 ```typescript
-// examples/split-nats/src/metrics.ts (fragment)
+// src/metrics.ts (fragment)
 export function metricsPlugin(exporter: MetricsExporter): Plugin {
   @Handler([MetricsExporter$])
   class MetricsHandler {
@@ -160,7 +160,7 @@ export function metricsPlugin(exporter: MetricsExporter): Plugin {
   }
 
   return makePlugin({
-    name: 'split-nats-metrics',
+    name: 'metrics',
     providers: [valueProvider(MetricsExporter$, exporter)],
     endpoints: [
       httpEndpoint.get('/metrics', {
@@ -185,13 +185,13 @@ on its own — the interface of the kernel does not stand in the way.
 ## Checking
 
 ```typescript
-// examples/split-nats/src/metrics.spec.ts
+// src/metrics.spec.ts
 it('обработка операции попадает в экспорт счётчиком и длительностью', async () => {
   const exporter = prometheusExporter();
   const plugin = metricsPlugin(exporter);
 
   const observed = makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [plugin],
     transports: [http()],
     metrics: exporter,

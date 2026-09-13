@@ -1,6 +1,6 @@
 # 14. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -9,71 +9,67 @@
 > контракты» и «[2026-07-08] Kernel/user space; конфиг как token-families;
 > плагины».
 
-Регистрацию пользователей ограничивает квота, и её ведёт другая команда.
-Код квот должен жить отдельно: у него свои сервисы, свои тесты и свой
-владелец. Фича пользователей не должна инжектить сервис квот, потому что
-однажды квоты уедут в отдельный процесс, и код регистрации при этом не
-должен измениться. Слой наблюдаемости и проверка DI-токена при этом
+Новому пользователю уходит письмо, и рассылку ведёт другая команда. Код
+рассылки должен жить отдельно: у него свои сервисы, свои тесты и свой
+владелец. Фича пользователей не должна инжектить сервис рассылки, потому
+что однажды рассылка переедет в отдельный процесс, и код регистрации при
+этом не должен измениться. Слой наблюдаемости и проверка Bearer-токена
 остаются общими для обеих областей.
 
-Сервис из части 1 продолжается в `app-with-http`. Файлы
-переложены по областям: фичи лежат в `src/features/<имя>/`, общая
-инфраструктура в `src/plugins/<имя>/`, декларация приложения в `src/app.ts`.
-Код endpoint'ов, хранилища и конфига тот же, что в
-`users-service`.
+Сервис из части 1 растёт в приложение. Файлы перекладываются по областям:
+фичи в `src/features/<имя>/`, общая инфраструктура в
+`src/plugins/<имя>/`, декларация приложения в `src/app.ts`. Код
+endpoint'ов, хранилища и конфига не меняется.
 
 ## Вторая фича
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quota.service.ts
+// src/features/notifications/suppressions.ts
 @Component([])
-export class QuotaService {
-  /** Лимит пользователей; в примере намеренно маленький */
-  readonly limit = 5;
+export class Suppressions {
+  readonly #blocked = new Map<string, string>();
 
-  #used = 0;
+  /** Причина отказа или `undefined`, если адрес годен */
+  reasonFor(email: string): string | undefined {
+    return this.#blocked.get(email);
+  }
 
-  /** Занимает место или отвечает «мест нет» */
-  claim(): { ok: true; remaining: number } | { ok: false } {
-    if (this.#used >= this.limit) {
-      return { ok: false };
-    }
-
-    this.#used += 1;
-
-    return { ok: true, remaining: this.limit - this.#used };
+  /** Убирает адрес из рассылок */
+  suppress(email: string, reason: string): void {
+    this.#blocked.set(email, reason);
   }
 }
 ```
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quotas.feature.ts
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  providers: [QuotaService, SignupJournal],
-  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
+// src/features/notifications/notifications.feature.ts
+export const NotificationsFeature = makeFeature({
+  name: 'notifications',
+  providers: [Suppressions, Mailer],
+  endpoints: [CheckAddressImpl, WelcomeEmail, ForgetAddressImpl],
 });
 ```
 
-Фича `quotas` объявлена так же, как `users`: имя, провайдеры и
-endpoint'ы. `QuotaService` не экспортируется наружу и в `deps` других фич
-не попадает.
+Фича `notifications` объявлена так же, как `users`: имя, провайдеры и
+endpoint'ы. `Suppressions` — список адресов, на которые письма не уходят;
+знание принадлежит тому, кто эти письма шлёт. Наружу класс не
+экспортируется и в `deps` других фич не попадает.
 
 ## Граница фич
 
 Фича не может зависеть от провайдера другой фичи. Если в фиче `users`
-объявить провайдер `UsersReport` с `@Component([QuotaService])`, сборка
+объявить провайдер `UsersReport` с `@Component([Suppressions])`, сборка
 остановится на фазе ASSEMBLE:
 
 ```
 1 edge(s) cross a feature boundary:
 
-  - Feature 'users' depends on feature 'quotas' by DI token: 'UsersReport'
-    injects 'QuotaService'. Features are connected by operations only — a
+  - Feature 'users' depends on feature 'notifications' by DI token: 'UsersReport'
+    injects 'Suppressions'. Features are connected by operations only — a
     DI token does not survive a process boundary, so this edge breaks the
     moment the two features are deployed apart. Declare the call as an
     operation (makeRequest / makeCommand), inject its '.caller' and
-    implement it in 'quotas'.
+    implement it in 'notifications'.
 ```
 
 Проверка выполняется на собранном графе и различает три вида рёбер.
@@ -91,7 +87,7 @@ endpoint'ы. `QuotaService` не экспортируется наружу и в
 ## Операция вместо DI-токена
 
 ```typescript
-// examples/app-with-http/src/operations.ts
+// src/operations.ts
 import {
   makeFail,
   makeCommand,
@@ -100,21 +96,21 @@ import {
 } from '@nestlingjs/operations';
 import { z } from 'zod';
 
-/** Отказ «квота исчерпана». По сети приходит кодом и восстанавливается в `Fail` */
-export const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', {
-  details: z.object({ limit: z.number() }),
-  message: (d) => `User quota of ${d.limit} is exhausted`,
+/** Отказ «адрес отвергнут». По сети приходит кодом и восстанавливается в `Fail` */
+export const AddressRejected = makeFail('conflict:address_rejected', {
+  details: z.object({ email: z.string(), reason: z.string() }),
+  message: (d) => `Address ${d.email} is not deliverable: ${d.reason}`,
 });
 
-export const ClaimQuotaInput = z.object({ email: z.string() });
+export const CheckAddressInput = z.object({ email: z.string() });
 
-export type ClaimQuotaInput = z.infer<typeof ClaimQuotaInput>;
+export type CheckAddressInput = z.infer<typeof CheckAddressInput>;
 
-export const ClaimQuota = makeRequest({
-  name: 'quotas.claim',
-  input: ClaimQuotaInput,
-  output: z.object({ remaining: z.number() }),
-  errors: [QuotaExceeded],
+export const CheckAddress = makeRequest({
+  name: 'notifications.check-address',
+  input: CheckAddressInput,
+  output: z.object({ deliverable: z.boolean() }),
+  errors: [AddressRejected],
 });
 // …
 ```
@@ -131,30 +127,30 @@ export const ClaimQuota = makeRequest({
 ## Реализация в фиче-владельце
 
 ```typescript
-// examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts
-@Handler([QuotaService, Logger$.auto])
-class ClaimQuotaHandler {
+// src/features/notifications/check-address.endpoint.ts
+@Handler([Suppressions, Logger$.auto])
+class CheckAddressHandler {
   constructor(
-    private readonly quotas: QuotaService,
+    private readonly suppressions: Suppressions,
     private readonly logger: Logger,
   ) {}
 
-  async handle(payload: ClaimQuotaInput) {
-    const claimed = this.quotas.claim();
+  async handle(payload: CheckAddressInput) {
+    const reason = this.suppressions.reasonFor(payload.email);
 
-    if (!claimed.ok) {
-      this.logger.info('quota exhausted', { email: payload.email });
+    if (reason !== undefined) {
+      this.logger.info('address rejected', { email: payload.email });
 
-      // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
-      return QuotaExceeded({ limit: this.quotas.limit });
+      // Вызывающий получит `Fail` и узнает его через `AddressRejected.is()`
+      return AddressRejected({ email: payload.email, reason });
     }
 
-    return { remaining: claimed.remaining };
+    return { deliverable: true };
   }
 }
 
-export const ClaimQuotaImpl = implement(ClaimQuota, {
-  handler: ClaimQuotaHandler,
+export const CheckAddressImpl = implement(CheckAddress, {
+  handler: CheckAddressHandler,
 });
 ```
 
@@ -174,39 +170,39 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 ## Вызов через вызыватель
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
-const QUOTA_CALL_BUDGET_MS = 500;
+// src/features/users/endpoints/create-user.endpoint.ts
+const CHECK_BUDGET_MS = 500;
 
 @Handler([
   UsersRepository$,
-  ClaimQuota.caller,
+  CheckAddress.caller,
   // …
 ])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly addresses: Port<typeof CheckAddress>,
     // …
   ) {}
 
   async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
+  ): Output<User, typeof EmailTaken | typeof AddressRejected> {
     if (await this.users.byEmail(payload.email)) {
       return EmailTaken({ email: payload.email });
     }
     // …
-    const claimed = await this.quotas.call(
+    const checked = await this.addresses.call(
       { email: payload.email },
-      { deadline: deadlineIn(QUOTA_CALL_BUDGET_MS) },
+      { deadline: deadlineIn(CHECK_BUDGET_MS) },
     );
 
-    if (claimed.isFail) {
+    if (checked.isFail) {
       // Отказ соседа объявлен в `errors:` операции и уходит клиенту как
       // есть. Исчерпанный бюджет приходит кодом ядра `timeout`: отказы
       // ядра входят в `Output` без объявления, поэтому приведение типов
       // здесь не нужно
-      return claimed;
+      return checked;
     }
 
     const user = await this.users.insert({
@@ -224,12 +220,12 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 });
 ```
 
-`ClaimQuota.caller` — DI-токен вызывателя. Он перечисляется в декораторе
+`CheckAddress.caller` — DI-токен вызывателя. Он перечисляется в декораторе
 роли как обычная зависимость, и хендлер получает объект типа
-`Port<typeof ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда
+`Port<typeof CheckAddress>` с методом `call(input, meta?)`. Вызов всегда
 асинхронный и всегда возвращает `Ok` или `Fail`, даже когда реализация
 работает в этом же процессе. Отказ разбирает вызывающий: множество его
-ответов закрыто — объявленные отказы плюс коды ядра, тип `claimed` не
+ответов закрыто — объявленные отказы плюс коды ядра, тип `checked` не
 содержит ничего другого, и ветка `default` на месте вызова не нужна.
 
 Второй аргумент `call` — параметры вызова. `deadline` задаёт бюджет
@@ -238,8 +234,8 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 отказом с кодом ядра `timeout`; в `errors:` он не объявляется, как и
 `internal_error`.
 
-Отказ соседа `QuotaExceeded` доходит до клиента, потому что операция
-`users.create` подключает список отказов `ClaimQuota` через `errorsOf`
+Отказ соседа `AddressRejected` доходит до клиента, потому что операция
+`users.create` подключает список отказов `CheckAddress` через `errorsOf`
 наравне со своими; отказ, не перечисленный в `errors:` вызывающего
 endpoint'а, заменяется на `InternalError` на выходе из пайплайна.
 `Unauthorized` в списке операции остаётся, хотя endpoint его больше не
@@ -247,20 +243,20 @@ endpoint'а, заменяется на `InternalError` на выходе из п
 клиента, и клиент пайплайна реализации не видит:
 
 ```typescript
-// examples/app-with-http/src/api/operations.ts
+// src/api/operations.ts
 export const CreateUser = makeRequest({
   name: 'users.create',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
-  errors: [EmailTaken, ...errorsOf(ClaimQuota), Unauthorized],
+  errors: [EmailTaken, ...errorsOf(CheckAddress), Unauthorized],
   // …
 });
 ```
 
-`errorsOf(ClaimQuota)` отдаёт `errors:` операции `ClaimQuota` тем же
-значением: спред `...errorsOf(ClaimQuota)` заменяет ручной импорт и
-перечисление `QuotaExceeded`, а тип хендлера остаётся тем же, что при
+`errorsOf(CheckAddress)` отдаёт `errors:` операции `CheckAddress` тем же
+значением: спред `...errorsOf(CheckAddress)` заменяет ручной импорт и
+перечисление `AddressRejected`, а тип хендлера остаётся тем же, что при
 прямом перечислении отказа.
 
 `httpEndpoint.implement` сверяет два множества: каждый отказ, объявленный
@@ -269,13 +265,13 @@ export const CreateUser = makeRequest({
 перечисляла, слот `pipeline` не скомпилировался бы, а конструктор бросил
 бы ошибку при создании декларации с недостающими кодами.
 
-Шестая регистрация подряд получает `429`:
+Регистрация на отвергнутый адрес получает `409`:
 
 ```bash
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-  -d '{"name":"User 6","email":"user6@example.com"}'
-# {"error":"User quota of 5 is exhausted","code":"too_many_requests:quota_exceeded","details":{"limit":5}}
+  -d '{"name":"Eve","email":"eve@example.invalid"}'
+# {"error":"Address eve@example.invalid is not deliverable: domain does not accept mail","code":"conflict:address_rejected","details":{"email":"eve@example.invalid","reason":"domain does not accept mail"}}
 ```
 
 ## Общее уходит в плагины
@@ -284,7 +280,7 @@ curl -X POST localhost:3000/users \
 две фичи, объявляется плагином:
 
 ```typescript
-// examples/app-with-http/src/plugins/observability/observability.plugin.ts
+// src/plugins/observability/observability.plugin.ts
 export const appObservability: Plugin = makePlugin({
   name: 'app-observability',
   // Класс-юнит слоя `observability`: без регистрации слой не соберётся
@@ -303,25 +299,24 @@ export const appObservability: Plugin = makePlugin({
 Параметризованный плагин — функция, которая возвращает значение:
 
 ```typescript
-// examples/app-with-http/src/app.ts (фрагмент)
+// src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
-  publish: true,
-  node: 'app-with-http',
+  publish: false,
 });
 ```
 
 `subscriptions(options)` из пакета `@nestlingjs/subscriptions` собирает
 реестр подписок. Параметры `identity` и `labels` — функции, которые
-вычисляют подписчика и метки записи из контекста запроса. Параметр
-`node` — имя узла в реестре. Флаг `publish: true` включает публикацию
-событий открытия и закрытия подписки.
+вычисляют подписчика и метки записи из контекста запроса. Флаг
+`publish: true` включил бы публикацию событий открытия и закрытия
+подписки: их слушает тот, кто собирает картину по всем процессам.
 
 Проверка DI-токена устроена так же:
 
 ```typescript
-// examples/app-with-http/src/plugins/auth/index.ts
+// src/plugins/auth/index.ts
 export const appAuth = makePlugin({
   name: 'app-auth',
   providers: [Authenticate],
@@ -333,7 +328,7 @@ export const authed = compose(
 );
 ```
 
-Класс-юнит `Authenticate` нужен endpoint'ам фич `users` и `ops`, поэтому
+Класс-юнит `Authenticate` нужен endpoint'ам обеих фич, поэтому
 регистрирует его плагин. Модуль, достижимый из двух фич, обязан быть
 плагином: пока у него два владельца, ребро в него нельзя отнести ни к
 одной фиче, и сборка останавливается с предложением перенести модуль в
@@ -342,7 +337,7 @@ export const authed = compose(
 ## Модули внутри фичи
 
 ```typescript
-// examples/app-with-http/src/features/users/users.feature.ts
+// src/features/users/users.feature.ts
 export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
@@ -370,16 +365,16 @@ export const UsersFeature = makeFeature({
 списком модулей `modules:`. Модуль группирует провайдеры под именем и
 полем `dependsOn` перечисляет модули, без которых не работает. Модуль
 подходит фиче, у которой провайдеров много или которые уже собраны в
-модуль для другого приложения. Фича `quotas` обходится `providers:`:
-у неё два сервиса. Endpoint'ы в обоих случаях перечисляет фича, а не
+модуль для другого приложения. Фича `notifications` обходится
+`providers:`: у неё два сервиса. Endpoint'ы в обоих случаях перечисляет фича, а не
 модуль.
 
 ## Декларация приложения
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -391,7 +386,7 @@ export const app = makeApp({
   switches: [Docs],
   // Два протокола на одном сокете: рецепт
   // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
-  transports: [api, http({ server: api }), mcp({ … })],
+  transports: [http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
@@ -413,30 +408,26 @@ export const app = makeApp({
 ## Проверка
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
-it('возвращает отказ соседней фичи при исчерпанной квоте', async () => {
+// src/app.spec.ts
+it('возвращает отказ соседней фичи на отвергнутый адрес', async () => {
   await using testApp = await assembleTest(app, {
     ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
-  for (const index of [1, 2, 3, 4, 5]) {
-    unwrap(await createUser(testApp, String(index)));
-  }
-
   // Отказ прошёл границу вызывающего endpoint'а без замены на
   // `InternalError`: его `errors:` объявляет отказ соседа наравне со своими
-  expect(await createUser(testApp, 'sixth')).toMatchObject({
+  expect(await createUser(testApp, 'eve@example.invalid')).toMatchObject({
     isSuccess: false,
-    status: 'too_many_requests',
-    value: { code: QuotaExceeded.code, details: { limit: 5 } },
+    status: 'conflict',
+    value: { code: AddressRejected.code },
   });
 });
 ```
 
 Реализация операции вызывается в тесте так же, как HTTP-endpoint:
-`testApp.call(ClaimQuotaImpl, { email })`. Отдельный тест достаёт вызыватель
-через `testApp.get(ClaimQuota.caller)` и вызывает его с истёкшим `deadline`:
+`testApp.call(CheckAddressImpl, { email })`. Отдельный тест достаёт вызыватель
+через `testApp.get(CheckAddress.caller)` и вызывает его с истёкшим `deadline`:
 ответ приходит с кодом `timeout`, а реализация не вызывается.
 
 Ещё один тест запускает регистрацию при двух политиках диспатча.
@@ -446,16 +437,14 @@ it('возвращает отказ соседней фичи при исчер�
 меняется.
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
-for i in 1 2 3 4 5 6; do
-  curl -s -X POST localhost:3000/users \
-    -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-    -d "{\"name\":\"User $i\",\"email\":\"user$i@example.com\"}"; echo
-done
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
+curl -s -X POST localhost:3000/users \
+  -H 'authorization: Bearer secret' -H 'content-type: application/json' \
+  -d '{"name":"Carol","email":"carol@example.com"}'
 ```
 
 Тот же запуск с `NESTLING_PORTS_DISPATCH=always-remote` отправляет
-вызов `quotas.claim` через шину внутри процесса.
+вызов `notifications.check-address` через шину внутри процесса.
 
-Квоты узнают о новом пользователе не по запросу, а по событию:
+Рассылка узнаёт о новом пользователе не по запросу, а по событию:
 [15. Оповещать соседей о случившемся](./15-events.md).

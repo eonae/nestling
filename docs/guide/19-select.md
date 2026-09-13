@@ -1,6 +1,6 @@
 # 19. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи, выбор и переключатели» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -8,7 +8,7 @@
 > «[2026-09-06] Переключатели состава: `makeSwitch`, `pick` и `when`,
 > аргумент сборки; формы корня без фич».
 
-Приложение состоит из фич `users`, `quotas` и `ops`. Локально оно
+Приложение состоит из фич `users`, `notifications` и `ops`. Локально оно
 запускается одним процессом. В проде пользовательский API и служебные
 endpoint'ы разворачиваются отдельно, и каждый процесс должен поднимать
 только свои фичи. Один и тот же код должен собираться во все три роли, а
@@ -17,7 +17,7 @@ endpoint'ы разворачиваются отдельно, и каждый п�
 ## Прочитайте аргумент сборки до контейнера
 
 ```typescript
-// examples/app-with-http/src/main.ts
+// src/main.ts
 import { app } from './app.js';
 
 import { from, load, makeConfig } from '@nestlingjs/app';
@@ -79,18 +79,18 @@ endpoint'ы не регистрируются, её реализации опе�
 `features:`.
 
 ```bash
-APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 ```
-[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
-[nestling] selection closed over calls: users + quotas
+[nestling] features: users, notifications; docs=on; transports: http, mcp, bus
+[nestling] selection closed over calls: users + notifications
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
 
 Выбрана одна фича, а в процессе две. `includeDeps: true` замыкает выбор
-по вызываемым операциям: фича `users` инжектит `ClaimQuota.caller` и
-`SignupRecorded.emitter`, владелец обеих операций живёт в `quotas`, и
+по вызываемым операциям: фича `users` инжектит `CheckAddress.caller` и
+`ForgetAddress.emitter`, владелец обеих операций живёт в `notifications`, и
 она подключается сама. Вторая строка вывода показывает, что добавило
 замыкание.
 
@@ -112,7 +112,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 ASSEMBLE:
 
 ```
-Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
 assembly argument (or close the selection over calls with
@@ -133,11 +133,11 @@ dev-контуре и не нужна за периметром, и это не 
 одного плагина.
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
 export const Docs = makeSwitch('docs', { default: 'on' });
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -148,7 +148,7 @@ export const app = makeApp({
   switches: [Docs],
   // Два протокола на одном сокете: рецепт
   // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
-  transports: [api, http({ server: api }), mcp({ … })],
+  transports: [http({ server: api }), mcp({ … })],
 });
 ```
 
@@ -191,7 +191,7 @@ DI-токена у переключателя нет: инжектировать
 Выбор виден в строке старта рядом с фичами:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
+[nestling] features: users, notifications; docs=off; transports: http, mcp, bus
 ```
 
 и в отчёте `check()` полем `switches`.
@@ -199,7 +199,7 @@ DI-токена у переключателя нет: инжектировать
 ## Плагины и проверка каждой роли без сокетов
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
@@ -219,7 +219,7 @@ DI-токена у переключателя нет: инжектировать
 сборке нет.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 /**
  * Декларация для `check()`: подстановок у структурной проверки нет,
  * поэтому значения секретов привязываются источником к ключам секции
@@ -256,7 +256,7 @@ const checked = makeApp({
 потому что `build()` создаёт секцию конфига.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
     const reports = await checkTopologies(checked, [
@@ -265,9 +265,10 @@ const checked = makeApp({
       'ops',
     ]);
 
-    // `users` зовёт `quotas.claim`, поэтому замыкание по операциям тянет
-    // фичу квот. `ops` никто не вызывает, и она приходит только явным выбором
-    expect(reports[1].report.features).toEqual(['users', 'quotas']);
+    // `users` зовёт `notifications.check-address`, поэтому замыкание по
+    // операциям тянет фичу рассылки. `ops` никто не вызывает, и она
+    // приходит только явным выбором
+    expect(reports[1].report.features).toEqual(['users', 'notifications']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([
@@ -290,7 +291,7 @@ const checked = makeApp({
 операций видны под именами вида `subscriptions.opened@ops`.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
     const [{ report }] = await checkTopologies(checked, ['all']);
 
@@ -309,7 +310,7 @@ const checked = makeApp({
 ```
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('проверяет обе ветки переключателя документации', async () => {
     const [withDocs, withoutDocs] = await checkTopologies(checked, [
       { features: 'all', docs: 'on' },
@@ -333,8 +334,8 @@ const checked = makeApp({
 список, а не читает вывод в консоли.
 
 ```bash
-yarn workspace @examples/app-with-http test
-APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+yarn test
+APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 Роли собираются по отдельности, но пока работают в одном процессе:

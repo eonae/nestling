@@ -1,6 +1,6 @@
 # 4. Tell the client what went wrong
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/errors.md](../design/errors.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Модель ошибок: Fail — значение, code-идентичность, makeFail, ошибки в контракте`,
@@ -13,7 +13,7 @@ by the machine code, not by the message text. Creation must answer `201` with a
 `Location` header, deletion must answer `204`.
 
 ```typescript
-// examples/users-service/src/users/users.errors.ts
+// src/users/users.errors.ts
 import { makeFail } from '@nestlingjs/operations';
 import { z } from 'zod';
 
@@ -61,7 +61,7 @@ is `[a-z_]+`, and `makeFail` checks it on call. A code with only one category
 is allowed when there is nothing to refine: `makeFail('unauthorized')`.
 
 ```typescript
-// chapter 4 step; final version: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
@@ -89,7 +89,7 @@ and appendix A describes throwing in more detail.
 The type of the return value is written with the failure definitions:
 
 ```typescript
-// chapter 4 step; final version: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
   const user = await users.byId(input.id);
 
@@ -110,7 +110,7 @@ An endpoint without `output` has no value, and the handler compiles without a
 ## Success with a status
 
 ```typescript
-// chapter 3 step; final version: examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
   if (await users.byEmail(input.email)) {
     return EmailTaken({ email: input.email });
@@ -140,7 +140,7 @@ return HttpResponse.of(Ok.created(user), {
 ```
 
 ```typescript
-// chapter 4 step; final version: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 async function handle(
   input: DeleteUserInput,
 ): Output<null, typeof UserNotFound> {
@@ -154,7 +154,7 @@ async function handle(
 no `output` field.
 
 ```typescript
-// chapter 4 step; final version: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
@@ -168,7 +168,7 @@ Bearer token. The `Unauthorized` failure is declared by the layer itself, so it
 does not appear in `errors:` ([chapter 10](./10-auth.md)).
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i
 ```
 
@@ -194,7 +194,7 @@ The response of `testApp.call` carries the failure code, and its `status`
 equals the category of that code:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
@@ -208,7 +208,7 @@ original error class is absent. A unit test of the handler checks a failure the
 same way, without the application:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 const result = await handler.handle({ name: 'Alice II', email: alice.email });
 
 expect(EmailTaken.is(result)).toBe(true);

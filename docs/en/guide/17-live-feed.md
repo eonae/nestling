@@ -1,6 +1,6 @@
 # 17. A live feed for the client
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/streaming.md](../design/streaming.md), the
 > "`stream(T)` and `events(T)` " and "Event sources" sections. Why: entry
 > [ideas.md](../../decisions/ideas.md)
@@ -15,7 +15,7 @@ rest.
 ## The event source
 
 ```typescript
-// examples/app-with-http/src/features/users/activity.hub.ts (fragment)
+// src/features/users/activity.hub.ts (fragment)
 @Resource([])
 export class ActivityHub {
   static async acquire(_signal: AbortSignal): Promise<ActivityHub> {
@@ -105,7 +105,7 @@ events with the default policy.
 ## An endpoint with the `events` shape
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+// src/features/users/endpoints/activity-stream.endpoint.ts
 const ActivityEvent = z.object({
   id: z.string(),
   kind: z.enum(['created', 'updated', 'deleted']),
@@ -183,7 +183,7 @@ declaration is created.
 ## Publishing from the handler
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts (fragment)
+// src/features/users/endpoints/create-user.endpoint.ts (fragment)
     // The activity feed: `publish` does not wait for a single
     // subscriber
     this.activity.publish('created', user.id);
@@ -201,7 +201,7 @@ slow down the creation of a user by even one connected client.
 Open the feed in one terminal and create a user in another:
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 curl -N localhost:3000/users/activity
 ```
 
@@ -231,7 +231,7 @@ gave back the history after it.
 An e2e test on a real socket checks the SSE frames:
 
 ```typescript
-// examples/app-with-http/e2e/streaming.spec.e2e.ts
+// e2e/streaming.spec.e2e.ts
 it('отдаёт событие создания по SSE', async () => {
   const controller = new AbortController();
   const feed = await fetch(`${context.baseUrl}/users/activity`, {
@@ -268,6 +268,6 @@ whose `value` is an `AsyncIterableIterator`: the test reads events
 through `next()` with no transport. The subscription registry's tests
 in `app.spec.ts` are built the same way.
 
-The `users` feature depends on quotas, but a feature's test must not
+The `users` feature depends on the mailing, but a feature's test must not
 bring up the neighbour: [18. Test a feature without its
 neighbours](./18-testing-features.md).

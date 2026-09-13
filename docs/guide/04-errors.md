@@ -1,6 +1,6 @@
 # 4. Сказать клиенту, что пошло не так
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/errors.md](../design/errors.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-10] Модель ошибок:
 > Fail — значение, code-идентичность, `makeFail`, ошибки в контракте»,
@@ -16,7 +16,7 @@
 отвечать `204`.
 
 ```typescript
-// examples/users-service/src/users/users.errors.ts
+// src/users/users.errors.ts
 import { makeFail } from '@nestlingjs/operations';
 import { z } from 'zod';
 
@@ -64,7 +64,7 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 нечего: `makeFail('unauthorized')`.
 
 ```typescript
-// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
@@ -91,7 +91,7 @@ curl localhost:3000/users/9
 Тип возвращаемого значения записывается определениями отказов:
 
 ```typescript
-// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
   const user = await users.byId(input.id);
 
@@ -112,7 +112,7 @@ async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
 ## Успех со статусом
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
   if (await users.byEmail(input.email)) {
     return EmailTaken({ email: input.email });
@@ -142,7 +142,7 @@ return HttpResponse.of(Ok.created(user), {
 ```
 
 ```typescript
-// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 async function handle(
   input: DeleteUserInput,
 ): Output<null, typeof UserNotFound> {
@@ -156,7 +156,7 @@ async function handle(
 поля `output`.
 
 ```typescript
-// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
@@ -170,7 +170,7 @@ Bearer-токен. Отказ `Unauthorized` объявляет сам слой,
 он не появляется ([глава 10](./10-auth.md)).
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i
 ```
 
@@ -196,7 +196,7 @@ curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i
 этого кода:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
@@ -210,7 +210,7 @@ expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
 без приложения:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 const result = await handler.handle({ name: 'Alice II', email: alice.email });
 
 expect(EmailTaken.is(result)).toBe(true);

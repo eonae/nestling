@@ -1,6 +1,6 @@
 # 5. A handler as a class
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/endpoints.md](../design/endpoints.md) §3. Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`.
@@ -11,7 +11,7 @@ need to pull it out of the declaration. The handler needs to move into a
 separate value that the test can see and that can later take dependencies.
 
 ```typescript
-// chapter 5 step; final version: examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 import type { Output } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { httpEndpoint } from '@nestlingjs/transport.http';
@@ -57,7 +57,7 @@ not needed in the application code, the dependencies arrive in the constructor.
 There is no need to list the class in the `providers:` of a feature:
 
 ```typescript
-// chapter 4 step; final version: examples/users-service/src/users.feature.ts
+// src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -87,7 +87,7 @@ DI token, and the provider is registered once.
 A class is an ordinary value, so the test creates it with `new`:
 
 ```typescript
-// chapter 5 step; final version: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 it('возвращает отказ EmailTaken для занятого email', async () => {
@@ -105,7 +105,7 @@ that calls the endpoint through the full pipeline checks the same class a
 different way — through the declaration, not through `new`.
 
 ```bash
-yarn workspace @examples/users-service test
+yarn test
 ```
 
 ## Two shapes of the `handler` field

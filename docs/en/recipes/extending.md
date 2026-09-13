@@ -1,6 +1,6 @@
 # Extend the kernel with your own package
 
-> Guide to the current API; verified against `nestling.subscriptions` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/principles.md](../design/principles.md), the
 > "Kernel boundary" section, and [design/streaming.md](../design/streaming.md)
 > §4.1. Rationale: the entries [ideas.md](../../decisions/ideas.md)
@@ -363,12 +363,12 @@ yarn workspace @nestlingjs/subscriptions test
 Connecting it in the application:
 
 ```typescript
-// examples/app-with-http/src/app.ts (fragment)
+// src/app.ts (fragment)
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
-  node: 'app-with-http',
+  node: 'api-1',
 });
 ```
 

@@ -1,6 +1,6 @@
 # Alternative shapes
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `76ea1866`.
 > Each form is shown in one place in the example.
 
 The chapters of the guide use one notation for each task. The
@@ -20,7 +20,7 @@ place: where an alternative is shown and when to choose it.
 ## Failure from a unit
 
 ```typescript
-// examples/app-with-http/src/plugins/auth/authenticate.ts
+// src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
       return Unauthorized();
     }
@@ -51,7 +51,7 @@ replaces an undeclared one with `InternalError` (500).
 ## A `.catch` layer with a check by code
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
 @Handler([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
@@ -93,7 +93,7 @@ several endpoints and should not repeat in every handler.
 ## `Ok.noContent()` and `Ok.accepted()`
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
     return removed ? Ok.noContent() : UserNotFound({ id: input.id });
 ```
 
@@ -110,16 +110,16 @@ do with them.
 ## `providers:` and `modules:` on a feature
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quotas.feature.ts
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  providers: [QuotaService, SignupJournal],
-  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
+// src/features/notifications/notifications.feature.ts
+export const NotificationsFeature = makeFeature({
+  name: 'notifications',
+  providers: [Suppressions, Suppressions],
+  endpoints: [CheckAddressImpl, WelcomeEmail, ForgetAddressImpl],
 });
 ```
 
 ```typescript
-// examples/app-with-http/src/features/users/users.feature.ts
+// src/features/users/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],

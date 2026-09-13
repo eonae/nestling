@@ -1,6 +1,6 @@
 # 3. Accept data and let no rubbish through
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -13,7 +13,7 @@ list. The handler must receive data of the right type that is already checked,
 and an invalid request must get `400` before the handler is called.
 
 ```typescript
-// examples/users-service/src/users/user.ts
+// src/users/user.ts
 import { z } from 'zod';
 
 /** The user in the API responses. One schema for all endpoints. */
@@ -48,7 +48,7 @@ the `Input` suffix: `CreateUserInput`, `ListUsersInput`
 implements Standard Schema: zod, valibot, arktype. The examples use zod.
 
 ```typescript
-// chapter 3 step; final version: examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: User,
@@ -76,7 +76,7 @@ The `details` field describes every problem in the Standard Schema format,
 without fields specific to a particular validator.
 
 ```typescript
-// chapter 3 step; final version: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
@@ -89,7 +89,7 @@ taken from the path. There is no need to declare separately where to read the
 field from.
 
 ```typescript
-// chapter 3 step; final version: examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 const ListUsersInput = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
@@ -131,7 +131,7 @@ natural to pass a "check only, do not write" flag in the query string, and the
 user's data in the body:
 
 ```typescript
-// chapter 3 step; final version: examples/users-service/src/api/operations.ts
+// src/api/operations.ts
 export const CreateUser = httpEndpoint.post('/users', {
   bind: { dryRun: query(), name: body() },
   input: CreateUserInput,
@@ -169,7 +169,7 @@ The test calls `GetUser` and `ListUsers` through the full pipeline without
 opening a socket:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
 expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
 ```
@@ -178,7 +178,7 @@ The input data in `testApp.call` is typed by the `input` schema: you cannot
 pass `{ id: 1 }` instead of a string.
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl localhost:3000/users/1
 curl 'localhost:3000/users?limit=1'
 curl -X POST 'localhost:3000/users?dryRun=true' \

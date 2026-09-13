@@ -67,7 +67,7 @@ export {
 } from './switches/index.js';
 // `Switch` и `ToggleSwitch` — типы результата `makeSwitch`: без них
 // переключатель, объявленный значением в приложении, не выводится у
-// потребителя (TS2742). Это поймал typecheck `examples/app-with-http`.
+// потребителя (TS2742). Это поймал typecheck примера с переключателем.
 export type {
   AnySwitch,
   Branchable,

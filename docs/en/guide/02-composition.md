@@ -1,6 +1,6 @@
 # 2. What an application consists of
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/composition.md](../design/composition.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,
@@ -12,7 +12,8 @@ Chapter 1 put together a service from one file. From here the application
 grows, and it grows by one scheme: endpoints, providers, modules, features,
 switches. This chapter names all five concepts at once, so that later chapters
 introduce each of them as already known. It adds no code: the following
-chapters return to `users-service` and take only the words from here.
+chapters return to the service of chapter 1 and take only the words from
+here.
 
 ## The root: what the application is
 
@@ -28,7 +29,7 @@ makeApp({ endpoints: [ListUsers], providers: [UsersRepository] });
 makeApp({ endpoints: [ListUsers], modules: [UsersModule] });
 
 // several named units
-makeApp({ features: [UsersFeature, QuotasFeature] });
+makeApp({ features: [UsersFeature, NotificationsFeature] });
 ```
 
 Mixing the shapes is not allowed, and the type checks it: `endpoints:` next to

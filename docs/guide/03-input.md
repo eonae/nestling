@@ -1,6 +1,6 @@
 # 3. Принять данные и не пропустить мусор
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -13,7 +13,7 @@
 типа, а невалидный запрос — `400` до вызова хендлера.
 
 ```typescript
-// examples/users-service/src/users/user.ts
+// src/users/user.ts
 import { z } from 'zod';
 
 /** Пользователь в ответах API. Одна схема на все endpoint'ы. */
@@ -48,7 +48,7 @@ export type CreateUserInput = z.infer<typeof CreateUserInput>;
 arktype. В примерах используется zod.
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: User,
@@ -75,7 +75,7 @@ curl -X POST localhost:3000/users \
 полей конкретного валидатора.
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
@@ -88,7 +88,7 @@ export const GetUser = httpEndpoint.get('/users/:id', {
 нужно.
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 const ListUsersInput = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
@@ -128,7 +128,7 @@ query-строки. Query несёт строки, число из строки 
 в query-строке, а данные пользователя — в теле:
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/api/operations.ts
+// src/api/operations.ts
 export const CreateUser = httpEndpoint.post('/users', {
   bind: { dryRun: query(), name: body() },
   input: CreateUserInput,
@@ -165,7 +165,7 @@ path-параметре и `bind` при неструктурном входе (
 сокета:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
 expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
 ```
@@ -174,7 +174,7 @@ expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
 `{ id: 1 }` вместо строки нельзя.
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl localhost:3000/users/1
 curl 'localhost:3000/users?limit=1'
 curl -X POST 'localhost:3000/users?dryRun=true' \

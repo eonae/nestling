@@ -1,6 +1,6 @@
 # 22. Считать запросы и вызовы между процессами
 
-> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Метрики ядра», [design/pipeline.md](../design/pipeline.md) §2 и
 > [design/operations.md](../design/operations.md) §2.3. Почему так:
@@ -45,12 +45,12 @@ DI-токеном `RootMetrics$` стоит пустая реализация. �
 Реализацию задаёт опция `metrics` корня:
 
 ```typescript
-// examples/split-nats/src/app.ts
+// src/app.ts
 export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
   return makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [metricsPlugin(exporter)],
     transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
@@ -117,12 +117,12 @@ export class OrdersService {
 
 ## Адаптер и endpoint `/metrics`
 
-Куда уходят числа, ядро не знает: формата экспорта у него нет. Пример
-`split-nats` пишет адаптер сам — им и проверяется, что публичной границы
-ядра хватает.
+Куда уходят числа, ядро не знает: формата экспорта у него нет. Адаптер
+пишет приложение — им и проверяется, что публичной границы ядра
+хватает.
 
 ```typescript
-// examples/split-nats/src/metrics.ts
+// src/metrics.ts
 export interface MetricsExporter extends Metrics {
   render(): string;
 }
@@ -146,7 +146,7 @@ export function prometheusExporter(): MetricsExporter {
 а провайдером плагина — узлом графа, который читает endpoint `/metrics`.
 
 ```typescript
-// examples/split-nats/src/metrics.ts (фрагмент)
+// src/metrics.ts (фрагмент)
 export function metricsPlugin(exporter: MetricsExporter): Plugin {
   @Handler([MetricsExporter$])
   class MetricsHandler {
@@ -158,7 +158,7 @@ export function metricsPlugin(exporter: MetricsExporter): Plugin {
   }
 
   return makePlugin({
-    name: 'split-nats-metrics',
+    name: 'metrics',
     providers: [valueProvider(MetricsExporter$, exporter)],
     endpoints: [
       httpEndpoint.get('/metrics', {
@@ -182,13 +182,13 @@ export function metricsPlugin(exporter: MetricsExporter): Plugin {
 ## Проверка
 
 ```typescript
-// examples/split-nats/src/metrics.spec.ts
+// src/metrics.spec.ts
 it('обработка операции попадает в экспорт счётчиком и длительностью', async () => {
   const exporter = prometheusExporter();
   const plugin = metricsPlugin(exporter);
 
   const observed = makeApp({
-    features: [UsersFeature, QuotasFeature],
+    features: [UsersFeature, NotificationsFeature],
     plugins: [plugin],
     transports: [http()],
     metrics: exporter,

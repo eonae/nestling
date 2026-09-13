@@ -1,6 +1,6 @@
 # Without `makeApp`
 
-> Guide to the current API; verified against `simple-http-server` (2026-09-12) and `container` (2026-09-06).
+> Guide to the current API; verified against `76ea1866` and `container` (2026-09-06).
 > Target description: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Rationale: the entries
@@ -17,7 +17,7 @@ application assembly is built from.
 ## An HTTP server from a server, a transport and `dispatch`
 
 ```typescript
-// examples/simple-http-server/src/main.ts
+// src/main.ts
 const PORT = Number(process.env.PORT) || 3000;
 
 const server = new HttpServer({ port: PORT, host: '0.0.0.0' });
@@ -81,7 +81,7 @@ no config section without the configuration kernel.
 ## An endpoint with no pipeline and an endpoint with a pre-unit
 
 ```typescript
-// examples/simple-http-server/src/endpoints/create-user.endpoint.ts
+// src/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: CreateUserOutput,
@@ -104,7 +104,7 @@ schema, the response is checked against the `errors:` list, and the
 request context is open.
 
 ```typescript
-// examples/simple-http-server/src/common/units.ts
+// src/common/units.ts
 export const withStartedAt: PreUnitFn<
   EmptyInput,
   { startedAt: number }
@@ -112,7 +112,7 @@ export const withStartedAt: PreUnitFn<
 ```
 
 ```typescript
-// examples/simple-http-server/src/endpoints/say-hello.endpoint.ts
+// src/endpoints/say-hello.endpoint.ts
 export const SayHello = httpEndpoint.get('/', {
   output: SayHelloOutput,
   pipeline: makePipeline().pre(withStartedAt),
@@ -128,7 +128,7 @@ from the second argument, `meta`, together with `signal` and `fail`;
 the type of the `startedAt` field is inferred from the unit.
 
 ```bash
-yarn workspace @examples/simple-http-server start:dev
+yarn start:dev
 curl localhost:3000/
 curl -X POST localhost:3000/users -H 'content-type: application/json' \
   -d '{"name":"Alice","email":"taken@example.com"}'
@@ -143,7 +143,7 @@ from the `stream(T)` form.
 ## A container without an application
 
 ```typescript
-// examples/container/src/container.ts
+// src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
@@ -199,7 +199,7 @@ error listing the nodes. It creates no instances: `init()` creates
 them.
 
 ```typescript
-// examples/container/src/runtime/reload.spec.ts (fragment)
+// src/runtime/reload.spec.ts (fragment)
     container = await makeContainer(source);
     await container.init();
     shutdown = new AbortController();
@@ -219,7 +219,7 @@ order. Before `init()` finishes, the container gives out no instances:
 `getOrThrow(token)` throws a phase error.
 
 ```typescript
-// examples/container/src/cli.ts
+// src/cli.ts
 export const main = async () => {
   const container = await makeContainer();
 
@@ -240,7 +240,7 @@ assembles a container, not an application.
 ## Checking
 
 ```typescript
-// examples/simple-http-server/src/dispatch.spec.ts
+// src/dispatch.spec.ts
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 
 /** Calls an endpoint with a ready payload, bypassing HTTP request parsing */
@@ -278,8 +278,8 @@ endpoint the same way the transport does. The rest of the file's tests
 check a schema failure, a declared failure and a streaming response.
 
 ```bash
-yarn workspace @examples/simple-http-server test
-yarn workspace @examples/container export-metadata && yarn workspace @examples/container visualize
+yarn test
+yarn export-metadata && yarn visualize
 ```
 
 The recipe [Extend the kernel with your own package](./extending.md)

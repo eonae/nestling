@@ -1616,13 +1616,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@examples/app-with-http@workspace:examples/app-with-http":
+"@examples/cli@workspace:examples/cli":
   version: 0.0.0-use.local
-  resolution: "@examples/app-with-http@workspace:examples/app-with-http"
+  resolution: "@examples/cli@workspace:examples/cli"
+  dependencies:
+    "@examples/microservice": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/client": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*"
+    "@nestlingjs/transport.cli": "workspace:*"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@examples/microservice@workspace:*, @examples/microservice@workspace:examples/microservice":
+  version: 0.0.0-use.local
+  resolution: "@examples/microservice@workspace:examples/microservice"
   dependencies:
     "@nestlingjs/app": "workspace:*"
     "@nestlingjs/client": "workspace:*"
     "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/drizzle.pg": "workspace:*"
     "@nestlingjs/eslint-plugin": "workspace:*"
     "@nestlingjs/mcp": "workspace:*"
     "@nestlingjs/openapi": "workspace:*"
@@ -1631,73 +1647,30 @@ __metadata:
     "@nestlingjs/subscriptions": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
     "@nestlingjs/transport.http": "workspace:*"
+    "@types/pg": "npm:^8.23.0"
+    drizzle-kit: "npm:^0.31.10"
+    drizzle-orm: "npm:^0.45.0"
+    pg: "npm:^8.16.0"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@examples/container@workspace:examples/container":
+"@examples/modular-app@workspace:examples/modular-app":
   version: 0.0.0-use.local
-  resolution: "@examples/container@workspace:examples/container"
+  resolution: "@examples/modular-app@workspace:examples/modular-app"
   dependencies:
     "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/container": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/simple-cli@workspace:examples/simple-cli":
-  version: 0.0.0-use.local
-  resolution: "@examples/simple-cli@workspace:examples/simple-cli"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/schema.zod": "workspace:*"
-    "@nestlingjs/transport.cli": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/simple-http-server@workspace:examples/simple-http-server":
-  version: 0.0.0-use.local
-  resolution: "@examples/simple-http-server@workspace:examples/simple-http-server"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/transport.http": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/split-nats@workspace:examples/split-nats":
-  version: 0.0.0-use.local
-  resolution: "@examples/split-nats@workspace:examples/split-nats"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/container": "workspace:*"
-    "@nestlingjs/operations": "workspace:*"
-    "@nestlingjs/testing": "workspace:*"
-    "@nestlingjs/transport.http": "workspace:*"
-    "@nestlingjs/transport.nats": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@examples/users-service@workspace:examples/users-service":
-  version: 0.0.0-use.local
-  resolution: "@examples/users-service@workspace:examples/users-service"
-  dependencies:
-    "@nestlingjs/app": "workspace:*"
-    "@nestlingjs/client": "workspace:*"
     "@nestlingjs/container": "workspace:*"
     "@nestlingjs/drizzle.pg": "workspace:*"
     "@nestlingjs/eslint-plugin": "workspace:*"
     "@nestlingjs/inbox": "workspace:*"
-    "@nestlingjs/openapi": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/outbox": "workspace:*"
     "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
     "@nestlingjs/transport.http": "workspace:*"
+    "@nestlingjs/transport.nats": "workspace:*"
+    "@nestlingjs/viz": "workspace:*"
     "@types/pg": "npm:^8.23.0"
     drizzle-kit: "npm:^0.31.10"
     drizzle-orm: "npm:^0.45.0"
@@ -2552,7 +2525,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestlingjs/viz@workspace:packages/nestling.viz":
+"@nestlingjs/viz@workspace:*, @nestlingjs/viz@workspace:packages/nestling.viz":
   version: 0.0.0-use.local
   resolution: "@nestlingjs/viz@workspace:packages/nestling.viz"
   dependencies:

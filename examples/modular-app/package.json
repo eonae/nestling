@@ -1,0 +1,56 @@
+{
+  "name": "@examples/modular-app",
+  "version": "0.1.0",
+  "description": "Two features over a NATS bus: one declaration, one or two processes",
+  "private": true,
+  "type": "module",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "clear": "rm -rf dist",
+    "db:up": "docker compose --profile infra up -d --wait",
+    "db:down": "docker compose --profile infra down -v",
+    "db:migrate": "run -T drizzle-kit migrate",
+    "db:generate": "run -T drizzle-kit generate",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
+    "start:dev": "run -T tsx src/main.ts",
+    "publish:command": "run -T tsx src/publish.ts",
+    "compat": "run -T tsx --conditions=testing src/compat.ts",
+    "graph": "run -T tsx --conditions=testing src/graph.ts",
+    "visualize": "yarn run graph && node ../../packages/nestling.viz/dist/cli.js di-metadata.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/drizzle.pg": "workspace:*",
+    "@nestlingjs/inbox": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/outbox": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*",
+    "@nestlingjs/transport.nats": "workspace:*",
+    "drizzle-orm": "^0.45.0",
+    "pg": "^8.16.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestlingjs/eslint-plugin": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
+    "@nestlingjs/viz": "workspace:*",
+    "@types/pg": "^8.23.0",
+    "drizzle-kit": "^0.31.10"
+  },
+  "nx": {
+    "targets": {
+      "lint": {
+        "dependsOn": [
+          "@nestlingjs/eslint-plugin:build"
+        ]
+      }
+    }
+  }
+}

@@ -88,11 +88,12 @@ OpenAPI-документ приложения.
 менять остальные правила конфига.
 
 Каждый `examples/*/eslint.config.js` SHALL передавать `published: false`:
-примеры иллюстрируют русский гайд, и главы цитируют их тексты.
+пример не уходит в npm, и русская строка в нём не попадает на глаза
+читателю пакета.
 
 #### Scenario: Пример с русским `summary`
 
-- **WHEN** `examples/users-service/src/api/operations.ts` объявляет
+- **WHEN** `examples/microservice/src/api/operations.ts` объявляет
   `summary: 'Создать пользователя'`
 - **THEN** `lint` примера проходит
 

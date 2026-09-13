@@ -1,6 +1,6 @@
 # 11. Write to the database in the request transaction
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/persistence.md](../design/persistence.md). Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-09-11] Соединение с базой: сателлит drizzle.pg`.
@@ -23,7 +23,7 @@ to PostgreSQL, the transaction variable and the layer that opens it.
 ## The connection is declared as a value
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const db = drizzlePg({ schema });
 ```
 
@@ -39,7 +39,7 @@ migrations of the application; [chapter 16](./16-durable-events.md) shows
 why this table is needed:
 
 ```typescript
-// examples/users-service/src/schema.ts
+// src/schema.ts
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -81,7 +81,7 @@ So the transaction is a context variable of the request, and a layer of
 the pipeline puts it there:
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const transactional = compose(authed, db.transaction());
 ```
 
@@ -115,7 +115,7 @@ A reading method takes the connection from the pool, a mutating one takes
 the transaction of the request:
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 @Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
@@ -165,7 +165,7 @@ the right to commit, and that is a decision of the layer.
 An endpoint that changes data is composed from the transaction layer:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: transactional,
   handler: CreateUserHandler,
@@ -183,7 +183,7 @@ invariants before start. The connection gives out the policy as a value,
 and the root names which endpoints it concerns:
 
 ```typescript
-// examples/users-service/src/app.ts
+// src/app.ts
 policies: [
   everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(authed, 'authed'),
   db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / }),
@@ -203,9 +203,9 @@ out: a process that migrates itself at start needs a lock between
 replicas.
 
 ```bash
-yarn workspace @examples/users-service db:up       # PostgreSQL in docker
-yarn workspace @examples/users-service db:generate # a migration from the schema
-yarn workspace @examples/users-service db:migrate  # roll it out
+yarn db:up       # PostgreSQL in docker
+yarn db:generate # a migration from the schema
+yarn db:migrate  # roll it out
 
 TEST_DATABASE_URL=postgresql://users:users@localhost:5432/users yarn verify
 ```
@@ -224,13 +224,13 @@ for the duration of the transaction: a long handler holds a pool
 connection, and the rest of the requests wait for it.
 
 ```bash
-DATABASE_POOL_MAX=5 yarn workspace @examples/users-service start:dev
+DATABASE_POOL_MAX=5 yarn start:dev
 ```
 
 ## Check
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('создаёт пользователя по Bearer-токену из конфига', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,

@@ -1,0 +1,216 @@
+{
+  "snapshotVersion": 1,
+  "operations": [
+    {
+      "name": "notifications.check-address",
+      "kind": "request",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "zod",
+          "jsonSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "email"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "zod",
+          "jsonSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "deliverable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "deliverable"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "conflict:address_rejected",
+          "category": "conflict"
+        }
+      ],
+      "topologies": [
+        "all",
+        "notifications"
+      ]
+    },
+    {
+      "name": "notifications.forget-address",
+      "kind": "command",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "zod",
+          "jsonSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "email"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "none"
+        }
+      },
+      "errors": [],
+      "topologies": [
+        "all",
+        "notifications"
+      ]
+    },
+    {
+      "name": "users.forget",
+      "kind": "command",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "zod",
+          "jsonSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "email"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "none"
+        }
+      },
+      "errors": [],
+      "topologies": [
+        "all",
+        "users"
+      ]
+    },
+    {
+      "name": "users.register",
+      "kind": "command",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "zod",
+          "jsonSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "email"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "none"
+        }
+      },
+      "errors": [],
+      "topologies": [
+        "all",
+        "users"
+      ]
+    },
+    {
+      "name": "users.registered",
+      "kind": "event",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "zod",
+          "jsonSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "email"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "none"
+        }
+      },
+      "errors": [],
+      "topologies": [
+        "all",
+        "notifications"
+      ]
+    }
+  ]
+}

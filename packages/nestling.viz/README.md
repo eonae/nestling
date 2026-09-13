@@ -36,8 +36,8 @@ barrel to import.
 | `--no-open` | do not open the browser |
 | `-s, --silent` | do not print messages to the console |
 
-A working example: the `export-metadata` and `visualize` scripts in
-[`examples/container`](../../examples/container/).
+A working example: the `graph` and `visualize` scripts in
+[`examples/modular-app`](../../examples/modular-app/).
 
 ## Package boundaries
 

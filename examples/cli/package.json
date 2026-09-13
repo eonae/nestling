@@ -1,0 +1,39 @@
+{
+  "name": "@examples/cli",
+  "version": "0.1.0",
+  "description": "Command-line tool over the operations of @examples/microservice",
+  "private": true,
+  "type": "module",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
+    "start:dev": "run -T tsx src/main.ts",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@examples/microservice": "workspace:*",
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/client": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
+    "@nestlingjs/transport.cli": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestlingjs/eslint-plugin": "workspace:*"
+  },
+  "nx": {
+    "targets": {
+      "lint": {
+        "dependsOn": [
+          "@nestlingjs/eslint-plugin:build"
+        ]
+      }
+    }
+  }
+}

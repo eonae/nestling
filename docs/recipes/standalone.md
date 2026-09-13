@@ -1,6 +1,6 @@
 # Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-12)
+> Гайд по текущему API; сверено с кодом `76ea1866`
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -17,7 +17,7 @@
 ## HTTP-сервер из сервера, транспорта и `dispatch`
 
 ```typescript
-// examples/simple-http-server/src/main.ts
+// src/main.ts
 const PORT = Number(process.env.PORT) || 3000;
 
 const server = new HttpServer({ port: PORT, host: '0.0.0.0' });
@@ -79,7 +79,7 @@ process.on('SIGINT', () => void stop('SIGINT'));
 ## Endpoint без пайплайна и endpoint с pre-юнитом
 
 ```typescript
-// examples/simple-http-server/src/endpoints/create-user.endpoint.ts
+// src/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: CreateUserOutput,
@@ -101,7 +101,7 @@ export const CreateUser = httpEndpoint.post('/users', {
 списком `errors:`, контекст запроса открыт.
 
 ```typescript
-// examples/simple-http-server/src/common/units.ts
+// src/common/units.ts
 export const withStartedAt: PreUnitFn<
   EmptyInput,
   { startedAt: number }
@@ -109,7 +109,7 @@ export const withStartedAt: PreUnitFn<
 ```
 
 ```typescript
-// examples/simple-http-server/src/endpoints/say-hello.endpoint.ts
+// src/endpoints/say-hello.endpoint.ts
 export const SayHello = httpEndpoint.get('/', {
   output: SayHelloOutput,
   pipeline: makePipeline().pre(withStartedAt),
@@ -125,7 +125,7 @@ Pre-юнит возвращает добавку к контексту. Хенд
 выводится из юнита.
 
 ```bash
-yarn workspace @examples/simple-http-server start:dev
+yarn start:dev
 curl localhost:3000/
 curl -X POST localhost:3000/users -H 'content-type: application/json' \
   -d '{"name":"Alice","email":"taken@example.com"}'
@@ -139,7 +139,7 @@ curl -N localhost:3000/logs/export
 ## Контейнер без приложения
 
 ```typescript
-// examples/container/src/container.ts
+// src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
@@ -191,7 +191,7 @@ Kernel-модули `contextKernel()` и `loggerKernel()` тоже регист�
 создаёт: их создаёт `init()`.
 
 ```typescript
-// examples/container/src/runtime/reload.spec.ts (фрагмент)
+// src/runtime/reload.spec.ts (фрагмент)
     container = await makeContainer(source);
     await container.init();
     shutdown = new AbortController();
@@ -209,7 +209,7 @@ Kernel-модули `contextKernel()` и `loggerKernel()` тоже регист�
 контейнер экземпляров не отдаёт: `getOrThrow(token)` бросает ошибку фазы.
 
 ```typescript
-// examples/container/src/cli.ts
+// src/cli.ts
 export const main = async () => {
   const container = await makeContainer();
 
@@ -229,7 +229,7 @@ main().catch(console.error);
 ## Проверка
 
 ```typescript
-// examples/simple-http-server/src/dispatch.spec.ts
+// src/dispatch.spec.ts
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 
 /** Вызывает endpoint с готовым payload, минуя разбор HTTP-запроса */
@@ -266,8 +266,8 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
 тесты файла проверяют отказ схемы, объявленный отказ и потоковый ответ.
 
 ```bash
-yarn workspace @examples/simple-http-server test
-yarn workspace @examples/container export-metadata && yarn workspace @examples/container visualize
+yarn test
+yarn export-metadata && yarn visualize
 ```
 
 Рецепт [«Расширить ядро своим пакетом»](./extending.md) показывает,

@@ -1,26 +1,25 @@
 # Альтернативные формы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
-> Каждая форма показана в одном месте примера.
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 
 Главы гайда используют одну форму записи для каждой задачи. Фреймворк
-допускает и другие. Здесь они собраны в одном месте: где показана
-альтернатива и когда её выбирать.
+допускает и другие. Здесь они собраны в одном месте: какая альтернатива
+есть и когда её выбирать.
 
-| Задача | Форма по умолчанию | Альтернатива | Где показана |
+| Задача | Форма по умолчанию | Альтернатива | Когда выбирать альтернативу |
 |---|---|---|---|
-| Отказ из хендлера | `return Fail` | `throw Fail` из глубины вызовов | `user-webhook.endpoint.ts` |
-| Отказ из pre-юнита | `return Fail` с объявлением на слое | `throw Fail` из глубины вызовов | `plugins/auth/authenticate.ts` |
-| Реакция на ошибку | `.finally` с `outcome` | `.catch` с `.is()` | `features/users/endpoints/delete-user.endpoint.ts` |
-| Подмена успешного ответа | хендлер формирует ответ | `.ok`-юнит | в примере нет |
-| Успех без тела | голое значение | `Ok.noContent()`, `Ok.accepted()` | `delete-user.endpoint.ts` |
-| Состав фичи | `providers:` | `modules:` | `features/users/users.feature.ts` |
-| Выбор фич | объект `{ features, includeDeps }` | строка через запятую | `packages/nestling.app/README.ru.md` |
+| Отказ из хендлера | `return Fail` | `throw Fail` из глубины вызовов | у сервиса в глубине нет канала возврата к границе |
+| Отказ из pre-юнита | `return Fail` с объявлением на слое | `throw Fail` из глубины вызовов | отказ приходит не из самого юнита |
+| Реакция на ошибку | `.finally` с `outcome` | `.catch` с `.is()` | реакция нужна только на ошибку и зависит от её кода |
+| Подмена успешного ответа | хендлер формирует ответ | `.ok`-юнит | одно и то же преобразование нужно нескольким endpoint'ам |
+| Успех без тела | голое значение | `Ok.noContent()`, `Ok.accepted()` | ответ без тела или принятый в работу |
+| Состав фичи | `providers:` | `modules:` | провайдеров много и они делятся на группы |
+| Выбор фич | объект `{ features, includeDeps }` | строка через запятую | замыкание по вызовам не нужно |
 
 ## Отказ из юнита
 
 ```typescript
-// examples/app-with-http/src/plugins/auth/authenticate.ts
+// src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
       return Unauthorized();
     }
@@ -49,7 +48,7 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 ## Слой `.catch` с проверкой по коду
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
 @Handler([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
@@ -76,8 +75,8 @@ export class AuditDeletion {
 
 ## `.ok`-юнит
 
-В примере `.ok`-юнита нет. По README `@nestlingjs/app` он вызывается
-только для успешного ответа и видит полный контекст: успех означает, что
+`.ok`-юнит вызывается только для успешного ответа и видит полный
+контекст: успех означает, что
 все `.pre`-юниты выполнились. Юнит может вернуть другой успешный ответ,
 например добавить заголовок, или ничего не вернуть и оставить ответ как
 есть. Заменить успех на ошибку через `.ok` нельзя. Проверка `errors:`
@@ -89,7 +88,7 @@ export class AuditDeletion {
 ## `Ok.noContent()` и `Ok.accepted()`
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
     return removed ? Ok.noContent() : UserNotFound({ id: input.id });
 ```
 
@@ -105,16 +104,16 @@ export class AuditDeletion {
 ## `providers:` и `modules:` у фичи
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quotas.feature.ts
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  providers: [QuotaService, SignupJournal],
-  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
+// src/features/notifications/notifications.feature.ts
+export const NotificationsFeature = makeFeature({
+  name: 'notifications',
+  providers: [Suppressions, Mailer],
+  endpoints: [CheckAddressImpl, WelcomeEmail, ForgetAddressImpl],
 });
 ```
 
 ```typescript
-// examples/app-with-http/src/features/users/users.feature.ts
+// src/features/users/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
@@ -134,7 +133,7 @@ export const UsersFeature = makeFeature({
 
 Аргумент `app.assemble(select)` принимает четыре формы: `'all'`, строку
 через запятую `'users,ops'`, массив `['users', 'ops']` и объект
-`{ features, includeDeps }`. Пример читает строку из `APP_FEATURES` и
-оборачивает её в объект ради `includeDeps`, как показывает
-[глава 19](../guide/19-select.md). Строка без объекта подходит, когда замыкание
-по вызовам не нужно: все нужные фичи названы явно.
+`{ features, includeDeps }`. Строку из `APP_FEATURES` обычно оборачивают
+в объект ради `includeDeps`, как показывает
+[глава 19](../guide/19-select.md). Строка без объекта подходит, когда
+замыкание по вызовам не нужно: все нужные фичи названы явно.

@@ -1,6 +1,6 @@
 # 1. Bring up a service that answers a request
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/composition.md](../design/composition.md),
 > [design/endpoints.md](../design/endpoints.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -14,7 +14,7 @@ one command and stops on `SIGTERM` without dropping requests that are already
 being handled. It fits in one file.
 
 ```typescript
-// chapter 1 step; final version: examples/users-service/src/main.ts
+// src/main.ts
 import { makeApp } from '@nestlingjs/app';
 import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
@@ -74,7 +74,7 @@ about the cancellation and closes once they finish.
 In the final example every value lives in its own file.
 
 ```typescript
-// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint.get('/users', {
   output: z.array(User),
   handler: ListUsersHandler,
@@ -88,7 +88,7 @@ The final example is already laid out by features: it has two areas, and a
 named unit lists the endpoints.
 
 ```typescript
-// examples/users-service/src/users.feature.ts (fragment)
+// src/users.feature.ts (fragment)
 export const UsersFeature = makeFeature({
   name: 'users',
   endpoints: [ListUsers /* … */],
@@ -99,7 +99,7 @@ export const UsersFeature = makeFeature({
 The `app.ts` file declares the application and exports one value, `app`:
 
 ```typescript
-// examples/users-service/src/app.ts (fragment)
+// src/app.ts (fragment)
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
@@ -112,7 +112,7 @@ wrapper function, no error handler, no address printing. `run()` installs the
 signal handlers, and a failed start crashes the process on its own.
 
 ```typescript
-// examples/users-service/src/main.ts
+// src/main.ts
 import { app } from './app.js';
 
 await app.assemble().run();
@@ -125,7 +125,7 @@ rules are collected in [conventions.md](../conventions.md).
 ## Start
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 ```
 
 The final example needs the `API_TOKEN` variable: one of its configuration

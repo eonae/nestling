@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
@@ -23,7 +23,7 @@ primitives and connects as a plugin; the kernel knows nothing about it.
 ## The plugin in the root
 
 ```typescript
-// examples/app-with-http/src/app.ts (fragment)
+// src/app.ts (fragment)
 import { subscriptions } from '@nestlingjs/subscriptions';
 // …
 
@@ -31,11 +31,11 @@ export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
-  node: 'app-with-http',
+  node: 'api-1',
 });
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
     appObservability,
     appAuth,
@@ -64,7 +64,7 @@ names the process in the facts.
 ## The `tracked` layer on a subscription endpoint
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+// src/features/users/endpoints/activity-stream.endpoint.ts
 @Handler([ActivityHub])
 class ActivityStreamHandler {
   constructor(private readonly hub: ActivityHub) {}
@@ -123,7 +123,7 @@ no providers of its own, and observability, authentication and the
 registry arrive as plugins.
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
+// src/features/ops/subscriptions.endpoint.ts
 @Handler([SubscriptionRegistry])
 class ListSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -147,7 +147,7 @@ the start time and the number of items delivered. `toWire` translates
 the snapshot into the API's response schema.
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
+// src/features/ops/subscriptions.endpoint.ts
 @Handler([SubscriptionRegistry])
 class KillSubscriptionHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -179,7 +179,7 @@ endpoint stands under the `authed` layer: only someone who presented a
 Bearer token can remove someone else's subscription.
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (fragment)
+// src/features/ops/subscriptions.endpoint.ts (fragment)
 @Handler([SubscriptionRegistry])
 class WatchSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -221,7 +221,7 @@ called, that is, before the handler has subscribed.
 ## Opening and closing facts
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscription-facts.ts (fragment)
+// src/features/ops/subscription-facts.ts (fragment)
 @Handler([Logger$.auto])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
@@ -274,13 +274,13 @@ application, and the HTTP transport's plugin gives the addresses and
 response codes.
 
 ```typescript
-// examples/app-with-http/src/app.ts (fragment)
+// src/app.ts (fragment)
 import { http, httpProbes } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
-  features: [UsersFeature, QuotasFeature, OpsFeature],
+  features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [appObservability, appAuth, appSubscriptions, httpProbes(), …],
-  transports: [api, http({ server: api }), …],
+  transports: [http({ server: api }), …],
 });
 ```
 
@@ -323,7 +323,7 @@ as chapter [19](../guide/19-select.md) shows.
 ## Requests
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 
 # in separate terminals: the subscription and the registry feed
 curl -N localhost:3000/users/activity
@@ -364,14 +364,14 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 The fact subscriber in `ops` wrote the same events to the log:
 
 ```
-2026-09-06T12:00:00.000Z INFO  SubscriptionOpenedInOpsHandler subscription opened node=app-with-http id=86cc… transport=http pattern=GET /users/activity
-2026-09-06T12:00:00.001Z INFO  SubscriptionClosedInOpsHandler subscription closed node=app-with-http id=86cc… reason=killed itemsOut=1
+2026-09-06T12:00:00.000Z INFO  SubscriptionOpenedInOpsHandler subscription opened node=api-1 id=86cc… transport=http pattern=GET /users/activity
+2026-09-06T12:00:00.001Z INFO  SubscriptionClosedInOpsHandler subscription closed node=api-1 id=86cc… reason=killed itemsOut=1
 ```
 
 ## Checking
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () => {
   await using testApp = await assembleTest(app, {
     ...testConfig,
@@ -426,7 +426,7 @@ stream, and the iteration ends on its own. Two other tests of the same
 registry's feed does not see its own `opened`.
 
 ```bash
-yarn workspace @examples/app-with-http test
+yarn test
 ```
 
 The same primitives without `makeApp`: embedding into someone else's

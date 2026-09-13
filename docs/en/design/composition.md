@@ -590,7 +590,7 @@ the in-process bus with no changes to the declarations and the calls.
 One binary serves different topologies through the assembly argument
 and the configuration.
 
-Both topologies on one code base live in `examples/split-nats`: one
+Both topologies on one code base live in `examples/modular-app`: one
 root, one set of declarations, a different assembly argument.
 
 ## 4. Transports and servers

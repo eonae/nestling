@@ -1,6 +1,6 @@
 # 6. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
@@ -13,7 +13,7 @@ endpoint'а. Хендлерам нужен репозиторий, репози�
 остановке, а endpoint не должен собирать всё это руками.
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 ```
 
@@ -24,7 +24,7 @@ DI-токен — ключ, по которому у контейнера зап
 `HttpTransport$`.
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {
   all(): Promise<User[]>;
@@ -45,7 +45,7 @@ export interface UsersRepository {
 ## Хендлер и репозиторий как зависимости
 
 ```typescript
-// шаг главы 6; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 @Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -98,7 +98,7 @@ rest-параметром — любая.
 Реализация репозитория объявляется так же:
 
 ```typescript
-// шаг главы 5; итоговая версия: examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 @Component([db.connection, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
@@ -146,7 +146,7 @@ DI-токена декоратор не принимает: класс реги�
 классы-юниты пайплайна:
 
 ```typescript
-// шаг главы 5; итоговая версия: examples/users-service/src/users.feature.ts
+// src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -253,7 +253,7 @@ DI-токен, который удалось импортировать: инк�
 Хендлер создаётся с фейком репозитория, без контейнера и без транспорта:
 
 ```typescript
-// шаг главы 6; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
 const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });
@@ -265,7 +265,7 @@ expect(result).toMatchObject({
 ```
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl localhost:3000/users/1
 ```
 

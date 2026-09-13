@@ -1,18 +1,18 @@
 # 21. Не сломать соседей при изменении операции
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `76ea1866`.
 > Целевое описание: [design/operations.md](../design/operations.md) §1.6 и
 > §1.7. Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-31]
 > Версионирование контрактов: снапшот, вердикт по слоту,
 > третий вердикт `unknown`».
 
-Фичи разнесены по командам и процессам. Схема `quotas.claim` меняется в
+Фичи разнесены по командам и процессам. Схема `notifications.check-address` меняется в
 одном репозитории, а вызывает её процесс, который выкатывается отдельно.
 Нужно заметить несовместимое изменение операции в CI, до выкладки, и
 знать, что с ним делать.
 
 Отдельного поля версии у операции нет. Несовместимая версия получает
-новое имя: `quotas.claim.v2`. Имя операции служит адресом на шине, поэтому
+новое имя: `notifications.check-address.v2`. Имя операции служит адресом на шине, поэтому
 старая и новая версии могут работать рядом, пока потребители переходят на
 новую. Суффикс `.vN` фреймворк не требует и не разбирает, имя без версии
 допустимо.
@@ -20,7 +20,7 @@
 ## Снапшот операций сборки
 
 ```typescript
-// examples/app-with-http/src/operations.compat.spec.ts
+// src/operations.compat.spec.ts
 /**
  * Та же декларация с секретами из объекта: `check()` собирает граф, и
  * секция читается
@@ -82,12 +82,12 @@ OpenAPI в главе [13](./13-openapi-and-client.md). Без конверте�
 какие топологии её опубликовали:
 
 ```json
-// examples/app-with-http/operations.snapshot.json (фрагмент)
+// operations.snapshot.json (фрагмент)
 {
   "snapshotVersion": 1,
   "operations": [
     {
-      "name": "quotas.claim",
+      "name": "notifications.check-address",
       "kind": "request",
       "input": {
         "kind": "value",
@@ -113,7 +113,7 @@ OpenAPI в главе [13](./13-openapi-and-client.md). Без конверте�
 
 Объединение важно для матрицы: операция, которой нет в топологии `ops`,
 принадлежит невыбранной фиче, а не удалена. Поле `topologies` у
-`quotas.claim` содержит `all` и `users`, у `subscriptions.opened` только
+`notifications.check-address` содержит `all` и `users`, у `subscriptions.opened` только
 `all` и `ops`.
 
 Снапшот лежит в репозитории обычным файлом. `serializeSnapshot` даёт
@@ -125,7 +125,7 @@ Schema отсортированы. Один и тот же граф даёт п�
 ## Сравнение с baseline и вердикты
 
 ```typescript
-// examples/app-with-http/src/operations.compat.spec.ts
+// src/operations.compat.spec.ts
   it('текущая сборка совпадает с опубликованным снапшотом', async () => {
     const current = await currentSnapshot();
 
@@ -176,16 +176,16 @@ Operation compatibility: 0 breaking, 0 additive, 0 unknown
 совместимое.
 
 Третий тест файла правит baseline, а не код: добавляет в `output`
-операции `quotas.claim` обязательное поле `reservedUntil`. Так выглядел
+операции `notifications.check-address` обязательное поле `reservedUntil`. Так выглядел
 бы снапшот до изменения, которым это поле убрали:
 
 ```typescript
-// examples/app-with-http/src/operations.compat.spec.ts (фрагмент)
+// src/operations.compat.spec.ts (фрагмент)
     const report = diffOperations(baseline, current);
 
     expect(report.breaking).toMatchObject([
       {
-        operation: 'quotas.claim',
+        operation: 'notifications.check-address',
         path: 'output.reservedUntil',
         description: 'property removed',
         verdict: 'breaking',
@@ -193,11 +193,11 @@ Operation compatibility: 0 breaking, 0 additive, 0 unknown
     ]);
     // Подсказка не переименовывает: операция адресуется прежним именем
     expect(report.operations).toContainEqual({
-      operation: 'quotas.claim',
+      operation: 'notifications.check-address',
       breaking: 1,
       additive: 0,
       unknown: 0,
-      suggestedName: 'quotas.claim.v2',
+      suggestedName: 'notifications.check-address.v2',
     });
 ```
 
@@ -213,19 +213,19 @@ Operation compatibility: 0 breaking, 0 additive, 0 unknown
 перезапишите снапшот и закоммитьте его вместе с изменением операции.
 
 ```bash
-UPDATE_SNAPSHOT=1 yarn workspace @examples/app-with-http test src/operations.compat.spec.ts
+UPDATE_SNAPSHOT=1 yarn test src/operations.compat.spec.ts
 ```
 
 Несовместимое изменение делается через новое имя. Объявите
-`quotas.claim.v2` рядом с `quotas.claim`, реализуйте обе операции в фиче
-`quotas`, переведите вызывающих на новую и удалите старую, когда
+`notifications.check-address.v2` рядом с `notifications.check-address`, реализуйте обе операции в фиче
+`notifications`, переведите вызывающих на новую и удалите старую, когда
 вызывающих не осталось. Снапшот обновляется на каждом шаге: сначала
 появляется операция, потом исчезает старая. Удаление операции из снапшота
 тест этого примера тоже считает ошибкой, потому что `diffOperations`
 относит его к `breaking`.
 
 ```bash
-yarn workspace @examples/app-with-http test src/operations.compat.spec.ts
+yarn test src/operations.compat.spec.ts
 ```
 
 Путь закончен. Задачи, которые встают вне его порядка, лежат

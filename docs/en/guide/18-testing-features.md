@@ -1,13 +1,14 @@
 # 18. Test a feature without its neighbours
 
-> Guide to the current API; verified against `app-with-http`, `split-nats` (2026-09-13).
+> Guide to the current API; verified against `76ea1866`.
 > Target description: [design/testing.md](../design/testing.md) §3 and §4. Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
 
-The `users` feature calls `quotas.claim` and sends `users.registered`
-and `quotas.record-signup`. The quotas team has not written the
-implementation yet, and the registration tests are needed now. And the
+The `users` feature calls `notifications.check-address` and sends
+`users.registered` and `notifications.forget-address`. The mailing team
+has not written the implementation yet, and the registration tests are
+needed now. And the
 other way round: the feature needs checking alone, without its
 neighbours, so that the test depends neither on their code nor on the
 broker.
@@ -18,8 +19,8 @@ The basics from [chapter 8](./08-testing.md) are assumed known:
 ## Assemble one feature without its neighbours
 
 ```typescript
-// examples/split-nats/src/isolated.spec.ts (fragment)
-const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
+// src/isolated.spec.ts (fragment)
+const isolated = makeApp({ features: [UsersFeature, NotificationsFeature] });
 
 await using testApp = await assembleTest(isolated, { args: 'users' });
 ```
@@ -30,7 +31,7 @@ the selected features remain in the graph
 phase:
 
 ```
-Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
 call has nowhere to go. Either add the feature that implements it to the
 assembly argument (or close the selection over calls with
@@ -39,25 +40,25 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
 
-The caller `ClaimQuota.caller` in the `users` feature's dependencies
+The caller `CheckAddress.caller` in the `users` feature's dependencies
 requires an owner of the operation. In an assembly of one feature there
 is no owner, and a stub takes its place.
 
 ## Stubs instead of neighbouring operations
 
 ```typescript
-// examples/split-nats/src/isolated.spec.ts
+// src/isolated.spec.ts
   it('регистрирует пользователя через стабы соседних операций', async () => {
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
     await using testApp = await assembleTest(isolated, {
       args: 'users',
-      // There is no owner of `quotas.claim` and no subscriber of
+      // There is no owner of `notifications.check-address` and no subscriber of
       // `users.registered` in the assembly: both sides are replaced
       // by stubs
       stubs: [
-        stub(ClaimQuota, async (input) => {
+        stub(CheckAddress, async (input) => {
           claimed.push(input);
 
           return { remaining: 1 };
@@ -70,7 +71,7 @@ is no owner, and a stub takes its place.
 ```
 
 `stub(Operation, impl)` returns a pair of the caller's DI token and a
-fake: for `request` this is `ClaimQuota.caller`, for `command` and
+fake: for `request` this is `CheckAddress.caller`, for `command` and
 `event` this is `.emitter`. The pair is passed in the `stubs:` field.
 The stub's provider takes priority over the production recipe for the
 caller, so the owner check does not fire, and the feature assembles:
@@ -86,7 +87,7 @@ is available as `testApp.stubbed`: the names in alphabetical order.
 
 A stub cannot part ways with the operation at runtime either. The input
 is checked by the `input` shape, a successful response by the `output`
-shape. If the `quotas.claim` stub returns `{ left: 1 }` instead of
+shape. If the `notifications.check-address` stub returns `{ left: 1 }` instead of
 `{ remaining }`, the caller gets a failure, not a wrong value:
 
 ```
@@ -105,12 +106,12 @@ declared failure passes through as is, the same way it would arrive
 from a real owner:
 
 ```typescript
-// examples/split-nats/src/isolated.spec.ts (fragment)
+// src/isolated.spec.ts (fragment)
       stubs: [
         // The failure is declared in the operation's `errors:`, so
         // the stub gives it back as is, the same way a real owner
         // would over the network
-        stub(ClaimQuota, async () => QuotaExceeded({ limit: 100 })),
+        stub(CheckAddress, async () => AddressRejected({ limit: 100 })),
         stub(UserRegistered, (input) => {
           registered.push(input);
         }),
@@ -126,7 +127,7 @@ port's.
 ## Calling and checking through a topology matrix
 
 ```typescript
-// examples/split-nats/src/isolated.spec.ts (fragment)
+// src/isolated.spec.ts (fragment)
     const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
       email: 'alice@example.com',
     });
@@ -157,12 +158,12 @@ hides an operation that nobody implements. So a check of the honest
 graph stands next to the stubs:
 
 ```typescript
-// examples/split-nats/src/isolated.spec.ts
+// src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () => {
     await using testApp = await assembleTest(isolated, {
       args: 'users',
       stubs: [
-        stub(ClaimQuota, async () => ({ remaining: 1 })),
+        stub(CheckAddress, async () => ({ remaining: 1 })),
         // An event's subscriber returns nothing: an event has no
         // `output`
         // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -172,7 +173,7 @@ graph stands next to the stubs:
 
     // The matrix checks the graph with no overrides: a stub of an
     // operation that no topology implements becomes visible here
-    const topologies = await checkTopologies(app, ['all', 'users', 'quotas']);
+    const topologies = await checkTopologies(app, ['all', 'users', 'notifications']);
 
     const published = new Set(
       topologies.flatMap(({ report }) =>
@@ -181,7 +182,7 @@ graph stands next to the stubs:
     );
 
     expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
-    expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
+    expect(testApp.stubbed).toEqual(['notifications.check-address', 'users.registered']);
   });
 ```
 
@@ -197,7 +198,7 @@ is overridden with the same `overrides` list. `contextValue(Variable,
 value)` gives a reader with a constant value:
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () => {
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
@@ -224,7 +225,7 @@ context, but the service reads the overridden value.
 same `overrides` list.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` is selected alone: there are no providers of the `users`
     // feature in the graph, and plugins are in every assembly
@@ -244,7 +245,7 @@ same `overrides` list.
       args: { features: 'users', includeDeps: true },
     });
 
-    expect(testApp.features).toEqual(['users', 'quotas']);
+    expect(testApp.features).toEqual(['users', 'notifications']);
   });
 ```
 
@@ -252,15 +253,15 @@ same `overrides` list.
 `null` if the node is not in the graph. `testApp.features` lists the
 selected features after the closure over the calls.
 
-The `isolated.spec.ts` file consists entirely of this chapter's tests:
-assembling one feature, stubs with a success and with a failure,
+It is convenient to keep this chapter's tests in one `isolated.spec.ts`
+file: assembling one feature, stubs with a success and with a failure,
 `testApp.emit`, and checking `testApp.stubbed` against the matrix. The
-`contextValue` tests and the graph composition tests lie in the
-`app-with-http` example's `app.spec.ts`.
+`contextValue` tests and the graph composition tests stay in
+`app.spec.ts` next to the rest of the application's tests.
 
 ```bash
-yarn workspace @examples/split-nats test
-yarn workspace @examples/app-with-http test
+yarn test
+yarn test
 ```
 
 The application in production assembles the same way, in parts:

@@ -34,8 +34,8 @@ nestling-viz di-metadata.json --port 4000
 | `--no-open` | не открывать браузер |
 | `-s, --silent` | не печатать сообщения в консоль |
 
-Рабочий пример — скрипты `export-metadata` и `visualize` в
-[`examples/container`](../../examples/container/).
+Рабочий пример — скрипты `graph` и `visualize` в
+[`examples/modular-app`](../../examples/modular-app/).
 
 ## Границы пакета
 
