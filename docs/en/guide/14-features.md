@@ -244,13 +244,13 @@ budget arrives as a failure with the kernel code `timeout`; it is not
 declared in `errors:`, and neither is `internal_error`.
 
 The neighbour's `QuotaExceeded` failure reaches the client, because the
-`users.create` operation lists it in `errors:` alongside its own; a
-failure not listed in the `errors:` of the calling endpoint is replaced
-with `InternalError` on the way out of the pipeline. `Unauthorized` stays
-in the list of the operation even though the endpoint no longer declares
-it: the `authed` layer declared this failure, and the operation is a
-contract for the client, which does not see the pipeline of the
-implementation:
+`users.create` operation folds the failures of `ClaimQuota` in through
+`errorsOf` alongside its own; a failure not listed in the `errors:` of
+the calling endpoint is replaced with `InternalError` on the way out of
+the pipeline. `Unauthorized` stays in the list of the operation even
+though the endpoint no longer declares it: the `authed` layer declared
+this failure, and the operation is a contract for the client, which does
+not see the pipeline of the implementation:
 
 ```typescript
 // examples/app-with-http/src/api/operations.ts
@@ -259,10 +259,15 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
-  errors: [EmailTaken, QuotaExceeded, Unauthorized],
+  errors: [EmailTaken, ...errorsOf(ClaimQuota), Unauthorized],
   // …
 });
 ```
+
+`errorsOf(ClaimQuota)` returns the `errors:` of the `ClaimQuota`
+operation as the same value: the spread `...errorsOf(ClaimQuota)`
+replaces the manual import and listing of `QuotaExceeded`, and the
+handler's type stays the same as with the failure listed directly.
 
 `httpEndpoint.implement` checks two sets against each other: every failure
 declared by the layers of its pipeline must be in the `errors:` of the

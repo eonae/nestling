@@ -1,6 +1,6 @@
 import { EmitterFamily, PortFamily } from './families.js';
 import { makeFail } from './make-fail.js';
-import { makeCommand, makeEvent, makeRequest } from './operation.js';
+import { errorsOf, makeCommand, makeEvent, makeRequest } from './operation.js';
 
 import { z } from 'zod';
 
@@ -171,5 +171,23 @@ describe('конструкторы операций', () => {
     expect(() => makeEvent({ name: 'spec.taken.name' })).toThrow(
       /'spec\.taken\.name' is already declared/,
     );
+  });
+});
+
+describe('errorsOf', () => {
+  it('отдаёт объявленные отказы тем же массивом', () => {
+    const ClaimQuota = makeRequest({
+      name: 'spec.errors-of.claim-quota',
+      errors: [CardDeclined],
+    });
+
+    expect(errorsOf(ClaimQuota)).toEqual([CardDeclined]);
+    expect(errorsOf(ClaimQuota)[0]).toBe(CardDeclined);
+  });
+
+  it('операция без `errors:` даёт пустой список', () => {
+    const Plain = makeRequest({ name: 'spec.errors-of.plain' });
+
+    expect(errorsOf(Plain)).toEqual([]);
   });
 });

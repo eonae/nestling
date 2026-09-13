@@ -9,9 +9,9 @@
 import { Unauthorized } from '../errors.js';
 import { NewUser, User } from '../features/users/user.js';
 import { EmailTaken, UserNotFound } from '../features/users/users.errors.js';
-import { QuotaExceeded } from '../operations.js';
+import { ClaimQuota } from '../operations.js';
 
-import { makeRequest, query } from '@nestlingjs/operations';
+import { errorsOf, makeRequest, query } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -36,8 +36,9 @@ export const CreateUserInput = NewUser.extend({
 export type CreateUserInput = z.infer<typeof CreateUserInput>;
 
 /**
- * `errors:` перечисляет отказ хендлера, отказ соседней фичи и отказ слоя
- * `authed`: клиент должен знать те же отказы, что получает от сервера.
+ * `errors:` перечисляет отказ хендлера, отказ соседней операции через
+ * `errorsOf` и отказ слоя `authed`: клиент должен знать те же отказы, что
+ * получает от сервера.
  *
  * По правилу размещения поле POST уходит в тело; `bind` переносит
  * `dryRun` в query-строку, и клиент собирает запрос по той же карте.
@@ -47,7 +48,7 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
-  errors: [EmailTaken, QuotaExceeded, Unauthorized],
+  errors: [EmailTaken, ...errorsOf(ClaimQuota), Unauthorized],
   doc: {
     summary: 'Создать пользователя',
     description: '`?dryRun=true` проверяет данные без записи.',

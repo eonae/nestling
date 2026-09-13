@@ -7903,6 +7903,18 @@ function`. Расхождений пять:
 > тот самый путь, который запись предполагала для пункта 4: не хватает
 > экспорта — добавляется экспорт.
 
+> **РЕАЛИЗОВАНО 2026-09-13, пункт 1** — change `errors-of` (#76 roadmap).
+> Вышло целиком: хелпер `errorsOf(operation)` в `@nestlingjs/operations`,
+> экспортирован из барреля рядом с `makeCommand`/`makeEvent`/`makeRequest`;
+> рантайм-тест и type-test фикстура закрывают позитивный случай и отказ
+> `makeEvent`. Пример `app-with-http` переписан:
+> `errors: [EmailTaken, ...errorsOf(ClaimQuota), Unauthorized]` вместо
+> ручной копии `QuotaExceeded`.
+>
+> Реализация не отступила от design.md: сигнатура, ограничение четвёртого
+> параметра `'request' | 'command'` и возврат ссылки без копирования
+> совпали с решением буква в букву.
+
 ### Контекст
 
 Обзоры [d/10](../history/discussions/10-framework-review-2.md) и
