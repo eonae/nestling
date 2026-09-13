@@ -680,6 +680,26 @@ describe('build — порядок фаз и shutdown', () => {
     expect(process.listenerCount('SIGTERM')).toBe(before);
   });
 
+  it('run({ signals: false }) обработчиков не ставит', async () => {
+    const term = process.listenerCount('SIGTERM');
+    const int = process.listenerCount('SIGINT');
+
+    const app = makeApp({
+      transports: [asTransport(new MockTransport())],
+    }).assemble();
+
+    // Приложение внутри чужого процесса за его остановку не отвечает
+    await app.run({ signals: false });
+
+    expect(process.listenerCount('SIGTERM')).toBe(term);
+    expect(process.listenerCount('SIGINT')).toBe(int);
+
+    // Остальные фазы пройдены целиком: транспорт обслуживает запросы
+    expect(app.transports.get('default')).toBeInstanceOf(MockTransport);
+
+    await app.close();
+  });
+
   it('состав сборки — одна запись info логгера ядра', async () => {
     const probe = loggerProbe();
     const Orders = makeFeature({

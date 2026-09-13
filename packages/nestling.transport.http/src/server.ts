@@ -16,6 +16,7 @@ import {
 } from 'node:http';
 
 import { HttpServerConfig } from './config.js';
+import type { HttpAttach, HttpRequestListener } from './interfaces.js';
 
 import type {
   ConfigProjection,
@@ -47,21 +48,6 @@ type HttpServerConfigValues = ConfigProjection<
 export const HttpServer$ = makeTokenFamily<HttpServer, [instance: string]>(
   'server:http',
 );
-
-/**
- * Обработчик запроса, присоединённый к серверу.
- *
- * Возвращает `true`, если ответ отправлен, и `false`, если запрос не его:
- * без этого признака два транспорта на одном сокете невозможны — первый
- * отвечал бы `404` на чужие маршруты.
- *
- * Имя `HttpHandler` принадлежит интерфейсу HTTP-хендлера операции: этот
- * тип — слушатель сокета, а не хендлер endpoint'а.
- */
-export type HttpRequestListener = (
-  request: IncomingMessage,
-  response: ServerResponse,
-) => Promise<boolean>;
 
 /** Опции HTTP-сервера: всё, что относится к сокету, а не к разбору запроса */
 export interface HttpServerOptions {
@@ -99,7 +85,7 @@ export interface HttpServerSpec extends HttpServerOptions {
  * последним шагом START (`listen`) и дренажит соединения первым шагом
  * SHUTDOWN (`drain`).
  */
-export class HttpServer implements IListener {
+export class HttpServer implements IListener, HttpAttach {
   private readonly server: Server;
 
   private readonly port: number;

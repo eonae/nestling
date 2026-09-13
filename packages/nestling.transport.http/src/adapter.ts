@@ -1,503 +1,268 @@
-import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
+/**
+ * Адаптер-транспорт: приложение как обработчик запроса.
+ *
+ * Вторая форма работы пакета рядом с `http()`. Сокета у неё нет вовсе:
+ * обработчик уходит наружу — в роут Next.js, в сервер Hono, в
+ * Express-приложение. Разбор входа, маршрутизация и кадрирование ответа
+ * общие с `http()`, потому что обе формы работают одним `HttpTransport`.
+ */
 
-import type { Cookie, HttpResponseMeta } from './response.js';
-import { DEFAULT_REDIRECT_STATUS } from './response.js';
-import { HTTP_TRANSPORT_NAME } from './token.js';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+
+import { FetchSink, FetchSource } from './fetch.js';
+import type { HttpRequestListener } from './interfaces.js';
+import { HttpTransport$ } from './token.js';
+import type { HttpTransportOptions } from './transport.js';
+import { HTTP_CAPABILITIES, HttpTransport } from './transport.js';
 
 import type {
-  ErrorResponseContext,
-  FormKind,
-  ProcessingStatus,
-  ResponseContext,
-  StreamSummary,
-  SuccessResponseContext,
+  BuiltApp,
+  Dispatch,
+  ITransport,
+  TransportDeclaration,
 } from '@nestlingjs/app';
-import { isAsyncIterable, isMidStreamFailure } from '@nestlingjs/app';
-import type {
-  ProblemDocument,
-  RedirectStatus,
-  SseConfig,
-} from '@nestlingjs/operations';
-import {
-  InternalError,
-  PROBLEM_MEDIA_TYPE,
-  problemOf,
-  untilAborted,
-} from '@nestlingjs/operations';
+import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestlingjs/app';
+import { factoryProvider } from '@nestlingjs/container';
 
-/** Соответствие статусов ответа кодам HTTP */
+/**
+ * Обработчик формы `node:http`.
+ *
+ * `false` означает «маршрут не этого приложения»: хозяин процесса
+ * продолжает свою маршрутизацию, ответ не отправлен.
+ */
+export type HttpNodeHandler = (
+  request: IncomingMessage,
+  response: ServerResponse,
+) => Promise<boolean>;
 
-const STATUS_MAP: Record<ProcessingStatus, number> = {
-  ok: 200,
-  created: 201,
-  accepted: 202,
-  no_content: 204,
-  payment_required: 402,
-  bad_request: 400,
-  unauthorized: 401,
-  forbidden: 403,
-  not_found: 404,
-  conflict: 409,
-  // «вход больше допустимого»: лимит item-цепочки, файл сверх upload({maxSize})
-  payload_too_large: 413,
-  too_many_requests: 429,
-  internal_error: 500,
-  not_implemented: 501,
-  service_unavailable: 503,
-  // 504, а не 408: TIMEOUT в ядре — «операция не уложилась в бюджет»,
-  // тогда как 408 про то, что клиент не дослал запрос.
-  timeout: 504,
+/** Обработчик формы `fetch` */
+export type HttpFetchHandler = (request: Request) => Promise<Response>;
+
+/** Тело ответа на непойманный маршрут: то же, что отдаёт `HttpServer` */
+const NOT_FOUND_BODY = 'Not Found';
+
+/** Заглушка для проигравшей ветки гонки */
+const noop = (): undefined => undefined;
+
+/** Ответ на непойманный маршрут формы `fetch` */
+const notFound = (): Response =>
+  new Response(Buffer.from(NOT_FOUND_BODY), { status: 404 });
+
+/**
+ * HTTP-транспорт без сервера.
+ *
+ * Композиция с `HttpTransport`, а не наследование: адаптер не
+ * переопределяет ни одного его метода, ему нужен только обработчик.
+ * Транспорт присоединяет обработчик к приёмнику в `serve()` — адаптер и
+ * есть такой приёмник, только вместо сокета он отдаёт обработчик наружу.
+ * Поэтому расхождения между `http()` и адаптером не может быть по
+ * устройству: разбор и кадрирование лежат в одном месте.
+ */
+export class HttpAdapter implements ITransport {
+  readonly #transport: HttpTransport;
+
+  /** Обработчик, полученный от транспорта в `serve()`; до неё его нет */
+  #listener?: HttpRequestListener;
+
+  constructor(options: HttpTransportOptions = {}) {
+    this.#transport = new HttpTransport(
+      { attach: (listener) => void (this.#listener = listener) },
+      options,
+    );
+  }
+
+  async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
+    await this.#transport.serve(dispatch, signal);
+  }
+
+  async close(): Promise<void> {
+    await this.#transport.close();
+  }
+
+  /** Обработчик формы `node:http`; до `serve()` его нет */
+  get node(): HttpNodeHandler {
+    return this.#handler();
+  }
+
+  /**
+   * Обработчик формы `fetch`; до `serve()` его нет.
+   *
+   * Ответ уходит первым из двух: статус известен или кадрирование
+   * закончилось. Ждать конца кадрирования нельзя — у потокового ответа
+   * оно закончится только после последнего кадра, а хозяину процесса
+   * `Response` нужен раньше.
+   */
+  get fetch(): HttpFetchHandler {
+    const handle = this.#handler();
+
+    return async (request: Request): Promise<Response> => {
+      const source = new FetchSource(request);
+      const sink = new FetchSink();
+
+      // Разрыв соединения у хозяина — то же событие, что разрыв сокета
+      request.signal.addEventListener('abort', () => sink.disconnect(), {
+        once: true,
+      });
+
+      // Отказ `handle()` гасится здесь, а не уходит наружу: гонку
+      // выигрывает ответ, и проигравшая ветка стала бы необработанным
+      // отказом процесса
+      await Promise.race([sink.response, handle(source, sink).catch(noop)]);
+
+      return sink.sent ?? notFound();
+    };
+  }
+
+  /** Обработчик или отказ с названной причиной */
+  #handler(): HttpRequestListener {
+    if (!this.#listener) {
+      throw new Error(
+        'Adapter has no request handler yet: a transport receives one in ' +
+          'serve(), a step of START. Call run() on the application before ' +
+          'asking the adapter for a handler.',
+      );
+    }
+
+    return this.#listener;
+  }
+}
+
+/**
+ * Объявляет экземпляр HTTP-транспорта без сервера.
+ *
+ * Сборка с ним не открывает сокет и не заводит узел сервера: обработчик
+ * запроса забирают у запущенного приложения через `toNodeHandler` или
+ * `toFetchHandler`. Декларации `httpEndpoint` переезжают на адаптер без
+ * правок — DI-токен и способности те же, что у `http()`. Из этого же
+ * следует, что `http()` и `adapter()` под одним именем в одной сборке
+ * дают занятый DI-токен, и контейнер отвергает сборку сам.
+ *
+ * Опций адреса у адаптера нет: адресом владеет хозяин процесса.
+ *
+ * @param options - Имя экземпляра и опции разбора запроса
+ * @returns Объявление транспорта для `transports:` корня
+ *
+ * @example Приложение внутри чужого процесса
+ * ```typescript
+ * const app = makeApp({ features: [Users], transports: [adapter()] }).build();
+ * await app.run({ signals: false });
+ *
+ * export const handler = toFetchHandler(app);
+ * ```
+ */
+export const adapter = <const Name extends string = typeof DEFAULT_INSTANCE>(
+  options: HttpTransportOptions & { readonly name?: Name } = {},
+): TransportDeclaration<Name> => {
+  const { name = DEFAULT_INSTANCE as Name, ...transportOptions } = options;
+  const token = HttpTransport$(name);
+
+  return makeTransportDeclaration({
+    name,
+    token,
+    capabilities: HTTP_CAPABILITIES,
+    provider: factoryProvider(
+      token,
+      () => new HttpAdapter(transportOptions),
+      [],
+    ),
+  });
 };
 
-/** Период heartbeat SSE по умолчанию */
-export const DEFAULT_SSE_HEARTBEAT = 15_000;
-
-/** Имя события, зарезервированное за отказом посреди потока */
-export const SSE_ERROR_EVENT = 'error';
-
-/**
- * Настройки SSE-ответа.
- *
- * Тип объявлен в `@nestlingjs/operations` рядом с bind-картой; здесь он
- * реэкспортирован, чтобы автор декларации брал его оттуда же, откуда
- * `httpEndpoint`.
- */
-export type { SseConfig } from '@nestlingjs/operations';
-
-/** Параметры отправки ответа помимо самого значения */
-export interface SendOptions {
-  /** Вид формы `output`; определяет способ кадрирования */
-  kind?: FormKind;
-
-  /** Поле `sse` HTTP-декларации */
-  sse?: SseConfig;
-
-  /** Дефолтный период heartbeat транспорта */
-  heartbeat?: number;
-
-  /** Итог запроса: транспорт дописывает в него байты */
-  summary?: StreamSummary;
-
-  /** Сигнал отмены запроса: дисконнект клиента или остановка транспорта */
-  signal?: AbortSignal;
-
-  /** Объявленный декларацией статус редиректа (поле `redirect`) */
-  redirect?: RedirectStatus;
-
-  /** Адрес endpoint'а; попадает в текст ошибки транспорта */
-  pattern?: string;
+/** Имя экземпляра, у которого спрашивают обработчик */
+export interface HandlerOptions {
+  /** Имя экземпляра адаптера; по умолчанию `'default'` */
+  readonly name?: string;
 }
 
 /**
- * Переводит статус ответа в код HTTP.
+ * Отдаёт обработчик формы `node:http` у запущенного приложения.
  *
- * Функция публична: генератор документации (`@nestlingjs/openapi`) берёт
- * коды отсюда, чтобы документ совпадал с тем, что отдаёт сервер.
- * Неизвестный статус даёт `200`; из типизированного кода этот случай
- * недостижим, так как набор статусов закрыт.
+ * Приложение поднимает и останавливает вызывающий код: скрытого подъёма
+ * первым запросом нет, иначе хозяину процесса не осталось бы места, где
+ * позвать `close()`.
  *
- * @param status - Статус ответа (`'created'`, `'conflict'`, …)
- * @returns Код HTTP-ответа
+ * @param app - Собранное приложение после `run()`
+ * @param options - Имя экземпляра адаптера
+ * @returns `(req, res) => Promise<boolean>`; `false` — маршрут не этого
+ * приложения
+ *
+ * @example Роут Express
+ * ```typescript
+ * const handler = toNodeHandler(app);
+ *
+ * server.use((req, res, next) => {
+ *   void handler(req, res).then((taken) => (taken ? undefined : next()));
+ * });
+ * ```
  */
-export function httpCodeOf(status?: ProcessingStatus): number {
-  if (!status) {
-    return 200;
-  }
-
-  return STATUS_MAP[status] ?? 200;
-}
-
-function countBytes(summary: StreamSummary | undefined, bytes: number): void {
-  if (summary) {
-    summary.bytesOut = (summary.bytesOut ?? 0) + bytes;
-  }
+export function toNodeHandler(
+  app: BuiltApp,
+  options: HandlerOptions = {},
+): HttpNodeHandler {
+  return adapterOf(app, options.name ?? DEFAULT_INSTANCE, 'toNodeHandler').node;
 }
 
 /**
- * Пишет чанк и ждёт, пока он уйдёт в сокет: иначе медленный клиент
- * превращал бы ответ в неограниченный буфер в памяти сервера.
+ * Отдаёт обработчик формы `fetch` у запущенного приложения.
+ *
+ * Непойманный маршрут даёт ответ `404`, а не пустое значение: роут
+ * Next.js обязан вернуть `Response`, и хозяину пришлось бы дописывать
+ * запасной ответ в каждом файле. Провалиться дальше по своей
+ * маршрутизации даёт node-форма с её `false`.
+ *
+ * @param app - Собранное приложение после `run()`
+ * @param options - Имя экземпляра адаптера
+ * @returns `(request: Request) => Promise<Response>`
+ *
+ * @example Роут Next.js
+ * ```typescript
+ * export const POST = toFetchHandler(app);
+ * ```
  */
-function writeChunk(
-  res: ServerResponse,
-  chunk: string | Buffer | Uint8Array,
-  summary?: StreamSummary,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    res.write(chunk, (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      countBytes(summary, Buffer.byteLength(chunk as never));
-      resolve();
-    });
-  });
-}
-
-/** Кодирует NDJSON-кадр: строки и байты как есть, объекты — JSON и `\n` */
-function encodeNdjson(item: unknown): string | Buffer | Uint8Array {
-  if (typeof item === 'string') {
-    return item;
-  }
-  if (Buffer.isBuffer(item) || item instanceof Uint8Array) {
-    return item;
-  }
-  return `${JSON.stringify(item)}\n`;
-}
-
-/** Кодирует SSE-кадр: `id:` и `event:` (если заданы), `data:`, пустая строка */
-function encodeSseFrame(item: unknown, sse?: SseConfig): string {
-  const lines: string[] = [];
-
-  if (sse?.id) {
-    lines.push(`id: ${String(sse.id(item))}`);
-  }
-
-  if (sse?.event) {
-    const name = sse.event(item);
-    if (name === SSE_ERROR_EVENT) {
-      throw new Error(
-        `SSE event name '${SSE_ERROR_EVENT}' is reserved for mid-stream ` +
-          `failures and cannot be produced by 'sse.event'.`,
-      );
-    }
-    lines.push(`event: ${name}`);
-  }
-
-  lines.push(`data: ${JSON.stringify(item)}`);
-
-  return `${lines.join('\n')}\n\n`;
+export function toFetchHandler(
+  app: BuiltApp,
+  options: HandlerOptions = {},
+): HttpFetchHandler {
+  return adapterOf(app, options.name ?? DEFAULT_INSTANCE, 'toFetchHandler')
+    .fetch;
 }
 
 /**
- * Тело отказа посреди потока: тот же документ, что у обычного ответа.
+ * Достаёт адаптер из графа запущенного приложения.
  *
- * Документ несёт `status` отказа, а не уже отправленный статус потока:
- * читатель кадра классифицирует отказ, не сопоставляя его с ответом.
- *
- * Отказ уже прошёл проверку `errors`: незадекларированный стал `internal_error`,
- * оригинал записан в логгер `dispatch`.
+ * Три отказа, и каждый называет недостающий шаг: приложение не запущено,
+ * имени нет в сборке, транспорт с таким именем владеет сокетом.
  */
-function midStreamBody(error: unknown): ProblemDocument {
-  if (isMidStreamFailure(error)) {
-    const { response } = error;
-    return problemOf(response.value, httpCodeOf(response.status));
-  }
+function adapterOf(
+  app: BuiltApp,
+  name: string,
+  caller: string,
+): HttpAdapter {
+  const { transports } = app;
 
-  return problemOf(
-    { error: 'Internal server error', code: InternalError.code },
-    httpCodeOf('internal_error'),
-  );
-}
-
-/**
- * Пишет конечный поток как NDJSON.
- *
- * Отказ посреди потока обрывает соединение: заголовки уже ушли, статус
- * сменить нельзя, а незавершённый chunked-ответ сообщает клиенту, что
- * данные неполны.
- */
-async function writeNdjson(
-  res: ServerResponse,
-  source: AsyncIterable<unknown>,
-  options: SendOptions,
-): Promise<void> {
-  try {
-    for await (const item of untilAborted(source, options.signal)) {
-      if (res.destroyed || res.writableEnded) {
-        break;
-      }
-      await writeChunk(res, encodeNdjson(item), options.summary);
-    }
-  } catch {
-    // Отказ уже прошёл проверку `errors` и `.finally`-шаги; транспорту
-    // остаётся оборвать ответ
-    res.destroy();
-    return;
-  }
-
-  if (!res.destroyed && !res.writableEnded) {
-    res.end();
-  }
-}
-
-/**
- * Пишет открытую подписку как SSE.
- *
- * Отказ посреди потока уходит событием с именем `error`, после чего
- * соединение закрывается.
- */
-async function writeSse(
-  res: ServerResponse,
-  source: AsyncIterable<unknown>,
-  options: SendOptions,
-): Promise<void> {
-  res.flushHeaders();
-
-  const period =
-    options.sse?.heartbeat ?? options.heartbeat ?? DEFAULT_SSE_HEARTBEAT;
-
-  // Heartbeat — SSE-комментарий, а не элемент потока: в счётчики и
-  // лимиты не входит
-  const timer =
-    period > 0
-      ? setInterval(() => {
-          if (!res.destroyed && !res.writableEnded) {
-            res.write(': heartbeat\n\n');
-          }
-        }, period)
-      : undefined;
-  timer?.unref?.();
-
-  try {
-    for await (const item of untilAborted(source, options.signal)) {
-      if (res.destroyed || res.writableEnded) {
-        break;
-      }
-      await writeChunk(res, encodeSseFrame(item, options.sse), options.summary);
-    }
-  } catch (error) {
-    if (!res.destroyed && !res.writableEnded) {
-      await writeChunk(
-        res,
-        `event: ${SSE_ERROR_EVENT}\ndata: ${JSON.stringify(
-          midStreamBody(error),
-        )}\n\n`,
-        options.summary,
-      );
-    }
-  } finally {
-    clearInterval(timer);
-    if (!res.destroyed && !res.writableEnded) {
-      res.end();
-    }
-  }
-}
-
-/**
- * Сериализует cookie в значение заголовка `Set-Cookie`.
- *
- * Значение пишется как есть: кодирование — дело автора, потому что
- * сервер не знает, что клиент ожидает получить обратно.
- */
-function serializeCookie(cookie: Cookie): string {
-  const parts = [`${cookie.name}=${cookie.value}`];
-
-  if (cookie.maxAge !== undefined) {
-    parts.push(`Max-Age=${cookie.maxAge}`);
-  }
-  if (cookie.expires !== undefined) {
-    parts.push(`Expires=${cookie.expires.toUTCString()}`);
-  }
-  if (cookie.path !== undefined) {
-    parts.push(`Path=${cookie.path}`);
-  }
-  if (cookie.domain !== undefined) {
-    parts.push(`Domain=${cookie.domain}`);
-  }
-  if (cookie.secure === true) {
-    parts.push('Secure');
-  }
-  if (cookie.httpOnly === true) {
-    parts.push('HttpOnly');
-  }
-  if (cookie.sameSite !== undefined) {
-    parts.push(
-      `SameSite=${cookie.sameSite[0].toUpperCase()}${cookie.sameSite.slice(1)}`,
+  if (transports.size === 0) {
+    throw new Error(
+      `Application is not running, so it has no request handler: call ` +
+        `run() before ${caller}().`,
     );
   }
 
-  return parts.join('; ');
-}
+  const instance = transports.get(name);
 
-/** Ответ-отказ транспорта: программная ошибка автора endpoint'а */
-function transportFailure(message: string): ErrorResponseContext {
-  return {
-    isSuccess: false,
-    status: 'internal_error',
-    value: { error: message, code: InternalError.code },
-  };
-}
-
-/**
- * Проверяет метаданные протокола в контексте ответа.
- *
- * Транспорт читает их, только если имя совпадает с его собственным:
- * иначе endpoint вернул ответ чужого транспорта, и это ошибка автора, а
- * не клиента. Редирект без объявленного `redirect` — та же ошибка: без
- * поля документ разошёлся бы с поведением.
- *
- * @returns Ответ-отказ, если метаданные читать нельзя
- */
-function checkTransportMeta(
-  response: SuccessResponseContext,
-  options: SendOptions,
-): ErrorResponseContext | undefined {
-  const carried = response.transport;
-  if (!carried) {
-    return undefined;
-  }
-
-  const where = `Endpoint '${options.pattern ?? 'unknown'}'`;
-
-  if (carried.name !== HTTP_TRANSPORT_NAME) {
-    return transportFailure(
-      `${where} is served by transport '${HTTP_TRANSPORT_NAME}', but its ` +
-        `handler returned a response of transport '${carried.name}'.`,
+  if (!instance) {
+    throw new Error(
+      `No transport named '${name}' in this application; it declares: ` +
+        `${[...transports.keys()].join(', ')}.`,
     );
   }
 
-  const meta = carried.meta as HttpResponseMeta;
-
-  if (meta.location !== undefined && options.redirect === undefined) {
-    return transportFailure(
-      `${where} returned a redirect, but its declaration does not declare ` +
-        `'redirect' — add 'redirect: <status>' to it.`,
+  if (!(instance instanceof HttpAdapter)) {
+    throw new TypeError(
+      `Transport '${name}' owns a socket, so it has no handler to hand ` +
+        `out: declare adapter({ name: '${name}' }) instead of ` +
+        `http({ name: '${name}' }).`,
     );
   }
 
-  return undefined;
-}
-
-/** Метаданные HTTP-ответа из контекста; у ответа без конверта их нет */
-function httpMetaOf(response: ResponseContext): HttpResponseMeta | undefined {
-  return response.isSuccess
-    ? (response.transport?.meta as HttpResponseMeta | undefined)
-    : undefined;
-}
-
-/**
- * Код ответа: статус редиректа перекрывает статус результата.
- *
- * Статус берётся из вызова `HttpResponse.redirect`, затем из поля
- * `redirect` декларации, затем `302`.
- */
-function statusOf(
-  response: ResponseContext,
-  meta: HttpResponseMeta | undefined,
-  options: SendOptions,
-): number {
-  return meta?.location === undefined
-    ? httpCodeOf(response.status)
-    : (meta.status ?? options.redirect ?? DEFAULT_REDIRECT_STATUS);
-}
-
-/**
- * Заголовки потокового ответа по форме `output`.
- *
- * Ставятся до заголовков `HttpResponse`: заголовки ответа принадлежат
- * хендлеру и перекрывают заголовки формы.
- */
-function setStreamHeaders(res: ServerResponse, kind: FormKind): void {
-  if (kind === 'events') {
-    res.setHeader('content-type', 'text/event-stream');
-    res.setHeader('cache-control', 'no-cache');
-    res.setHeader('connection', 'keep-alive');
-    return;
-  }
-
-  res.setHeader('content-type', 'application/x-ndjson');
-}
-
-/**
- * Отправляет `ResponseContext` в `ServerResponse`.
- *
- * Способ кадрирования выбирается по объявленной форме `output`, а не по
- * типу значения: `stream` даёт NDJSON, `events` — SSE, остальное — JSON.
- * Заголовки `HttpResponse` перекрывают заголовки формы; имя приводится к
- * нижнему регистру, поэтому `'Content-Type'` хендлера заменяет
- * `content-type` формы, а не добавляется вторым заголовком. Каждая cookie
- * уходит отдельным заголовком `Set-Cookie`.
- *
- * Ответ формы `value` уходит одним `writeHead` с `content-length` и телом
- * в буфере: так `node:http` не проверяет имена заголовков по одному и не
- * считает длину тела второй раз.
- */
-export async function sendResponse(
-  res: ServerResponse,
-  context: ResponseContext,
-  options: SendOptions = {},
-): Promise<void> {
-  // Метаданные чужого транспорта и незаявленный редирект — ошибка автора
-  // endpoint'а: ответ заменяется отказом до записи заголовков
-  const response = context.isSuccess
-    ? (checkTransportMeta(context, options) ?? context)
-    : context;
-
-  const meta = httpMetaOf(response);
-  const status = statusOf(response, meta, options);
-  const kind = options.kind ?? 'value';
-  const streaming =
-    response.isSuccess &&
-    (kind === 'stream' || kind === 'events') &&
-    isAsyncIterable(response.value);
-
-  if (streaming) {
-    res.statusCode = status;
-    setStreamHeaders(res, kind);
-    // Заголовки ответа уходят до первого кадра: после него статус и
-    // заголовки уже отправлены клиенту
-    if (meta?.headers) {
-      for (const [key, value] of Object.entries(meta.headers)) {
-        res.setHeader(key, value);
-      }
-    }
-    if (meta?.cookies?.length) {
-      res.setHeader('set-cookie', meta.cookies.map(serializeCookie));
-    }
-
-    await (kind === 'events'
-      ? writeSse(res, response.value as AsyncIterable<unknown>, options)
-      : writeNdjson(res, response.value as AsyncIterable<unknown>, options));
-    return;
-  }
-
-  // value === null означает пустой ответ
-  const empty = response.value === null;
-  const headers: OutgoingHttpHeaders = {};
-
-  if (!empty) {
-    headers['content-type'] = response.isSuccess
-      ? 'application/json'
-      : PROBLEM_MEDIA_TYPE;
-  }
-  if (meta) {
-    if (meta.headers) {
-      for (const [key, value] of Object.entries(meta.headers)) {
-        headers[key.toLowerCase()] = value;
-      }
-    }
-    if (meta.cookies?.length) {
-      headers['set-cookie'] = meta.cookies.map(serializeCookie);
-    }
-    if (meta.location !== undefined) {
-      headers.location = meta.location;
-    }
-  }
-
-  if (empty) {
-    // Без длины `node:http` дописывает пустому ответу
-    // `transfer-encoding: chunked` и отправляет пустой кадр. Заметили на
-    // редиректе, но причина одна на все пустые ответы.
-    //
-    // 204 и 304 исключены: тела у них нет по протоколу, и заголовки тела
-    // `node:http` убирает сам.
-    if (status !== 204 && status !== 304) {
-      headers['content-length'] = 0;
-    }
-
-    res.writeHead(status, headers);
-    res.end();
-    return;
-  }
-
-  // Отказ уходит документом RFC 9457; успешный ответ — значением как есть
-  const payload = response.isSuccess
-    ? response.value
-    : problemOf(response.value, status);
-  const body = Buffer.from(JSON.stringify(payload) ?? '');
-  headers['content-length'] = body.length;
-  countBytes(options.summary, body.length);
-  res.writeHead(status, headers);
-  res.end(body);
+  return instance;
 }

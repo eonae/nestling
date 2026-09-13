@@ -4,7 +4,9 @@ The Nestling HTTP transport on `node:http`: routing through
 `find-my-way`, request body parsing by the endpoint's io declaration
 (JSON, raw bytes, NDJSON, multipart through `busboy`), and response
 format selection from the same declaration — NDJSON for `stream(T)`,
-SSE for `events(T)`.
+SSE for `events(T)`. The same set of endpoints runs inside a foreign
+process: `adapter()` declares a transport without a socket and hands the
+request handler out.
 
 > 🚧 Active development, the API may change. CORS, rate limiting and
 > compression are not implemented. The package does not choose a
@@ -13,6 +15,7 @@ SSE for `events(T)`.
 > Design: [`docs/en/design/transports.md`](../../docs/en/design/transports.md).
 > Guide: [chapter 1. Bring up a service that answers a request](../../docs/en/guide/01-first-service.md),
 > [chapter 12. Files and streams](../../docs/en/guide/12-files-and-streams.md).
+> Recipe: [an application inside a foreign process](../../docs/en/recipes/embedded.md).
 
 ## Install
 
@@ -27,7 +30,12 @@ configuration section (`HTTP_PORT`, `HTTP_HOST`).
 
 ```typescript
 import { makeApp, Ok } from '@nestlingjs/app';
-import { http, httpEndpoint } from '@nestlingjs/transport.http';
+import {
+  adapter,
+  http,
+  httpEndpoint,
+  toFetchHandler,
+} from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 export const GetUser = httpEndpoint.get('/users/:id', {
@@ -36,12 +44,23 @@ export const GetUser = httpEndpoint.get('/users/:id', {
   handler: async ({ id }) => new Ok({ id, name: 'Alice' }),
 });
 
+// Own process: the transport runs on a server, the server holds the socket
 await makeApp({
   features: [UsersFeature], // the feature where GetUser is declared
   transports: [http()], // a declaration, not an instance
 })
   .build()
   .run();
+
+// Foreign process: there is no socket, the request handler goes out
+const embedded = makeApp({
+  features: [UsersFeature],
+  transports: [adapter()],
+}).build();
+
+await embedded.run({ signals: false }); // signals stay with the process owner
+
+export const GET = toFetchHandler(embedded); // (Request) => Promise<Response>
 ```
 
 ## Exports
@@ -49,6 +68,9 @@ await makeApp({
 - **Transport** ([design](../../docs/en/design/transports.md)) — `http`,
   `HTTP_CAPABILITIES`, `HTTP_TRANSPORT_NAME`, `HttpTransport`,
   `HttpTransport$`.
+- **Adapter** ([recipe](../../docs/en/recipes/embedded.md)) — `adapter`,
+  `HttpAdapter`, `HttpFetchHandler`, `HttpNodeHandler`, `toFetchHandler`,
+  `toNodeHandler`.
 - **Server and probes** — `httpProbes`, `HttpServer`, `HttpServer$`,
   `server`, `serverKeys`.
 - **Endpoint declaration** ([design](../../docs/en/design/endpoints.md))
@@ -77,13 +99,16 @@ await makeApp({
   they are re-exported from here so that the documentation generator and a
   transport on top of a foreign server take the format from the same place
   as `httpCodeOf`.
-- **Byte level** — `buildPayload`, `bindingNeedsBody`, `parseJson`,
-  `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
-  `readQuery`, `sendResponse`.
+- **Byte level** — `buildPayload`, `bindingNeedsBody`, `HttpSink`,
+  `HttpSource`, `parseJson`, `parseMultipartForm`, `parseNdjson`,
+  `parseRaw`, `PayloadTooLargeError`, `readQuery`, `sendResponse`.
 
   These parts are public on purpose: a custom `ITransport`
   implementation can be built on top of a third-party HTTP server
-  from them, without changing the package.
+  from them, without changing the package. `HttpSource` and `HttpSink`
+  describe what the transport reads from the request and what it writes
+  the response into; `IncomingMessage` and `ServerResponse` satisfy them
+  as they are.
 - **Pipeline steps** ([design](../../docs/en/design/pipeline.md)) —
   `httpAccessLog`, `withClientIp`, `withHeader`.
 

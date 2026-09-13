@@ -461,6 +461,18 @@ function modulesListing(
     .map(({ name }) => name);
 }
 
+/** Опции подъёма приложения */
+export interface RunOptions {
+  /**
+   * Ставить ли обработчики `SIGTERM` и `SIGINT`. По умолчанию `true`.
+   *
+   * Приложение внутри чужого процесса ставит `false`: остановка процесса
+   * не его дело, а подписка на `SIGINT` отменила бы завершение по
+   * Ctrl+C. Остальные фазы `run()` идут одинаково при любом значении.
+   */
+  readonly signals?: boolean;
+}
+
 /**
  * Приложение, собранное для этого процесса: результат `app.build()`.
  *
@@ -483,7 +495,7 @@ export class BuiltApp {
   #alwaysOn: readonly ResolvedBundle[] = [];
 
   /** Транспорты сборки после раскрытия веток */
-  #transports: readonly TransportDeclaration[] = [];
+  #transportDecls: readonly TransportDeclaration[] = [];
 
   /**
    * Серверы сборки после раскрытия веток, без повторов.
@@ -528,6 +540,9 @@ export class BuiltApp {
   /** Объявленные серверы по имени экземпляра; заполняется на INIT */
   #servers = new Map<string, IListener>();
 
+  /** Объявленные транспорты по имени экземпляра; заполняется на INIT */
+  #transports = new Map<string, ITransport>();
+
   /** Канал остановки, переданный транспортам в `serve` */
   #shutdown?: AbortController;
 
@@ -554,9 +569,12 @@ export class BuiltApp {
    * Проводит приложение по фазам 0–5 и остаётся в RUN.
    *
    * Ставит обработчики `SIGTERM`/`SIGINT`, переводящие приложение в
-   * SHUTDOWN. Идемпотентен: повторный вызов ничего не пересобирает.
+   * SHUTDOWN; `signals: false` их не ставит. Идемпотентен: повторный
+   * вызов ничего не пересобирает.
+   *
+   * @param options - Опции подъёма; сегодня это обработчики сигналов
    */
-  async run(): Promise<void> {
+  async run(options: RunOptions = {}): Promise<void> {
     if (this.#started) {
       return;
     }
@@ -579,7 +597,7 @@ export class BuiltApp {
     // 2 INIT — экземпляры и захват ресурсов; серверы среди них, но сокет
     // ни один из них не открывает
     await container.init(signal);
-    this.#collectServers(container);
+    this.#collectInstances(container);
 
     // С этой строки ядро пишет через узел графа: подмена корня в тестовом
     // прогоне действует с INIT, и записи фазы RUN обязаны её видеть
@@ -621,7 +639,10 @@ export class BuiltApp {
     this.#phase = 'RUN';
 
     this.#announce(discovery, logger);
-    this.#attachSignals(logger);
+
+    if (options.signals ?? true) {
+      this.#attachSignals(logger);
+    }
   }
 
   /**
@@ -705,7 +726,7 @@ export class BuiltApp {
 
     // 2 INIT
     await container.init(signal);
-    this.#collectServers(container);
+    this.#collectInstances(container);
 
     // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
     // выполняются, поэтому тест не начинает принимать запросы и не
@@ -740,6 +761,19 @@ export class BuiltApp {
    */
   get servers(): ReadonlyMap<string, IListener> {
     return this.#servers;
+  }
+
+  /**
+   * Объявленные транспорты по имени экземпляра.
+   *
+   * Пара к `servers` и тем же обоснованием: дотянуться до узла графа
+   * снаружи больше нечем. Нужна тому, кто берёт у транспорта значение,
+   * которого нет у объявления, — обработчик запроса у адаптера
+   * (`toNodeHandler`, `toFetchHandler`). Пусто до фазы INIT: экземпляров
+   * до неё нет.
+   */
+  get transports(): ReadonlyMap<string, ITransport> {
+    return this.#transports;
   }
 
   /**
@@ -784,6 +818,7 @@ export class BuiltApp {
     await this.#container?.destroy();
     this.#container = undefined;
     this.#servers = new Map();
+    this.#transports = new Map();
 
     // 5. Источники конфига — последними: читалка живёт время `run()`, а
     // не время контейнера, и хука в графе у неё нет
@@ -795,16 +830,24 @@ export class BuiltApp {
   }
 
   /**
-   * Достаёт объявленные серверы из графа — сразу после INIT.
+   * Достаёт объявленные узлы транспортного слоя из графа — сразу после
+   * INIT.
    *
-   * Порядок карты — порядок объявления: им же идёт `listen` на START, а
-   * дренаж идёт его реверсом.
+   * Порядок карты серверов — порядок объявления: им же идёт `listen` на
+   * START, а дренаж идёт его реверсом.
    */
-  #collectServers(container: BuiltContainer): void {
+  #collectInstances(container: BuiltContainer): void {
     this.#servers = new Map(
       this.#serverDecls.map(({ name, token }) => [
         name,
         container.getOrThrow<IListener>(token as InjectionToken<IListener>),
+      ]),
+    );
+
+    this.#transports = new Map(
+      this.#transportDecls.map(({ name, token }) => [
+        name,
+        container.getOrThrow<ITransport>(token as InjectionToken<ITransport>),
       ]),
     );
   }
@@ -839,7 +882,7 @@ export class BuiltApp {
 
     this.#switches = composition.switches;
     this.#alwaysOn = composition.alwaysOn;
-    this.#transports = composition.transports;
+    this.#transportDecls = composition.transports;
     this.#serverDecls = composition.servers;
     this.#named = composition.named;
     this.#includeDeps = composition.includeDeps;
@@ -1028,7 +1071,7 @@ export class BuiltApp {
     // приходит и элементом `transports:`, и полем `server` объявления
     // транспорта, а `collectServers` уже свёл их без повторов
     const nodes = [
-      ...this.#transports.map(({ provider }) => provider),
+      ...this.#transportDecls.map(({ provider }) => provider),
       ...this.#serverDecls.map(({ provider }) => provider),
     ];
     if (nodes.length > 0) {
@@ -1319,7 +1362,7 @@ export class BuiltApp {
     const seen = new Set<TransportRef>();
 
     for (const token of [
-      ...transportTokensOf(this.#transports),
+      ...transportTokensOf(this.#transportDecls),
       ...discovery.transports.keys(),
     ]) {
       if (seen.has(token)) {
@@ -1435,7 +1478,7 @@ export class BuiltApp {
       // объявления у неё нет, а формы её endpoint'ов сверяются на той же
       // фазе, что и у прочих. Объявление корня перекрывает эту запись
       [BusTransport$ as TransportRef, BUS_CAPABILITIES],
-      ...this.#transports.map(
+      ...this.#transportDecls.map(
         (declaration) => [declaration.token, declaration.capabilities] as const,
       ),
     ]);

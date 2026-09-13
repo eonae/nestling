@@ -170,6 +170,12 @@ there too.
 - **Server** (`сервер`, `server`) — a resource that holds the socket
   and opens it last on START. The HTTP transport attaches to the server;
   several transports on one socket get one server.
+- **Adapter transport** (`адаптер-транспорт`, `adapter`) — an instance of
+  the HTTP transport without a server. An assembly with it opens no
+  socket and hands the request handler out instead:
+  `toNodeHandler(app)` in the `node:http` form and `toFetchHandler(app)`
+  in the `fetch` form. This is how a set of endpoints runs inside a
+  foreign process.
 - **Intercom** (`интерком`, `intercom:`) — the role of the carrier of
   operations between processes, assigned by a reference to an already
   declared transport. Not a second list of transports and not a second

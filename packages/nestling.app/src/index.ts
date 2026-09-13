@@ -185,7 +185,7 @@ export type {
   SubscribeOptions,
 } from './ports/index.js';
 
-// ./root/index.js — 17
+// ./root/index.js — 18
 export {
   App,
   BuiltApp,
@@ -206,6 +206,7 @@ export type {
   FeatureOptions,
   Plugin,
   PluginOptions,
+  RunOptions,
 } from './root/index.js';
 
 // ./transport/index.js — 14

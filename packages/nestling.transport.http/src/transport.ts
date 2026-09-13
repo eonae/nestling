@@ -1,12 +1,11 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-
-import { DEFAULT_SSE_HEARTBEAT, sendResponse } from './adapter.js';
 import { buildPayload, readQuery } from './binding.js';
 import {
   JsonParseError,
   MultipartFieldError,
   PayloadTooLargeError,
 } from './errors.js';
+import { DEFAULT_SSE_HEARTBEAT, sendResponse } from './framing.js';
+import type { HttpAttach, HttpSink, HttpSource } from './interfaces.js';
 import type { MultipartResult } from './parser.js';
 import {
   collectFileParts,
@@ -69,19 +68,24 @@ class HttpRequestValue implements HttpRequest {
   declare readonly url: string;
   declare readonly headers: Readonly<Record<string, string>>;
 
-  readonly #socket: IncomingMessage['socket'];
+  readonly #socket: HttpSource['socket'];
 
-  constructor(request: IncomingMessage, url: string) {
-    (this as { method: string }).method = request.method || 'GET';
+  constructor(source: HttpSource, url: string) {
+    (this as { method: string }).method = source.method || 'GET';
     (this as { url: string }).url = url;
     (this as { headers: Readonly<Record<string, string>> }).headers =
-      request.headers as Record<string, string>;
-    this.#socket = request.socket;
+      source.headers as Record<string, string>;
+    this.#socket = source.socket;
   }
 
-  /** Адрес сокета; у запроса через прокси это адрес прокси */
+  /**
+   * Адрес сокета; у запроса через прокси это адрес прокси.
+   *
+   * У формы `fetch` сокета нет вовсе, и адрес пуст: встроенное приложение
+   * читает его из заголовка шагом `withClientIp`.
+   */
   get ip(): string | undefined {
-    return this.#socket.remoteAddress;
+    return this.#socket?.remoteAddress;
   }
 }
 
@@ -170,12 +174,12 @@ export class HttpTransport implements ITransport {
   private readonly sseHeartbeat: number;
 
   /**
-   * @param server - Сервер, к которому транспорт присоединяет обработчик;
-   * его же он делит с другими транспортами того же сокета
+   * @param target - Приёмник обработчика: сервер с сокетом или адаптер.
+   * Сервер транспорт делит с другими транспортами того же сокета
    * @param options - Опции разбора и ответа; адреса среди них нет
    */
   constructor(
-    private readonly server: HttpServer,
+    private readonly target: HttpAttach,
     private readonly options: HttpTransportOptions = {},
   ) {
     this.router = new HttpRouter();
@@ -185,7 +189,7 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Присоединяет обработчик к серверу.
+   * Присоединяет обработчик к приёмнику.
    *
    * Маршруты берутся из `dispatch.routes`, endpoint исполняет
    * `dispatch.call`. Формы io сверяются с поддерживаемыми здесь же: без
@@ -193,7 +197,8 @@ export class HttpTransport implements ITransport {
    * BUILD.
    *
    * Сокет при этом не открывается: его открывает сервер следующим шагом
-   * START, когда обработчики присоединили все транспорты.
+   * START, когда обработчики присоединили все транспорты. У адаптера
+   * сокета нет вовсе — обработчик уходит наружу.
    *
    * @param dispatch - Маршруты этого транспорта и функция исполнения
    * @param signal - Сигнал остановки; `App` подаёт его первым шагом
@@ -215,7 +220,7 @@ export class HttpTransport implements ITransport {
     // Внешний сигнал останавливает транспорт так же, как `close()`
     signal.addEventListener('abort', () => void this.close(), { once: true });
 
-    this.server.attach((req, res) => this.handle(req, res));
+    this.target.attach((source, sink) => this.handle(source, sink));
   }
 
   /**
@@ -249,10 +254,7 @@ export class HttpTransport implements ITransport {
    * транспорта, и сервер отдаёт его следующему обработчику цепочки.
    * Ответ `404` — дело сервера, а не транспорта.
    */
-  private async handle(
-    nativeReq: IncomingMessage,
-    nativeRes: ServerResponse,
-  ): Promise<boolean> {
+  private async handle(source: HttpSource, sink: HttpSink): Promise<boolean> {
     // Переменные объявлены до try, чтобы catch мог дочитать непрочитанные
     // файловые потоки
     let multipart: MultipartResult | undefined;
@@ -282,15 +284,15 @@ export class HttpTransport implements ITransport {
 
     // 'close' на response приходит и после штатного завершения ответа,
     // поэтому дисконнектом считаем только недописанный ответ
-    nativeRes.on('close', () => {
+    sink.on('close', () => {
       this.active.delete(requestController);
-      if (!nativeRes.writableFinished) {
+      if (!sink.writableFinished) {
         requestController.abort(new ClientDisconnectedError());
       }
     });
 
     try {
-      const found = this.router.find(nativeReq);
+      const found = this.router.find(source);
       const dispatch = this.dispatch;
       if (!found || !dispatch) {
         this.active.delete(requestController);
@@ -304,7 +306,7 @@ export class HttpTransport implements ITransport {
 
       // Путь берётся срезом до `?`, как прислан клиентом; query
       // разбирается только когда её читает карта и она есть в запросе
-      const rawUrl = nativeReq.url || '/';
+      const rawUrl = source.url || '/';
       const separator = rawUrl.indexOf('?');
       const path = separator === -1 ? rawUrl : rawUrl.slice(0, separator);
       const query =
@@ -317,7 +319,7 @@ export class HttpTransport implements ITransport {
 
       // Запрос собирается из уже прочитанных значений: заголовки — та же
       // ссылка, что уходит в `raw.attributes`
-      startInput = { http: new HttpRequestValue(nativeReq, rawUrl) };
+      startInput = { http: new HttpRequestValue(source, rawUrl) };
 
       // Потоковый вход оборачивается ядром только после создания контекста:
       // счётчики живут в нём
@@ -327,12 +329,12 @@ export class HttpTransport implements ITransport {
         case 'stream':
         case 'events': {
           // Поэлементной валидации здесь нет: её делает `bindInputStream`
-          streamSource = parseNdjson(nativeReq, this.maxBodySize, addBytesIn);
+          streamSource = parseNdjson(source, this.maxBodySize, addBytesIn);
           break;
         }
         case 'multipart': {
           multipart = await parseMultipartForm(
-            nativeReq,
+            source,
             inputForm.files ?? {},
             this.maxBodySize,
           );
@@ -354,7 +356,7 @@ export class HttpTransport implements ITransport {
         default: {
           if (inputForm.leaf === 'binary' || inputForm.leaf === 'text') {
             // Байты читаются один раз: они же уходят в стартовый контекст
-            const raw = await readBody(nativeReq, this.maxBodySize);
+            const raw = await readBody(source, this.maxBodySize);
             addBytesIn(raw.length);
             if (binding.rawBody) {
               startInput = { ...startInput, rawBody: raw };
@@ -368,14 +370,14 @@ export class HttpTransport implements ITransport {
           if (binding.rawBody) {
             // Одно чтение: байты в стартовый контекст, значение парсится
             // из того же буфера
-            const raw = await readBody(nativeReq, this.maxBodySize);
+            const raw = await readBody(source, this.maxBodySize);
             addBytesIn(raw.length);
             startInput = { ...startInput, rawBody: raw };
             body = parseJsonBuffer(raw);
           } else if (inputForm.leaf && route.needsBody) {
             // Тело читается только тогда, когда его требует карта: у GET
             // без body-пометок оно не буферизуется вовсе
-            const raw = await readBody(nativeReq, this.maxBodySize);
+            const raw = await readBody(source, this.maxBodySize);
             addBytesIn(raw.length);
             body = parseJsonBuffer(raw);
           }
@@ -387,7 +389,7 @@ export class HttpTransport implements ITransport {
       // Реконнект SSE: заголовок попадает в стартовый контекст так же, как
       // `rawBody`
       if (outputForm.kind === 'events') {
-        const lastEventId = nativeReq.headers['last-event-id'];
+        const lastEventId = source.headers['last-event-id'];
         if (typeof lastEventId === 'string') {
           startInput = { ...startInput, lastEventId };
         }
@@ -395,9 +397,9 @@ export class HttpTransport implements ITransport {
 
       const raw: Raw = {
         transport: HTTP_TRANSPORT_NAME,
-        pattern: `${nativeReq.method || 'GET'} ${path}`,
+        pattern: `${source.method || 'GET'} ${path}`,
         payload,
-        attributes: nativeReq.headers as Record<string, string>,
+        attributes: source.headers as Record<string, string>,
       };
 
       const endpointMeta: EndpointMeta = {
@@ -423,7 +425,7 @@ export class HttpTransport implements ITransport {
       }
 
       const send = (response: Parameters<typeof sendResponse>[1]) =>
-        sendResponse(nativeRes, response, {
+        sendResponse(sink, response, {
           kind: outputForm.kind,
           sse: binding.sse,
           redirect: binding.redirect,
@@ -443,7 +445,7 @@ export class HttpTransport implements ITransport {
       this.drainFileStreams(multipart);
     } catch (error) {
       this.drainFileStreams(multipart);
-      this.sendError(nativeRes, error);
+      this.sendError(sink, error);
     }
 
     return true;
@@ -465,8 +467,8 @@ export class HttpTransport implements ITransport {
    * готовый контекст ответа для любого исхода, включая отказ проверки
    * входа.
    */
-  private sendError(res: ServerResponse, error: unknown): void {
-    if (res.headersSent) {
+  private sendError(sink: HttpSink, error: unknown): void {
+    if (sink.headersSent) {
       return;
     }
 
@@ -496,9 +498,9 @@ export class HttpTransport implements ITransport {
       }
     }
 
-    res.statusCode = status;
-    res.setHeader('content-type', PROBLEM_MEDIA_TYPE);
-    res.end(JSON.stringify(problemOf(details, status)));
+    sink.statusCode = status;
+    sink.setHeader('content-type', PROBLEM_MEDIA_TYPE);
+    sink.end(JSON.stringify(problemOf(details, status)));
   }
 
   /**

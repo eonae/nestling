@@ -18,6 +18,30 @@
 // ./transport.js — 3
 export { http, HTTP_CAPABILITIES, HttpTransport } from './transport.js';
 
+// ./adapter.js — 6
+/**
+ * Вторая форма работы пакета: приложение как обработчик запроса.
+ *
+ * `adapter()` объявляет транспорт без сокета, а две функции достают его
+ * обработчик у запущенного приложения — в форме `node:http` и в форме
+ * `fetch`.
+ */
+export {
+  adapter,
+  HttpAdapter,
+  toFetchHandler,
+  toNodeHandler,
+} from './adapter.js';
+export type { HttpFetchHandler, HttpNodeHandler } from './adapter.js';
+
+// ./interfaces.js — 2
+/**
+ * Байтовая граница транспорта: что он читает у запроса и во что пишет
+ * ответ. Публичны ради автора своего приёмника — прикладному коду они не
+ * нужны.
+ */
+export type { HttpSink, HttpSource } from './interfaces.js';
+
 // ./server.js — 3
 export { HttpServer, HttpServer$, server } from './server.js';
 
@@ -35,8 +59,8 @@ export {
   parseRaw,
 } from './parser.js';
 
-// ./adapter.js — 2
-export { httpCodeOf, sendResponse } from './adapter.js';
+// ./framing.js — 2
+export { httpCodeOf, sendResponse } from './framing.js';
 
 // @nestlingjs/operations — 7
 /**

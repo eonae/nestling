@@ -1,6 +1,5 @@
-import type { IncomingMessage } from 'node:http';
-
 import { bindingNeedsBody, httpBindingOf } from './binding.js';
+import type { HttpSource } from './interfaces.js';
 
 import type { FormDescriptor, RouteDeclaration } from '@nestlingjs/app';
 import { describeForm } from '@nestlingjs/app';
@@ -77,13 +76,13 @@ export class HttpRouter {
   }
 
   /** Находит маршрут и path-параметры запроса; `null`, если маршрута нет */
-  find(req: IncomingMessage): {
+  find(source: HttpSource): {
     route: RouteEntry;
     params: Record<string, string>;
   } | null {
     const result = this.router.find(
-      req.method as Router.HTTPMethod,
-      req.url || '/',
+      source.method as Router.HTTPMethod,
+      source.url || '/',
     );
 
     if (!result) {
