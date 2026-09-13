@@ -142,7 +142,7 @@ export type {
 } from './make-fail.js';
 
 // ./operation.js — 20
-export { makeCommand, makeEvent, makeRequest } from './operation.js';
+export { errorsOf, makeCommand, makeEvent, makeRequest } from './operation.js';
 export type {
   AnyOperation,
   CommandOperation,

@@ -203,6 +203,15 @@ export type OperationFailsOf<C extends AnyOperation> =
     : never;
 
 /**
+ * Отдаёт объявленные отказы операции тем же значением, без копирования.
+ */
+export function errorsOf<E extends readonly AnyFailDefinition[]>(
+  operation: Operation<any, any, E, 'request' | 'command'>,
+): E {
+  return operation.errors ?? ([] as unknown as E);
+}
+
+/**
  * Отказы пайплайна реализации, которых операция не объявила.
  *
  * Отказы ядра из множества вычитаются: их граница пропускает у любой
