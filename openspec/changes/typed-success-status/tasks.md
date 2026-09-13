@@ -79,11 +79,11 @@
 
 ## 5. Документ: `@nestlingjs/openapi`
 
-- [ ] 5.1 `src/responses.ts`: `planSuccess` возвращает список пар «код —
+- [x] 5.1 `src/responses.ts`: `planSuccess` возвращает список пар «код —
       ответ» по объявленным исходам; схема и media type берутся с формы
       ветки, ветка `none()` печатается без `content`; коды по-прежнему
       через `httpCodeOf`
-- [ ] 5.2 Тесты `document.spec.ts`: развилка с разными телами, ветка
+- [x] 5.2 Тесты `document.spec.ts`: развилка с разными телами, ветка
       `none()`, умолчания без поля `status`
 
 ## 6. Клиент: `@nestlingjs/client`

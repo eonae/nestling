@@ -26,6 +26,7 @@ import type {
   Plugin,
 } from '@nestlingjs/app';
 import { Discovery$, Logger$, makePlugin, Ok } from '@nestlingjs/app';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import type { InjectionToken } from '@nestlingjs/container';
 import { factoryProvider, Handler, makeToken } from '@nestlingjs/container';
 import { httpEndpoint } from '@nestlingjs/transport.http';
@@ -126,6 +127,21 @@ export interface OpenApiPlugin extends Plugin {
  * appOpenapi.document(app.discover(args));
  * ```
  */
+/**
+ * Схема тела endpoint'а документа: значение проходит как есть.
+ *
+ * Документ собирает этот же процесс, поэтому проверка ничего не даёт, а
+ * слот `output` нужен: без него декларация объявляла бы исход
+ * `no_content`.
+ */
+const documentSchema: StandardSchemaV1<unknown, OpenApiDocument> = {
+  '~standard': {
+    version: 1,
+    vendor: 'nestling',
+    validate: (value) => ({ value: value as OpenApiDocument }),
+  },
+};
+
 export function openapi<P extends AnyInput = AnyInput, PN = never>(
   options: OpenApiOptions & OpenApiServeOptions<P, PN>,
 ): OpenApiPlugin {
@@ -144,6 +160,9 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
   const document = httpEndpoint.get(path ?? '/openapi.json', {
     ...(pipeline === undefined ? {} : { pipeline }),
     ...(detached === undefined ? {} : { detached }),
+    // Тело ответа — сам документ; схема пропускает его как есть: он
+    // собран этим же процессом, и проверять в нём нечего
+    output: documentSchema,
     // Документ не описывает сам себя: endpoint служебный, и в списке операций
     // API ей делать нечего
     doc: { hidden: 'service endpoint: the document itself' },

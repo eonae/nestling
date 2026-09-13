@@ -17,11 +17,12 @@ import type { ConvertContext } from './schema.js';
 import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
-import { describeForm, mediaTypeOf } from '@nestlingjs/app';
+import { declaredOutcomes, describeForm, mediaTypeOf } from '@nestlingjs/app';
 import type {
   AnyFailDefinition,
   DeclarationDoc,
   RedirectStatus,
+  SuccessStatus,
 } from '@nestlingjs/operations';
 import { BadRequest, InternalError } from '@nestlingjs/operations';
 import {
@@ -34,6 +35,14 @@ import {
 /** Что генератор знает об ответах endpoint'а */
 export interface ResponsesInput {
   readonly output: unknown;
+
+  /**
+   * Объявленный статус единственного исхода (поле `status` декларации).
+   * Развилка `outputs(...)` объявляет статусы ключами, и поля рядом с ней
+   * нет.
+   */
+  readonly status?: SuccessStatus;
+
   readonly errors?: readonly AnyFailDefinition[];
   readonly doc?: DeclarationDoc;
 
@@ -56,8 +65,9 @@ export function planResponses(
 ): Responses {
   const responses: Responses = {};
 
-  const [successCode, success] = planSuccess(input, context);
-  responses[successCode] = success;
+  for (const [successCode, success] of planSuccess(input, context)) {
+    responses[successCode] = success;
+  }
 
   // Отказы группируются по коду ответа: у двух определений с одной
   // категорией код совпадает, и второе не должно затирать первое
@@ -107,77 +117,88 @@ const sameCode =
     other.code === definition.code;
 
 /**
- * Успешный ответ.
+ * Успешные ответы: по одному на каждый объявленный исход.
  *
- * Код — из `doc.status`; по умолчанию `ok`, а у endpoint'а без `output` —
- * `no_content`. Перевод статуса в код делает та же таблица, что и в бою
+ * Исходы и умолчание статуса считает ядро (`declaredOutcomes`): `ok` при
+ * объявленном `output`, `no_content` без него, ключи развилки — при
+ * `outputs(...)`. Перевод статуса в код делает та же таблица, что и в бою
  * (`httpCodeOf` транспорта): второй копии таблицы у генератора нет.
  *
  * Объявленный редирект и есть успешный исход: ответ несёт заголовок
- * `Location` и не несёт тела, а ответа по `doc.status` в операции нет.
+ * `Location` и не несёт тела, а объявить статус рядом с ним нельзя.
  * Значение берётся с декларации: типы результата хендлера генератор не
  * видит.
  */
 function planSuccess(
   input: ResponsesInput,
   context: ConvertContext,
-): [string, OpenApiResponse] {
+): readonly (readonly [string, OpenApiResponse])[] {
   if (input.redirect !== undefined) {
     return [
-      String(input.redirect),
-      {
-        description: 'Redirect',
-        headers: {
-          Location: {
-            description: 'Where the client is redirected to',
-            schema: { type: 'string' },
+      [
+        String(input.redirect),
+        {
+          description: 'Redirect',
+          headers: {
+            Location: {
+              description: 'Where the client is redirected to',
+              schema: { type: 'string' },
+            },
           },
         },
-      },
+      ],
     ];
   }
 
-  const form = describeForm(input.output);
-  const hasOutput = form.leaf !== undefined;
+  return declaredOutcomes(input.output, input.status).map((outcome) => [
+    String(httpCodeOf(outcome.status)),
+    planOutcome(outcome.form, context),
+  ]);
+}
 
-  const status = input.doc?.status ?? (hasOutput ? 'ok' : 'no_content');
-  const code = String(httpCodeOf(status));
+/**
+ * Ответ одного исхода: схема и media type его формы.
+ *
+ * Исход без тела (`none()` или декларация без `output`) печатается без
+ * `content`.
+ */
+function planOutcome(
+  form: unknown,
+  context: ConvertContext,
+): OpenApiResponse {
 
-  if (!hasOutput) {
-    return [code, { description: 'Success' }];
+  if (form === undefined) {
+    return { description: 'Success' };
   }
 
-  const schema = convertLeaf(form.leaf, 'output', context, 'output');
-  const mediaType = mediaTypeOf(input.output);
+  const described = describeForm(form);
+  if (described.leaf === undefined) {
+    return { description: 'Success' };
+  }
+
+  const schema = convertLeaf(described.leaf, 'output', context, 'output');
+  const mediaType = mediaTypeOf(form);
 
   // SSE: стандартного способа описать кадр в OpenAPI нет, поэтому схема
   // элемента попадает в описание ответа — соврать `application/json`-схемой
   // было бы хуже
-  if (form.kind === 'events') {
-    return [
-      code,
-      {
-        description:
-          `Server-sent events. Each frame carries one item: ` +
-          `${JSON.stringify(schema ?? null)}`,
-        content: { [mediaType]: {} },
-      },
-    ];
+  if (described.kind === 'events') {
+    return {
+      description:
+        `Server-sent events. Each frame carries one item: ` +
+        `${JSON.stringify(schema ?? null)}`,
+      content: { [mediaType]: {} },
+    };
   }
 
-  return [
-    code,
-    {
-      description:
-        form.kind === 'stream'
-          ? 'Success — a sequence of items, one per line'
-          : 'Success',
-      content:
-        schema === undefined
-          ? { [mediaType]: {} }
-          : { [mediaType]: { schema } },
-    },
-  ];
+  return {
+    description:
+      described.kind === 'stream'
+        ? 'Success — a sequence of items, one per line'
+        : 'Success',
+    content:
+      schema === undefined ? { [mediaType]: {} } : { [mediaType]: { schema } },
+  };
 }
 
 /**

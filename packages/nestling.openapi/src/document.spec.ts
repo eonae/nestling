@@ -22,7 +22,9 @@ import {
   makePipeline,
   makePlugin,
   multipart,
+  none,
   Ok,
+  outputs,
   stream,
   upload,
 } from '@nestlingjs/app';
@@ -75,6 +77,7 @@ describe('документ строится из деклараций', () => {
     });
 
     const Cli = cliEndpoint('seed-users', {
+      output: z.unknown(),
       handler: async () => new Ok({ seeded: 0 }),
     });
 
@@ -278,9 +281,11 @@ describe('адрес операции и её параметры', () => {
 
   it("дубль адреса — ошибка, называющая оба endpoint'а и их модули", () => {
     const first = httpEndpoint.post('/users', {
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
     const second = httpEndpoint.post('/users', {
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -390,6 +395,7 @@ describe('media types выводятся из форм io', () => {
   it('multiple-файл даёт массив', () => {
     const Upload = httpEndpoint.post('/users/photos', {
       input: multipart({ files: { photos: upload({ multiple: true }) } }),
+      output: z.unknown(),
       handler: async () => new Ok({ ok: true }),
     });
 
@@ -409,6 +415,7 @@ describe('media types выводятся из форм io', () => {
     const Hook = httpEndpoint.post('/hooks/stripe', {
       input: z.object({ id: z.string() }),
       rawBody: true,
+      output: z.unknown(),
       handler: async () => new Ok({ received: true }),
     });
 
@@ -442,8 +449,8 @@ describe('responses покрывают все ответы границы', () =
       input: z.object({ email: z.string() }),
       output: User,
       errors: [EmailTaken],
-      doc: { status: 'created' },
-      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
+      status: 'created',
+      handler: async () => Ok.created({ id: '1', email: 'a@b.c' }),
     });
 
     const responses = documentOf([Create]).paths['/users'].post.responses;
@@ -477,6 +484,7 @@ describe('responses покрывают все ответы границы', () =
     const Login = httpEndpoint.post('/login', {
       input: z.object({ email: z.string() }),
       redirect: 303,
+      output: z.unknown(),
       handler: async () => HttpResponse.redirect('/app'),
     });
 
@@ -596,13 +604,67 @@ describe('responses покрывают все ответы границы', () =
   it('endpoint без выхода отвечает 204 без тела', () => {
     const Remove = httpEndpoint.delete('/users/:id', {
       input: z.object({ id: z.string() }),
-      handler: async () => new Ok(null),
+      handler: async () => Ok.noContent(),
     });
 
     const responses = documentOf([Remove]).paths['/users/{id}'].delete
       .responses;
 
     expect(responses['204']).toEqual({ description: 'Success' });
+  });
+
+  it('endpoint со схемой выхода без поля `status` отвечает 200', () => {
+    const List = httpEndpoint.get('/users', {
+      output: z.array(User),
+      handler: async () => new Ok([]),
+    });
+
+    const responses = documentOf([List]).paths['/users'].get.responses;
+
+    expect(Object.keys(responses)).toContain('200');
+    expect(responses['200'].content).toHaveProperty('application/json');
+  });
+
+  it('исходы развилки описаны каждый своей схемой', () => {
+    const Job = z.object({ jobId: z.string() });
+
+    const Create = httpEndpoint.post('/jobs', {
+      output: outputs({ ok: User, accepted: Job }),
+      handler: async () => Ok.accepted({ jobId: 'j-1' }),
+    });
+
+    const responses = documentOf([Create]).paths['/jobs'].post.responses;
+
+    expect(responses['200'].content?.['application/json'].schema).toMatchObject(
+      { properties: { email: { type: 'string' } } },
+    );
+    expect(responses['202'].content?.['application/json'].schema).toMatchObject(
+      { properties: { jobId: { type: 'string' } } },
+    );
+  });
+
+  it('ветка `none()` печатается без тела', () => {
+    const Create = httpEndpoint.post('/users', {
+      output: outputs({ created: User, no_content: none() }),
+      handler: async () => Ok.noContent(),
+    });
+
+    const responses = documentOf([Create]).paths['/users'].post.responses;
+
+    expect(responses['201'].content).toHaveProperty('application/json');
+    expect(responses['204']).toEqual({ description: 'Success' });
+  });
+
+  it('ветка с примитивом получает свой media type', () => {
+    const Create = httpEndpoint.post('/reports', {
+      output: outputs({ ok: User, accepted: 'text' }),
+      handler: async () => Ok.accepted('queued'),
+    });
+
+    const responses = documentOf([Create]).paths['/reports'].post.responses;
+
+    expect(responses['200'].content).toHaveProperty('application/json');
+    expect(responses['202'].content).toHaveProperty('text/plain');
   });
 });
 
@@ -624,6 +686,7 @@ describe('недокументируемая схема роняет постр�
   it('нет конвертера — ошибка называет endpoint, слот, вендор и оба способа починки', () => {
     const Create = httpEndpoint.post('/users', {
       input: exotic<{ id: string }>('valibot'),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -638,6 +701,7 @@ describe('недокументируемая схема роняет постр�
         type: 'object',
         properties: { id: { type: 'string' } },
       }),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -650,6 +714,7 @@ describe('недокументируемая схема роняет постр�
   it('path-параметр без свойства в схеме — ошибка', () => {
     const Get = httpEndpoint.get('/users/:id', {
       input: z.object({ userId: z.string() }),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -662,6 +727,7 @@ describe('недокументируемая схема роняет постр�
     const List = httpEndpoint.get('/users', {
       input: z.object({ id: z.string() }),
       bind: { missing: query() } as never,
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -673,10 +739,12 @@ describe('недокументируемая схема роняет постр�
   it('нарушения перечисляются вместе, а не по одному', () => {
     const first = httpEndpoint.post('/a', {
       input: exotic<{ id: string }>('valibot'),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
     const second = httpEndpoint.post('/b', {
       input: exotic<{ id: string }>('valibot'),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
     const third = httpEndpoint.post('/c', {
@@ -705,6 +773,7 @@ describe('недокументируемая схема роняет постр�
 
     const Create = httpEndpoint.post('/users', {
       errors: [Exotic],
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -729,6 +798,7 @@ describe('скрытый endpoint', () => {
     const Hidden = httpEndpoint.get('/internal', {
       input: exotic<{ id: string }>('arktype'),
       doc: { hidden: 'внутренняя ручка' },
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 

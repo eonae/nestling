@@ -19,6 +19,7 @@ import type {
   ITransport,
   Logger,
   LogLevel,
+  RouteDeclaration,
   TransportCapabilities,
 } from '@nestlingjs/app';
 import {
@@ -118,18 +119,32 @@ const asHttpTransport = (transport: ITransport) =>
     capabilities: VALUE_ONLY,
   });
 
-/** Пустой стартовый контекст: документ отдаётся endpoint'ом без входа */
-const contextFor = (pattern: string) =>
+/**
+ * Пустой стартовый контекст: документ отдаётся endpoint'ом без входа.
+ *
+ * Объявленные исходы берутся с маршрута — их переносит транспорт, и без
+ * них рантайм ответил бы статусом умолчания.
+ */
+const contextFor = (pattern: string, route?: RouteDeclaration) =>
   makeEmptyContext(
     { transport: 'http', pattern, payload: undefined, attributes: {} },
-    { transport: 'http', pattern },
+    {
+      transport: 'http',
+      pattern,
+      output: route?.output,
+      status: route?.status,
+    },
   ) as ExtendableContext<AnyInput>;
 
 /** Документ, полученный вызовом собственного endpoint'а модуля */
 const serve = async (transport: SpyTransport): Promise<OpenApiDocument> => {
+  const route = transport.dispatch?.routes.find(
+    (declaration) => declaration.pattern === 'GET /openapi.json',
+  );
+
   const response = await transport.dispatch?.call(
     'GET /openapi.json',
-    contextFor('GET /openapi.json'),
+    contextFor('GET /openapi.json', route),
   );
 
   if (!response?.isSuccess) {
@@ -316,6 +331,7 @@ describe('openapi(...) — плагин-издатель', () => {
 
     const Exotic = httpEndpoint.post('/exotic', {
       input: exotic,
+      output: z.unknown(),
       handler: async () => new Ok({ ok: true }),
     });
 
