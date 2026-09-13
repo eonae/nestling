@@ -10,8 +10,6 @@
  * старт раньше, чем агент сможет прислать первый запрос.
  */
 
-import type { IncomingMessage, ServerResponse } from 'node:http';
-
 import type { BoundTool } from './definitions.js';
 import { buildToolDefinitions } from './definitions.js';
 import type { McpContext, McpOutcome, McpRequest } from './handler.js';
@@ -46,7 +44,11 @@ import {
 } from '@nestlingjs/app';
 import { factoryProvider } from '@nestlingjs/container';
 import { withZodDefault } from '@nestlingjs/schema.zod';
-import type { HttpServer } from '@nestlingjs/transport.http';
+import type {
+  HttpServer,
+  HttpSink,
+  HttpSource,
+} from '@nestlingjs/transport.http';
 import {
   HttpServer$,
   parseRaw,
@@ -151,7 +153,7 @@ export class McpTransport implements ITransport {
     // Внешний сигнал останавливает транспорт так же, как `close()`
     signal.addEventListener('abort', () => void this.close(), { once: true });
 
-    this.server.attach((req, res) => this.#handle(req, res));
+    this.server.attach((source, sink) => this.#handle(source, sink));
   }
 
   /**
@@ -194,16 +196,13 @@ export class McpTransport implements ITransport {
    * `GET` не берётся намеренно: поток событий нужен серверу, который сам
    * инициирует сообщения, а таких сообщений у пакета нет.
    */
-  async #handle(
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): Promise<boolean> {
+  async #handle(source: HttpSource, sink: HttpSink): Promise<boolean> {
     const dispatch = this.#dispatch;
     if (!dispatch) {
       return false;
     }
 
-    const url = request.url ?? '/';
+    const url = source.url ?? '/';
     const separator = url.indexOf('?');
     const path = separator === -1 ? url : url.slice(0, separator);
 
@@ -211,7 +210,7 @@ export class McpTransport implements ITransport {
       return false;
     }
 
-    const method = request.method ?? 'GET';
+    const method = source.method ?? 'GET';
     if (method !== 'POST' && method !== 'DELETE') {
       return false;
     }
@@ -221,9 +220,9 @@ export class McpTransport implements ITransport {
 
     // 'close' приходит и после штатного завершения ответа, поэтому
     // дисконнектом считаем только недописанный ответ
-    response.on('close', () => {
+    sink.on('close', () => {
       this.#active.delete(controller);
-      if (!response.writableFinished) {
+      if (!sink.writableFinished) {
         controller.abort(new ClientDisconnectedError());
       }
     });
@@ -239,43 +238,40 @@ export class McpTransport implements ITransport {
       const outcome =
         method === 'DELETE'
           ? closeSession(
-              { body: '', headers: request.headers, signal: controller.signal },
+              { body: '', headers: source.headers, signal: controller.signal },
               context,
             )
           : await handleMessage(
-              await this.#read(request, controller.signal),
+              await this.#read(source, controller.signal),
               context,
             );
 
-      await this.#respond(response, outcome);
+      await this.#respond(sink, outcome);
     } catch (error) {
-      await this.#respond(response, { kind: 'fail', fail: failOf(error) });
+      await this.#respond(sink, { kind: 'fail', fail: failOf(error) });
     }
 
     return true;
   }
 
   /** Читает тело запроса текстом; разбирает его обработчик протокола */
-  async #read(
-    request: IncomingMessage,
-    signal: AbortSignal,
-  ): Promise<McpRequest> {
-    const raw = await parseRaw(request, MAX_MESSAGE_BYTES);
+  async #read(source: HttpSource, signal: AbortSignal): Promise<McpRequest> {
+    const raw = await parseRaw(source, MAX_MESSAGE_BYTES);
 
-    return { body: raw.toString(), headers: request.headers, signal };
+    return { body: raw.toString(), headers: source.headers, signal };
   }
 
   /** Кадрирует исход обработчика в ответ HTTP */
-  async #respond(response: ServerResponse, outcome: McpOutcome): Promise<void> {
-    if (response.headersSent) {
+  async #respond(sink: HttpSink, outcome: McpOutcome): Promise<void> {
+    if (sink.headersSent) {
       return;
     }
 
     if (outcome.kind === 'response' && outcome.sessionId !== undefined) {
-      response.setHeader(SESSION_HEADER, outcome.sessionId);
+      sink.setHeader(SESSION_HEADER, outcome.sessionId);
     }
 
-    await sendResponse(response, contextOf(outcome), { kind: 'value' });
+    await sendResponse(sink, contextOf(outcome), { kind: 'value' });
   }
 }
 

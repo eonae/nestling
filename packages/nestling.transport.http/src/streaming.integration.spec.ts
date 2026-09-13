@@ -8,7 +8,7 @@
 
 import { request } from 'node:http';
 
-import { SSE_ERROR_EVENT } from './adapter.js';
+import { SSE_ERROR_EVENT } from './framing.js';
 import { httpEndpoint } from './helpers.js';
 import { HttpResponse } from './response.js';
 import { HttpServer } from './server.js';

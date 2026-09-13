@@ -13,6 +13,7 @@
 | [Конфиг из файла и без перезапуска](./config-sources.md) | источники и привязка, `.keys`, общие ключи, `reloadable` |
 | [Отдать операции агенту по MCP](./mcp.md) | `mcp()`, `mcpTool`, инструмент из операции, слой на инструменте |
 | [Кто сейчас подключён и как его отключить](./ops.md) | реестр подписок, `tracked`, административные endpoint'ы |
+| [Приложение внутри чужого процесса](./embedded.md) | `adapter()`, `toFetchHandler`, `toNodeHandler`, `run({ signals: false })` |
 | [Без `makeApp`](./standalone.md) | `makeDispatch`, `serve`, `ContainerBuilder` |
 | [Расширить ядро своим пакетом](./extending.md) | граница ядра, сателлит, subpath `./testing` |
 | [Альтернативные формы](./alternatives.md) | функция с `deps`, отказ броском, `.ok` и `.catch` |

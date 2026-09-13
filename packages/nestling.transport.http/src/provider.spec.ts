@@ -63,7 +63,8 @@ describe('http() — объявление экземпляра', () => {
     const transport = container.getOrThrow(HttpTransport$('default'));
     const instance = container.getOrThrow(HttpServer$('default'));
 
-    expect((transport as unknown as { server: HttpServer }).server).toBe(
+    // Приёмник обработчика у транспорта `http()` — именно сервер сборки
+    expect((transport as unknown as { target: HttpServer }).target).toBe(
       instance,
     );
 

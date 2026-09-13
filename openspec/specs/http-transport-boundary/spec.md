@@ -14,11 +14,17 @@ HTTP-сервера можно собрать из публичных экспо
 
 ### Requirement: Обещания и границы HTTP-транспорта
 
-`@nestlingjs/transport.http` SHALL поддерживать HTTP/1.1 поверх `node:http`,
-формы io `value`, `stream`, `multipart` на входе и `value`, `stream`,
-`events` на выходе, `rawBody`, лимиты тела и файлов, настраиваемые
-таймауты `node:http`, дренаж соединений при остановке и адрес из
-конфиг-секции.
+`@nestlingjs/transport.http` SHALL поддерживать HTTP/1.1, формы io
+`value`, `stream`, `multipart` на входе и `value`, `stream`, `events` на
+выходе, `rawBody`, лимиты тела и файлов, настраиваемые таймауты
+`node:http`, дренаж соединений при остановке и адрес из конфиг-секции.
+
+Пакет SHALL давать две формы работы. Первая — поверх сервера-ресурса
+`server()` на `node:http`: он владеет сокетом, а транспорт `http()`
+присоединяет к нему обработчик. Вторая — адаптер `adapter()`: сокета нет,
+обработчик уходит наружу в формах `node:http` и `fetch` (capability
+`http-adapter-transport`). Разбор запроса и кадрирование ответа SHALL быть
+общими для обеих форм.
 
 Сокет, `listen`, `address()`, таймауты `node:http` и дренаж SHALL
 принадлежать серверу-ресурсу `server()` (capability
@@ -35,11 +41,20 @@ readiness, таймаут и кэш проверок SHALL принадлежа�
 задачи SHALL решаться обратным прокси перед сервисом или отдельным
 транспортом, а не расширением `@nestlingjs/transport.http`.
 
+Рантайм помимо Node в границу пакета SHALL NOT входить: разбор
+`multipart` идёт через `busboy`, тело собирается в `Buffer`, а
+`fetch`-источник заворачивает тело запроса в поток `node:stream`.
+
 #### Scenario: Транспорт объявляет свои формы io
 
 - **WHEN** внешний код читает `capabilities` объявления `http()`
 - **THEN** значение равно `{ input: {value, stream, multipart}, output:
   {value, stream, events} }`
+
+#### Scenario: Адаптер объявляет те же формы io
+
+- **WHEN** внешний код читает `capabilities` объявления `adapter()`
+- **THEN** это то же значение `HTTP_CAPABILITIES`, что у `http()`
 
 #### Scenario: Сокет принадлежит серверу
 

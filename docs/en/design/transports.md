@@ -18,7 +18,7 @@
 > `[2026-09-06] Пробы: HealthCheck$ и Health$ в ядре, транспорты адаптируют`,
 > `[2026-09-12] Транзакционный приём: inbox как вторая половина гарантии outbox'а`,
 > open question 2 (the stream deduplication window and `Nats-Msg-Id`),
-> `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
+> `[2026-09-12] Разбор обзоров d/10 и d/13`, points 2 and 4.
 > Implementation status: [roadmap](../../decisions/roadmap.md); the
 > implemented behaviour of the HTTP transport is in the README of the
 > `@nestlingjs/transport.http` package and the openspec specs.
@@ -276,6 +276,16 @@ configuration section. HTTP/2, WebSocket and TLS termination are not
 part of the package. A reverse proxy in front of the service, or a
 separate transport, takes on these tasks.
 
+The package has two shapes of work. The first one is `http()` on top of
+the `server()` resource: the server owns the socket, and the transport
+attaches a handler to it (§4.2). The second one is the `adapter()`
+adapter: there is no socket, and the handler goes out into a foreign
+application (§4.3). Request parsing and response framing are shared by
+both shapes. A runtime other than Node is not part of the package: the
+`multipart` parsing goes through `busboy`, the body is collected into a
+`Buffer`, and the source of the `fetch` shape wraps the request body
+into a `node:stream` stream.
+
 The byte-level parts of the transport — parsing the body by io shape,
 reading the bind map, the status table, NDJSON and SSE framing, the
 failure body format, the declared io shapes — are the public surface
@@ -327,7 +337,62 @@ by default. The remaining connections are closed forcibly. An open
 `events` connection finishes the same way: the signal closes the
 response iterator, and `.finally` sees `aborted`.
 
-### 4.3 Probes
+### 4.3 The adapter: an application as a handler
+
+`adapter({ name? })` declares an instance of the HTTP transport without
+a server. The declaration carries no `server` field, so the assembly
+creates no server node and opens no socket. Such an application hands
+the request handler out — into a Next.js route, into a Hono server, into
+an Express application.
+
+```typescript
+const app = makeApp({ features: [Users], transports: [adapter()] }).assemble();
+await app.run({ signals: false });
+
+export const POST = toFetchHandler(app);
+```
+
+Two functions take the handler from a running application.
+`toNodeHandler(app, { name? })` returns `(req, res) =>
+Promise<boolean>`, where `false` means "not this application's route":
+the process owner continues its own routing. `toFetchHandler(app,
+{ name? })` returns `(Request) => Promise<Response>`, and a route that
+matches nothing gets a `404` there. Both functions are synchronous and
+read the instance from the `app.transports` map
+([composition.md §4](./composition.md)).
+
+The DI token and the capabilities value of the adapter are the same as
+those of `http()`. Therefore the `httpEndpoint` declarations are served
+by it without edits, and `on:` picks the instance by name the same way.
+For the same reason `http()` and `adapter()` with one name in one
+assembly are rejected by the container: the DI token is taken.
+
+The byte path is shared by both shapes. Request parsing and response
+framing are described by the `HttpSource` and `HttpSink` interfaces of
+the package rather than by the `node:http` classes. `IncomingMessage`
+and `ServerResponse` satisfy these interfaces as they are, so no wrapper
+per request appears on the `http()` path, and the `fetch` shape gives a
+second pair of implementations on top of `Request` and `Response`. The
+responses of the three paths — the socket, the `node:http` shape, the
+`fetch` shape — match in status, headers and body.
+
+The response of the `fetch` shape is assembled as soon as the status is
+known rather than when framing finishes: for a streaming response
+framing finishes only after the last frame. The owner reports a broken
+connection by aborting `request.signal`; the same code as on the socket
+runs from there, and the context signal is aborted with
+`ClientDisconnectedError`. The `fetch` shape has no socket, so
+`ctx.http.ip` is empty, and the client address is read from a header by
+the `withClientIp` unit.
+
+The process owner starts and stops an embedded application:
+`run({ signals: false })` installs no `SIGTERM` and `SIGINT` handlers
+([composition.md §1](./composition.md)), and the owner's code calls
+`close()`. There is no hidden startup on the first request. What this
+looks like as a whole is in
+[recipes/embedded.md](../recipes/embedded.md).
+
+### 4.4 Probes
 
 `httpProbes()` is a plugin of the package with two endpoints,
 `GET /healthz` and `GET /readyz`. They read the kernel node `Health$`

@@ -88,7 +88,7 @@ export interface RedirectOptions extends HttpResponseOptions {
  * Метаданные HTTP-ответа: то, что конверт доносит от хендлера до
  * транспорта.
  *
- * Ядро значение не читает — оно доходит до `adapter.ts` полем
+ * Ядро значение не читает — оно доходит до `framing.ts` полем
  * `transport.meta` контекста ответа.
  */
 export interface HttpResponseMeta {

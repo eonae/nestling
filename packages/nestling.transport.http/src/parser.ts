@@ -1,4 +1,4 @@
-import type { IncomingMessage } from 'node:http';
+import type { IncomingHttpHeaders } from 'node:http';
 import { PassThrough, Readable } from 'node:stream';
 
 import {
@@ -6,6 +6,7 @@ import {
   MultipartFieldError,
   PayloadTooLargeError,
 } from './errors.js';
+import type { HttpSource } from './interfaces.js';
 
 import type { FilePart, UploadSpec } from '@nestlingjs/app';
 import { PayloadTooLarge } from '@nestlingjs/app';
@@ -20,61 +21,36 @@ const MAX_BUFFER_SIZE = 5 * 1024 * 1024;
 /**
  * Читает тело запроса в память, прерывая чтение при превышении лимита.
  *
- * При превышении `maxBytes` поток ставится на паузу, а не уничтожается:
- * так транспорт успевает отправить ответ 413 до закрытия соединения.
+ * Итератор читается вручную, а цикл при превышении не покидается:
+ * выход из `for await` закрыл бы поток, а ответ 413 ещё не отправлен.
+ * Недочитанный вход остаётся на паузе до конца ответа.
  * `maxBytes <= 0` отключает лимит.
  *
  * @throws PayloadTooLargeError при превышении лимита
  */
-export function readBody(req: IncomingMessage, maxBytes = 0): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let settled = false;
+export async function readBody(
+  source: HttpSource,
+  maxBytes = 0,
+): Promise<Buffer> {
+  const iterator = source[Symbol.asyncIterator]();
+  const chunks: Buffer[] = [];
+  let size = 0;
 
-    const cleanup = (): void => {
-      req.off('data', onData);
-      req.off('end', onEnd);
-      req.off('error', onError);
-    };
+  for (;;) {
+    const step = await iterator.next();
+    if (step.done === true) {
+      break;
+    }
 
-    const onData = (chunk: Buffer): void => {
-      if (settled) {
-        return;
-      }
-      size += chunk.length;
-      if (maxBytes > 0 && size > maxBytes) {
-        settled = true;
-        cleanup();
-        req.pause();
-        reject(new PayloadTooLargeError(maxBytes));
-        return;
-      }
-      chunks.push(chunk);
-    };
+    size += step.value.length;
+    if (maxBytes > 0 && size > maxBytes) {
+      throw new PayloadTooLargeError(maxBytes);
+    }
 
-    const onEnd = (): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      resolve(Buffer.concat(chunks));
-    };
+    chunks.push(step.value);
+  }
 
-    const onError = (error: Error): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      reject(error);
-    };
-
-    req.on('data', onData);
-    req.on('end', onEnd);
-    req.on('error', onError);
-  });
+  return Buffer.concat(chunks);
 }
 
 /**
@@ -105,10 +81,10 @@ export function parseJsonBuffer(raw: Buffer): unknown {
  * @throws JsonParseError если тело не является валидным JSON
  */
 export async function parseJson(
-  req: IncomingMessage,
+  source: HttpSource,
   maxBytes = 0,
 ): Promise<unknown> {
-  return parseJsonBuffer(await readBody(req, maxBytes));
+  return parseJsonBuffer(await readBody(source, maxBytes));
 }
 
 /**
@@ -118,10 +94,10 @@ export async function parseJson(
  * @throws PayloadTooLargeError при превышении лимита
  */
 export async function parseRaw(
-  req: IncomingMessage,
+  source: HttpSource,
   maxBytes = 0,
 ): Promise<Buffer> {
-  return readBody(req, maxBytes);
+  return readBody(source, maxBytes);
 }
 
 /** Наблюдатель прочитанных байтов: транспорт кладёт их в `summary` */
@@ -147,14 +123,13 @@ function decodeNdjsonLine(line: string): unknown {
  * @throws JsonParseError строка не является валидным JSON
  */
 export async function* parseNdjson(
-  req: IncomingMessage,
+  source: HttpSource,
   maxLineBytes = 0,
   onBytes?: BytesObserver,
 ): AsyncIterableIterator<unknown> {
   let buffer = '';
 
-  for await (const chunk of req) {
-    const bytes = chunk as Buffer;
+  for await (const bytes of source) {
     onBytes?.(bytes.length);
     buffer += bytes.toString();
 
@@ -276,12 +251,16 @@ function readFilePart(
  * @param defaultMaxSize - лимит поля без собственного `maxSize`
  */
 export function parseMultipartForm(
-  req: IncomingMessage,
+  source: HttpSource,
   specs: Readonly<Record<string, UploadSpec>>,
   defaultMaxSize = 0,
 ): Promise<MultipartResult> {
   return new Promise((resolve, reject) => {
-    const busboyInstance = Busboy({ headers: req.headers });
+    // busboy читает из заголовков только `content-type`, но объявляет
+    // параметр типом `node:http`: приведение сужает запись, не меняя её
+    const busboyInstance = Busboy({
+      headers: source.headers as IncomingHttpHeaders,
+    });
     const fields: Record<string, unknown> = {};
     const files: Record<string, FilePart | FilePart[]> = {};
     const pending: Promise<void>[] = [];
@@ -293,8 +272,8 @@ export function parseMultipartForm(
         return;
       }
       settled = true;
-      req.unpipe(busboyInstance);
-      req.resume();
+      source.unpipe(busboyInstance);
+      source.resume();
       reject(error);
     };
 
@@ -375,7 +354,7 @@ export function parseMultipartForm(
       fail(error instanceof Error ? error : new Error(String(error))),
     );
 
-    req.pipe(busboyInstance);
+    source.pipe(busboyInstance);
   });
 }
 

@@ -50,7 +50,7 @@ await app.build().run();
   `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`, `CheckReport`,
   `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
   `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
-  `PluginOptions`.
+  `PluginOptions`, `RunOptions`.
 - **Configuration** ([design](../../docs/en/design/config.md)) —
   `bootstrapConfig`, `Config`, `ConfigBinding`, `ConfigDerivedError`,
   `ConfigField`, `ConfigGlob`, `ConfigInput`, `configKernel`, `ConfigKeys`,

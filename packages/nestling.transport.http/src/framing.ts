@@ -1,0 +1,507 @@
+import type { HttpSink, HttpSinkHeaders } from './interfaces.js';
+import type { Cookie, HttpResponseMeta } from './response.js';
+import { DEFAULT_REDIRECT_STATUS } from './response.js';
+import { HTTP_TRANSPORT_NAME } from './token.js';
+
+import type {
+  ErrorResponseContext,
+  FormKind,
+  ProcessingStatus,
+  ResponseContext,
+  StreamSummary,
+  SuccessResponseContext,
+} from '@nestlingjs/app';
+import { isAsyncIterable, isMidStreamFailure } from '@nestlingjs/app';
+import type {
+  ProblemDocument,
+  RedirectStatus,
+  SseConfig,
+} from '@nestlingjs/operations';
+import {
+  InternalError,
+  PROBLEM_MEDIA_TYPE,
+  problemOf,
+  untilAborted,
+} from '@nestlingjs/operations';
+
+/** Соответствие статусов ответа кодам HTTP */
+
+const STATUS_MAP: Record<ProcessingStatus, number> = {
+  ok: 200,
+  created: 201,
+  accepted: 202,
+  no_content: 204,
+  payment_required: 402,
+  bad_request: 400,
+  unauthorized: 401,
+  forbidden: 403,
+  not_found: 404,
+  conflict: 409,
+  // «вход больше допустимого»: лимит item-цепочки, файл сверх upload({maxSize})
+  payload_too_large: 413,
+  too_many_requests: 429,
+  internal_error: 500,
+  not_implemented: 501,
+  service_unavailable: 503,
+  // 504, а не 408: TIMEOUT в ядре — «операция не уложилась в бюджет»,
+  // тогда как 408 про то, что клиент не дослал запрос.
+  timeout: 504,
+};
+
+/** Период heartbeat SSE по умолчанию */
+export const DEFAULT_SSE_HEARTBEAT = 15_000;
+
+/** Имя события, зарезервированное за отказом посреди потока */
+export const SSE_ERROR_EVENT = 'error';
+
+/**
+ * Настройки SSE-ответа.
+ *
+ * Тип объявлен в `@nestlingjs/operations` рядом с bind-картой; здесь он
+ * реэкспортирован, чтобы автор декларации брал его оттуда же, откуда
+ * `httpEndpoint`.
+ */
+export type { SseConfig } from '@nestlingjs/operations';
+
+/** Параметры отправки ответа помимо самого значения */
+export interface SendOptions {
+  /** Вид формы `output`; определяет способ кадрирования */
+  kind?: FormKind;
+
+  /** Поле `sse` HTTP-декларации */
+  sse?: SseConfig;
+
+  /** Дефолтный период heartbeat транспорта */
+  heartbeat?: number;
+
+  /** Итог запроса: транспорт дописывает в него байты */
+  summary?: StreamSummary;
+
+  /** Сигнал отмены запроса: дисконнект клиента или остановка транспорта */
+  signal?: AbortSignal;
+
+  /** Объявленный декларацией статус редиректа (поле `redirect`) */
+  redirect?: RedirectStatus;
+
+  /** Адрес endpoint'а; попадает в текст ошибки транспорта */
+  pattern?: string;
+}
+
+/**
+ * Переводит статус ответа в код HTTP.
+ *
+ * Функция публична: генератор документации (`@nestlingjs/openapi`) берёт
+ * коды отсюда, чтобы документ совпадал с тем, что отдаёт сервер.
+ * Неизвестный статус даёт `200`; из типизированного кода этот случай
+ * недостижим, так как набор статусов закрыт.
+ *
+ * @param status - Статус ответа (`'created'`, `'conflict'`, …)
+ * @returns Код HTTP-ответа
+ */
+export function httpCodeOf(status?: ProcessingStatus): number {
+  if (!status) {
+    return 200;
+  }
+
+  return STATUS_MAP[status] ?? 200;
+}
+
+function countBytes(summary: StreamSummary | undefined, bytes: number): void {
+  if (summary) {
+    summary.bytesOut = (summary.bytesOut ?? 0) + bytes;
+  }
+}
+
+/**
+ * Пишет кадр и ждёт, пока он уйдёт клиенту: иначе медленный читатель
+ * превращал бы ответ в неограниченный буфер в памяти сервера.
+ */
+function writeChunk(
+  sink: HttpSink,
+  chunk: string | Buffer | Uint8Array,
+  summary?: StreamSummary,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    sink.write(chunk, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      countBytes(summary, Buffer.byteLength(chunk as never));
+      resolve();
+    });
+  });
+}
+
+/** Кодирует NDJSON-кадр: строки и байты как есть, объекты — JSON и `\n` */
+function encodeNdjson(item: unknown): string | Buffer | Uint8Array {
+  if (typeof item === 'string') {
+    return item;
+  }
+  if (Buffer.isBuffer(item) || item instanceof Uint8Array) {
+    return item;
+  }
+  return `${JSON.stringify(item)}\n`;
+}
+
+/** Кодирует SSE-кадр: `id:` и `event:` (если заданы), `data:`, пустая строка */
+function encodeSseFrame(item: unknown, sse?: SseConfig): string {
+  const lines: string[] = [];
+
+  if (sse?.id) {
+    lines.push(`id: ${String(sse.id(item))}`);
+  }
+
+  if (sse?.event) {
+    const name = sse.event(item);
+    if (name === SSE_ERROR_EVENT) {
+      throw new Error(
+        `SSE event name '${SSE_ERROR_EVENT}' is reserved for mid-stream ` +
+          `failures and cannot be produced by 'sse.event'.`,
+      );
+    }
+    lines.push(`event: ${name}`);
+  }
+
+  lines.push(`data: ${JSON.stringify(item)}`);
+
+  return `${lines.join('\n')}\n\n`;
+}
+
+/**
+ * Тело отказа посреди потока: тот же документ, что у обычного ответа.
+ *
+ * Документ несёт `status` отказа, а не уже отправленный статус потока:
+ * читатель кадра классифицирует отказ, не сопоставляя его с ответом.
+ *
+ * Отказ уже прошёл проверку `errors`: незадекларированный стал `internal_error`,
+ * оригинал записан в логгер `dispatch`.
+ */
+function midStreamBody(error: unknown): ProblemDocument {
+  if (isMidStreamFailure(error)) {
+    const { response } = error;
+    return problemOf(response.value, httpCodeOf(response.status));
+  }
+
+  return problemOf(
+    { error: 'Internal server error', code: InternalError.code },
+    httpCodeOf('internal_error'),
+  );
+}
+
+/**
+ * Пишет конечный поток как NDJSON.
+ *
+ * Отказ посреди потока обрывает соединение: заголовки уже ушли, статус
+ * сменить нельзя, а незавершённый chunked-ответ сообщает клиенту, что
+ * данные неполны.
+ */
+async function writeNdjson(
+  sink: HttpSink,
+  source: AsyncIterable<unknown>,
+  options: SendOptions,
+): Promise<void> {
+  try {
+    for await (const item of untilAborted(source, options.signal)) {
+      if (sink.destroyed || sink.writableEnded) {
+        break;
+      }
+      await writeChunk(sink, encodeNdjson(item), options.summary);
+    }
+  } catch {
+    // Отказ уже прошёл проверку `errors` и `.finally`-шаги; транспорту
+    // остаётся оборвать ответ
+    sink.destroy();
+    return;
+  }
+
+  if (!sink.destroyed && !sink.writableEnded) {
+    sink.end();
+  }
+}
+
+/**
+ * Пишет открытую подписку как SSE.
+ *
+ * Отказ посреди потока уходит событием с именем `error`, после чего
+ * соединение закрывается.
+ */
+async function writeSse(
+  sink: HttpSink,
+  source: AsyncIterable<unknown>,
+  options: SendOptions,
+): Promise<void> {
+  sink.flushHeaders();
+
+  const period =
+    options.sse?.heartbeat ?? options.heartbeat ?? DEFAULT_SSE_HEARTBEAT;
+
+  // Heartbeat — SSE-комментарий, а не элемент потока: в счётчики и
+  // лимиты не входит
+  const timer =
+    period > 0
+      ? setInterval(() => {
+          if (!sink.destroyed && !sink.writableEnded) {
+            sink.write(': heartbeat\n\n');
+          }
+        }, period)
+      : undefined;
+  timer?.unref?.();
+
+  try {
+    for await (const item of untilAborted(source, options.signal)) {
+      if (sink.destroyed || sink.writableEnded) {
+        break;
+      }
+      await writeChunk(
+        sink,
+        encodeSseFrame(item, options.sse),
+        options.summary,
+      );
+    }
+  } catch (error) {
+    if (!sink.destroyed && !sink.writableEnded) {
+      await writeChunk(
+        sink,
+        `event: ${SSE_ERROR_EVENT}\ndata: ${JSON.stringify(
+          midStreamBody(error),
+        )}\n\n`,
+        options.summary,
+      );
+    }
+  } finally {
+    clearInterval(timer);
+    if (!sink.destroyed && !sink.writableEnded) {
+      sink.end();
+    }
+  }
+}
+
+/**
+ * Сериализует cookie в значение заголовка `Set-Cookie`.
+ *
+ * Значение пишется как есть: кодирование — дело автора, потому что
+ * сервер не знает, что клиент ожидает получить обратно.
+ */
+function serializeCookie(cookie: Cookie): string {
+  const parts = [`${cookie.name}=${cookie.value}`];
+
+  if (cookie.maxAge !== undefined) {
+    parts.push(`Max-Age=${cookie.maxAge}`);
+  }
+  if (cookie.expires !== undefined) {
+    parts.push(`Expires=${cookie.expires.toUTCString()}`);
+  }
+  if (cookie.path !== undefined) {
+    parts.push(`Path=${cookie.path}`);
+  }
+  if (cookie.domain !== undefined) {
+    parts.push(`Domain=${cookie.domain}`);
+  }
+  if (cookie.secure === true) {
+    parts.push('Secure');
+  }
+  if (cookie.httpOnly === true) {
+    parts.push('HttpOnly');
+  }
+  if (cookie.sameSite !== undefined) {
+    parts.push(
+      `SameSite=${cookie.sameSite[0].toUpperCase()}${cookie.sameSite.slice(1)}`,
+    );
+  }
+
+  return parts.join('; ');
+}
+
+/** Ответ-отказ транспорта: программная ошибка автора endpoint'а */
+function transportFailure(message: string): ErrorResponseContext {
+  return {
+    isSuccess: false,
+    status: 'internal_error',
+    value: { error: message, code: InternalError.code },
+  };
+}
+
+/**
+ * Проверяет метаданные протокола в контексте ответа.
+ *
+ * Транспорт читает их, только если имя совпадает с его собственным:
+ * иначе endpoint вернул ответ чужого транспорта, и это ошибка автора, а
+ * не клиента. Редирект без объявленного `redirect` — та же ошибка: без
+ * поля документ разошёлся бы с поведением.
+ *
+ * @returns Ответ-отказ, если метаданные читать нельзя
+ */
+function checkTransportMeta(
+  response: SuccessResponseContext,
+  options: SendOptions,
+): ErrorResponseContext | undefined {
+  const carried = response.transport;
+  if (!carried) {
+    return undefined;
+  }
+
+  const where = `Endpoint '${options.pattern ?? 'unknown'}'`;
+
+  if (carried.name !== HTTP_TRANSPORT_NAME) {
+    return transportFailure(
+      `${where} is served by transport '${HTTP_TRANSPORT_NAME}', but its ` +
+        `handler returned a response of transport '${carried.name}'.`,
+    );
+  }
+
+  const meta = carried.meta as HttpResponseMeta;
+
+  if (meta.location !== undefined && options.redirect === undefined) {
+    return transportFailure(
+      `${where} returned a redirect, but its declaration does not declare ` +
+        `'redirect' — add 'redirect: <status>' to it.`,
+    );
+  }
+
+  return undefined;
+}
+
+/** Метаданные HTTP-ответа из контекста; у ответа без конверта их нет */
+function httpMetaOf(response: ResponseContext): HttpResponseMeta | undefined {
+  return response.isSuccess
+    ? (response.transport?.meta as HttpResponseMeta | undefined)
+    : undefined;
+}
+
+/**
+ * Код ответа: статус редиректа перекрывает статус результата.
+ *
+ * Статус берётся из вызова `HttpResponse.redirect`, затем из поля
+ * `redirect` декларации, затем `302`.
+ */
+function statusOf(
+  response: ResponseContext,
+  meta: HttpResponseMeta | undefined,
+  options: SendOptions,
+): number {
+  return meta?.location === undefined
+    ? httpCodeOf(response.status)
+    : (meta.status ?? options.redirect ?? DEFAULT_REDIRECT_STATUS);
+}
+
+/**
+ * Заголовки потокового ответа по форме `output`.
+ *
+ * Ставятся до заголовков `HttpResponse`: заголовки ответа принадлежат
+ * хендлеру и перекрывают заголовки формы.
+ */
+function setStreamHeaders(sink: HttpSink, kind: FormKind): void {
+  if (kind === 'events') {
+    sink.setHeader('content-type', 'text/event-stream');
+    sink.setHeader('cache-control', 'no-cache');
+    sink.setHeader('connection', 'keep-alive');
+    return;
+  }
+
+  sink.setHeader('content-type', 'application/x-ndjson');
+}
+
+/**
+ * Отправляет `ResponseContext` в приёмник ответа.
+ *
+ * Способ кадрирования выбирается по объявленной форме `output`, а не по
+ * типу значения: `stream` даёт NDJSON, `events` — SSE, остальное — JSON.
+ * Заголовки `HttpResponse` перекрывают заголовки формы; имя приводится к
+ * нижнему регистру, поэтому `'Content-Type'` хендлера заменяет
+ * `content-type` формы, а не добавляется вторым заголовком. Каждая cookie
+ * уходит отдельным заголовком `Set-Cookie`.
+ *
+ * Ответ формы `value` уходит одним `writeHead` с `content-length` и телом
+ * в буфере: так `node:http` не проверяет имена заголовков по одному и не
+ * считает длину тела второй раз. Приёмник формы `fetch` собирает из того
+ * же вызова готовый `Response`.
+ */
+export async function sendResponse(
+  sink: HttpSink,
+  context: ResponseContext,
+  options: SendOptions = {},
+): Promise<void> {
+  // Метаданные чужого транспорта и незаявленный редирект — ошибка автора
+  // endpoint'а: ответ заменяется отказом до записи заголовков
+  const response = context.isSuccess
+    ? (checkTransportMeta(context, options) ?? context)
+    : context;
+
+  const meta = httpMetaOf(response);
+  const status = statusOf(response, meta, options);
+  const kind = options.kind ?? 'value';
+  const streaming =
+    response.isSuccess &&
+    (kind === 'stream' || kind === 'events') &&
+    isAsyncIterable(response.value);
+
+  if (streaming) {
+    sink.statusCode = status;
+    setStreamHeaders(sink, kind);
+    // Заголовки ответа уходят до первого кадра: после него статус и
+    // заголовки уже отправлены клиенту
+    if (meta?.headers) {
+      for (const [key, value] of Object.entries(meta.headers)) {
+        sink.setHeader(key, value);
+      }
+    }
+    if (meta?.cookies?.length) {
+      sink.setHeader('set-cookie', meta.cookies.map(serializeCookie));
+    }
+
+    await (kind === 'events'
+      ? writeSse(sink, response.value as AsyncIterable<unknown>, options)
+      : writeNdjson(sink, response.value as AsyncIterable<unknown>, options));
+    return;
+  }
+
+  // value === null означает пустой ответ
+  const empty = response.value === null;
+  const headers: HttpSinkHeaders = {};
+
+  if (!empty) {
+    headers['content-type'] = response.isSuccess
+      ? 'application/json'
+      : PROBLEM_MEDIA_TYPE;
+  }
+  if (meta) {
+    if (meta.headers) {
+      for (const [key, value] of Object.entries(meta.headers)) {
+        headers[key.toLowerCase()] = value;
+      }
+    }
+    if (meta.cookies?.length) {
+      headers['set-cookie'] = meta.cookies.map(serializeCookie);
+    }
+    if (meta.location !== undefined) {
+      headers.location = meta.location;
+    }
+  }
+
+  if (empty) {
+    // Без длины `node:http` дописывает пустому ответу
+    // `transfer-encoding: chunked` и отправляет пустой кадр. Заметили на
+    // редиректе, но причина одна на все пустые ответы.
+    //
+    // 204 и 304 исключены: тела у них нет по протоколу, и заголовки тела
+    // `node:http` убирает сам.
+    if (status !== 204 && status !== 304) {
+      headers['content-length'] = 0;
+    }
+
+    sink.writeHead(status, headers);
+    sink.end();
+    return;
+  }
+
+  // Отказ уходит документом RFC 9457; успешный ответ — значением как есть
+  const payload = response.isSuccess
+    ? response.value
+    : problemOf(response.value, status);
+  const body = Buffer.from(JSON.stringify(payload) ?? '');
+  headers['content-length'] = body.length;
+  countBytes(options.summary, body.length);
+  sink.writeHead(status, headers);
+  sink.end(body);
+}

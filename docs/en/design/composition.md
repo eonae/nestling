@@ -134,6 +134,13 @@ the dispatch policy. Reloadable configuration sections are updated
 (opt-in). The readiness of the application is true only in this phase
 (§6).
 
+`run()` installs the `SIGTERM` and `SIGINT` handlers that move the
+application into SHUTDOWN, and removes them once `close()` finishes. An
+application inside a foreign process passes `run({ signals: false })`:
+the owner is responsible for stopping the process, and a subscription to
+`SIGINT` would cancel its shutdown on Ctrl+C. The remaining phases go
+the same way at any value of the option.
+
 ### 6 · SHUTDOWN
 
 Everything runs in reverse order: the servers stop accepting
@@ -618,6 +625,14 @@ transports: [http({ server: api }), mcp({ server: api })],
 
 const admin = server({ name: 'admin' });               // HTTP_ADMIN_PORT, HTTP_ADMIN_HOST
 ```
+
+The assembled application hands out the instances of both kinds by name:
+the servers as the `app.servers` map, the transports as the
+`app.transports` map. Both maps are read-only and empty until the INIT
+phase. They are the way to take from a node a value the declaration does
+not have: the actual address of a server at `HTTP_PORT=0` and the
+request handler of an adapter
+([transports.md §4.3](./transports.md)).
 
 A declaration references a transport by DI token; if there is no
 instance in the graph, the build fails on BUILD. A server and a

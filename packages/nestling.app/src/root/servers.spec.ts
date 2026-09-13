@@ -1,6 +1,6 @@
 /**
  * Серверы в корне: регистрация по ссылке из транспорта, порядок START и
- * SHUTDOWN, доступ к объявленным серверам.
+ * SHUTDOWN, доступ к объявленным серверам и транспортам.
  */
 
 import { transportValue } from '../transport/index.js';
@@ -285,5 +285,55 @@ describe('транспорт без сервера', () => {
     expect(marks).toEqual(['serve:default']);
 
     await app.close();
+  });
+});
+
+describe('экземпляры транспортов у собранного приложения', () => {
+  it('транспорт по имени — после INIT', async () => {
+    const marks: string[] = [];
+    const first = new MarkingTransport('default', marks);
+    const second = new MarkingTransport('admin', marks);
+
+    const app = makeApp({
+      transports: [
+        transportValue(TestTransport$('default'), first, {
+          capabilities: VALUE_ONLY,
+        }),
+        transportValue(TestTransport$('admin'), second, {
+          name: 'admin',
+          capabilities: VALUE_ONLY,
+        }),
+      ],
+    }).build();
+
+    // До подъёма экземпляров нет: их создаёт INIT
+    expect(app.transports.size).toBe(0);
+
+    await app.run();
+
+    expect(app.transports.get('default')).toBe(first);
+    expect(app.transports.get('admin')).toBe(second);
+
+    await app.close();
+  });
+
+  it('после close() карта снова пуста', async () => {
+    const marks: string[] = [];
+
+    const app = makeApp({
+      transports: [
+        transportValue(
+          TestTransport$('default'),
+          new MarkingTransport('default', marks),
+          { capabilities: VALUE_ONLY },
+        ),
+      ],
+    }).build();
+
+    await app.run();
+    await app.close();
+
+    // Экземпляры разрушены вместе с графом: держать их картой незачем
+    expect(app.transports.size).toBe(0);
   });
 });
