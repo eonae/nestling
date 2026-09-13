@@ -317,7 +317,7 @@ export default [
 HTTP. Их задаёт форма ответа своего транспорта:
 
 ```typescript
-// src/features/users/endpoints/login.endpoint.ts
+// src/users/endpoints/login.endpoint.ts
 @Handler([UsersRepository$])
 export class LoginHandler {
   constructor(private readonly users: UsersRepository) {}

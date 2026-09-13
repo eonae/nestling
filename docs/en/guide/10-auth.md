@@ -324,7 +324,7 @@ to the application. `Ok` expresses neither of these — headers and a 3xx
 status belong to HTTP. The response form of its own transport sets them:
 
 ```typescript
-// src/features/users/endpoints/login.endpoint.ts
+// src/users/endpoints/login.endpoint.ts
 @Handler([UsersRepository$])
 export class LoginHandler {
   constructor(private readonly users: UsersRepository) {}

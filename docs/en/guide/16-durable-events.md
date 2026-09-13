@@ -41,7 +41,7 @@ export const outboxStore = pgOutboxStore(db);
 export const appOutbox = outbox({
   transaction: db.tx,
   store: outboxStore.token,
-  operations: [UserCreated],
+  operations: [UserRegistered],
 });
 ```
 
@@ -53,12 +53,12 @@ call site of `emit` names it, and more on that below.
 In the handler one line changes: the one that names the dependency:
 
 ```typescript
-// src/users/endpoints/create-user.endpoint.ts
-@Handler([UsersRepository$, outboxed(UserCreated)])
+// src/features/users/endpoints/create-user.endpoint.ts
+@Handler([UsersRepository$, outboxed(UserRegistered)])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly userCreated: OutboxEmitter<typeof UserCreated>,
+    private readonly userRegistered: OutboxEmitter<typeof UserRegistered>,
   ) {}
 
   async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
@@ -69,7 +69,7 @@ export class CreateUserHandler {
     // the process crashes right after the commit, the event still
     // goes out. The partition is the user's identifier: their events
     // are delivered in order
-    await this.userCreated.emit(
+    await this.userRegistered.emit(
       { id: user.id, name: user.name, email: user.email },
       { partitionKey: user.id },
     );
@@ -79,10 +79,10 @@ export class CreateUserHandler {
 }
 ```
 
-`outboxed(UserCreated)` replaces `UserCreated.emitter`. The value is
-`OutboxEmitter<typeof UserCreated>`: the kernel's emitter whose `meta`
+`outboxed(UserRegistered)` replaces `UserRegistered.emitter`. The value is
+`OutboxEmitter<typeof UserRegistered>`: the kernel's emitter whose `meta`
 dictionary gains the record's partition. It is assignable to
-`Emitter<typeof UserCreated>`, so a handler that does not need the
+`Emitter<typeof UserRegistered>`, so a handler that does not need the
 partition declares the dependency by the old type. The partition is
 the unit of order: the events of one user are delivered in the order
 they were created, and there is no order between different users. The
@@ -91,7 +91,7 @@ record. What `emit` does changes too: it writes one row into the store
 with the caller's transaction, and it sends nothing to the bus during
 the request.
 
-The kernel's DI token stays in place: `UserCreated.emitter` still sends
+The kernel's DI token stays in place: `UserRegistered.emitter` still sends
 at once. A send from `@OnStart` or from a background job, where there
 is no transaction, is written with exactly this emitter. The
 transactional `emit` outside a transaction neither stays silent nor
@@ -154,8 +154,8 @@ The subscriber composes the inbox layer **inside** the transaction
 layer:
 
 ```typescript
-// src/users/endpoints/welcome-email.endpoint.ts
-export const WelcomeEmail = implement(UserCreated, {
+// src/features/notifications/welcome-email.endpoint.ts
+export const WelcomeEmail = implement(UserRegistered, {
   subscriber: 'welcome-email',
   pipeline: compose(subscribed, appInbox.layer),
   handler: WelcomeEmailHandler,
@@ -166,7 +166,7 @@ The layer does two things. Its first unit puts the idempotency key
 from the message envelope into the context, and the handler reads it
 as the familiar `meta.idempotencyKey`. The second calls the store: the
 mark is set by the pair "the endpoint's pattern and the key". For an
-event's subscriber the pattern looks like `users.created@welcome-email`,
+event's subscriber the pattern looks like `users.registered@welcome-email`,
 so two subscribers of one event deduplicate independently.
 
 If the mark already existed, the unit returns `done()`, an early

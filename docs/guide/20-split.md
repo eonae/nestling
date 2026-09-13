@@ -69,7 +69,7 @@ export const app = declareApp();
 ## Оставьте код фич как есть
 
 ```typescript
-// src/users.ts
+// src/features/users/registration.service.ts
 @Component([CheckAddress.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
@@ -79,9 +79,9 @@ export class RegistrationService {
 
   /** Регистрирует пользователя; возвращает `false`, если адрес отвергнут */
   async register(email: string): Promise<boolean> {
-    const claim = await this.addresses.call({ email });
+    const checked = await this.addresses.call({ email });
 
-    if (claim.isFail) {
+    if (checked.isFail) {
       // Отказ владельца приходит `Fail` того же определения `AddressRejected`
       // и из соседнего процесса, и из этого
       return false;
@@ -127,24 +127,24 @@ export const UserRegistered = makeEvent({
 компилируется.
 
 ```typescript
-// src/notifications.ts
-@Handler([Suppressions])
-class UserRegisteredInArchiveHandler {
-  constructor(private readonly ledger: Suppressions) {}
+// src/features/notifications/welcome-email.endpoint.ts
+@Handler([Mailer$])
+class WelcomeEmailHandler {
+  constructor(private readonly mailer: Mailer) {}
 
   async handle(payload: UserRegisteredInput) {
-    this.ledger.archive(payload.id);
+    await this.mailer.send(payload.email, welcome(payload));
   }
 }
 
-    implement(UserRegistered, {
-      // Имя подписчика — адрес подписки: в одном процессе различает
-      // подписки на одно событие, у брокера становится именем queue-группы
-      // и durable-потребителя
-      subscriber: 'archive',
-      pipeline: base,
-      handler: UserRegisteredInArchiveHandler,
-    }),
+export const WelcomeEmail = implement(UserRegistered, {
+  // Имя подписчика — адрес подписки: в одном процессе различает
+  // подписки на одно событие, у брокера становится именем queue-группы
+  // и durable-потребителя
+  subscriber: 'welcome-email',
+  pipeline: base,
+  handler: WelcomeEmailHandler,
+});
 ```
 
 Имя подписчика из главы [15](./15-events.md) здесь получает вторую
@@ -165,7 +165,7 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 проходит.
 
 ```typescript
-// src/users.ts
+// src/features/users/register-user.endpoint.ts
 @Handler([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
@@ -175,13 +175,13 @@ class RegisterUserHandler {
   }
 }
 
-    implement(RegisterUser, {
-      // Базовый слой возвращает в контекст трассу и арендатора: оба
-      // пришли в конверте сообщения, и вызыватель `notifications.check-address`
-      // передаст их дальше
-      pipeline: base,
-      handler: RegisterUserHandler,
-    }),
+export const RegisterUserImpl = implement(RegisterUser, {
+  // Базовый слой возвращает в контекст трассу и арендатора: оба пришли в
+  // конверте сообщения, и вызыватель `notifications.check-address`
+  // передаст их дальше
+  pipeline: base,
+  handler: RegisterUserHandler,
+});
 ```
 
 На принимающей стороне значение лежит в атрибутах сообщения. Юнит
@@ -198,22 +198,21 @@ export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
 ```
 
 ```typescript
-// src/notifications.ts (фрагмент)
+// src/features/notifications/suppressions.ts (фрагмент)
 @Component([Ctx(TenantId), Logger$.auto])
 export class Suppressions {
-  readonly limit = 100;
-  readonly used = new Map<string, number>();
+  readonly #blocked = new Map<string, string>();
 
   constructor(
     private readonly tenant: CtxReader<string>,
     private readonly logger: Logger,
   ) {}
 
-  claim(): number | undefined {
-    this.logger.info('claim');
+  reasonFor(email: string): string | undefined {
+    this.logger.info('address checked');
 
-    const tenantId = this.tenant.get();
-    // …
+    // Список свой у каждого арендатора: его имя пришло конвертом вызова
+    return this.#blocked.get(`${this.tenant.get()}:${email}`);
   }
 }
 ```
@@ -231,8 +230,8 @@ export class Suppressions {
 чтобы записи обоих процессов сошлись:
 
 ```text
-INFO  RegistrationService register traceId=feabb90b363acc5bff69c317824a65ae
-INFO  Suppressions         claim    traceId=feabb90b363acc5bff69c317824a65ae
+INFO  RegistrationService register        traceId=feabb90b363acc5bff69c317824a65ae
+INFO  Suppressions        address checked traceId=feabb90b363acc5bff69c317824a65ae
 ```
 
 Первая запись сделана в процессе `users`, вторая — в процессе `notifications`.

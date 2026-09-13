@@ -38,7 +38,7 @@ export const outboxStore = pgOutboxStore(db);
 export const appOutbox = outbox({
   transaction: db.tx,
   store: outboxStore.token,
-  operations: [UserCreated],
+  operations: [UserRegistered],
 });
 ```
 
@@ -49,12 +49,12 @@ export const appOutbox = outbox({
 В хендлере меняется одна строка — та, что называет зависимость:
 
 ```typescript
-// src/users/endpoints/create-user.endpoint.ts
-@Handler([UsersRepository$, outboxed(UserCreated)])
+// src/features/users/endpoints/create-user.endpoint.ts
+@Handler([UsersRepository$, outboxed(UserRegistered)])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly userCreated: OutboxEmitter<typeof UserCreated>,
+    private readonly userRegistered: OutboxEmitter<typeof UserRegistered>,
   ) {}
 
   async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
@@ -64,7 +64,7 @@ export class CreateUserHandler {
     // Запись пользователя и запись события — одна транзакция. Упади
     // процесс сразу после коммита, событие всё равно уйдёт. Раздел —
     // идентификатор пользователя: его события доставляются по порядку
-    await this.userCreated.emit(
+    await this.userRegistered.emit(
       { id: user.id, name: user.name, email: user.email },
       { partitionKey: user.id },
     );
@@ -74,9 +74,9 @@ export class CreateUserHandler {
 }
 ```
 
-`outboxed(UserCreated)` вместо `UserCreated.emitter`. Значение —
-`OutboxEmitter<typeof UserCreated>`: эмиттер ядра, чей словарь `meta`
-дополнен разделом записи. Оно присваивается `Emitter<typeof UserCreated>`,
+`outboxed(UserRegistered)` вместо `UserRegistered.emitter`. Значение —
+`OutboxEmitter<typeof UserRegistered>`: эмиттер ядра, чей словарь `meta`
+дополнен разделом записи. Оно присваивается `Emitter<typeof UserRegistered>`,
 поэтому хендлер, которому раздел не нужен, объявляет зависимость прежним
 типом. Раздел — единица порядка: события одного пользователя доставляются
 в порядке создания, между разными пользователями порядка нет. Называет
@@ -84,7 +84,7 @@ export class CreateUserHandler {
 Меняется и то, что делает `emit`: он пишет одну строку в хранилище
 транзакцией вызывающего и в шину во время запроса не отправляет ничего.
 
-DI-токен ядра остаётся на месте: `UserCreated.emitter` по-прежнему
+DI-токен ядра остаётся на месте: `UserRegistered.emitter` по-прежнему
 отправляет сразу. Отправка из `@OnStart` или фоновой задачи, где
 транзакции нет, пишется именно им. Транзакционный `emit` вне транзакции
 не молчит и не отправляет напрямую — он завершается ошибкой, называющей
@@ -142,8 +142,8 @@ export const subscribed = compose(observability, db.transaction());
 Подписчик композирует слой приёма **внутрь** слоя транзакции:
 
 ```typescript
-// src/users/endpoints/welcome-email.endpoint.ts
-export const WelcomeEmail = implement(UserCreated, {
+// src/features/notifications/welcome-email.endpoint.ts
+export const WelcomeEmail = implement(UserRegistered, {
   subscriber: 'welcome-email',
   pipeline: compose(subscribed, appInbox.layer),
   handler: WelcomeEmailHandler,
@@ -154,7 +154,7 @@ export const WelcomeEmail = implement(UserCreated, {
 идемпотентности из конверта сообщения — хендлер читает его привычным
 `meta.idempotencyKey`. Второй зовёт хранилище: отметка ставится по паре
 «паттерн endpoint'а и ключ». У подписчика события паттерн выглядит как
-`users.created@welcome-email`, поэтому два подписчика одного события
+`users.registered@welcome-email`, поэтому два подписчика одного события
 дедуплицируют независимо.
 
 Если отметка уже была, юнит возвращает `done()` — досрочный успех.

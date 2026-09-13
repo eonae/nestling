@@ -76,7 +76,7 @@ reads from `APP_FEATURES` before the assembly, as in chapter
 ## Leave the feature's code as is
 
 ```typescript
-// src/users.ts
+// src/features/users/registration.service.ts
 @Component([CheckAddress.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
@@ -86,9 +86,9 @@ export class RegistrationService {
 
   /** Registers a user: returns `false` if the address is rejected */
   async register(email: string): Promise<boolean> {
-    const claim = await this.addresses.call({ email });
+    const checked = await this.addresses.call({ email });
 
-    if (claim.isFail) {
+    if (checked.isFail) {
       // The owner's failure arrives as a `Fail` of the same
       // `AddressRejected` definition, both from the neighbouring
       // process and from this one
@@ -137,25 +137,24 @@ accept the field: for a `request` the caller waits for the response,
 and `durable: true` does not compile for it.
 
 ```typescript
-// src/notifications.ts
-@Handler([Suppressions])
-class UserRegisteredInArchiveHandler {
-  constructor(private readonly ledger: Suppressions) {}
+// src/features/notifications/welcome-email.endpoint.ts
+@Handler([Mailer$])
+class WelcomeEmailHandler {
+  constructor(private readonly mailer: Mailer) {}
 
   async handle(payload: UserRegisteredInput) {
-    this.ledger.archive(payload.id);
+    await this.mailer.send(payload.email, welcome(payload));
   }
 }
 
-    implement(UserRegistered, {
-      // The subscriber's name is the subscription's address: inside
-      // one process it tells subscriptions to one event apart, and
-      // at a broker it becomes the name of the queue group and of
-      // the durable consumer
-      subscriber: 'archive',
-      pipeline: base,
-      handler: UserRegisteredInArchiveHandler,
-    }),
+export const WelcomeEmail = implement(UserRegistered, {
+  // The subscriber's name is the subscription's address: inside one
+  // process it tells subscriptions to one event apart, and at a broker
+  // it becomes the name of the queue group and of the durable consumer
+  subscriber: 'welcome-email',
+  pipeline: base,
+  handler: WelcomeEmailHandler,
+});
 ```
 
 The subscriber's name from chapter [15](./15-events.md) gets a second
@@ -177,7 +176,7 @@ value from the current request's context and puts it into the
 the rest of the context does not cross the boundary.
 
 ```typescript
-// src/users.ts
+// src/features/users/register-user.endpoint.ts
 @Handler([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
@@ -187,13 +186,13 @@ class RegisterUserHandler {
   }
 }
 
-    implement(RegisterUser, {
-      // The base layer returns the trace and the tenant into the
-      // context: both arrived in the message envelope, and the
-      // `notifications.check-address` caller will pass them on
-      pipeline: base,
-      handler: RegisterUserHandler,
-    }),
+export const RegisterUserImpl = implement(RegisterUser, {
+  // The base layer returns the trace and the tenant into the context:
+  // both arrived in the message envelope, and the
+  // `notifications.check-address` caller will pass them on
+  pipeline: base,
+  handler: RegisterUserHandler,
+});
 ```
 
 On the receiving side the value lies in the message's attributes. The
@@ -210,22 +209,22 @@ export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
 ```
 
 ```typescript
-// src/notifications.ts (fragment)
+// src/features/notifications/suppressions.ts (fragment)
 @Component([Ctx(TenantId), Logger$.auto])
 export class Suppressions {
-  readonly limit = 100;
-  readonly used = new Map<string, number>();
+  readonly #blocked = new Map<string, string>();
 
   constructor(
     private readonly tenant: CtxReader<string>,
     private readonly logger: Logger,
   ) {}
 
-  claim(): number | undefined {
-    this.logger.info('claim');
+  reasonFor(email: string): string | undefined {
+    this.logger.info('address checked');
 
-    const tenantId = this.tenant.get();
-    // …
+    // Every tenant has its own list: the tenant's name arrived in the
+    // envelope of the call
+    return this.#blocked.get(`${this.tenant.get()}:${email}`);
   }
 }
 ```
@@ -244,8 +243,8 @@ The base layer puts more into the context than the tenant alone.
 it is the one that makes the records of both processes line up:
 
 ```text
-INFO  RegistrationService register traceId=feabb90b363acc5bff69c317824a65ae
-INFO  Suppressions         claim    traceId=feabb90b363acc5bff69c317824a65ae
+INFO  RegistrationService register        traceId=feabb90b363acc5bff69c317824a65ae
+INFO  Suppressions        address checked traceId=feabb90b363acc5bff69c317824a65ae
 ```
 
 The first record is written by the `users` process, the second by the
