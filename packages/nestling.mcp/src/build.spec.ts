@@ -13,21 +13,10 @@ import { mcp } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
-import {
-  makeApp,
-  makeFeature,
-  objectSource,
-  Ok,
-  stream,
-} from '@nestlingjs/app';
+import { makeApp, makeFeature, Ok, stream } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
-import { http, serverKeys } from '@nestlingjs/transport.http';
+import { http } from '@nestlingjs/transport.http';
 import { z } from 'zod';
-
-const socket = objectSource(
-  { HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' },
-  'build-socket',
-);
 
 /**
  * Проводит приложение по фазам 0 и 1 и останавливается.
@@ -44,7 +33,6 @@ const checkWith = (endpoints: readonly AnyEndpointDefinition[]) =>
         converters: [zodConverter()],
       }),
     ],
-    config: [[socket, serverKeys()]],
   }).check();
 
 describe('уникальность имени инструмента', () => {
@@ -93,7 +81,6 @@ describe('общий сервер двух транспортов', () => {
             converters: [zodConverter()],
           }),
         ],
-        config: [[socket, serverKeys()]],
       }),
     ).toThrow(/Two different server declarations are named 'default'/);
   });

@@ -15,14 +15,8 @@ import { mcp } from './transport.js';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { BuiltApp } from '@nestlingjs/app';
-import {
-  makeApp,
-  makeFail,
-  makeFeature,
-  objectSource,
-  Ok,
-} from '@nestlingjs/app';
+import type { Binding, BuiltApp, ConfigSource } from '@nestlingjs/app';
+import { bind, makeApp, makeFail, makeFeature, Ok } from '@nestlingjs/app';
 import { Handler, makeModule } from '@nestlingjs/container';
 import { openapi } from '@nestlingjs/openapi';
 import { makeRequest } from '@nestlingjs/operations';
@@ -82,10 +76,15 @@ const UsersFeature = makeFeature({
 });
 
 /** Порт выбирает ОС, адрес — loopback: сокет теста никуда не смотрит */
-const socket = objectSource(
-  { HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' },
-  'test-socket',
-);
+const socketValues: Record<string, string> = {
+  HTTP_PORT: '0',
+  HTTP_HOST: '127.0.0.1',
+};
+const socket: ConfigSource = {
+  name: 'test-socket',
+  get: (key) => socketValues[key],
+};
+const config: readonly Binding[] = [bind(socket, { keys: serverKeys() })];
 
 /** Один сервер на два протокола: объявление сервера общее */
 const api = server();
@@ -100,7 +99,6 @@ const spec = makeApp({
       info: { name: 'users-service', version: '1.0.0' },
     }),
   ],
-  config: [[socket, serverKeys()]],
 });
 
 let app: BuiltApp;
@@ -109,16 +107,15 @@ let client: Client;
 
 beforeAll(async () => {
   app = spec.build();
-  await app.run();
+  await app.run({ config });
 
   const instance = app.servers.get('default') as HttpServer | undefined;
-  const address = instance?.address();
 
-  if (!address) {
+  if (!instance) {
     throw new Error('server is not listening');
   }
 
-  baseUrl = `http://127.0.0.1:${address.port}`;
+  baseUrl = instance.baseUrl();
 
   client = new Client({ name: 'spec-client', version: '1.0.0' });
   await client.connect(

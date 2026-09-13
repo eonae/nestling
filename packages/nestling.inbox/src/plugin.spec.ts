@@ -24,7 +24,13 @@ import { InboxSweeper$ } from './sweeper.js';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App, Policy } from '@nestlingjs/app';
-import { compose, implement, makeApp, makeFeature } from '@nestlingjs/app';
+import {
+  bind,
+  compose,
+  implement,
+  makeApp,
+  makeFeature,
+} from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, vars } from '@nestlingjs/testing';
 
@@ -183,7 +189,7 @@ describe('inbox(): пакет в собранном приложении', () =>
 
   it('процесс без уборщика ставит отметки и не запускает задачу', async () => {
     await using app = await buildTest(application(), {
-      config: vars({ INBOX_SWEEP: 'false' }),
+      config: [bind(vars({ INBOX_SWEEP: 'false' }))],
     });
 
     await deliver(
@@ -199,7 +205,7 @@ describe('inbox(): пакет в собранном приложении', () =>
 
   it('проход уборщика делается без таймера', async () => {
     await using app = await buildTest(application(), {
-      config: vars({ INBOX_RETENTION_MS: '0' }),
+      config: [bind(vars({ INBOX_RETENTION_MS: '0' }))],
     });
 
     await deliver(

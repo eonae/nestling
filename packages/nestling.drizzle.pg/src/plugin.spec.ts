@@ -16,7 +16,7 @@ import { drizzlePg } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App } from '@nestlingjs/app';
-import { makeApp, makeFeature } from '@nestlingjs/app';
+import { bind, makeApp, makeFeature } from '@nestlingjs/app';
 import { buildTest, vars } from '@nestlingjs/testing';
 
 /** Пул соединения по умолчанию: журнал команд читают тесты */
@@ -33,10 +33,14 @@ const analyticsConnection = new PgConnection(
 );
 
 /** Значения, которых хватает обеим секциям */
-const config = vars({
-  DATABASE_URL: 'postgresql://spec@localhost:5432/spec',
-  DATABASE_ANALYTICS_URL: 'postgresql://spec@localhost:5432/reports',
-});
+const config = [
+  bind(
+    vars({
+      DATABASE_URL: 'postgresql://spec@localhost:5432/spec',
+      DATABASE_ANALYTICS_URL: 'postgresql://spec@localhost:5432/reports',
+    }),
+  ),
+];
 
 /** Приложение с обоими соединениями и политикой предпосылки */
 const application = (endpoints: readonly AnyEndpointDefinition[]): App =>

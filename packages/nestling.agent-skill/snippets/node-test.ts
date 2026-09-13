@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { app } from './app.js';
 import { GetUser } from './get-user.endpoint.js';
 
+import { bind } from '@nestlingjs/app';
 import { buildTest, unwrap, vars } from '@nestlingjs/testing';
 
 /**
@@ -14,7 +15,7 @@ import { buildTest, unwrap, vars } from '@nestlingjs/testing';
  */
 test('calls an endpoint through the whole pipeline, without a socket', async () => {
   await using testApp = await buildTest(app, {
-    config: vars({ API_TOKEN: 'test-token' }),
+    config: [bind(vars({ API_TOKEN: 'test-token' }))],
   });
 
   assert.deepEqual(unwrap(await testApp.call(GetUser, { id: '1' })), {

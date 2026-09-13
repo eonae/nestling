@@ -5,6 +5,7 @@ import { ClaimQuota, QuotaExceeded } from './intercom-operations.js';
 import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
+import { bind } from '@nestlingjs/app';
 import {
   buildTest,
   checkTopologies,
@@ -27,7 +28,7 @@ describe('users', () => {
     await using testApp = await buildTest(app, {
       // The same declaration `main.ts` runs, with two substitutions
       overrides: [[UsersRepository$, inMemoryUsers()]],
-      config: vars({ API_TOKEN: 'test-token' }),
+      config: [bind(vars({ API_TOKEN: 'test-token' }))],
     });
 
     expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
@@ -36,7 +37,7 @@ describe('users', () => {
   it('returns a declared failure with its status and code', async () => {
     await using testApp = await buildTest(app, {
       overrides: [[UsersRepository$, inMemoryUsers()]],
-      config: vars({ API_TOKEN: 'test-token' }),
+      config: [bind(vars({ API_TOKEN: 'test-token' }))],
       // A stub answers for an operation this build does not implement;
       // its answer is validated against the operation schema
       stubs: [stub(ClaimQuota, async () => QuotaExceeded({ limit: 5 }))],
@@ -55,7 +56,7 @@ describe('users', () => {
     // Structural only: no instance is created, so `config` binds the
     // required keys instead of substituting values
     const reports = await checkTopologies(app, ['all', 'users', 'quotas'], {
-      config: vars({ API_TOKEN: 'test-token' }),
+      config: [bind(vars({ API_TOKEN: 'test-token' }))],
     });
 
     expect(reports).toHaveLength(3);
