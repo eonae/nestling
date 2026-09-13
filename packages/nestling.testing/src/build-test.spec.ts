@@ -13,6 +13,7 @@ import { unwrap, UnwrapFailedError } from './unwrap.js';
 import { describe, expect, it, jest } from '@jest/globals';
 import type { Config, FilePart, ITransport, Logger } from '@nestlingjs/app';
 import {
+  bind,
   Discovery$,
   Logger$,
   makeApp,
@@ -37,7 +38,12 @@ import {
   Resource,
   valueProvider,
 } from '@nestlingjs/container';
-import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
+import {
+  http,
+  httpEndpoint,
+  HttpTransport$,
+  serverKeys,
+} from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
@@ -548,7 +554,7 @@ describe('vars и familyOverride', () => {
         ],
       }),
       {
-        config: vars({ USERS_PAGE_SIZE: '10' }),
+        config: [bind(vars({ USERS_PAGE_SIZE: '10' }))],
       },
     );
 
@@ -572,7 +578,7 @@ describe('vars и familyOverride', () => {
         ],
       }),
       {
-        config: [[source, '*']],
+        config: [bind(source)],
       },
     );
 
@@ -811,7 +817,7 @@ describe('buildTest — тихий прогон', () => {
 
     const lines = await captureStderr(async () => {
       await using testApp = await buildTest(app, {
-        config: vars({ NESTLING_LOG_LEVEL: 'info' }),
+        config: [bind(vars({ NESTLING_LOG_LEVEL: 'info' }))],
       });
 
       await testApp.call(Greet);
@@ -838,5 +844,62 @@ describe('buildTest — тихий прогон', () => {
       message: 'greeting',
       fields: { scope: 'Greeter' },
     });
+  });
+});
+
+/** Порт эфемерный: сервер сам выбирает свободный на `listen()` */
+const ephemeral = () =>
+  bind(vars({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }), {
+    keys: serverKeys(),
+  });
+
+describe('testApp.run() и testApp.baseUrl()', () => {
+  it('run() открывает сокет; baseUrl() отдаёт его адрес', async () => {
+    await using testApp = await buildTest(
+      makeApp({ endpoints: [], transports: [http()] }),
+      { config: [ephemeral()] },
+    );
+
+    await testApp.run();
+
+    const url = testApp.baseUrl();
+    expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+    const response = await fetch(`${url}/does-not-exist`);
+    expect(response.status).toBe(404);
+  });
+
+  it('до run() адреса нет', async () => {
+    await using testApp = await buildTest(
+      makeApp({ endpoints: [], transports: [http()] }),
+      { config: [ephemeral()] },
+    );
+
+    expect(() => testApp.baseUrl()).toThrow();
+  });
+
+  it('несколько серверов требуют имени; именованный резолвится по нему', async () => {
+    await using testApp = await buildTest(
+      makeApp({
+        endpoints: [],
+        transports: [http(), http({ name: 'admin' })],
+      }),
+      {
+        config: [
+          bind(vars({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }), {
+            keys: serverKeys(),
+          }),
+          bind(vars({ HTTP_ADMIN_PORT: '0', HTTP_ADMIN_HOST: '127.0.0.1' }), {
+            keys: serverKeys('admin'),
+          }),
+        ],
+      },
+    );
+
+    await testApp.run();
+
+    expect(() => testApp.baseUrl()).toThrow(/default|admin/);
+    expect(testApp.baseUrl('admin')).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(testApp.baseUrl('default')).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   });
 });

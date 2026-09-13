@@ -2,11 +2,8 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
-import {
-  bootstrapConfig,
-  configKernel,
-  objectSource,
-} from '../config/index.js';
+import { objectSource } from '../config/__fixtures__/object-source.js';
+import { bind, bootstrapConfig, configKernel } from '../config/index.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 import { loggerKernel } from '../logger/kernel.js';
 import { RootLogger$ } from '../logger/tokens.js';
@@ -195,7 +192,9 @@ async function build(options: {
   // так же, как это делает сборка приложения
   const builder = new ContainerBuilder();
   builder.register(
-    configKernel(await bootstrapConfig([[source, portsConfigKeys]])),
+    configKernel(
+      await bootstrapConfig([bind(source, { keys: portsConfigKeys })]),
+    ),
   );
   builder.register(
     contextKernel(),

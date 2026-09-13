@@ -1,11 +1,12 @@
 # @nestlingjs/testing
 
-Тестовый composition root. `buildTest(app, options)` собирает ту же
-декларацию `makeApp`, что запускает `main.ts`, проводит приложение по фазам
-`0 BOOTSTRAP`, `1 BUILD`, `2 INIT`, `3 WIRE` и останавливается: `dispatch`
-создан, сокеты не открыты, обработчики сигналов не установлены, в stdout
-ничего не напечатано. Прогон молчит: уровень логгера — `silent`, пока тест
-не задаст свой через `config:` или не подменит `[RootLogger$, spy.logger]`.
+декларацию `makeApp`, что запускает `main.ts`, и проводит приложение по
+фазам `0 BOOTSTRAP`, `1 BUILD`, `2 INIT`, `3 WIRE`: `dispatch` создан,
+сокеты не открыты, обработчики сигналов не установлены, в stdout ничего не
+напечатано. Прогон молчит: уровень логгера — `silent`, пока тест не
+задаст свой через `config:` или не подменит `[RootLogger$, spy.logger]`.
+`testApp.run()` продолжает до `4 START` и `5 RUN` — сокет открывается, а
+`testApp.baseUrl(name?)` отдаёт его адрес.
 
 > 🚧 Активная разработка, API может меняться. Раннера, матчеров и
 > snapshot-механики пакет не вводит: jest остаётся jest'ом.
@@ -40,13 +41,14 @@ Node включает условие флагом `--conditions=testing`.
 ```typescript
 import { app } from './app'; // та же декларация makeApp, что у main.ts
 
+import { bind } from '@nestlingjs/app';
 import { buildTest, stub, unwrap, vars } from '@nestlingjs/testing';
 
 await using testApp = await buildTest(app, {
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   // заглушка операции, которую эта сборка не реализует
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
-  config: vars({ USERS_PAGE_SIZE: '10' }),
+  config: [bind(vars({ USERS_PAGE_SIZE: '10' }))],
 });
 
 const user = unwrap(await testApp.call(GetUser, { id: '1' }));
@@ -60,7 +62,7 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
   `TestCallOptions`, `EmitDelivery`, `UnwrapFailedError`, `unwrap`.
 - **Подстановки** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
-  `contextValue`, `vars`.
+  `contextValue`, `vars`, `ObjectSource`.
 - **Логгер и метрики** — `spyLogger`, `SpyLogger`, `LogEntry`, `spyMetrics`,
   `SpyMetrics`, `MetricRecord`.
 - **Топологии и единицы** — `checkTopologies`, `TopologyReport`,
@@ -68,8 +70,16 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 - **Реэкспорт [`@nestlingjs/app`](../nestling.app/)** — имена ядра, чтобы тест
   импортировал один пакет.
 
-Список `transports` в опциях не принимается: тестовая сборка не выполняет
-START, поэтому сокеты не открываются и подменять порт незачем.
+`vars(record)` — собственная реализация `ConfigSource` пакета, а не
+обёртка над ядром: объект вместо `process.env`, с `set`/`assign` для
+reloadable-секций. Ключи привязки заменяют привязки декларации целиком —
+у декларации их нет вовсе, поэтому тест изолирован и от `process.env`, и
+от любых умолчаний.
+
+Список `transports` в опциях не принимается: состав, включая транспорты,
+берётся из декларации `makeApp`. Без `testApp.run()` сокеты не
+открываются; после него `testApp.baseUrl(name?)` отдаёт адрес сервера —
+без имени, если объявлен один, по имени, если несколько.
 
 ## Границы пакета
 

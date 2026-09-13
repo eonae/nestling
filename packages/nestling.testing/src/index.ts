@@ -17,6 +17,7 @@ export type {
   TestStub,
 } from './app.js';
 export { vars } from './config.js';
+export type { ObjectSource } from './config.js';
 export { contextValue } from './context.js';
 export { testBundle } from './bundle.js';
 export type { TestBundleOptions } from './bundle.js';

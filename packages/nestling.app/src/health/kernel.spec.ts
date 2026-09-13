@@ -5,7 +5,12 @@
  * всех, отчёт без деталей отказа и вклад ресурса.
  */
 
-import { bootstrapConfig, configKernel } from '../config/index.js';
+import {
+  bind,
+  bootstrapConfig,
+  configKernel,
+  env as envSource,
+} from '../config/index.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 import { loggerKernel } from '../logger/index.js';
 import { RootLogger$ } from '../logger/tokens.js';
@@ -68,7 +73,7 @@ const wire = async (
   // `bootstrapConfig`, и позже `process.env` на секцию уже не влияет
   Object.assign(process.env, env);
 
-  const reader = await bootstrapConfig();
+  const reader = await bootstrapConfig([bind(envSource())]);
   const builder = new ContainerBuilder();
 
   builder.register(configKernel(reader), loggerKernel());

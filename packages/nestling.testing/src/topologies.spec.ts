@@ -9,6 +9,7 @@ import { checkTopologies } from './topologies.js';
 import { describe, expect, it } from '@jest/globals';
 import type { Config, ITransport, SchemaDocConverter } from '@nestlingjs/app';
 import {
+  bind,
   diffOperations,
   formatCompatibility,
   implement,
@@ -16,7 +17,6 @@ import {
   makeConfig,
   makeFeature,
   makePlugin,
-  objectSource,
   Ok,
   snapshotOperations,
   transportValue,
@@ -160,32 +160,16 @@ describe('checkTopologies', () => {
       endpoints: [httpEndpoint.get('/users', { handler: UsersHandler })],
     });
 
-    const declared = objectSource({ TOPOLOGY_PAGE_SIZE: '5' }, 'declared');
-    let initialized = false;
-
     const reports = await checkTopologies(
       makeApp({
         features: [UsersFeature],
         transports: [asHttpTransport(new SpyTransport())],
-        config: [
-          [
-            {
-              ...declared,
-              init: () => {
-                initialized = true;
-              },
-            },
-            '*',
-          ],
-        ],
       }),
       ['all', 'users'],
-      { config: vars({ TOPOLOGY_PAGE_SIZE: '10' }) },
+      { config: [bind(vars({ TOPOLOGY_PAGE_SIZE: '10' }))] },
     );
 
     expect(reports).toHaveLength(2);
-    // Привязки декларации заменены целиком: их источник не поднимался
-    expect(initialized).toBe(false);
   });
 });
 

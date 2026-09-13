@@ -1,5 +1,5 @@
 /**
- * Читалка — единственное место в ядре, которое трогает `process.env`.
+ * Читалка — разрешает ключи по привязкам `bind()`.
  *
  * Приватный DI-токен ядра: из `index.ts` не экспортируется ни класс, ни
  * DI-токен, поэтому инжектить её пользовательскому коду нечем.
@@ -11,7 +11,7 @@ import { ConfigSharedKeyError, ConfigSourceError } from './errors.js';
 import type { ConfigTarget } from './keys.js';
 import { describeTarget, targetCovers } from './keys.js';
 import { declaredKeys } from './registry.js';
-import type { ConfigBinding, ConfigSource } from './source.js';
+import type { Binding, ConfigSource } from './source.js';
 
 import type { Logger } from '@nestlingjs/logging';
 
@@ -31,13 +31,14 @@ export interface Reloadable {
 /** Привязка в разобранном виде */
 interface ResolvedBinding {
   readonly source: ConfigSource;
-  readonly targets: readonly ConfigTarget[];
+  readonly keys: ConfigTarget;
+  readonly optional: boolean;
+  readonly timeout: number;
   readonly name: string;
 }
 
 /**
- * Разрешает ключи по привязкам; `process.env` читается последним, с
- * низшим приоритетом.
+ * Разрешает ключи по привязкам `bind()`.
  *
  * Создаётся вне контейнера, на фазе 0: `init()` поднимает источники и
  * снимает снимок объявленных ключей, а в граф читалка входит уже готовым
@@ -47,6 +48,9 @@ interface ResolvedBinding {
 export class ConfigReader {
   readonly #bindings: readonly ResolvedBinding[];
   readonly #reloadable = new Set<Reloadable>();
+
+  /** Привязки, чей `init()` отказал или истёк, но были `optional` */
+  readonly #skipped = new Set<ResolvedBinding>();
 
   /**
    * Предупреждения, накопленные до подключения логгера.
@@ -79,41 +83,43 @@ export class ConfigReader {
    */
   readonly #claims = new Map<string, SharedKeyReader>();
 
-  /**
-   * Живая ссылка на `process.env`, а не копия: единственный контакт ядра
-   * с окружением, и тесту достаточно выставить переменную до фазы 0.
-   */
-  readonly #env = process.env;
-
-  constructor(bindings: readonly ConfigBinding[] = []) {
-    this.#bindings = bindings.map(([source, target], index) => ({
-      source,
-      targets: Array.isArray(target)
-        ? (target as readonly ConfigTarget[])
-        : [target as ConfigTarget],
-      name: source.name ?? `source #${index + 1}`,
+  constructor(bindings: readonly Binding[] = []) {
+    this.#bindings = bindings.map((binding, index) => ({
+      source: binding.source,
+      keys: binding.keys,
+      optional: binding.optional,
+      timeout: binding.timeout,
+      name: binding.source.name ?? `source #${index + 1}`,
     }));
   }
 
   /**
    * Фаза 0: поднимает источники, снимает снимок объявленных ключей и
-   * сверяет таргеты с реестром.
+   * сверяет области с реестром.
    *
-   * `init()` каждого источника зовётся один раз, по порядку привязок.
-   * Повторы при временно недоступном источнике — забота самого источника:
-   * цену и уместность повтора знает он, ядру нечем отличить временный
-   * отказ от постоянного.
+   * `init()` каждого источника зовётся один раз, по порядку привязок, с
+   * границей `timeout`. Привязка с `optional: true`, чей `init()` отказал
+   * или не уложился в границу, пропускается — фаза 0 продолжается без
+   * этого источника вместо отказа. Повторы при временно недоступном
+   * источнике — забота самого источника: цену и уместность повтора знает
+   * он, ядру нечем отличить временный отказ от постоянного.
    *
    * Наблюдение навешивается после инициализации: до неё источнику нечего
    * сообщать, а секции ещё не спроецированы.
    *
-   * @throws {ConfigSourceError} Если `init()` источника отказал
+   * @throws {ConfigSourceError} Если `init()` источника отказал или не
+   * уложился в `timeout`, а привязка не `optional`
    */
   async init(): Promise<void> {
     for (const binding of this.#bindings) {
       try {
-        await binding.source.init?.();
+        await this.#initOne(binding);
       } catch (error) {
+        if (binding.optional) {
+          this.#skipped.add(binding);
+          continue;
+        }
+
         throw new ConfigSourceError(binding.name, error);
       }
     }
@@ -124,7 +130,7 @@ export class ConfigReader {
       this.#snapshot.set(key, this.#lookup(key));
     }
 
-    for (const binding of this.#bindings) {
+    for (const binding of this.#active()) {
       binding.source.watch?.(() => {
         this.#refreshAll();
       });
@@ -187,9 +193,9 @@ export class ConfigReader {
     }
   }
 
-  /** Источники в порядке приоритета, включая `process.env` (для ошибок) */
+  /** Источники в порядке приоритета, реально поднявшиеся на фазе 0 */
   get sources(): readonly string[] {
-    return [...this.#bindings.map((binding) => binding.name), 'process.env'];
+    return this.#active().map((binding) => binding.name);
   }
 
   /**
@@ -237,15 +243,50 @@ export class ConfigReader {
   }
 
   /**
-   * Закрывает источники — явным шагом фазы SHUTDOWN.
+   * Закрывает источники, поднявшиеся на фазе 0 — явным шагом фазы SHUTDOWN.
    *
    * Не узел графа: читалка живёт время `run()`, а не время
    * контейнера. Проверка состава контейнер не разрушает, и источники после
    * неё остались бы открытыми.
    */
   async close(): Promise<void> {
-    for (const binding of this.#bindings) {
+    for (const binding of this.#active()) {
       await binding.source.close?.();
+    }
+  }
+
+  /** Привязки, чей источник реально поднялся на фазе 0 */
+  #active(): readonly ResolvedBinding[] {
+    return this.#bindings.filter((binding) => !this.#skipped.has(binding));
+  }
+
+  /**
+   * Вызывает `init()` источника с границей `timeout` этой привязки.
+   *
+   * `Promise.race` с таймером: источник без `init()` разрешается сразу.
+   */
+  async #initOne(binding: ResolvedBinding): Promise<void> {
+    if (!binding.source.init) {
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          new Error(
+            `initialization did not complete within ${binding.timeout}ms`,
+          ),
+        );
+      }, binding.timeout);
+      timer.unref?.();
+    });
+
+    try {
+      await Promise.race([Promise.resolve(binding.source.init()), timeout]);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -271,12 +312,12 @@ export class ConfigReader {
    * Спрашивает значение у источников, минуя снимок.
    *
    * Привязки просматриваются по порядку (порядок = приоритет): выигрывает
-   * первая, чей таргет покрывает ключ и чей источник вернул не-`undefined`.
-   * Источник, чей таргет ключ не покрывает, не опрашивается вовсе.
+   * первая, чья область покрывает ключ и чей источник вернул не-`undefined`.
+   * Источник, чья область ключ не покрывает, не опрашивается вовсе.
    */
   #lookup(key: string): unknown {
-    for (const binding of this.#bindings) {
-      if (!binding.targets.some((target) => targetCovers(target, key))) {
+    for (const binding of this.#active()) {
+      if (!targetCovers(binding.keys, key)) {
         continue;
       }
 
@@ -286,22 +327,20 @@ export class ConfigReader {
       }
     }
 
-    return this.#env[key];
+    return undefined;
   }
 
   #hasWatchingSource(keys: readonly string[]): boolean {
-    return this.#bindings.some(
+    return this.#active().some(
       (binding) =>
         binding.source.watch !== undefined &&
-        keys.some((key) =>
-          binding.targets.some((target) => targetCovers(target, key)),
-        ),
+        keys.some((key) => targetCovers(binding.keys, key)),
     );
   }
 
   /**
    * Опечатка в глобе молча не привязывает ничего — дешёвая контрмера
-   * сверяет каждый таргет с реестром объявленных ключей.
+   * сверяет каждую область с реестром объявленных ключей.
    *
    * Именно предупреждение, а не ошибка: глоб легитимно может смотреть в
    * будущее, на unbound-ключи семейств.
@@ -309,16 +348,14 @@ export class ConfigReader {
   #warnAboutEmptyTargets(): void {
     const keys = declaredKeys();
 
-    for (const binding of this.#bindings) {
-      for (const target of binding.targets) {
-        if (keys.some((key) => targetCovers(target, key))) {
-          continue;
-        }
-
-        this.warn(
-          `binding of source '${binding.name}' targets ${describeTarget(target)}, which covers none of the declared config keys`,
-        );
+    for (const binding of this.#active()) {
+      if (keys.some((key) => targetCovers(binding.keys, key))) {
+        continue;
       }
+
+      this.warn(
+        `binding of source '${binding.name}' targets ${describeTarget(binding.keys)}, which covers none of the declared config keys`,
+      );
     }
   }
 }

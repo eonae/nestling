@@ -6,7 +6,8 @@
  * WIRE и обе политики диспатча — переключаемые конфигом, а не кодом.
  */
 
-import { objectSource } from '../config/index.js';
+import { objectSource } from '../config/__fixtures__/object-source.js';
+import { bind } from '../config/index.js';
 import type { AnyInput, ExtendableContext } from '../pipeline/index.js';
 import { makeEmptyContext, Ok } from '../pipeline/index.js';
 import type { Port } from '../ports/index.js';
@@ -168,15 +169,14 @@ class RemoteBus extends InProcessBus {
   override readonly remote: boolean = true;
 }
 
-const portsConfig = (dispatch?: 'local-first' | 'always-remote') =>
-  [
-    [
-      objectSource(
-        dispatch === undefined ? {} : { NESTLING_PORTS_DISPATCH: dispatch },
-      ),
-      portsConfigKeys,
-    ],
-  ] as const;
+const portsConfig = (dispatch?: 'local-first' | 'always-remote') => [
+  bind(
+    objectSource(
+      dispatch === undefined ? {} : { NESTLING_PORTS_DISPATCH: dispatch },
+    ),
+    { keys: portsConfigKeys },
+  ),
+];
 
 describe('build — порты', () => {
   beforeEach(() => {
@@ -192,10 +192,9 @@ describe('build — порты', () => {
     const app = makeApp({
       features: [OrdersFeature, BillingFeature],
       transports: [asTransport(transport)],
-      config: portsConfig(dispatch),
     }).build();
 
-    await app.run();
+    await app.run({ config: portsConfig(dispatch) });
 
     const response = await transport.dispatch?.call(
       'POST /orders',
@@ -222,10 +221,9 @@ describe('build — порты', () => {
     const app = makeApp({
       features: [OrdersFeature, BillingFeature],
       transports: [asTransport(transport)],
-      config: portsConfig(),
     });
 
-    const report = await app.check();
+    const report = await app.check(undefined, { config: portsConfig() });
 
     expect(report.transports).toEqual(['test', 'bus']);
     expect(report.endpoints.map((endpoint) => endpoint.pattern)).toEqual(
@@ -269,10 +267,9 @@ describe('build — порты', () => {
     const app = makeApp({
       features: [LonelyFeature],
       transports: [asTransport(new MockTransport())],
-      config: portsConfig(),
     }).build();
 
-    await expect(app.run()).rejects.toThrow(
+    await expect(app.run({ config: portsConfig() })).rejects.toThrow(
       /'app\.lonely\.request'.*no selected feature implements it/s,
     );
   });
@@ -318,10 +315,9 @@ describe('build — порты', () => {
     const app = makeApp({
       features: [WarmupFeature, BillingFeature],
       transports: [asTransport(new MockTransport())],
-      config: portsConfig(),
     }).build();
 
-    await app.run();
+    await app.run({ config: portsConfig() });
 
     expect(seen[0]).toMatch(/init: .*before phase 3 WIRE/);
     expect(seen[1]).toBe('start: c-7');
@@ -374,10 +370,9 @@ describe('build — порты', () => {
     const app = makeApp({
       features: [NotifierFeature, BillingFeature],
       transports: [asTransport(transport)],
-      config: portsConfig(),
     }).build();
 
-    await app.run();
+    await app.run({ config: portsConfig() });
 
     await transport.dispatch?.call(
       'POST /notify',
@@ -398,11 +393,10 @@ describe('build — порты', () => {
     const degraded = makeApp({
       features: [DurableFeature],
       transports: [asTransport(new MockTransport())],
-      config: portsConfig(),
       logging: { logger: degradedProbe.logger },
     }).build();
 
-    await degraded.run();
+    await degraded.run({ config: portsConfig() });
     await degraded.close();
 
     const message = 'durable delivery is not available on this bus';
@@ -419,11 +413,10 @@ describe('build — порты', () => {
     const plain = makeApp({
       features: [BillingFeature],
       transports: [asTransport(new MockTransport())],
-      config: portsConfig(),
       logging: { logger: plainProbe.logger },
     }).build();
 
-    await plain.run();
+    await plain.run({ config: portsConfig() });
     await plain.close();
 
     expect(entriesWith(plainProbe, message)).toEqual([]);
@@ -442,10 +435,9 @@ describe('build — порты', () => {
         }),
       ],
       intercom: 'events',
-      config: portsConfig(),
     }).build();
 
-    await app.run();
+    await app.run({ config: portsConfig() });
 
     // Маршруты реализаций подписаны на шину, поставленную корнем: своей
     // in-proc шины kernel-модуль не завёл, иначе публикация ушла бы в пустоту
@@ -470,12 +462,11 @@ describe('build — порты', () => {
         }),
       ],
       intercom: 'events',
-      config: portsConfig(),
     }).build();
 
     // Ни одной реализации операции в сборке нет, а вызыватель есть:
     // владелец живёт в другом процессе, и это больше не ошибка сборки
-    await expect(app.run()).resolves.toBeUndefined();
+    await expect(app.run({ config: portsConfig() })).resolves.toBeUndefined();
 
     await app.close();
   });
@@ -484,10 +475,9 @@ describe('build — порты', () => {
     const app = makeApp({
       features: [LonelyFeature],
       transports: [asTransport(new MockTransport())],
-      config: portsConfig(),
     }).build();
 
-    await expect(app.run()).rejects.toThrow(
+    await expect(app.run({ config: portsConfig() })).rejects.toThrow(
       /'app\.lonely\.request'.*no selected feature implements it/s,
     );
   });

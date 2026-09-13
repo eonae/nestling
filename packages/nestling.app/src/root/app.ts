@@ -9,12 +9,12 @@
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
 
-import type {
-  ConfigBinding,
-  ConfigInput,
-  ConfigReader,
+import type { Binding, ConfigReader } from '../config/index.js';
+import {
+  bootstrapConfig,
+  configKernel,
+  defaultSources,
 } from '../config/index.js';
-import { bootstrapConfig, configKernel, toBindings } from '../config/index.js';
 import { registerHealth } from '../health/index.js';
 import type { LogFieldsPlan } from '../logger/index.js';
 import {
@@ -197,15 +197,13 @@ export interface CheckOptions {
   readonly converters?: readonly SchemaDocConverter[];
 
   /**
-   * Источники конфига проверки: голый источник, одна привязка или список
-   * привязок.
+   * Привязки источников проверки — тот же список `bind()`, что у `run()`.
    *
-   * **Заменяет** привязки декларации целиком — те же три формы, что у
-   * тестового корня. С `config: vars({ … })` проверка обходится без
-   * источников и без ввода-вывода. Без поля поднимаются привязки
-   * декларации.
+   * **Заменяет** привязки целиком. С `config: [bind(vars({ … }))]` проверка
+   * обходится без источников и без ввода-вывода. Без поля поднимается
+   * {@link defaultSources} — у декларации привязок нет вовсе.
    */
-  readonly config?: ConfigInput;
+  readonly config?: readonly Binding[];
 }
 
 /**
@@ -223,9 +221,9 @@ const APP_BRAND = Symbol.for('nestling:app');
  * трёх форм: `{ endpoints, providers? }`, `{ endpoints, modules? }` или
  * `{ features }`. Сквозная инфраструктура перечисляется в `plugins:`,
  * переключатели состава — в `switches:`, транспорты объявляются
- * экземплярами, привязки конфига — полем `config`, корневой логгер —
- * полем `logger`. Выбор фич в словаре не пишется: он часть аргумента
- * `build(args)`.
+ * экземплярами, корневой логгер — полем `logger`. Выбор фич в словаре не
+ * пишется: он часть аргумента `build(args)`; привязки источников конфига —
+ * опция `config` метода `run()`, а не поле декларации.
  *
  * Декларация проверяется при создании: бренды фич и плагинов, дубли имён
  * фич и имён переключателей, форма состава, закрытый перечень полей,
@@ -461,7 +459,7 @@ function modulesListing(
     .map(({ name }) => name);
 }
 
-/** Опции подъёма приложения */
+/** Опции `run()` */
 export interface RunOptions {
   /**
    * Ставить ли обработчики `SIGTERM` и `SIGINT`. По умолчанию `true`.
@@ -471,6 +469,15 @@ export interface RunOptions {
    * Ctrl+C. Остальные фазы `run()` идут одинаково при любом значении.
    */
   readonly signals?: boolean;
+
+  /**
+   * Привязки источников конфига — список `bind()`.
+   *
+   * Заменяет {@link defaultSources} целиком, а не дополняет его. Без опции
+   * `run()` использует `defaultSources`: окружение выше `.env`-файла, файл
+   * необязателен.
+   */
+  readonly config?: readonly Binding[];
 }
 
 /**
@@ -524,6 +531,18 @@ export class BuiltApp {
   #reader?: ConfigReader;
 
   /**
+   * `dispatch` каждого транспорта, построенный на WIRE.
+   *
+   * Нужен отдельно от локальной переменной `run()`: тестовый шов проходит
+   * WIRE и останавливается, а `testApp.run()` продолжает START отдельным
+   * вызовом, которому эта карта уже нужна.
+   */
+  #dispatches?: Map<TransportRef, Dispatch>;
+
+  /** `testApp.run()` уже довёл приложение до START — вызов идемпотентен */
+  #testStarted = false;
+
+  /**
    * Транспорты в порядке запуска (фаза START).
    *
    * Shutdown идёт этим списком в реверсе.
@@ -572,7 +591,8 @@ export class BuiltApp {
    * SHUTDOWN; `signals: false` их не ставит. Идемпотентен: повторный
    * вызов ничего не пересобирает.
    *
-   * @param options - Опции подъёма; сегодня это обработчики сигналов
+   * @param options - Опции подъёма: обработчики сигналов и привязки
+   * источников конфига; без привязок — {@link defaultSources}
    */
   async run(options: RunOptions = {}): Promise<void> {
     if (this.#started) {
@@ -582,7 +602,9 @@ export class BuiltApp {
 
     // 0 BOOTSTRAP — резолв выбора, подъём источников конфига и корневой
     // логгер: единственный ввод-вывод до INIT
-    const { reader, root, logFields } = await this.#bootstrap();
+    const { reader, root, logFields } = await this.#bootstrap(
+      options.config ?? defaultSources,
+    );
     this.#reader = reader;
 
     // 1 BUILD — граф, discovery и все fail-fast'ы до захвата ресурсов
@@ -611,28 +633,11 @@ export class BuiltApp {
     // 3 WIRE — резолв зависимостей деклараций и `dispatch` на транспорт
     this.#phase = 'WIRE';
     const { dispatches } = this.#wire(container, discovery, logger, metrics);
+    this.#dispatches = dispatches;
 
-    // 4 START, шаг 1 — хуки графа
+    // 4 START — хуки графа, транспорты и серверы
     this.#phase = 'START';
-    await container.start(signal);
-
-    // 4 START, шаг 2 — транспорты присоединяют обработчики; сокета ещё нет
-    for (const [token, dispatch] of dispatches) {
-      const transport = container.getOrThrow<ITransport>(
-        token as InjectionToken<ITransport>,
-      );
-
-      await transport.serve(dispatch, signal);
-      this.#serving.push({ token, transport });
-    }
-
-    // 4 START, шаг 3 — серверы открывают сокет, в порядке объявления.
-    // Последним, а не первым: запрос не может прийти раньше, чем каждый
-    // транспорт присоединил свой обработчик
-    for (const server of this.#servers.values()) {
-      await server.listen();
-      this.#listening.push(server);
-    }
+    await this.#startPhase(signal);
 
     // 5 RUN — приложение обслуживает запросы: сокет открыт, обработчики
     // присоединены. Отсюда и только отсюда проба готовности отвечает `ready`
@@ -646,6 +651,37 @@ export class BuiltApp {
   }
 
   /**
+   * Фаза 4 START: хуки графа, затем транспорты присоединяют обработчики,
+   * затем серверы открывают сокет — именно в этом порядке.
+   *
+   * Общий шаг для боевого `run()` и `testApp.run()`: тестовый шов проходит
+   * BOOTSTRAP–WIRE и останавливается, а этот метод достраивает START поверх
+   * уже собранного графа и уже построенных `dispatch`.
+   */
+  async #startPhase(signal: AbortSignal): Promise<void> {
+    // шаг 1 — хуки графа
+    await this.#container?.start(signal);
+
+    // шаг 2 — транспорты присоединяют обработчики; сокета ещё нет
+    for (const [token, dispatch] of this.#dispatches ?? []) {
+      const transport = this.#container?.getOrThrow<ITransport>(
+        token as InjectionToken<ITransport>,
+      );
+
+      await transport?.serve(dispatch, signal);
+      this.#serving.push({ token, transport: transport as ITransport });
+    }
+
+    // шаг 3 — серверы открывают сокет, в порядке объявления. Последним, а
+    // не первым: запрос не может прийти раньше, чем каждый транспорт
+    // присоединил свой обработчик
+    for (const server of this.#servers.values()) {
+      await server.listen();
+      this.#listening.push(server);
+    }
+  }
+
+  /**
    * Структурная проверка: фазы 0–1 и отчёт о составе.
    *
    * Ключ — символ из непубличного модуля: снаружи проверку зовут через
@@ -654,10 +690,10 @@ export class BuiltApp {
    * @internal
    */
   async [CHECK_SEAM](options: CheckOptions): Promise<CheckReport> {
-    // Переданный `config` заменяет привязки декларации целиком: с
-    // `config: vars({ … })` проверка обходится без источников
+    // Без опции проверка поднимает те же привязки, что и `run()` —
+    // у декларации своих источников больше нет
     const { reader, root, logFields } = await this.#bootstrap(
-      options.config === undefined ? undefined : toBindings(options.config),
+      options.config ?? defaultSources,
     );
 
     try {
@@ -712,9 +748,12 @@ export class BuiltApp {
     }
     this.#started = true;
 
-    // 0 BOOTSTRAP — привязки прогона уже в плане: тест изолирован от
-    // источников приложения так же, как от `process.env`
-    const { reader, root, logFields } = await this.#bootstrap();
+    // 0 BOOTSTRAP — привязки прогона уже в плане; без опции `config`
+    // источники не поднимаются вовсе: тест изолирован от `process.env` и
+    // от любых умолчаний
+    const { reader, root, logFields } = await this.#bootstrap(
+      this.#plan.config ?? [],
+    );
     this.#reader = reader;
 
     // 1 BUILD — те же fail-fast'ы, что и в бою
@@ -730,13 +769,15 @@ export class BuiltApp {
 
     // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
     // выполняются, поэтому тест не начинает принимать запросы и не
-    // трогает процесс
-    const { wired } = this.#wire(
+    // трогает процесс. `dispatches` запоминается: `testApp.run()` достроит
+    // START отдельным вызовом
+    const { dispatches, wired } = this.#wire(
       container,
       discovery,
       container.getOrThrow(Logger$('nestling')),
       configuredMetrics(container.getOrThrow(RootMetrics$)),
     );
+    this.#dispatches = dispatches;
 
     // Шов останавливается после WIRE, но `testApp.call` — это и есть приём
     // запроса. Поэтому в тестовом прогоне фаза RUN: без этого проба
@@ -747,9 +788,28 @@ export class BuiltApp {
       container,
       endpoints: wired,
       features: this.#selectedFeatures(),
+      servers: this.#servers,
       signal,
+      run: () => this.#testRun(signal),
       close: () => this.close(),
     };
+  }
+
+  /**
+   * `testApp.run()`: достраивает фазы `4 START` и `5 RUN` поверх приложения,
+   * остановленного тестовым швом на WIRE.
+   *
+   * Ни обработчиков сигналов процесса, ни строки состава в stdout — это
+   * тестовый прогон, а не второй способ поднять боевой процесс.
+   * Идемпотентен: повторный вызов не открывает сокет дважды.
+   */
+  async #testRun(signal: AbortSignal): Promise<void> {
+    if (this.#testStarted) {
+      return;
+    }
+    this.#testStarted = true;
+
+    await this.#startPhase(signal);
   }
 
   /**
@@ -905,10 +965,10 @@ export class BuiltApp {
    * реализация, а не только штатная. Список полей на этой фазе — поля
    * корня: состав плагинов известен фазе 1, а запросов здесь ещё нет.
    *
-   * @param config - Привязки, заменяющие привязки плана целиком; проверка
-   * передаёт сюда свой `config:`
+   * @param bindings - Привязки источников, уже разрешённые вызывателем
+   * (умолчание, опция вызова или привязка тестового плана)
    */
-  async #bootstrap(config?: readonly ConfigBinding[]): Promise<{
+  async #bootstrap(bindings: readonly Binding[]): Promise<{
     reader: ConfigReader;
     root: Logger;
     logFields: LogFieldsPlan;
@@ -917,9 +977,7 @@ export class BuiltApp {
 
     const { spec } = this.#plan;
 
-    const reader = await bootstrapConfig([
-      ...(config ?? this.#plan.config ?? spec.config),
-    ]);
+    const reader = await bootstrapConfig(bindings);
 
     const logFields: LogFieldsPlan = {
       fields: collectLogFields([

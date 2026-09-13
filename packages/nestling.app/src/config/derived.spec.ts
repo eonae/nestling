@@ -8,6 +8,8 @@ import { inspect } from 'node:util';
 import type { SpyLogger } from '../logger/__fixtures__/spy.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 
+import type { ObjectSource } from './__fixtures__/object-source.js';
+import { objectSource } from './__fixtures__/object-source.js';
 import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigDerivedError, ConfigValidationError } from './errors.js';
@@ -19,8 +21,7 @@ import { SECRET_MASK } from './redact.js';
 import type { ConfigSectionDescription } from './registry.js';
 import { describeConfig, lookupSection } from './registry.js';
 import { makeConfig } from './section.js';
-import type { ObjectSource } from './source.js';
-import { objectSource } from './source.js';
+import { bind } from './source.js';
 
 import { jest } from '@jest/globals';
 import type { SchemaDocConverter } from '@nestlingjs/operations';
@@ -57,7 +58,7 @@ const project = async <Values>(
   values: Record<string, unknown>,
 ): Promise<{ cfg: Values; source: ObjectSource }> => {
   const source = objectSource(values, 'test');
-  const reader = new ConfigReader([[source, '*']]);
+  const reader = new ConfigReader([bind(source)]);
   await reader.init();
   reader.attachLogger(spy.logger);
 

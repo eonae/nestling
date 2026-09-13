@@ -9,7 +9,7 @@
  * поверхности пакета нет.
  */
 
-import type { ConfigBinding } from '../config/index.js';
+import type { Binding } from '../config/index.js';
 import type { LogFieldSpec } from '../logger/index.js';
 import type { Metrics } from '../metrics/index.js';
 import type {
@@ -21,6 +21,7 @@ import type {
   BusDeclaration,
   Dispatch,
   ExecutableDeclaration,
+  IListener,
   ServerDeclaration,
   TransportDeclaration,
 } from '../transport/index.js';
@@ -153,16 +154,6 @@ export interface AppSpecCommon<
   intercom?: IntercomName<T>;
 
   /**
-   * Привязки источников конфигурации: `[источник, таргет | таргет[]]`.
-   *
-   * Порядок задаёт приоритет. `process.env` — источник по умолчанию с
-   * низшим приоритетом и в списке не упоминается. Приложению, которому
-   * хватает env, поле не нужно вовсе:
-   * kernel-модуль конфига регистрируется всегда.
-   */
-  config?: readonly ConfigBinding[];
-
-  /**
    * Инварианты приложения — значения словаря политик
    * (`everyEndpoint({ … }).hasLayer(…)`).
    *
@@ -230,7 +221,6 @@ export const APP_SPEC_FIELDS = [
   'switches',
   'transports',
   'intercom',
-  'config',
   'policies',
   'logging',
   'metrics',
@@ -266,7 +256,6 @@ export interface NormalizedAppSpec {
    */
   readonly transports: readonly Branchable<TransportDeclaration>[];
   readonly intercom?: TransportDeclaration;
-  readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
 
   /** Логирование корня; без опции — штатный логгер и умолчание полей */
@@ -296,10 +285,11 @@ export interface TestSubstitutions {
   /**
    * Привязка источников конфига тестового прогона.
    *
-   * **Заменяет** привязку декларации целиком: тест изолирован от
-   * источников приложения так же, как от `process.env`.
+   * Единственный источник привязок тестового корня — у декларации их нет
+   * вовсе. Без опции источники не поднимаются: тест изолирован и от
+   * `process.env`, и от любых умолчаний.
    */
-  config?: readonly ConfigBinding[];
+  config?: readonly Binding[];
 }
 
 /**
@@ -323,8 +313,8 @@ export interface BuildPlan {
   /** Провайдеры тестового прогона (стабы); в бою пусто */
   readonly extraProviders: readonly Provider[];
 
-  /** Привязка конфига, заменяющая привязку декларации; в бою отсутствует */
-  readonly config?: readonly ConfigBinding[];
+  /** Привязка конфига тестового прогона; в бою отсутствует */
+  readonly config?: readonly Binding[];
 }
 
 /**
@@ -673,7 +663,6 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
     switches: normalizeSwitches(spec.switches),
     transports,
     ...(intercom ? { intercom } : {}),
-    config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],
     ...(spec.logging ? { logging: spec.logging } : {}),
     ...(spec.metrics ? { metrics: spec.metrics } : {}),
@@ -747,7 +736,9 @@ export interface WiredEndpoint {
  *
  * `dispatch` создан, START не выполнялся: транспорты ещё не принимают
  * запросы, обработчики сигналов процесса не поставлены, строка состава
- * не напечатана.
+ * не напечатана. `run()` продолжает фазы `4 START` и `5 RUN` — без
+ * обработчиков сигналов и без строки состава: это остаётся тестовым
+ * прогоном, а не вторым способом поднять боевой процесс.
  */
 export interface WiredApp {
   /** Собранный граф: экземпляры созданы и ресурсы захвачены, `@OnStart` — нет */
@@ -759,11 +750,20 @@ export interface WiredApp {
   /** Выбранные фичи — то же, что увидел бы `run()` */
   readonly features: readonly ResolvedBundle[];
 
+  /** Объявленные серверы по имени экземпляра — для `testApp.baseUrl(name?)` */
+  readonly servers: ReadonlyMap<string, IListener>;
+
   /**
    * Общий сигнал прогона: передаётся в каждый `call`, взводится на
    * `close()`.
    */
   readonly signal: AbortSignal;
+
+  /**
+   * Доводит приложение до RUN: `@OnStart`, `serve` каждого транспорта,
+   * `listen` каждого сервера. Идемпотентен.
+   */
+  run(): Promise<void>;
 
   /** SHUTDOWN тестового прогона; идемпотентен */
   close(): Promise<void>;

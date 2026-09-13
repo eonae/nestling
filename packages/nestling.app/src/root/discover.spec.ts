@@ -6,7 +6,6 @@
  * который даёт `check()` при том же аргументе.
  */
 
-import type { ConfigSource } from '../config/index.js';
 import { Ok } from '../pipeline/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -48,16 +47,6 @@ const DocsPlugin = makePlugin({
   endpoints: [ping('/openapi.json')],
 });
 
-/** Источник, который падает на подъёме: фаза 0 сборки его поднимает */
-const failing: ConfigSource = {
-  name: 'vault',
-  init: () => {
-    throw new Error('connection refused');
-  },
-  // eslint-disable-next-line unicorn/no-useless-undefined
-  get: () => undefined,
-};
-
 const makeTestApp = () =>
   makeApp({
     features: [UsersFeature, BillingFeature],
@@ -68,7 +57,6 @@ const makeTestApp = () =>
         capabilities: ALL_FORMS,
       }),
     ],
-    config: [[failing, '*']],
   });
 
 /** Паттерн и объявившая единица — то, чем составы сравниваются */

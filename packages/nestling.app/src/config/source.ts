@@ -1,25 +1,28 @@
 /**
- * Источник конфигурации — объект, а не провайдер.
+ * Источник конфигурации и его привязка к области ключей.
  *
  * Источники не видны пользовательскому коду как DI-токены: их читает одна
  * приватная читалка (kernel), не экспортируемая из пакета.
  */
+
+import { readFile } from 'node:fs/promises';
+import { parseEnv } from 'node:util';
 
 import type { ConfigTarget } from './keys.js';
 
 /**
  * Источник значений ключей.
  *
- * Свои координаты (путь к файлу, адрес Vault) источник берёт из
- * первичного `process.env` в `init()` — это его единственный контакт
- * с `process.env`. Бизнес-ключи он отдаёт только через `get()`.
+ * Координаты источника (путь к файлу, адрес Vault) приходят аргументом его
+ * конструктора — `process.env` внутри `init()` источник не читает.
+ * Бизнес-ключи он отдаёт только через `get()`.
  */
 export interface ConfigSource {
   /**
    * Значение ключа или `undefined`, если источник его не знает.
    *
    * `undefined` — не отказ, а «пропускаю ход»: читалка идёт к следующей
-   * привязке и в конце к `process.env`.
+   * привязке списка.
    */
   get(key: string): unknown;
 
@@ -41,57 +44,66 @@ export interface ConfigSource {
   close?(): void | Promise<void>;
 }
 
+/** Опции {@link bind} */
+export interface BindOptions {
+  /**
+   * Область источника: секция (`ConfigKeys`) или глоб.
+   *
+   * Умолчание `'*'` — источник отвечает за любой ключ любой секции, так же,
+   * как раньше неявно отвечал `process.env`, будучи источником читалки с
+   * низшим приоритетом.
+   */
+  readonly keys?: ConfigTarget;
+
+  /**
+   * Источник, чей `init()` отказал или не уложился в `timeout`, пропускается
+   * вместо отказа фазы 0.
+   */
+  readonly optional?: boolean;
+
+  /** Граница ввода-вывода `init()` этой привязки, мс. Умолчание — 10000 */
+  readonly timeout?: number;
+}
+
+/** Привязка источника к области ключей — результат {@link bind} */
+export interface Binding {
+  readonly source: ConfigSource;
+  readonly keys: ConfigTarget;
+  readonly optional: boolean;
+  readonly timeout: number;
+}
+
+/** Умолчание {@link BindOptions.timeout}, мс */
+const DEFAULT_TIMEOUT = 10_000;
+
 /**
- * Привязка источника к области ключей.
+ * Привязывает источник к области ключей.
  *
- * Порядок элементов списка `config:` задаёт приоритет.
+ * Порядок элементов списка, которым `bind()` передаётся `run()`, `check()`
+ * или `assembleTest()`, задаёт приоритет: ключ разрешается первой
+ * привязкой, чей `keys` его покрывает и чей источник вернул значение,
+ * отличное от `undefined`.
+ *
+ * @param source - Источник значений
+ * @param options - Область, необязательность и таймаут инициализации
+ * @returns Привязка — элемент списка `config` у `run()`, `check()` и `assembleTest()`
+ *
+ * @example
+ * ```typescript
+ * await app.build().run({
+ *   config: [bind(vault(), { keys: ordersKeys }), bind(env())],
+ * });
+ * ```
  */
-export type ConfigBinding = readonly [
+export const bind = (
   source: ConfigSource,
-  target: ConfigTarget | readonly ConfigTarget[],
-];
-
-/**
- * Форма поля `config:` у проверки состава и тестового корня.
- *
- * Три формы вместо одной: голый источник (сокращённая запись для
- * `[[source, '*']]`), одна привязка и список привязок. В боевом
- * `makeApp({ config })` сокращённой записи нет: там привязка — акт с
- * приоритетами, и умолчание «весь источник» неуместно.
- */
-export type ConfigInput =
-  | ConfigSource
-  | ConfigBinding
-  | readonly ConfigBinding[];
-
-/** Значение похоже на привязку `[источник, таргет]`? */
-const isBinding = (value: unknown): value is ConfigBinding =>
-  Array.isArray(value) &&
-  value.length === 2 &&
-  typeof (value[0] as ConfigSource | undefined)?.get === 'function';
-
-/**
- * Приводит три формы `config:` к плоскому списку привязок.
- *
- * @param config - Источник, привязка или список привязок
- * @returns Плоский список привязок; пустой, если `config` не задан
- */
-export const toBindings = (config?: ConfigInput): ConfigBinding[] => {
-  if (!config) {
-    return [];
-  }
-
-  if (isBinding(config)) {
-    return [config];
-  }
-
-  if (Array.isArray(config)) {
-    return [...(config as readonly ConfigBinding[])];
-  }
-
-  // Голый источник: «весь источник» — единственное осмысленное умолчание
-  return [[config as ConfigSource, '*']];
-};
+  options: BindOptions = {},
+): Binding => ({
+  source,
+  keys: options.keys ?? '*',
+  optional: options.optional ?? false,
+  timeout: options.timeout ?? DEFAULT_TIMEOUT,
+});
 
 /** Опции источника окружения */
 export interface EnvSourceOptions {
@@ -107,8 +119,8 @@ export interface EnvSourceOptions {
  * остаются относительными, а приставка живёт в источнике.
  *
  * Приоритет задаётся позицией привязки, как у любого источника. Ключ,
- * которого под приставкой нет, читается неявным `process.env` без неё,
- * поэтому общий ключ остаётся общим.
+ * которого под приставкой нет, читается следующей привязкой списка — общий
+ * ключ остаётся общим явной второй привязкой `bind(env())` без приставки.
  *
  * `init()`, `watch()` и `close()` у источника отсутствуют: читать перед
  * стартом нечего, следить не за чем, освобождать нечего. `process.env`
@@ -118,10 +130,9 @@ export interface EnvSourceOptions {
  *
  * @example
  * ```typescript
- * await makeApp({
- *   config: [[env({ prefix: 'SERVICE_1_' }), '*']],
- *   // …
- * }).build().run();
+ * await app.build().run({
+ *   config: [bind(env({ prefix: 'SERVICE_1_' })), bind(env())],
+ * });
  * ```
  */
 export const env = (options: EnvSourceOptions = {}): ConfigSource => {
@@ -134,55 +145,43 @@ export const env = (options: EnvSourceOptions = {}): ConfigSource => {
   };
 };
 
-/** Объектный источник с наблюдением — для тестов и in-proc сценариев */
-export interface ObjectSource extends ConfigSource {
-  /** Задаёт значение и уведомляет наблюдателей */
-  set(key: string, value: unknown): void;
-  /** Задаёт несколько значений разом и уведомляет наблюдателей один раз */
-  assign(values: Readonly<Record<string, unknown>>): void;
-}
-
 /**
- * Источник поверх обычного объекта: ни файлов, ни сети.
+ * Источник `.env`-файла на `node:util` `parseEnv` — без внешней зависимости.
  *
- * Нужен тестам пакета и как минимальная реализация `ConfigSource` для
- * читателя доков; готовые источники (`file()`, `vault()`) живут пакетами
- * поверх интерфейса, а не в ядре.
+ * Путь — аргумент конструктора, а не чтение `process.env` в поисках
+ * координат. Файл читается один раз в `init()`; отсутствие файла отказывает
+ * фазу 0 (называя источник, чьё имя несёт путь), если привязка не
+ * `optional`.
+ *
+ * @param path - Путь к `.env`-файлу
+ * @returns Источник, чей `init()` разбирает файл
  *
  * @example
  * ```typescript
- * const src = objectSource({ ORDERS_MAX_ITEMS: '10' });
- * src.set('ORDERS_MAX_ITEMS', '20'); // reloadable-секция перепроецируется
+ * export const defaultSources = [bind(env()), bind(dotenv('.env'), { optional: true })];
  * ```
  */
-export const objectSource = (
-  values: Readonly<Record<string, unknown>> = {},
-  name = 'objectSource',
-): ObjectSource => {
-  const store = new Map(Object.entries(values));
-  const watchers: (() => void)[] = [];
-
-  const notify = (): void => {
-    for (const watcher of watchers) {
-      watcher();
-    }
-  };
+export const dotenv = (path: string): ConfigSource => {
+  let values: NodeJS.Dict<string> = {};
 
   return {
-    name,
-    get: (key) => store.get(key),
-    watch: (watcher) => {
-      watchers.push(watcher);
+    name: `dotenv(${path})`,
+    init: async () => {
+      values = parseEnv(await readFile(path, 'utf8'));
     },
-    set: (key, value) => {
-      store.set(key, value);
-      notify();
-    },
-    assign: (next) => {
-      for (const [key, value] of Object.entries(next)) {
-        store.set(key, value);
-      }
-      notify();
-    },
+    get: (key) => values[key],
   };
 };
+
+/**
+ * Привязки источников по умолчанию: окружение выше файла, файл необязателен.
+ *
+ * `run()`, `check()` без опции `config` поднимают этот список. Приложение,
+ * которому достаточно умолчания, про конфиг не пишет вовсе; приложение,
+ * которому нужно больше (Vault, второй `.env`), достраивает список поверх
+ * него, а не переписывает его.
+ */
+export const defaultSources: readonly Binding[] = [
+  bind(env()),
+  bind(dotenv('.env'), { optional: true }),
+];

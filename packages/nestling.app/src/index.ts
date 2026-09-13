@@ -12,6 +12,7 @@
 
 // ./config/index.js — 33
 export {
+  bind,
   bootstrapConfig,
   Config,
   ConfigDerivedError,
@@ -19,20 +20,20 @@ export {
   ConfigKeys,
   ConfigSharedKeyError,
   ConfigValidationError,
+  defaultSources,
   describeConfig,
+  dotenv,
   env,
   from,
   load,
   makeConfig,
-  objectSource,
   secret,
-  toBindings,
 } from './config/index.js';
 export type {
-  ConfigBinding,
+  Binding,
+  BindOptions,
   ConfigField,
   ConfigGlob,
-  ConfigInput,
   ConfigProjection,
   ConfigRecord,
   ConfigSectionToken,
@@ -44,7 +45,6 @@ export type {
   DerivedRecord,
   DeriveFn,
   FromField,
-  ObjectSource,
   ReloadableConfig,
   SecretField,
 } from './config/index.js';

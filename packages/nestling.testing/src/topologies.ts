@@ -43,8 +43,8 @@ export interface TopologyReport<
  * в отчёте каждой топологии.
  *
  * Опции прокидываются в каждую топологию без изменений — `config:` в том
- * числе: матрица с `config: vars({ … })` проверяет состав без единого
- * источника, а значит и без ввода-вывода.
+ * числе: матрица с `config: [bind(vars({ … }))]` проверяет состав без
+ * единого источника, а значит и без ввода-вывода.
  *
  * @param app - Декларация приложения — та же, что у `main.ts`
  * @param topologies - Варианты деплоя: `['all', 'users', { storage: 's3' }]`
@@ -59,7 +59,7 @@ export interface TopologyReport<
  * const reports = await checkTopologies(
  *   app,
  *   ['all', 'users', { features: 'all', storage: 'local' }],
- *   { converters: [zodConverter()], config: vars({ ORDERS_MAX_ITEMS: '10' }) },
+ *   { converters: [zodConverter()], config: [bind(vars({ ORDERS_MAX_ITEMS: '10' }))] },
  * );
  * ```
  */
