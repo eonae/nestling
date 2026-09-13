@@ -46,10 +46,22 @@ const asTransport = (transport: ITransport) =>
   });
 
 /** Контекст, который построил бы транспорт: тестам хватает пустого */
-const contextFor = (pattern: string, payload?: unknown, signal?: AbortSignal) =>
+const contextFor = (
+  pattern: string,
+  payload?: unknown,
+  signal?: AbortSignal,
+  declaration?: { output?: unknown; status?: unknown },
+) =>
   makeEmptyContext(
     { transport: 'test', pattern, payload, attributes: {} },
-    { transport: 'test', pattern },
+    {
+      transport: 'test',
+      pattern,
+      // Транспорт переносит объявленные исходы декларации: по ним рантайм
+      // выбирает статус успешного ответа
+      output: declaration?.output as never,
+      status: declaration?.status as never,
+    },
     signal,
   ) as ExtendableContext<AnyInput>;
 
@@ -134,6 +146,7 @@ describe('build — discovery и регистрация', () => {
     const ForeignEndpoint = testEndpoint({
       method: 'GET',
       path: '/foreign',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -189,6 +202,7 @@ describe('build — fail-fast фазы BUILD', () => {
     const CreateUser = testEndpoint({
       method: 'POST',
       path: '/users',
+      output: z.unknown(),
       handler: CreateUserHandler,
     });
 
@@ -221,6 +235,7 @@ describe('build — fail-fast фазы BUILD', () => {
     const CreateUser = testEndpoint({
       method: 'POST',
       path: '/users',
+      output: z.unknown(),
       handler: CreateUserHandler,
     });
 
@@ -258,6 +273,7 @@ describe('build — fail-fast фазы BUILD', () => {
     const CreateUser = testEndpoint({
       method: 'POST',
       path: '/users',
+      output: z.unknown(),
       handler: CreateUserHandler,
     });
 
@@ -279,6 +295,7 @@ describe('build — fail-fast фазы BUILD', () => {
     const CliEndpoint = makeEndpoint({
       transport: CliTransport$,
       pattern: 'users:list',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -308,6 +325,7 @@ describe('build — fail-fast фазы BUILD', () => {
     const Orphan = makeEndpoint({
       transport: CliTransport$,
       pattern: 'orphan',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -338,8 +356,10 @@ describe('build — fail-fast фазы BUILD', () => {
     const Streaming = makeEndpoint({
       transport: TestTransport$('default'),
       pattern: 'GET /stream',
-      output: stream(z.object({ id: z.string() })) as never,
-      handler: async () => new Ok({} as never),
+      output: stream(z.object({ id: z.string() })),
+      handler: async function* () {
+        yield { id: '1' };
+      },
     });
 
     const transport = new MockTransport();
@@ -389,6 +409,7 @@ describe('build — fail-fast фазы BUILD', () => {
       method: 'GET',
       path: '/broken',
       pipeline: makePipeline().pre(UnregisteredStep),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -428,6 +449,7 @@ describe('build — фаза WIRE: резолв зависимостей дек�
     const DataEndpoint = testEndpoint({
       method: 'GET',
       path: '/data',
+      output: z.unknown(),
       handler: DataHandler,
     });
 
@@ -447,7 +469,7 @@ describe('build — фаза WIRE: резолв зависимостей дек�
 
     const response = await transport.dispatch?.call(
       'GET /data',
-      contextFor('GET /data'),
+      contextFor('GET /data', undefined, undefined, DataEndpoint),
     );
 
     expect(response).toMatchObject({
@@ -478,6 +500,7 @@ describe('build — фаза WIRE: резолв зависимостей дек�
     const Greet = testEndpoint({
       method: 'GET',
       path: '/greet',
+      output: z.unknown(),
       handler: GreetHandler,
     });
 
@@ -497,7 +520,7 @@ describe('build — фаза WIRE: резолв зависимостей дек�
 
     const response = await transport.dispatch?.call(
       'GET /greet',
-      contextFor('GET /greet'),
+      contextFor('GET /greet', undefined, undefined, Greet),
     );
 
     expect(response).toMatchObject({
@@ -525,6 +548,7 @@ describe('build — фаза WIRE: резолв зависимостей дек�
       pipeline: makePipeline()
         .pre(WithTracing)
         .pre(async (ctx) => ({ echo: ctx.input.traceId })),
+      output: z.unknown(),
       handler: async (_payload, meta) => new Ok({ traceId: meta.echo }),
     });
 
@@ -544,7 +568,7 @@ describe('build — фаза WIRE: резолв зависимостей дек�
 
     const response = await transport.dispatch?.call(
       'GET /traced',
-      contextFor('GET /traced'),
+      contextFor('GET /traced', undefined, undefined, TracedEndpoint),
     );
 
     expect(response).toMatchObject({
@@ -860,6 +884,7 @@ describe('build — порядок фаз и shutdown', () => {
               method: 'GET',
               path: '/wait',
               pipeline: makePipeline(),
+              output: z.unknown(),
               handler: WaitHandler,
             }),
           ],
@@ -903,6 +928,7 @@ describe('build — фичи в приложении', () => {
         testEndpoint({
           method: 'GET',
           path: '/orders',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -915,6 +941,7 @@ describe('build — фичи в приложении', () => {
         testEndpoint({
           method: 'GET',
           path: '/invoices',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -946,6 +973,7 @@ describe('build — фичи в приложении', () => {
         testEndpoint({
           method: 'GET',
           path: '/orders',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -962,6 +990,7 @@ describe('build — фичи в приложении', () => {
             testEndpoint({
               method: 'GET',
               path: '/root',
+              output: z.unknown(),
               handler: async () => new Ok({}),
             }),
           ],
@@ -1048,12 +1077,14 @@ describe('build — именованные экземпляры транспор
         testEndpoint({
           method: 'GET',
           path: '/orders',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
         testEndpoint({
           method: 'GET',
           path: '/metrics',
           on: 'admin',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -1092,6 +1123,7 @@ describe('build — именованные экземпляры транспор
           method: 'GET',
           path: '/metrics',
           on: 'admin',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -1119,6 +1151,7 @@ describe('build — писатель переменной с зависимос�
       pipeline: makePipeline().pre(
         Tx.provide([Database$], (_ctx, db) => db.begin()),
       ),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 

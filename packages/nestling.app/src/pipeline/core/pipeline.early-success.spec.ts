@@ -93,7 +93,7 @@ describe('досрочный успех: исполнение', () => {
 
     expect(response).toEqual({
       isSuccess: true,
-      status: 'ok',
+      status: 'no_content',
       value: undefined,
     });
     expect(third).not.toHaveBeenCalled();
@@ -144,7 +144,7 @@ describe('досрочный успех: исполнение', () => {
 
     expect(response).toEqual({
       isSuccess: true,
-      status: 'ok',
+      status: 'no_content',
       value: undefined,
     });
   });

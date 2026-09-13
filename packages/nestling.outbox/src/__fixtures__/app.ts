@@ -116,10 +116,10 @@ export const CreateUser = makeEndpoint({
 export class DeleteUserHandler {
   constructor(private readonly deleted: OutboxEmitter<typeof UserDeleted>) {}
 
-  async handle(input: { id: string }): Output<undefined> {
+  async handle(input: { id: string }): Output<void, never, 'no_content'> {
     await this.deleted.emit({ id: input.id });
 
-    return new Ok(undefined);
+    return Ok.noContent();
   }
 }
 

@@ -13,7 +13,12 @@ import type { TxLayerInput } from './plugin.js';
 import { drizzlePg } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Output, Raw, ResponseContext } from '@nestlingjs/app';
+import type {
+  EndpointMeta,
+  Output,
+  Raw,
+  ResponseContext,
+} from '@nestlingjs/app';
 import { makeEmptyContext } from '@nestlingjs/app';
 import { Ok } from '@nestlingjs/operations';
 import { sql } from 'drizzle-orm';
@@ -30,7 +35,13 @@ const raw: Raw = {
   attributes: {},
 };
 
-const endpoint = { transport: 'test', pattern: 'layer' };
+// Выход объявлен: декларация без него объявляет исход `no_content`, и
+// ответ со значением граница заменила бы на `internal_error`
+const endpoint: EndpointMeta = {
+  transport: 'test',
+  pattern: 'layer',
+  output: 'text',
+};
 
 /** Команда, по которой в журнале виден запрос хендлера */
 const HANDLER_QUERY = 'select 1';

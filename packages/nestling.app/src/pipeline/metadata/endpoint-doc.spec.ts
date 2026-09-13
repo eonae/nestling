@@ -12,6 +12,7 @@ import { makeEndpoint } from './endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
+import { z } from 'zod';
 
 const HttpTransport$ = makeToken('transport:http');
 
@@ -25,6 +26,7 @@ describe('doc — секция на значении декларации', () =
       transport: HttpTransport$,
       pattern: 'GET /users',
       doc: { summary: 'List users', tags: ['users'] },
+      output: z.unknown(),
       handler: async () => new Ok([]),
     });
 
@@ -43,19 +45,21 @@ describe('doc — секция на значении декларации', () =
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      doc: { summary: 'List users', status: 'ok' },
+      doc: { summary: 'List users' },
+      output: z.unknown(),
       handler: ListHandler,
     });
 
     const resolved = List.resolve(() => new ListHandler({ now: () => 0 }));
 
-    expect(resolved.doc).toEqual({ summary: 'List users', status: 'ok' });
+    expect(resolved.doc).toEqual({ summary: 'List users' });
   });
 
   it('декларация без секции поля не несёт', () => {
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
+      output: z.unknown(),
       handler: async () => new Ok([]),
     });
 
@@ -74,6 +78,7 @@ describe('doc — секция на значении декларации', () =
       transport: HttpTransport$,
       pattern: 'GET /users',
       doc: { summary: 'List users', deprecated: true },
+      output: z.unknown(),
       handler: async () => new Ok({ ok: true }),
     });
 
@@ -117,12 +122,14 @@ describe('doc — fail-fast словаря', () => {
     );
   });
 
-  it('статус вне словаря успешных перечисляет допустимые', () => {
-    expect(declare({ status: 'PARTIAL_CONTENT' })).toThrow(
-      /'doc.status' must be one of 'ok', 'created', 'accepted', 'no_content'/,
+  it('статус в секции отвергается и указывает на поле декларации', () => {
+    expect(declare({ status: 'created' })).toThrow(
+      /'doc.status' is not a field of the documentation section/,
     );
-    // Отказный статус тоже вне словаря: слот описывает успех
-    expect(declare({ status: 'conflict' })).toThrow(/'doc.status' must be/);
+    // Текст называет оба способа объявить исход
+    expect(declare({ status: 'created' })).toThrow(
+      /declare it as 'status' at the top level.*outputs\({ ok: …, created: … }\)/s,
+    );
   });
 
   it('hidden без причины отвергается, и текст называет требование', () => {
@@ -154,6 +161,7 @@ describe('doc — типы', () => {
         pattern: 'GET /users',
         // @ts-expect-error: причина обязана быть строкой — `true` не форма opt-out'а
         doc: { hidden: true },
+        output: z.unknown(),
         handler: async () => new Ok([]),
       }),
     ).toThrow(TypeError);
@@ -166,6 +174,7 @@ describe('doc — типы', () => {
         pattern: 'GET /users',
         // @ts-expect-error: имя операции выводится, а не объявляется
         doc: { operationId: 'listUsers' },
+        output: z.unknown(),
         handler: async () => new Ok([]),
       }),
     ).toThrow(TypeError);

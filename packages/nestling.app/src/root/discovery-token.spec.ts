@@ -23,6 +23,7 @@ import { MockTransport } from './helpers.js';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { factoryProvider, makeToken } from '@nestlingjs/container';
+import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport, {
@@ -52,12 +53,14 @@ const observer = factoryProvider(
 const ListUsers = testEndpoint({
   method: 'GET',
   path: '/users',
+  output: z.unknown(),
   handler: async () => new Ok({ users: [] }),
 });
 
 const ListInvoices = testEndpoint({
   method: 'GET',
   path: '/invoices',
+  output: z.unknown(),
   handler: async () => new Ok({ invoices: [] }),
 });
 

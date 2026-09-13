@@ -1,7 +1,7 @@
 import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import type { HttpRequest } from './request.js';
-import type { HttpOutput, HttpOutputSync } from './response.js';
+import type { HttpDeclaredResult } from './response.js';
 import { HttpTransport$ } from './token.js';
 
 import type {
@@ -33,12 +33,13 @@ import type {
   HandlerResultOf,
   HttpMethod,
   InferInput,
-  InferOutput,
   InputFormOf,
   OperationFailsOf,
   OutputFormOf,
   RedirectStatus,
   SseConfig,
+  StatusOf,
+  SuccessStatus,
   ValidateHandlerFails,
   ValidateOperationFails,
 } from '@nestlingjs/operations';
@@ -107,10 +108,11 @@ export type HttpHandlerFn<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   E extends AnyFail = never,
+  S extends SuccessStatus = never,
 > = (
   payload: InferInput<I>,
   meta: HttpMetaOf<P>,
-) => HttpOutputSync<InferOutput<O>, E> | HttpOutput<InferOutput<O>, E>;
+) => HttpDeclaredResult<O, E, S> | Promise<HttpDeclaredResult<O, E, S>>;
 
 /** Класс-хендлер анонимной HTTP-декларации: класс с методом `handle` */
 export type HttpHandlerClass<
@@ -118,7 +120,8 @@ export type HttpHandlerClass<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   E extends AnyFail = never,
-> = new (...args: any[]) => { handle: HttpHandlerFn<I, O, P, E> };
+  S extends SuccessStatus = never,
+> = new (...args: any[]) => { handle: HttpHandlerFn<I, O, P, E, S> };
 
 /**
  * Результат HTTP-хендлера с любым отказом: ограничение слота `handler`
@@ -127,9 +130,9 @@ export type HttpHandlerClass<
  * Ограничение пропускает любой отказ, потому что множество отказов
  * проверяет бренд `ValidateHandlerFails` в возвращаемом типе.
  */
-type AnyHttpResult<O extends AnyOutput> =
-  | HttpOutputSync<InferOutput<O>, AnyFail>
-  | HttpOutput<InferOutput<O>, AnyFail>;
+type AnyHttpResult<O extends AnyOutput, S extends SuccessStatus = never> =
+  | HttpDeclaredResult<O, AnyFail, S>
+  | Promise<HttpDeclaredResult<O, AnyFail, S>>;
 
 /**
  * Слот `handler` анонимной формы: сигнатура `HttpHandlerFn` с проверкой
@@ -196,12 +199,31 @@ export interface HttpEndpointDictionary<
   PR extends AnyInput = AnyInput,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  S extends SuccessStatus = never,
 > {
   /** Форма io для input: значение, `stream`/`events` или `multipart` */
   input?: I;
 
-  /** Форма io для output (см. `ValidateOutputForm`) */
+  /**
+   * Форма io для output или развилка исходов `outputs({ … })`
+   * (см. `ValidateOutputForm`)
+   */
   output?: O & ValidateOutputForm<O>;
+
+  /**
+   * Статус единственного успешного исхода: `ok`, `created`, `accepted`
+   * или `no_content`. Транспорт переводит его в код своей таблицей.
+   *
+   * Рядом с развилкой и рядом с `redirect` не объявляется. Не объявлен —
+   * действует умолчание: `ok` при объявленном `output`, `no_content` без
+   * него.
+   *
+   * @example
+   * ```typescript
+   * output: User, status: 'created'
+   * ```
+   */
+  status?: S;
 
   /**
    * Настройки SSE-ответа: `id` и `event` кадра, период heartbeat.
@@ -267,7 +289,7 @@ export interface HttpEndpointDictionary<
    *
    * @example
    * ```typescript
-   * doc: { summary: 'Create user', tags: ['users'], status: 'created' }
+   * doc: { summary: 'Create user', tags: ['users'] }
    * ```
    */
   doc?: DeclarationDoc;
@@ -436,39 +458,42 @@ export interface HttpMethodConstructor {
   <
     Path extends string,
     I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
+    O extends AnyOutput = undefined,
     P extends AnyInput = AnyInput,
     PN = never,
     RB extends boolean | undefined = undefined,
     PR extends AnyInput = EmptyInput,
     E extends readonly AnyFailDefinition[] = [],
     PF extends AnyFail = never,
-    R extends AnyHttpResult<O> = AnyHttpResult<O>,
+    S extends SuccessStatus = never,
+    R extends AnyHttpResult<O, S> = AnyHttpResult<O, S>,
   >(
     path: Path,
-    declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
+    declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF, S> & {
       handler: CheckedHttpHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
     },
   ): EndpointDefinition<I, O, P, PN>;
   <
     Path extends string,
     I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
+    O extends AnyOutput = undefined,
     P extends AnyInput = AnyInput,
     PN = never,
     E extends readonly AnyFailDefinition[] = [],
     PF extends AnyFail = never,
-    C extends HttpHandlerClass<I, O, P, AnyFail> = HttpHandlerClass<
+    S extends SuccessStatus = never,
+    C extends HttpHandlerClass<I, O, P, AnyFail, S> = HttpHandlerClass<
       I,
       O,
       P,
-      AnyFail
+      AnyFail,
+      S
     >,
     RB extends boolean | undefined = undefined,
     PR extends AnyInput = EmptyInput,
   >(
     path: Path,
-    declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
+    declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF, S> & {
       handler: C &
         ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
     },
@@ -500,7 +525,8 @@ function makeMethodConstructor(method: HttpMethod): HttpMethodConstructor {
       boolean | undefined,
       any,
       readonly AnyFailDefinition[],
-      AnyFail
+      AnyFail,
+      SuccessStatus
     > & {
       handler: unknown;
     },
@@ -519,6 +545,7 @@ function makeMethodConstructor(method: HttpMethod): HttpMethodConstructor {
       rawBody,
       input: declaration.input,
       output: declaration.output,
+      status: declaration.status,
       sse,
       redirect,
       where: `${name}('${path}', { … })`,
@@ -570,8 +597,9 @@ function implementOperation<
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
-  R extends AnyHandlerResult<OutputFormOf<C>> = AnyHandlerResult<
-    OutputFormOf<C>
+  R extends AnyHandlerResult<OutputFormOf<C>, StatusOf<C>> = AnyHandlerResult<
+    OutputFormOf<C>,
+    StatusOf<C>
   >,
 >(
   operation: C,
@@ -588,8 +616,9 @@ function implementOperation<
     InputFormOf<C>,
     OutputFormOf<C>,
     P,
-    AnyFail
-  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, AnyFail>,
+    AnyFail,
+    StatusOf<C>
+  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, AnyFail, StatusOf<C>>,
 >(
   operation: C,
   declaration: HttpImplementDictionary<C, P, PN, PF> & {
@@ -632,6 +661,8 @@ function implementOperation(
     binding,
     input: operation.input,
     output: operation.output,
+    // Исходы принадлежат операции: клиент и документ читают их оттуда же
+    status: operation.status,
     errors: operation.errors,
     doc: operation.doc,
   });

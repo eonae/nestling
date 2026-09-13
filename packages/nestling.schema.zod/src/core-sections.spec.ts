@@ -25,7 +25,7 @@ describe('секции ядра в снимке конфига', () => {
       vendor: 'zod',
       json: expect.objectContaining({
         type: 'string',
-        enum: ['debug', 'info', 'warn', 'error'],
+        enum: ['debug', 'info', 'warn', 'error', 'silent'],
         default: 'info',
       }),
     });

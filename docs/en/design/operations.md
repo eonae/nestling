@@ -52,16 +52,47 @@ export const OrderPlaced = makeEvent({
 });
 ```
 
-| Constructor | Caller | `output` / `errors` | `durable` | `subscriber` on an implementation |
-|---|---|---|---|---|
-| `makeRequest` | `.caller` | present | inexpressible | forbidden |
-| `makeCommand` | `.emitter` | present | present | forbidden |
-| `makeEvent` | `.emitter` | inexpressible | present | required |
+| Constructor | Caller | `output` / `errors` | `status` | `durable` | `subscriber` on an implementation |
+|---|---|---|---|---|---|
+| `makeRequest` | `.caller` | present | present | inexpressible | forbidden |
+| `makeCommand` | `.emitter` | present | inexpressible | present | forbidden |
+| `makeEvent` | `.emitter` | inexpressible | inexpressible | present | required |
 
 The rules read as types, not as checks when the value is created:
 `makeEvent({ output })` does not compile, because an event has no
 response; `makeRequest({ durable })` does not compile, because the
 caller waits for a response, and there is nothing to survive.
+
+### 1.0. Successful outcomes
+
+`makeRequest` takes a `status` field — the status of the single
+successful outcome:
+
+```typescript
+export const CreateUser = makeRequest({
+  name: 'users.create',
+  http: 'POST /users',
+  input: NewUser,
+  output: User,
+  status: 'created',                 // the response goes out with code 201
+});
+```
+
+Several outcomes are declared by a branching `output`:
+
+```typescript
+output: outputs({ ok: User, accepted: JobAccepted })
+```
+
+The rules are shared with an endpoint declaration
+([endpoints.md §5](./endpoints.md)): the keys of the branching are
+statuses from the kernel dictionary, the `status` field is not declared
+next to a branching, and the default gives `ok` with a declared `output`
+and `no_content` without it. The implementation, the documentation
+generator and the typed client read the declared outcomes.
+
+`makeCommand` and `makeEvent` reject both declarations: they have no
+response to carry an outcome, and no `output` either.
 
 `errorsOf(operation)` returns the `errors:` of a request or a command as
 the same value: `errors: [...errorsOf(ClaimQuota), EmailTaken]` folds

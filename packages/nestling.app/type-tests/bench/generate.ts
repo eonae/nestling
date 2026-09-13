@@ -43,10 +43,14 @@ import type {
   PreStepFn,
   StepResolver,
 } from '@nestlingjs/app';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { compose, makePipeline, Ok } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
 declare const resolve: StepResolver;
+
+/** Схема-заглушка бенча: тип есть, проверки нет */
+declare function schema<T>(): StandardSchemaV1<unknown, T>;
 `;
 
 /**
@@ -108,6 +112,9 @@ export function generateGraph({
     lines.push(
       `export const e${i} = httpEndpoint.get('/bench/${i}', {`,
       `  pipeline: composed,`,
+      // Выход объявлен: декларация без него объявляет исход `no_content`,
+      // и хендлер со значением не скомпилировался бы
+      `  output: schema<{ n: number }>(),`,
       `  handler: async () => new Ok({ n: ${i} }),`,
       `});`,
     );

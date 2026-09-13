@@ -30,12 +30,15 @@ import type {
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
+  SuccessStatus,
 } from '@nestlingjs/operations';
 import {
   BadRequest,
   Fail,
   makeFail,
+  none,
   Ok,
+  outputs,
   Timeout,
   TRANSPORT_RESPONSE,
 } from '@nestlingjs/operations';
@@ -70,6 +73,7 @@ const declaredErrors = [EmailTaken, NoToken, Forbidden, Mapped, Rejected];
 function makeCtx(
   signal?: AbortSignal,
   errors: readonly AnyFailDefinition[] = declaredErrors,
+  outcomes: { output?: unknown; status?: SuccessStatus } = {},
 ): ExtendableContext<EmptyInput> {
   const raw: Raw = {
     transport: 'test',
@@ -82,6 +86,12 @@ function makeCtx(
     transport: 'test',
     pattern: 'TEST /',
     errors,
+    // Выход объявлен: рантайм-тесты проверяют ответ со значением, а
+    // декларация без `output` объявляет исход `no_content`
+    ...(outcomes.output === NO_OUTPUT
+      ? {}
+      : { output: (outcomes.output ?? z.unknown()) as EndpointMeta['output'] }),
+    ...(outcomes.status === undefined ? {} : { status: outcomes.status }),
   };
 
   return makeEmptyContext(raw, endpoint, signal);
@@ -109,6 +119,8 @@ async function run(
     signal?: AbortSignal;
     options?: ExecuteOptions;
     errors?: readonly AnyFailDefinition[];
+    output?: unknown;
+    status?: SuccessStatus;
   } = {},
 ) {
   const executable = pipeline as unknown as Pipeline<
@@ -118,10 +130,16 @@ async function run(
   >;
   return executable.executeWithHandler(
     handler,
-    makeCtx(opts.signal, opts.errors) as ExtendableContext<AnyInput>,
+    makeCtx(opts.signal, opts.errors, {
+      ...(opts.output === undefined ? {} : { output: opts.output }),
+      ...(opts.status === undefined ? {} : { status: opts.status }),
+    }) as ExtendableContext<AnyInput>,
     { logger: silent, ...opts.options },
   );
 }
+
+/** Маркер «выход не объявлен»: `undefined` в опциях означает умолчание */
+const NO_OUTPUT = Symbol('no-output');
 
 /** Логгер, глушащий умолчание ядра в выводе тестов */
 const silent = spyLogger().logger;
@@ -142,9 +160,13 @@ describe('Pipeline v2 — normalization', () => {
   });
 
   it('сохраняет статус из Ok', async () => {
-    const response = await run(makePipeline(), () => {
-      return new Ok('created', { id: 1 });
-    });
+    const response = await run(
+      makePipeline(),
+      () => {
+        return new Ok('created', { id: 1 });
+      },
+      { status: 'created' },
+    );
 
     expect(response).toEqual({
       isSuccess: true,
@@ -157,17 +179,97 @@ describe('Pipeline v2 — normalization', () => {
     const meta = { headers: { location: '/users/1' } };
 
     return expect(
-      run(makePipeline(), () => ({
-        [TRANSPORT_RESPONSE]: true as const,
-        transport: 'http',
-        meta,
-        result: new Ok('created', { id: 1 }),
-      })),
+      run(
+        makePipeline(),
+        () => ({
+          [TRANSPORT_RESPONSE]: true as const,
+          transport: 'http',
+          meta,
+          result: new Ok('created', { id: 1 }),
+        }),
+        { status: 'created' },
+      ),
     ).resolves.toEqual({
       isSuccess: true,
       status: 'created',
       value: { id: 1 },
       transport: { name: 'http', meta },
+    });
+  });
+
+  it('голое значение получает объявленный статус', async () => {
+    const response = await run(makePipeline(), () => ({ id: 1 }), {
+      status: 'created',
+    });
+
+    expect(response).toEqual({
+      isSuccess: true,
+      status: 'created',
+      value: { id: 1 },
+    });
+  });
+
+  it('декларация без выхода отвечает `no_content`', async () => {
+    const response = await run(makePipeline(), () => Ok.noContent(), {
+      output: NO_OUTPUT,
+    });
+
+    expect(response).toEqual({
+      isSuccess: true,
+      status: 'no_content',
+      value: null,
+    });
+  });
+
+  it('статус вне объявленного множества заменяется на internal_error', async () => {
+    const { logger, entries } = spyLogger();
+    const response = await run(makePipeline(), () => Ok.accepted({ id: 1 }), {
+      options: { logger },
+    });
+
+    expect(response).toEqual({
+      isSuccess: false,
+      status: 'internal_error',
+      value: { code: 'internal_error', error: 'Internal server error' },
+    });
+    expect(entries.at(-1)?.fields.err).toMatchObject({
+      message: expect.stringMatching(/does not declare/),
+    });
+  });
+
+  it('ответ развилки проходит статусом своей ветки', async () => {
+    const response = await run(
+      makePipeline(),
+      () => Ok.accepted({ jobId: 'j-1' }),
+      {
+        output: outputs({
+          ok: z.object({ id: z.number() }),
+          accepted: z.object({ jobId: z.string() }),
+          no_content: none(),
+        }),
+      },
+    );
+
+    expect(response).toEqual({
+      isSuccess: true,
+      status: 'accepted',
+      value: { jobId: 'j-1' },
+    });
+  });
+
+  it('голое значение при развилке даёт internal_error', async () => {
+    const { logger, entries } = spyLogger();
+    const response = await run(makePipeline(), () => ({ id: 1 }), {
+      output: outputs({
+        ok: z.object({ id: z.number() }),
+        accepted: z.object({ jobId: z.string() }),
+      }),
+      options: { logger },
+    });
+
+    expect(response.isSuccess).toBe(false);
+    expect(entries.at(-1)?.fields.err).toMatchObject({
+      message: expect.stringMatching(/returned a bare value/),
     });
   });
 

@@ -11,7 +11,7 @@ import type {
   TransportCapabilities,
 } from './capabilities.js';
 import { assertFormsSupported } from './capabilities.js';
-import { events, multipart, stream, upload } from './forms.js';
+import { events, multipart, none, outputs, stream, upload } from './forms.js';
 
 import { makeToken } from '@nestlingjs/container/tokens';
 import { z } from 'zod';
@@ -73,5 +73,33 @@ describe('assertFormsSupported', () => {
     expect(() =>
       assertFormsSupported(definition(Row, Row), BUS_LIKE),
     ).not.toThrow();
+  });
+});
+
+describe('развилка исходов проверяется по каждой ветке', () => {
+  it('ветки в пределах возможностей проходят', () => {
+    expect(() =>
+      assertFormsSupported(
+        definition(undefined, outputs({ ok: Row, no_content: none() })),
+        BUS_LIKE,
+      ),
+    ).not.toThrow();
+  });
+
+  it('ветка вне возможностей называет свой исход', () => {
+    expect(() =>
+      assertFormsSupported(
+        {
+          ...definition(undefined, outputs({ ok: Row, accepted: 'binary' })),
+          transport: HttpTransport,
+        },
+        {
+          input: new Set(['value']),
+          output: new Set<never>([]),
+        },
+      ),
+    ).toThrow(
+      /does not support form 'value' in 'output' \(outcome 'ok'\) \(supported: \)/,
+    );
   });
 });

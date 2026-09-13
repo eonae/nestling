@@ -46,15 +46,19 @@ import type {
   AnyFail,
   AnyFailDefinition,
   AnyInput,
+  DeclaredOutcome,
   EmptyInput,
   FailOf,
   FailsOf,
+  FormDescriptor,
   KernelFail,
   Output,
   OutputSync,
+  SuccessStatus,
 } from '@nestlingjs/operations';
 import {
   categoryOf,
+  declaredOutcomes,
   describeForm,
   InternalError,
   isCategory,
@@ -106,6 +110,64 @@ export class UndeclaredDoneError extends Error {
     );
     this.name = 'UndeclaredDoneError';
   }
+}
+
+/**
+ * Хендлер декларации с развилкой вернул значение без обёртки `Ok`.
+ *
+ * Исход выбирает ветка исполнения, и неявным он быть не может: типы такой
+ * возврат не пропустили бы, а из JavaScript он доходит до рантайма.
+ * Клиент получает `internal_error`, а текст называет объявленные исходы.
+ */
+export class UnnamedOutcomeError extends Error {
+  constructor(pattern: string, outcomes: readonly DeclaredOutcome[]) {
+    super(
+      `Endpoint '${pattern}': the handler returned a bare value, and the ` +
+        `declaration branches its outcomes ` +
+        `(${outcomes.map((outcome) => `'${outcome.status}'`).join(', ')}). ` +
+        `Name the outcome: return an Ok of the branch this execution path ` +
+        `answers with.`,
+    );
+    this.name = 'UnnamedOutcomeError';
+  }
+}
+
+/** Объявленные исходы декларации: развилка или единственный статус */
+function outcomesOf(endpoint: EndpointMeta): readonly DeclaredOutcome[] {
+  return declaredOutcomes(
+    endpoint.output,
+    endpoint.status as SuccessStatus | undefined,
+  );
+}
+
+/**
+ * Единственный объявленный исход: его статус получает значение без
+ * обёртки `Ok`.
+ */
+function singleOutcome(
+  outcomes: readonly DeclaredOutcome[],
+  pattern: string,
+): DeclaredOutcome {
+  if (outcomes.length > 1) {
+    throw new UnnamedOutcomeError(pattern, outcomes);
+  }
+
+  return outcomes[0];
+}
+
+/**
+ * Форма тела того исхода, чей статус несёт ответ.
+ *
+ * `undefined` — тела у исхода нет: ветка `none()` или декларация без
+ * `output`.
+ */
+function formOfOutcome(
+  outcomes: readonly DeclaredOutcome[],
+  status: SuccessStatus,
+): FormDescriptor | undefined {
+  const outcome = outcomes.find((declared) => declared.status === status);
+
+  return outcome?.form === undefined ? undefined : describeForm(outcome.form);
 }
 
 /**
@@ -426,7 +488,9 @@ export interface Pipeline<
       meta: (TAcc extends { payload: unknown }
         ? Omit<TAcc, 'payload'>
         : TAcc) & { signal: AbortSignal },
-    ) => OutputSync<TOutput, AnyFail> | Output<TOutput, AnyFail>,
+    ) =>
+      | OutputSync<TOutput, AnyFail, SuccessStatus>
+      | Output<TOutput, AnyFail, SuccessStatus>,
     ctx: ExtendableContext<TAcc>,
     options?: ExecuteOptions,
   ): Promise<ResponseContext<TOutput>>;
@@ -1100,9 +1164,15 @@ class PipelineImpl {
 
       if (earlySuccess) {
         // Проверка входа и хендлер пропускаются: их результат некому
-        // читать. Ответ — успех без значения, как у декларации без
-        // `output`
-        response = { isSuccess: true, status: 'ok', value: undefined };
+        // читать. Ответ — успех без значения, а декларация с таким
+        // пайплайном объявлена без `output`, поэтому статус её
+        // единственного исхода — `no_content`
+        response = {
+          isSuccess: true,
+          status: singleOutcome(outcomesOf(ctx.endpoint), ctx.endpoint.pattern)
+            .status,
+          value: undefined,
+        };
       } else {
         const finalInput = ctx.input;
         const { payload, ...meta } = finalInput as AnyAddition & {
@@ -1185,6 +1255,16 @@ class PipelineImpl {
       }
     }
 
+    // Проверка объявленных исходов стоит там же, где проверка `errors:`:
+    // `.ok`-шаг мог подменить успешный ответ, а наблюдатель обязан
+    // увидеть тот ответ, который уйдёт клиенту
+    response = this.enforceDeclaredOutcome(
+      response,
+      ctx.endpoint,
+      exposeErrorDetails,
+      logger,
+    );
+
     // Проверка `errors:` стоит после `.catch` (там незадекларированный
     // отказ ещё можно превратить в задекларированный) и до `.finally`
     // (наблюдатель видит тот ответ, который уйдёт клиенту)
@@ -1245,7 +1325,10 @@ class PipelineImpl {
     // дочитать итератор или закрыть его через `return()`
     if (
       response.isSuccess &&
-      isStreamKind(describeForm(ctx.endpoint.output).kind) &&
+      isStreamKind(
+        formOfOutcome(outcomesOf(ctx.endpoint), response.status)?.kind ??
+          'value',
+      ) &&
       isAsyncIterable(response.value)
     ) {
       const delivered = response;
@@ -1318,6 +1401,7 @@ class PipelineImpl {
       result instanceof Ok || !isTransportResponse(result) ? undefined : result;
 
     const payload = (envelope ? envelope.result : result) as T;
+    const outcomes = outcomesOf(ctx.endpoint);
 
     const base: SuccessResponseContext<T> =
       payload instanceof Ok
@@ -1328,7 +1412,10 @@ class PipelineImpl {
           }
         : {
             isSuccess: true,
-            status: 'ok',
+            // Голому значению статус даёт декларация: `status:` или
+            // умолчание. При развилке исход выбирает ветка исполнения, и
+            // голое значение до сюда не доходит
+            status: singleOutcome(outcomes, ctx.endpoint.pattern).status,
             value: payload,
           };
 
@@ -1336,8 +1423,12 @@ class PipelineImpl {
       base.transport = { name: envelope.transport, meta: envelope.meta };
     }
 
-    const form = describeForm(ctx.endpoint.output);
-    if (!isStreamKind(form.kind) || !isAsyncIterable(base.value)) {
+    const form = formOfOutcome(outcomes, base.status);
+    if (
+      form === undefined ||
+      !isStreamKind(form.kind) ||
+      !isAsyncIterable(base.value)
+    ) {
       return base;
     }
 
@@ -1383,6 +1474,51 @@ class PipelineImpl {
         value: errorValue,
       };
     }
+
+    return {
+      isSuccess: false,
+      status: InternalError.category,
+      value: {
+        ...unhandledBody(error, exposeErrorDetails),
+        code: InternalError.code,
+      },
+    };
+  }
+
+  /**
+   * Проверяет успешный ответ по объявленным исходам endpoint'а.
+   *
+   * Статус вне объявленного множества заменяется на `InternalError`: типы
+   * такой ответ не пропустили бы, но вызов из JavaScript ими не прикрыт, а
+   * код, которого нет в документе, — молчаливо неверный ответ клиенту.
+   */
+  private enforceDeclaredOutcome(
+    response: ResponseContext<unknown>,
+    endpoint: EndpointMeta,
+    exposeErrorDetails: boolean,
+    logger: Logger,
+  ): ResponseContext<unknown> {
+    if (!response.isSuccess) {
+      return response;
+    }
+
+    const outcomes = outcomesOf(endpoint);
+    const declared = outcomes.some(
+      (outcome) => outcome.status === response.status,
+    );
+
+    if (declared) {
+      return response;
+    }
+
+    const error = new Error(
+      `Endpoint '${endpoint.pattern}': the handler answered with status ` +
+        `'${response.status}', which the declaration does not declare ` +
+        `(declared: ${outcomes.map((outcome) => `'${outcome.status}'`).join(', ')}). ` +
+        `Return an Ok of a declared outcome, or declare this one.`,
+    );
+
+    reportUnknownFail(logger, error, endpoint);
 
     return {
       isSuccess: false,

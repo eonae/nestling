@@ -10,11 +10,14 @@
 import type {
   AnyFail,
   AnyFailDefinition,
+  AnyOk,
+  DeclaredOutcome,
   ProblemDocument,
   StandardSchemaV1,
   SuccessStatus,
 } from '@nestlingjs/operations';
 import {
+  declaredOutcomes,
   describeForm,
   Fail,
   failCodeOf,
@@ -27,9 +30,9 @@ import {
 /**
  * HTTP-код успеха обратно в статус.
  *
- * Прочие 2xx схлопываются в `ok`: словарь статусов ядра закрыт, и вводить
- * ради экзотического кода новый элемент значило бы расширять операция
- * ответа по чужому решению.
+ * Та же таблица, что у транспорта, прочитанная в обратную сторону. Кода
+ * вне неё в объявленном множестве быть не может: словарь статусов ядра
+ * закрыт.
  */
 const SUCCESS_BY_CODE: Readonly<Record<number, SuccessStatus>> = {
   200: 'ok',
@@ -87,33 +90,67 @@ function validateOutputValue(
     : { ok: true, value: sync.value };
 }
 
-/** Разбирает успешный ответ в `Ok` либо в `InternalError` */
+/**
+ * Разбирает успешный ответ в `Ok` либо в `InternalError`.
+ *
+ * Код ответа сверяется с объявленными исходами операции: код вне
+ * множества — расхождение с декларацией, и клиент отдаёт `InternalError`
+ * с телом ответа в `cause`. Схлопнуть его в `ok` значило бы отдать
+ * потребителю молчаливо неверный статус.
+ *
+ * Тело валидируется формой того исхода, чей код пришёл: у развилки у
+ * каждой ветки своя схема.
+ */
 export function readSuccess(
   status: number,
   body: unknown,
   output: unknown,
+  declaredStatus: SuccessStatus | undefined,
   validate: boolean,
   where: string,
-): Ok<unknown> | AnyFail {
-  if (status === 204) {
-    return new Ok('no_content', null);
+): AnyOk | AnyFail {
+  const outcomes = declaredOutcomes(output, declaredStatus);
+  const okStatus = SUCCESS_BY_CODE[status];
+  const outcome: DeclaredOutcome | undefined =
+    okStatus === undefined
+      ? undefined
+      : outcomes.find((declared) => declared.status === okStatus);
+
+  if (outcome === undefined) {
+    return unknownFailure(
+      `${where}: the server answered with ${status}, which the operation ` +
+        `does not declare (declared: ` +
+        `${outcomes.map((declared) => String(SUCCESS_CODES[declared.status])).join(', ')}).`,
+      body,
+    );
   }
 
-  const okStatus = SUCCESS_BY_CODE[status] ?? 'ok';
+  // Исход без тела: ветка `none()` или операция без `output`
+  if (outcome.form === undefined) {
+    return new Ok(outcome.status, null as never);
+  }
 
   if (!validate) {
-    return new Ok(okStatus, body as never);
+    return new Ok(outcome.status, body as never);
   }
 
-  const checked = validateOutputValue(output, body);
+  const checked = validateOutputValue(outcome.form, body);
 
   return checked.ok
-    ? new Ok(okStatus, checked.value as never)
+    ? new Ok(outcome.status, checked.value as never)
     : unknownFailure(
-        `${where}: the response did not match the operation's 'output' schema.`,
+        `${where}: the response did not match the schema of the '${outcome.status}' outcome.`,
         checked.issues,
       );
 }
+
+/** Коды объявленных исходов для текста ошибки */
+const SUCCESS_CODES: Readonly<Record<SuccessStatus, number>> = {
+  ok: 200,
+  created: 201,
+  accepted: 202,
+  no_content: 204,
+};
 
 /**
  * Восстанавливает отказ по документу RFC 9457.

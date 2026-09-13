@@ -89,6 +89,7 @@ describe('App.check() — фазы 0–1', () => {
     const Orphan = makeEndpoint({
       transport: CliTransport$,
       pattern: 'orphan',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -116,6 +117,7 @@ describe('App.check() — фазы 0–1', () => {
         testEndpoint({
           method: 'GET',
           path: '/users',
+          output: z.unknown(),
           handler: async () => new Ok({}),
         }),
       ],
@@ -154,6 +156,7 @@ describe('App.check() — фазы 0–1', () => {
             testEndpoint({
               method: 'GET',
               path: '/ping',
+              output: z.unknown(),
               handler: async () => new Ok({}),
             }),
           ],
@@ -257,6 +260,7 @@ describe('App.check() — опубликованные операции в от�
             testEndpoint({
               method: 'GET',
               path: '/ping',
+              output: z.unknown(),
               handler: async () => new Ok({}),
             }),
           ],
@@ -281,11 +285,11 @@ describe('App.check() — опубликованные операции в от�
           endpoints: [
             implement(OrderPlaced, {
               subscriber: 'billing',
-              handler: async () => new Ok(undefined),
+              handler: async () => Ok.noContent(),
             }),
             implement(OrderPlaced, {
               subscriber: 'analytics',
-              handler: async () => new Ok(undefined),
+              handler: async () => Ok.noContent(),
             }),
           ],
         }),
@@ -329,6 +333,7 @@ describe('шов @nestlingjs/app/testing — фазы 0–3', () => {
     const Ping = testEndpoint({
       method: 'GET',
       path: '/ping',
+      output: z.unknown(),
       handler: async () => new Ok({ pong: true }),
     });
 

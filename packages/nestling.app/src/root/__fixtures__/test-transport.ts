@@ -19,6 +19,7 @@ import type {
   FailsOf,
   HandlerClass,
   HandlerFn,
+  SuccessStatus,
   TransportCapabilities,
 } from '../../pipeline/index.js';
 import { makeEndpoint } from '../../pipeline/index.js';
@@ -60,7 +61,8 @@ type TestEndpointDictionary<
   PN,
   E extends readonly AnyFailDefinition[],
   PF extends AnyFail,
-> = Omit<EndpointOptions<I, O, P, PN, E, PF>, 'pattern' | 'transport'> & {
+  S extends SuccessStatus,
+> = Omit<EndpointOptions<I, O, P, PN, E, PF, S>, 'pattern' | 'transport'> & {
   /** Метод: вместе с путём складывается в паттерн `'GET /users'` */
   method: string;
 
@@ -88,31 +90,34 @@ type TestEndpointDictionary<
  */
 export function testEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  S extends SuccessStatus = never,
 >(
-  declaration: TestEndpointDictionary<I, O, P, PN, E, PF> & {
-    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
+  declaration: TestEndpointDictionary<I, O, P, PN, E, PF, S> & {
+    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>, S>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function testEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
+  S extends SuccessStatus = never,
+  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>, S> = HandlerClass<
     I,
     O,
     P,
-    FailsOf<E> | NoInfer<PF>
+    FailsOf<E> | NoInfer<PF>,
+    S
   >,
 >(
-  declaration: TestEndpointDictionary<I, O, P, PN, E, PF> & {
+  declaration: TestEndpointDictionary<I, O, P, PN, E, PF, S> & {
     handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
@@ -123,7 +128,8 @@ export function testEndpoint(
     any,
     unknown,
     readonly AnyFailDefinition[],
-    AnyFail
+    AnyFail,
+    SuccessStatus
   > & {
     handler: unknown;
   },

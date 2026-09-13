@@ -14,7 +14,12 @@ import { makeClient } from './client.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Fail, Ok } from '@nestlingjs/operations';
-import { makeCommand, makeFail, makeRequest } from '@nestlingjs/operations';
+import {
+  makeCommand,
+  makeFail,
+  makeRequest,
+  outputs,
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });
@@ -32,6 +37,13 @@ const CreateUser = makeRequest({
   errors: [EmailTaken],
 });
 
+/** Операция с развилкой: тип результата различает исходы дискриминантом */
+const CreateJob = makeRequest({
+  name: 'client.types.jobs.create',
+  http: 'POST /jobs',
+  output: outputs({ ok: User, accepted: z.object({ jobId: z.string() }) }),
+});
+
 const Ping = makeRequest({
   name: 'client.types.ping',
   http: 'GET /ping',
@@ -45,7 +57,12 @@ const DeleteUser = makeCommand({
 });
 
 const api = makeClient(
-  { createUser: CreateUser, ping: Ping, deleteUser: DeleteUser },
+  {
+    createUser: CreateUser,
+    createJob: CreateJob,
+    ping: Ping,
+    deleteUser: DeleteUser,
+  },
   { baseUrl: 'https://api.example.com' },
 );
 
@@ -93,6 +110,23 @@ const typeOnly = async (): Promise<void> => {
   // Команда не возвращает значения
   type Command = Awaited<ReturnType<typeof api.deleteUser>>;
   type _Void = Expect<Exact<Command, void>>;
+
+  // У развилки успешная половина — юнион `Ok` по статусам
+  const job = await api.createJob();
+  type JobResult = typeof job;
+  type _Outcomes = Expect<
+    Exact<
+      Extract<JobResult, { isFail: false }>,
+      | Ok<{ id: string; email: string }, 'ok'>
+      | Ok<{ jobId: string }, 'accepted'>
+    >
+  >;
+
+  // Проверка статуса сужает значение до формы своей ветки
+  if (!job.isFail && job.status === 'accepted') {
+    const jobId: string = job.value.jobId;
+    void jobId;
+  }
 };
 
 describe('client: типы call-site', () => {

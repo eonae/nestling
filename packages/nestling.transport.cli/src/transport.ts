@@ -12,6 +12,7 @@ import { CLI_TRANSPORT_NAME, CliTransport$ } from './token.js';
 import type {
   Dispatch,
   EndpointMeta,
+  FormDescriptor,
   ITransport,
   Raw,
   ResponseContext,
@@ -27,6 +28,7 @@ import {
   DEFAULT_INSTANCE,
   describeForm,
   isAsyncIterable,
+  isOutcomes,
   makeEmptyContext,
   makeTransportDeclaration,
   TransportClosingError,
@@ -239,7 +241,11 @@ export class CliTransport implements ITransport {
 
     // Форма input определяет, как читается вход команды
     const inputForm = describeForm(route.input);
-    const outputForm = describeForm(route.output);
+    // Развилка исходов кадрируется как значение: потоковая форма
+    // объявляется единственным исходом
+    const outputForm = isOutcomes(route.output)
+      ? VALUE_FORM
+      : describeForm(route.output);
 
     let payload: unknown;
     let streamSource: AsyncIterable<unknown> | undefined;
@@ -277,6 +283,8 @@ export class CliTransport implements ITransport {
       pattern: route.pattern,
       input: route.input,
       output: route.output,
+      // Объявленные исходы едут тем же путём, что и отказы
+      status: route.status,
       // Объявленные отказы попадают в проверку границы только так:
       // декларация → транспорт → контекст, без глобального реестра.
       errors: route.errors,
@@ -537,6 +545,9 @@ export class CliTransport implements ITransport {
 
 /** Конец ввода вместо ответа: значение, которого не даст ни одна строка */
 const END_OF_INPUT = Symbol('cli:end-of-input');
+
+/** Форма кадрирования развилки исходов: у веток вид один */
+const VALUE_FORM: FormDescriptor = Object.freeze({ kind: 'value' as const });
 
 /**
  * Задаёт один вопрос интерфейсом readline.

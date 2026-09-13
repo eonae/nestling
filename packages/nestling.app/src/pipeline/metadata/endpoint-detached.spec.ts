@@ -13,6 +13,7 @@ import { makeEndpoint } from './endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
+import { z } from 'zod';
 
 const HttpTransport$ = makeToken('transport:http');
 
@@ -28,6 +29,7 @@ describe('detached — причина на значении декларации
       transport: HttpTransport$,
       pattern: 'GET /health',
       detached: reason,
+      output: z.unknown(),
       handler: async () => new Ok({ status: 'up' }),
     });
 
@@ -47,6 +49,7 @@ describe('detached — причина на значении декларации
       transport: HttpTransport$,
       pattern: 'GET /health',
       detached: reason,
+      output: z.unknown(),
       handler: HealthHandler,
     });
 
@@ -59,6 +62,7 @@ describe('detached — причина на значении декларации
     const Health = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /health',
+      output: z.unknown(),
       handler: async () => new Ok({ status: 'up' }),
     });
 
@@ -100,6 +104,7 @@ describe('detached — типы', () => {
         pattern: 'GET /health',
         // @ts-expect-error: причина обязана быть строкой — `true` не форма opt-out'а
         detached: true,
+        output: z.unknown(),
         handler: async () => new Ok({ status: 'up' }),
       }),
     ).toThrow(TypeError);

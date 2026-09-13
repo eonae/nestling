@@ -10,7 +10,7 @@ import { Unauthorized } from '../errors.js';
 import { CreateUserInput, User } from '../users/user.js';
 import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 
-import { body, makeRequest, query } from '@nestlingjs/operations';
+import { body, makeRequest, outputs, query } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 // Схемы и отказы лежат рядом с операциями: потребитель API импортирует
@@ -67,6 +67,10 @@ export const GetUser = makeRequest({
  * (`POST /users?dryRun=true`), `name` и `email` из тела. Без пометки поле
  * POST-запроса читается из тела, поэтому `body()` у `name` — запись того
  * же умолчания вслух.
+ *
+ * Исходов у операции два, и оба объявлены развилкой: запись отвечает
+ * `201 Created`, а проверка без записи (`dryRun`) — `200 OK`. Тело у них
+ * одно, а код разный, и документ описывает оба.
  */
 export const CreateUser = makeRequest({
   name: 'users.create',
@@ -76,8 +80,7 @@ export const CreateUser = makeRequest({
     bind: { dryRun: query(), name: body() },
   },
   input: CreateUserInput,
-  output: User,
+  output: outputs({ ok: User, created: User }),
   errors: [EmailTaken, Unauthorized],
-  // Статус успеха назван явно: хендлер отвечает `Ok.created(...)`
-  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'created' },
+  doc: { summary: 'Создать пользователя', tags: ['users'] },
 });

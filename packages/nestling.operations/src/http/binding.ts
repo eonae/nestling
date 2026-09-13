@@ -16,7 +16,7 @@
  */
 
 import type { BindableFields } from '../io/index.js';
-import { describeForm, isPrimitiveLeaf } from '../io/index.js';
+import { describeForm, isOutcomes, isPrimitiveLeaf } from '../io/index.js';
 
 /**
  * HTTP-метод: методы HTTP/1.1.
@@ -287,6 +287,9 @@ export interface ComputeHttpBindingOptions {
   /** Форма `output`; нужна для проверки секции `sse` */
   output?: unknown;
 
+  /** Объявленный статус единственного успешного исхода */
+  status?: unknown;
+
   /** Секция `sse` */
   sse?: SseConfig;
 
@@ -446,7 +449,9 @@ function assertSse(options: ComputeHttpBindingOptions): void {
 
   const where = whereOf(options);
 
-  if (describeForm(output).kind !== 'events') {
+  // Развилка исходов потоковой ветки не несёт, поэтому вид её формы
+  // заведомо не `events`
+  if (isOutcomes(output) || describeForm(output).kind !== 'events') {
     throw new Error(
       `${where}: 'sse' is only meaningful for an events(...) output — the ` +
         `section describes SSE frames.`,
@@ -472,15 +477,33 @@ function assertSse(options: ComputeHttpBindingOptions): void {
 }
 
 /**
- * Проверяет поле `redirect`: редирект и поток вместе не объявляются.
+ * Проверяет поле `redirect`: ни потока, ни объявленного успешного исхода
+ * рядом с ним.
  *
  * У потокового ответа заголовки уходят до первого кадра, а редирект тело
- * отменяет: две формы ответа исключают друг друга.
+ * отменяет: две формы ответа исключают друг друга. Успешный статус
+ * редирект отменяет так же — его код 3xx свой, и тела у него нет.
  */
 function assertRedirect(options: ComputeHttpBindingOptions): void {
-  const { redirect, output } = options;
+  const { redirect, output, status } = options;
   if (redirect === undefined) {
     return;
+  }
+
+  if (status !== undefined) {
+    throw new Error(
+      `${whereOf(options)}: 'status: ${JSON.stringify(status)}' is declared ` +
+        `next to 'redirect: ${String(redirect)}'. A redirect answers with ` +
+        `its own 3xx code and carries no body: drop one of the two.`,
+    );
+  }
+
+  if (isOutcomes(output)) {
+    throw new Error(
+      `${whereOf(options)}: outputs({ … }) declares successful outcomes next ` +
+        `to 'redirect: ${String(redirect)}'. A redirect answers with its own ` +
+        `3xx code and carries no body: drop one of the two.`,
+    );
   }
 
   const { kind } = describeForm(output);

@@ -1,6 +1,6 @@
 # 13. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `e2500af3`.
+> Гайд по текущему API; сверено с кодом `5cd76452`.
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -134,11 +134,8 @@ JSON Schema описывает данные, но не саму операцию
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
-  doc: {
-    summary: 'Удалить пользователя',
-    tags: ['users'],
-    status: 'no_content',
-  },
+  status: 'no_content',
+  doc: { summary: 'Удалить пользователя', tags: ['users'] },
   pipeline: transactional,
   handler: DeleteUserHandler,
 });
@@ -149,8 +146,11 @@ export const DeleteUser = httpEndpoint.delete('/users/:id', {
 | `summary`, `description` | название и описание операции |
 | `tags` | группировка операций в документе |
 | `deprecated` | пометка устаревания |
-| `status` | статус успешного ответа; по умолчанию `ok`, без `output` `no_content` |
 | `hidden` | причина, по которой endpoint не попадает в документ |
+
+Статус успешного ответа объявляется не в `doc`, а полем `status` верхнего
+уровня: это контракт ответа в сети. По умолчанию он равен `ok`, а у
+декларации без `output` — `no_content`.
 
 `operationId` не объявляется. Он берётся из имени операции, если
 endpoint реализует операцию, иначе из метода и пути: у `GET /users` это
@@ -186,7 +186,7 @@ endpoint'ов плагин печатает при старте:
 
 ```typescript
 // src/api/operations.ts
-import { body, makeRequest, query } from '@nestlingjs/operations';
+import { body, makeRequest, outputs, query } from '@nestlingjs/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
 
@@ -207,14 +207,18 @@ export const CreateUser = makeRequest({
     bind: { dryRun: query(), name: body() },
   },
   input: CreateUserInput,
-  output: User,
+  output: outputs({ ok: User, created: User }),
   errors: [EmailTaken, Unauthorized],
-  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'created' },
+  doc: { summary: 'Создать пользователя', tags: ['users'] },
 });
 ```
 
 Операция — значение: имя, схемы `input` и `output`, список `errors:` и
-слот `doc:`. Секция `http:` описывает адрес; операция без неё отвергается
+слот `doc:`. Развилка `outputs({ … })` в слоте `output` объявляет два
+успешных исхода: запись отвечает `201 Created`, а проверка без записи
+(`dryRun`) — `200 OK`. Документ описывает оба кода, а хендлер выбирает
+исход возвратом `Ok.created(user)` или `new Ok(user)`. Один исход
+объявляется полем `status: 'created'` рядом с обычным `output`. Секция `http:` описывает адрес; операция без неё отвергается
 в момент создания декларации `httpEndpoint.implement`. Строка
 `'GET /users/:id'` подходит для операции без пометок; объект
 `{ method, path }` нужен, когда есть `bind`, `rawBody` или `sse`.

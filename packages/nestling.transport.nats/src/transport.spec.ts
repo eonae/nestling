@@ -43,6 +43,14 @@ const Claim = makeRequest({
   errors: [QuotaExceeded],
 });
 
+/** Операция с объявленным исходом, отличным от `ok`: шина несёт его как есть */
+const Register = makeRequest({
+  name: 'quotas.register',
+  input: z.object({ amount: z.number() }),
+  output: z.object({ granted: z.number() }),
+  status: 'created',
+});
+
 const Ship = makeCommand({
   name: 'orders.ship',
   input: z.object({ orderId: z.string() }),
@@ -216,15 +224,15 @@ describe('NatsBus — адресация и группы', () => {
     await caller.close();
   });
 
-  it('ответ уходит телом: заголовков у него нет', async () => {
+  it('ответ уходит телом: заголовков у него нет, статус переносится как есть', async () => {
     const broker = new Broker();
-    const Tagged = implement(Claim, {
+    const Tagged = implement(Register, {
       handler: async (input) => Ok.created({ granted: input.amount }),
     });
     const owner = await process(broker, [Tagged]);
 
     const reply = await broker.request(
-      'quotas.claim',
+      'quotas.register',
       new TextEncoder().encode(JSON.stringify({ amount: 2 })),
       { timeout: 500 },
     );

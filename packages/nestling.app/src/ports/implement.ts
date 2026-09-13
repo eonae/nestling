@@ -34,6 +34,7 @@ import type {
   HandlerResultOf,
   Operation,
   OperationKind,
+  SuccessStatus,
   ValidateHandlerFails,
   ValidateOperationFails,
 } from '@nestlingjs/operations';
@@ -220,14 +221,15 @@ export function implement<
   O extends AnyOutput,
   E extends readonly AnyFailDefinition[],
   K extends OperationKind,
+  S extends SuccessStatus,
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
   PR extends AnyInput = EmptyInput,
-  R extends AnyHandlerResult<O> = AnyHandlerResult<O>,
+  R extends AnyHandlerResult<O, S> = AnyHandlerResult<O, S>,
 >(
-  operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF, PR> &
+  operation: Operation<I, O, E, K, S>,
+  declaration: ImplementDictionary<Operation<I, O, E, K, S>, P, PN, PF, PR> &
     SubscriberSlot<K> & {
       handler: CheckedHandlerFn<I, P, FailsOf<E>, R>;
     },
@@ -237,14 +239,21 @@ export function implement<
   O extends AnyOutput,
   E extends readonly AnyFailDefinition[],
   K extends OperationKind,
+  S extends SuccessStatus,
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, AnyFail> = HandlerClass<I, O, P, AnyFail>,
+  C extends HandlerClass<I, O, P, AnyFail, S> = HandlerClass<
+    I,
+    O,
+    P,
+    AnyFail,
+    S
+  >,
   PR extends AnyInput = EmptyInput,
 >(
-  operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF, PR> &
+  operation: Operation<I, O, E, K, S>,
+  declaration: ImplementDictionary<Operation<I, O, E, K, S>, P, PN, PF, PR> &
     SubscriberSlot<K> & {
       handler: C & ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E>>;
     },
@@ -276,6 +285,8 @@ export function implement(
     pattern,
     input: operation.input,
     output: operation.output,
+    // Исходы принадлежат операции: две её реализации отвечают одинаково
+    status: operation.status,
     errors: operation.errors,
     binding: makeBusBinding({
       subject: operation.name,

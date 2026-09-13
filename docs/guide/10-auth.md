@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `e2500af3`.
+> Гайд по текущему API; сверено с кодом `5cd76452`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -103,11 +103,8 @@ Pre-шаги внешнего слоя выполняются раньше, по
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
-  doc: {
-    summary: 'Удалить пользователя',
-    tags: ['users'],
-    status: 'no_content',
-  },
+  status: 'no_content',
+  doc: { summary: 'Удалить пользователя', tags: ['users'] },
   pipeline: authed,
   handler: DeleteUserHandler,
 });
@@ -371,8 +368,10 @@ HTTP-форма допустима только там, где адрес объ
 
 Класс-хендлер объявляет интерфейс: `implements Handler<typeof Op>` берёт
 типы входа, результата и отказов с операции, `implements HttpHandler<typeof
-Op>` — то же с `meta.http` и `HttpOutput`. Оба имени приходят одним
-импортом с декоратором роли.
+Op>` — то же с `meta.http` и `HttpResponse`. Статус результата оба берут из
+объявленных исходов: у операции с `status: 'created'` метод `handle`
+возвращает `Ok.created(...)`, а `new Ok(...)` не компилируется. Оба имени
+приходят одним импортом с декоратором роли.
 
 ## Шаги транспорта
 

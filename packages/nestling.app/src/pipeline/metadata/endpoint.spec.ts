@@ -86,6 +86,7 @@ describe('makeEndpoint — формы handler', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
+      output: z.unknown(),
       handler: async () => new Ok({ pong: true }),
     });
 
@@ -116,6 +117,7 @@ describe('makeEndpoint — формы handler', () => {
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
       input: UserInput,
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -131,6 +133,7 @@ describe('makeEndpoint — формы handler', () => {
       transport: HttpTransport$,
       pattern: 'GET /counted',
       input: UserInput,
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -175,6 +178,7 @@ describe('makeEndpoint — resolve', () => {
     transport: HttpTransport$,
     pattern: 'GET /users/:id',
     input: UserInput,
+    output: z.unknown(),
     handler: GetUserHandler,
   });
 
@@ -220,6 +224,7 @@ describe('makeEndpoint — resolve', () => {
       transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -237,6 +242,7 @@ describe('makeEndpoint — resolve', () => {
       transport: HttpTransport$,
       pattern: 'GET /twice',
       input: UserInput,
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -253,6 +259,7 @@ describe('makeEndpoint — бренд', () => {
   const Ping = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'GET /ping',
+    output: z.unknown(),
     handler: async () => new Ok({ pong: true }),
   });
 
@@ -287,6 +294,7 @@ describe('makeEndpoint — бренд', () => {
     const created = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /side-effect-free',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -301,6 +309,7 @@ describe('ссылка на транспорт — DI-токен', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -314,6 +323,7 @@ describe('ссылка на транспорт — DI-токен', () => {
     const Command = makeEndpoint({
       transport: Cli$,
       pattern: 'sync',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -335,6 +345,7 @@ describe('makeEndpoint — носитель binding', () => {
       transport: HttpTransport$,
       pattern: 'PATCH /users/:id',
       binding,
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -347,6 +358,7 @@ describe('makeEndpoint — носитель binding', () => {
       pattern: 'GET /users/:id',
       input: UserInput,
       binding,
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -363,6 +375,7 @@ describe('makeEndpoint — носитель binding', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
+      output: z.unknown(),
       handler: async () => new Ok({ pong: true }),
     });
 
@@ -376,6 +389,7 @@ describe('makeEndpoint — носитель binding', () => {
       transport: makeToken('transport:nats'),
       pattern: 'users.get',
       binding: opaque,
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -405,6 +419,7 @@ describe('makeEndpoint — типы', () => {
     const DepsFree = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
+      output: z.unknown(),
       handler: async () => new Ok({ pong: true }),
     });
 
@@ -412,6 +427,7 @@ describe('makeEndpoint — типы', () => {
       transport: HttpTransport$,
       pattern: 'GET /class',
       input: UserInput,
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -439,6 +455,7 @@ describe('makeEndpoint — типы', () => {
       transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -451,6 +468,7 @@ describe('makeEndpoint — типы', () => {
     const DepsFree = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -458,6 +476,7 @@ describe('makeEndpoint — типы', () => {
       transport: HttpTransport$,
       pattern: 'GET /users',
       input: UserInput,
+      output: z.unknown(),
       handler: GetUserHandler,
     });
 
@@ -497,6 +516,7 @@ describe('makeEndpoint — типы', () => {
       makeEndpoint({
         transport: HttpTransport$,
         pattern: 'GET /users',
+        output: z.unknown(),
         handler: {
           // @ts-expect-error: `handler` принимает функцию или класс, не объект
           deps: [UserService],
@@ -508,6 +528,7 @@ describe('makeEndpoint — типы', () => {
         transport: HttpTransport$,
         pattern: 'GET /users',
         input: UserInput,
+        output: z.unknown(),
         handler: GetUserHandler,
       });
 
@@ -527,7 +548,7 @@ describe('слой с досрочным успехом', () => {
       transport: HttpTransport$,
       pattern: 'POST /events',
       pipeline: claiming,
-      handler: async () => new Ok(undefined),
+      handler: async () => Ok.noContent(),
     });
 
     expect(isEndpointDefinition(Endpoint)).toBe(true);

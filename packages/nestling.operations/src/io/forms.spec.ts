@@ -5,11 +5,16 @@
 
 import {
   describeForm,
+  describeOutcomes,
   events,
   isForm,
+  isNone,
+  isOutcomes,
   isUploadSpec,
   mediaTypeOf,
   multipart,
+  none,
+  outputs,
   stream,
   upload,
 } from './forms.js';
@@ -230,5 +235,68 @@ describe('проверки конструкторов форм', () => {
     expect(() => multipart({ files: { avatar: {} as never } })).toThrow(
       /is not an upload\(\) specification/,
     );
+  });
+});
+
+describe('развилка исходов', () => {
+  const User = z.object({ id: z.string() });
+  const Job = z.object({ jobId: z.string() });
+
+  it('несёт бренд, а собранный вручную объект развилкой не считается', () => {
+    const form = outputs({ ok: User, accepted: Job });
+
+    expect(isOutcomes(form)).toBe(true);
+    expect(isOutcomes({ ok: User, accepted: Job })).toBe(false);
+    expect(isForm(form)).toBe(false);
+  });
+
+  it('бренд неперечислим, а ветки неизменяемы', () => {
+    const form = outputs({ ok: User, no_content: none() });
+
+    expect(Object.keys(form)).toEqual(['outcomes']);
+    expect(Object.isFrozen(form)).toBe(true);
+    expect(Object.isFrozen(form.outcomes)).toBe(true);
+  });
+
+  it('описатель отдаёт ветки парами «статус — форма»', () => {
+    const branch = none();
+    const form = outputs({ ok: User, no_content: branch });
+
+    expect(describeOutcomes(form)).toEqual([
+      ['ok', User],
+      ['no_content', branch],
+    ]);
+  });
+
+  it('`none()` распознаётся по бренду', () => {
+    expect(isNone(none())).toBe(true);
+    expect(isNone({ outcome: 'none' })).toBe(false);
+  });
+
+  it('`describeForm` на развилке и на `none()` отказывает', () => {
+    expect(() => describeForm(outputs({ ok: User, accepted: Job }))).toThrow(
+      /has no form kind of its own/,
+    );
+    expect(() => describeForm(none())).toThrow(
+      /declares an outcome without a body/,
+    );
+  });
+
+  it('media type выводится по каждой ветке отдельно', () => {
+    const form = outputs({ ok: User, accepted: 'text', no_content: none() });
+    const types = describeOutcomes(form).map(([status, branch]) => [
+      status,
+      isNone(branch) ? undefined : mediaTypeOf(branch),
+    ]);
+
+    expect(types).toEqual([
+      ['ok', 'application/json'],
+      ['accepted', 'text/plain'],
+      ['no_content', undefined],
+    ]);
+  });
+
+  it('аргумент развилки — словарь исходов', () => {
+    expect(() => outputs([] as never)).toThrow(/a record of outcomes/);
   });
 });

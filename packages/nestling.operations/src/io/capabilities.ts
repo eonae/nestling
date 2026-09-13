@@ -8,7 +8,7 @@
  */
 
 import type { FormKind } from './forms.js';
-import { describeForm } from './forms.js';
+import { describeForm, describeOutcomes, isNone, isOutcomes } from './forms.js';
 
 import type { Token } from '@nestlingjs/container/tokens';
 import { tokenId } from '@nestlingjs/container/tokens';
@@ -87,16 +87,35 @@ export function assertFormsSupported(
   ];
 
   for (const { slot, io, allowed } of slots) {
-    const { kind } = describeForm(io);
-    if (allowed.has(kind)) {
-      continue;
-    }
+    for (const { kind, outcome } of kindsOf(io)) {
+      if (allowed.has(kind)) {
+        continue;
+      }
 
-    throw new Error(
-      `Endpoint '${definition.pattern}'${where ? ` ${where}` : ''}: ` +
-        `transport '${shortTransportName(definition.transport)}' ` +
-        `does not support form ` +
-        `'${kind}' in '${slot}' (supported: ${listForms(allowed)}).`,
-    );
+      throw new Error(
+        `Endpoint '${definition.pattern}'${where ? ` ${where}` : ''}: ` +
+          `transport '${shortTransportName(definition.transport)}' ` +
+          `does not support form ` +
+          `'${kind}' in '${slot}'${outcome ? ` (outcome '${outcome}')` : ''} ` +
+          `(supported: ${listForms(allowed)}).`,
+      );
+    }
   }
+}
+
+/**
+ * Виды форм одного слота: у развилки исходов — по одному на ветку.
+ *
+ * Ветка `none()` тела не несёт, и её вид — `value`: транспорт, умеющий
+ * отдать значение, отдаст и пустой ответ.
+ */
+function kindsOf(io: unknown): readonly { kind: FormKind; outcome?: string }[] {
+  if (!isOutcomes(io)) {
+    return [{ kind: describeForm(io).kind }];
+  }
+
+  return describeOutcomes(io).map(([status, form]) => ({
+    kind: isNone(form) ? ('value' as const) : describeForm(form).kind,
+    outcome: status,
+  }));
 }

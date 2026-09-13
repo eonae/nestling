@@ -746,6 +746,7 @@ describe('приём потокового входа и multipart', () => {
           },
         }),
         pipeline: makePipeline(),
+        output: z.unknown(),
         handler: async (payload: {
           fields: { id: string };
           files: { avatar: FilePart };

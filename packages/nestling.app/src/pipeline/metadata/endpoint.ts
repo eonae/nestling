@@ -7,11 +7,12 @@ import type {
   DeclarationDoc,
   FailsOf,
   Pipeline,
+  SuccessStatus,
   ValidateOutputForm,
 } from '../core/index.js';
 import {
   assertDoc,
-  assertFormSlots,
+  assertIoDeclaration,
   declaredFailsOf,
   declaresDone,
   isFailDefinition,
@@ -93,15 +94,16 @@ export type HandlerClass<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   E extends AnyFail = never,
-> = Constructor<{ handle: HandlerFn<I, O, P, E> }>;
+  S extends SuccessStatus = never,
+> = Constructor<{ handle: HandlerFn<I, O, P, E, S> }>;
 
 /**
  * Поле `handler` в одной из двух форм: функция без зависимостей или класс
  * с методом `handle`.
  */
 export type AnyEndpointHandler =
-  | HandlerFn<any, any, any, any>
-  | HandlerClass<any, any, any, any>;
+  | HandlerFn<any, any, any, any, any>
+  | HandlerClass<any, any, any, any, any>;
 
 /**
  * Декларация endpoint'а: значение, описывающее операцию.
@@ -148,8 +150,19 @@ export interface EndpointDefinition<
   /** Схема или форма io входа */
   readonly input?: I;
 
-  /** Схема или форма io выхода */
+  /** Схема или форма io выхода; развилка объявляет несколько исходов */
   readonly output?: O;
+
+  /**
+   * Объявленный статус единственного успешного исхода.
+   *
+   * Контракт ответа в сети: рантайм ставит его голому значению, а
+   * генератор документации печатает им успешный ответ. Поля нет —
+   * действует умолчание: `ok` при объявленном `output`, `no_content` без
+   * него. Развилка `outputs(...)` объявляет статусы ключами, и поле рядом
+   * с ней не объявляется.
+   */
+  readonly status?: SuccessStatus;
 
   /**
    * Пайплайн endpoint'а.
@@ -232,6 +245,7 @@ export interface EndpointOptions<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  S extends SuccessStatus = never,
 > {
   /** DI-токен транспорта: его проставляет транспортный конструктор */
   transport: TransportRef;
@@ -241,13 +255,29 @@ export interface EndpointOptions<
   input?: I;
 
   /**
-   * Форма io для output.
+   * Форма io для output или развилка исходов `outputs({ … })`.
    *
    * `ValidateOutputForm` запрещает здесь `multipart` и шаги item-цепочки,
    * меняющие тип элемента: оба конца выходного потока описаны схемой,
-   * поэтому `.batch(...)` в `output` — ошибка компиляции.
+   * поэтому `.batch(...)` в `output` — ошибка компиляции. В ветке
+   * развилки она запрещает потоковую форму.
    */
   output?: O & ValidateOutputForm<O>;
+
+  /**
+   * Статус единственного успешного исхода: `ok`, `created`, `accepted`
+   * или `no_content`.
+   *
+   * Рядом с развилкой не объявляется: её ключи уже называют статусы. Не
+   * объявлен — действует умолчание: `ok` при объявленном `output`,
+   * `no_content` без него.
+   *
+   * @example
+   * ```typescript
+   * output: User, status: 'created'
+   * ```
+   */
+  status?: S;
 
   /**
    * Объявленные отказы: список определений `makeFail`. Вместе с отказами
@@ -275,15 +305,16 @@ export interface EndpointOptions<
   binding?: unknown;
 
   /**
-   * Документация операции: `summary`, `description`, `tags`, `deprecated`,
-   * успешный статус и `hidden: '<причина>'`.
+   * Документация операции: `summary`, `description`, `tags`, `deprecated`
+   * и `hidden: '<причина>'`.
    *
-   * Проверяется при создании декларации: неизвестное поле, `hidden: true`
-   * и статус не из списка успешных — ошибка сразу.
+   * Проверяется при создании декларации: неизвестное поле и
+   * `hidden: true` — ошибка сразу. Успешного статуса здесь нет: он
+   * объявляется полем `status`.
    *
    * @example
    * ```typescript
-   * doc: { summary: 'List users', tags: ['users'], status: 'ok' }
+   * doc: { summary: 'List users', tags: ['users'] }
    * ```
    */
   doc?: DeclarationDoc;
@@ -329,6 +360,7 @@ interface EndpointState {
   pattern: string;
   input?: unknown;
   output?: unknown;
+  status?: SuccessStatus;
   pipeline?: Pipeline<AnyInput, AnyInput, unknown, AnyFail>;
   binding?: unknown;
   errors?: readonly AnyFailDefinition[];
@@ -653,6 +685,9 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   if (state.output !== undefined) {
     definition.output = state.output;
   }
+  if (state.status !== undefined) {
+    definition.status = state.status;
+  }
   if (state.pipeline !== undefined) {
     definition.pipeline = state.pipeline;
   }
@@ -732,33 +767,36 @@ export function handlerClassOf(
  */
 export function makeEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  S extends SuccessStatus = never,
 >(
-  options: EndpointOptions<I, O, P, PN, E, PF> & {
+  options: EndpointOptions<I, O, P, PN, E, PF, S> & {
     // `NoInfer` держит `PF` за слотом `pipeline`: иначе отказ, возвращённый
     // хендлером, сам попадал бы в множество и проверка ничего не значила бы
-    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
+    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>, S>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function makeEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
+  S extends SuccessStatus = never,
+  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>, S> = HandlerClass<
     I,
     O,
     P,
-    FailsOf<E> | NoInfer<PF>
+    FailsOf<E> | NoInfer<PF>,
+    S
   >,
 >(
-  options: EndpointOptions<I, O, P, PN, E, PF> & {
+  options: EndpointOptions<I, O, P, PN, E, PF, S> & {
     handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
@@ -769,7 +807,8 @@ export function makeEndpoint(
     any,
     unknown,
     readonly AnyFailDefinition[],
-    AnyFail
+    AnyFail,
+    SuccessStatus
   > & {
     handler: unknown;
   },
@@ -784,10 +823,15 @@ export function makeEndpoint(
   // Правила `doc` общие для декларации и операции; отличается только
   // адресат в тексте ошибки
   assertDoc(options.doc, `Endpoint '${options.pattern}'`);
-  // Формы io проверяются здесь, а не в конструкторах транспортов: правило
-  // от транспорта не зависит, и `makeEndpoint` обязан проверять то же, что
-  // `httpEndpoint` и `cliEndpoint`
-  assertFormSlots(options.pattern, options.input, options.output);
+  // Формы io и объявление исходов проверяются здесь, а не в конструкторах
+  // транспортов: правило от транспорта не зависит, и `makeEndpoint` обязан
+  // проверять то же, что `httpEndpoint` и `cliEndpoint`
+  assertIoDeclaration(
+    `Endpoint '${options.pattern}'`,
+    options.input,
+    options.output,
+    options.status,
+  );
   assertDoneWithoutOutput(options.pipeline, options.output, options.pattern);
 
   const state: EndpointState = {
@@ -795,6 +839,7 @@ export function makeEndpoint(
     pattern: options.pattern,
     input: options.input,
     output: options.output,
+    status: options.status,
     pipeline: options.pipeline as
       | Pipeline<AnyInput, AnyInput, unknown, AnyFail>
       | undefined,

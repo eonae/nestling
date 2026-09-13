@@ -33,8 +33,9 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
+  status: 'created', // the declared outcome: the response goes out with 201
   errors: [EmailTaken],
-  doc: { summary: 'Create user', tags: ['users'], status: 'created' },
+  doc: { summary: 'Create user', tags: ['users'] },
 });
 ```
 
@@ -44,63 +45,60 @@ it, and the caller `CreateUser.caller` is injected by a DI token.
 
 ## Exports
 
-- **Operation** ([design](../../docs/en/design/operations.md)) —
-  `AnyOperation`, `assertDoc`, `CommandOperation`, `DeclarationDoc`,
-  `EmitMeta`, `Emitter`, `EmitterFamily`, `EmitterToken`,
-  `EmittingOperation`, `errorsOf`, `EventOperation`, `HandlerResultOf`,
-  `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`,
+- **Operation** ([design](../../docs/en/design/operations.md)) — `AnyOperation`,
+  `assertDoc`, `CommandOperation`, `DeclarationDoc`, `EmitMeta`, `Emitter`,
+  `EmitterFamily`, `EmitterToken`, `EmittingOperation`, `errorsOf`, `EventOperation`,
+  `HandlerResultOf`, `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`,
   `lookupOperation`, `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`,
-  `Operation`, `OperationFailsOf`, `OperationKind`, `OperationSpec`,
-  `OutputFormOf`, `OutputOf`, `Port`, `PortFamily`, `PortMeta`,
-  `PortResult`, `PortToken`, `RequestOperation`, `UndeclaredHandlerFails`,
-  `ValidateHandlerFails`, `ValidateOperationFails`.
-- **Result and failures** ([design](../../docs/en/design/errors.md)) —
-  `AnyFail`, `AnyFailDefinition`, `assertFailCode`, `BadRequest`,
-  `categories`, `Category`, `categoryOf`, `DeclaredFail`, `Fail`,
-  `FailCode`, `FailCreateOptions`, `FailData`, `FailDefinitionProps`,
-  `FailDefinitionWithDetails`, `FailDefinitionWithoutDetails`, `FailOf`,
-  `FailOfDef`, `FailOptions`, `FailResponseOf`, `FailsOf`,
-  `FailSpecWithDetails`, `FailSpecWithoutDetails`, `InternalError`,
-  `isCategory`, `isFail`, `isFailDefinition`, `isKernelFailCode`,
-  `KernelFail`, `makeFail`, `Ok`, `Output`, `OutputSync`,
-  `PayloadTooLarge`, `ProcessingStatus`, `ResponseLike`, `statuses`,
-  `SuccessStatus`, `successStatuses`, `Timeout`.
-- **Io shapes** ([design](../../docs/en/design/endpoints.md)) —
-  `AnyInput`, `AnyMultipartForm`, `AnyOutput`, `AnyPayload`,
-  `AnyStreamForm`, `assertFormSlots`, `assertFormsSupported`,
-  `BindableFields`, `ChainStep`, `describeForm`, `EmptyInput`, `events`,
-  `FilePart`, `FilesOf`, `FormBearingDefinition`, `FormDescriptor`,
-  `FormKind`, `FormLeaf`, `FormSlot`, `InferInput`, `InferOutput`,
-  `IOPrimitive`, `isForm`, `isPrimitiveLeaf`, `isStreamKind`,
+  `Operation`, `OperationFailsOf`, `OperationKind`, `OperationSpec`, `OutputFormOf`,
+  `OutputOf`, `Port`, `PortFamily`, `PortMeta`, `PortResult`, `PortToken`,
+  `RequestOperation`, `StatusOf`, `UndeclaredHandlerFails`, `ValidateHandlerFails`,
+  `ValidateOperationFails`.
+- **Result and failures** ([design](../../docs/en/design/errors.md)) — `AnyFail`,
+  `AnyFailDefinition`, `AnyOk`, `assertFailCode`, `assertSuccessStatus`,
+  `BadRequest`, `categories`, `Category`, `categoryOf`, `DeclaredFail`, `DeclaredOk`,
+  `DeclaredOutput`, `DeclaredOutputSync`, `DeclaredStatuses`, `EffectiveStatus`,
+  `Fail`, `FailCode`, `FailCreateOptions`, `FailData`, `FailDefinitionProps`,
+  `FailDefinitionWithDetails`, `FailDefinitionWithoutDetails`, `FailOf`, `FailOfDef`,
+  `FailOptions`, `FailResponseOf`, `FailsOf`, `FailSpecWithDetails`,
+  `FailSpecWithoutDetails`, `InternalError`, `isCategory`, `isFail`,
+  `isFailDefinition`, `isKernelFailCode`, `isSuccessStatus`, `KernelFail`,
+  `makeFail`, `Ok`, `OutcomeOks`, `Output`, `OutputSync`, `PayloadTooLarge`,
+  `ProcessingStatus`, `ResponseLike`, `statuses`, `SuccessStatus`, `successStatuses`,
+  `Timeout`.
+- **Io shapes** ([design](../../docs/en/design/endpoints.md)) — `AnyInput`,
+  `AnyMultipartForm`, `AnyOutcomesForm`, `AnyOutput`, `AnyPayload`, `AnyStreamForm`,
+  `assertFormsSupported`, `assertIoDeclaration`, `BindableFields`, `ChainStep`,
+  `DeclaredOutcome`, `declaredOutcomes`, `describeForm`, `describeOutcomes`,
+  `EmptyInput`, `events`, `FilePart`, `FilesOf`, `FormBearingDefinition`,
+  `FormDescriptor`, `FormKind`, `FormLeaf`, `FormSlot`, `InferInput`, `InferOutput`,
+  `IOPrimitive`, `isForm`, `isNone`, `isOutcomes`, `isPrimitiveLeaf`, `isStreamKind`,
   `isUploadSpec`, `ItemOptions`, `LeafType`, `makeSummary`, `mediaTypeOf`,
-  `multipart`, `MultipartForm`, `nameOfForm`, `stream`, `StreamForm`,
-  `StreamFormOptions`, `StreamKind`, `StreamSummary`,
+  `multipart`, `MultipartForm`, `nameOfForm`, `none`, `NoneForm`, `OutcomeForm`,
+  `OutcomeMap`, `OutcomesForm`, `OutcomeValue`, `OutcomeValues`, `outputs`, `stream`,
+  `StreamForm`, `StreamFormOptions`, `StreamKind`, `StreamSummary`,
   `TransportCapabilities`, `upload`, `UploadOptions`, `UploadSpec`,
   `ValidateOutputForm`.
-- **HTTP address** ([design](../../docs/en/design/transports.md)) —
-  `assertHttpPath`, `BindMap`, `BindMark`, `BindPlace`, `BindPlacement`,
-  `body`, `buildHttpBinding`, `computeHttpBinding`,
-  `ComputeHttpBindingOptions`, `HttpBinding`, `HttpMethod`, `isBindMark`,
-  `isHttpBinding`, `METHODS_WITHOUT_BODY`, `PathParams`, `query`,
+- **HTTP address** ([design](../../docs/en/design/transports.md)) — `assertHttpPath`,
+  `BindMap`, `BindMark`, `BindPlace`, `BindPlacement`, `body`, `buildHttpBinding`,
+  `computeHttpBinding`, `ComputeHttpBindingOptions`, `HttpBinding`, `HttpMethod`,
+  `isBindMark`, `isHttpBinding`, `METHODS_WITHOUT_BODY`, `PathParams`, `query`,
   `readPathParams`, `RedirectStatus`, `SseConfig`.
 - **The HTTP failure body** ([design](../../docs/en/design/errors.md)) —
-  `ErrorDetailsLike`, `failCodeOf`, `PROBLEM_MEDIA_TYPE`,
-  `PROBLEM_TYPE_PREFIX`, `problemOf`, `problemTitleOf`, `problemTypeOf`,
-  `ProblemDocument`. The RFC 9457 document the HTTP boundary answers a
-  failure with; declared here so that the client reads it without
-  depending on the server package.
-- **Schemas** ([design](../../docs/en/design/schemas.md)) —
-  `assertConverters`, `jsonSchema`, `jsonSchemaOf`, `leafJsonSchema`,
-  `LeafJsonSchema`, `pickConverter`, `SchemaDocConverter`,
-  `SchemaDocOptions`, `schemaVendorOf`.
-- **Streams** ([design](../../docs/en/design/streaming.md)) — `batch`,
-  `collect`, `filter`, `gapTimeout`, `limit`, `tap`, `throttle`, `Topic`,
-  `untilAborted`.
+  `ErrorDetailsLike`, `failCodeOf`, `PROBLEM_MEDIA_TYPE`, `PROBLEM_TYPE_PREFIX`,
+  `problemOf`, `problemTitleOf`, `problemTypeOf`, `ProblemDocument`. The RFC 9457
+  document the HTTP boundary answers a failure with; declared here so that the client
+  reads it without depending on the server package.
+- **Schemas** ([design](../../docs/en/design/schemas.md)) — `assertConverters`,
+  `jsonSchema`, `jsonSchemaOf`, `leafJsonSchema`, `LeafJsonSchema`, `pickConverter`,
+  `SchemaDocConverter`, `SchemaDocOptions`, `schemaVendorOf`.
+- **Streams** ([design](../../docs/en/design/streaming.md)) — `batch`, `collect`,
+  `filter`, `gapTimeout`, `limit`, `tap`, `throttle`, `Topic`, `untilAborted`.
 - **Transport response** — `isTransportResponse`, `TRANSPORT_RESPONSE`,
   `TransportResponse`.
-- **Re-export of [`@nestlingjs/common.misc`](../common.misc/)** — the
-  Standard Schema types, so that the client and the documentation
-  generator do not have to install the specification package.
+- **Re-export of [`@nestlingjs/common.misc`](../common.misc/)** — the Standard Schema
+  types, so that the client and the documentation generator do not have to install
+  the specification package.
 
 ## Package boundaries
 

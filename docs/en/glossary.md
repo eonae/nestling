@@ -53,6 +53,7 @@ there too.
 | user code | `пользовательский код` | user space, application layer |
 | Standard Schema | `Standard Schema` | standard schema, validation standard |
 | io shape | `форма io` | io form, input-output kind |
+| outcome | `исход` | success case, response variant |
 | trace | `трасса` | distributed trace, tracing |
 | span | `участок трассы` | trace segment, hop |
 | W3C trace-context | `w3c trace-context` | trace context, traceparent format |
@@ -237,6 +238,11 @@ there too.
 - **io shape** (`форма io`) — the kind of input or output of an endpoint:
   `value` (an ordinary value), `stream(T)` (a stream of values),
   `events(T)` (SSE events), `multipart()` and `upload()` (files).
+- **Outcome** (`исход`) — a successful response of an endpoint: a status
+  (`ok`, `created`, `accepted`, `no_content`) and the shape of its body. A
+  single outcome is declared by the `status` field, several outcomes by a
+  branching `outputs({ ok: User, accepted: Job })` in the `output` slot;
+  `none()` declares an outcome with no body.
 - **Pattern** (`паттерн`) — the string address of an endpoint inside a
   transport: `GET /users/:id`, `users:list`, `users.create`.
 - **Bind map** (`bind-карта`, `bind`) — an instruction on which part of

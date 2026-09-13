@@ -1,13 +1,13 @@
 import { CreateUser as CreateUserOperation } from '../../api/operations.js';
 import { transactional } from '../../persistence.js';
 import { ActivityHub } from '../activity.hub.js';
-import type { CreateUserInput, User } from '../user.js';
+import type { CreateUserInput } from '../user.js';
 import { EmailTaken } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
+import type { DeclaredOutput, OutputFormOf } from '@nestlingjs/operations';
 import { Ok } from '@nestlingjs/operations';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
@@ -18,16 +18,22 @@ export class CreateUserHandler {
     private readonly activity: ActivityHub,
   ) {}
 
-  async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
+  async handle(
+    input: CreateUserInput,
+  ): DeclaredOutput<
+    OutputFormOf<typeof CreateUserOperation>,
+    typeof EmailTaken
+  > {
     const { dryRun, ...data } = input;
 
     if (await this.users.byEmail(data.email)) {
       return EmailTaken({ email: data.email });
     }
 
-    // Проверка без записи: клиент видит, каким получился бы пользователь
+    // Проверка без записи: исход `ok`, то есть 200 — записи не было, и
+    // обещать 201 нельзя
     if (dryRun) {
-      return { id: 'dry-run', ...data };
+      return new Ok({ id: 'dry-run', ...data });
     }
 
     const user = await this.users.insert(data);
@@ -35,8 +41,8 @@ export class CreateUserHandler {
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);
 
-    // Статус `created` от транспорта не зависит и остаётся у обеих форм
-    // хендлера. Заголовок ответа — HTTP-форма, а её реализация операции не
+    // Исход `created` объявлен развилкой операции и от транспорта не
+    // зависит. Заголовок ответа — HTTP-форма, а её реализация операции не
     // принимает: класс обязан оставаться переносимым на шину
     return Ok.created(user);
   }

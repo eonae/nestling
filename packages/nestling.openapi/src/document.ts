@@ -228,6 +228,7 @@ function operationOf(
   const responses = planResponses(
     {
       output: endpoint.output,
+      status: endpoint.status,
       errors: endpoint.errors,
       doc,
       hasInputSchema: describeForm(endpoint.input).leaf !== undefined,

@@ -45,60 +45,58 @@ await app.build().run();
 
 ## Экспорты
 
-- **Композиционный корень** ([design](../../docs/design/composition.md)) —
-  `App`, `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`,
-  `CheckReport`, `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`,
-  `Feature`, `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`,
-  `Plugin`, `PluginOptions`, `RunOptions`.
+- **Композиционный корень** ([design](../../docs/design/composition.md)) — `App`,
+  `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`, `CheckReport`,
+  `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
+  `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
+  `PluginOptions`, `RunOptions`.
 - **Конфигурация** ([design](../../docs/design/config.md)) — `bootstrapConfig`,
   `Config`, `ConfigBinding`, `ConfigDerivedError`, `ConfigField`, `ConfigGlob`,
-  `ConfigInput`, `configKernel`, `ConfigKeys`, `ConfigProjection`,
-  `ConfigRecord`, `ConfigSectionToken`, `ConfigSharedKeyError`, `ConfigSource`,
-  `ConfigTarget`, `ConfigValidationError`, `ConfigValues`,
-  `DerivedConstructor`, `DerivedField`, `DerivedRecord`, `DeriveFn`,
-  `describeConfig`, `env`, `from`, `FromField`, `load`, `makeConfig`,
-  `objectSource`, `ObjectSource`, `ReloadableConfig`, `secret`, `SecretField`,
-  `toBindings`.
+  `ConfigInput`, `configKernel`, `ConfigKeys`, `ConfigProjection`, `ConfigRecord`,
+  `ConfigSectionToken`, `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
+  `ConfigValidationError`, `ConfigValues`, `DerivedConstructor`, `DerivedField`,
+  `DerivedRecord`, `DeriveFn`, `describeConfig`, `env`, `from`, `FromField`, `load`,
+  `makeConfig`, `objectSource`, `ObjectSource`, `ReloadableConfig`, `secret`,
+  `SecretField`, `toBindings`.
 - **Пайплайн и endpoint'ы** ([design](../../docs/design/pipeline.md)) —
   `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
   `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,
-  `ClientDisconnectedError`, `collectPropagatedContext`, `compose`,
-  `contextKernel`, `contextVar`, `ContextVar`, `ContextVarDeclarator`,
-  `ContextVarOptions`, `ContextVarUnavailableError`, `Ctx`, `CtxReader`,
-  `DeferredPreStepFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
-  `EndpointMeta`, `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`,
-  `everyEndpoint`, `ExtendableContext`, `FinallyStepFn`, `HandlerClass`,
-  `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isContextVar`, `isDone`,
-  `isEndpointDefinition`, `isMidStreamFailure`, `makeEmptyContext`,
-  `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
-  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreStepFn`,
-  `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
-  `ResponseContext`, `Signal`, `SuccessResponseContext`, `Trace`,
+  `ClientDisconnectedError`, `collectPropagatedContext`, `compose`, `contextKernel`,
+  `contextVar`, `ContextVar`, `ContextVarDeclarator`, `ContextVarOptions`,
+  `ContextVarUnavailableError`, `Ctx`, `CtxReader`, `DeclaredOutput`,
+  `DeclaredOutputSync`, `DeclaredStatuses`, `DeferredPreStepFn`, `done`, `Done`,
+  `EndpointDefinition`, `EndpointFilter`, `EndpointMeta`, `EndpointOptions`,
+  `ErrorDetails`, `ErrorResponseContext`, `everyEndpoint`, `ExtendableContext`,
+  `FinallyStepFn`, `HandlerClass`, `handlerClassOf`, `HandlerFn`, `isAsyncIterable`,
+  `isContextVar`, `isDone`, `isEndpointDefinition`, `isMidStreamFailure`,
+  `makeEmptyContext`, `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`,
+  `parseMetadata`, `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`,
+  `PreStepFn`, `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
+  `ResponseContext`, `Signal`, `StepResolver`, `SuccessResponseContext`, `Trace`,
   `TraceContext`, `traceparent`, `TransportClosingError`, `transportNameOf`,
-  `UndeclaredDoneError`, `StepResolver`, `withRequestId`, `withTracing`.
+  `UndeclaredDoneError`, `withRequestId`, `withTracing`.
 - **Порты и шина** ([design](../../docs/design/operations.md)) —
-  `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
-  `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,
-  `CompatibilityReport`, `CompatibilityVerdict`, `Deadline`,
-  `deadlineFromTimeout`, `deadlineIn`, `diffOperations`, `failureResponse`,
-  `formatCompatibility`, `Handler`, `HandlerMeta`, `IDEMPOTENCY_KEY_ATTRIBUTE`,
-  `IdempotencyKey`, `IMessageBus`, `implement`, `InProcessBus`, `isExhausted`,
-  `MessageBus$`, `OperationDescriptor`, `OperationSnapshot`,
-  `profileAttributes`, `PublishOptions`, `RequestOptions`, `serializeSnapshot`,
-  `SnapshotOperation`, `snapshotOperations`, `startBudget`, `SubscribeOptions`,
-  `withIdempotencyKey`.
+  `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`, `BusMessageMeta`,
+  `BusSubscription`, `BusTransport$`, `CompatibilityChange`, `CompatibilityReport`,
+  `CompatibilityVerdict`, `Deadline`, `deadlineFromTimeout`, `deadlineIn`,
+  `diffOperations`, `failureResponse`, `formatCompatibility`, `Handler`,
+  `HandlerMeta`, `IDEMPOTENCY_KEY_ATTRIBUTE`, `IdempotencyKey`, `IMessageBus`,
+  `implement`, `InProcessBus`, `isExhausted`, `MessageBus$`, `OperationDescriptor`,
+  `OperationSnapshot`, `profileAttributes`, `PublishOptions`, `RequestOptions`,
+  `serializeSnapshot`, `SnapshotOperation`, `snapshotOperations`, `startBudget`,
+  `SubscribeOptions`, `withIdempotencyKey`.
 - **Транспорт** ([design](../../docs/design/transports.md)) — `BusDeclaration`,
   `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`, `ExecutableDeclaration`,
   `IListener`, `ITransport`, `makeDispatch`, `makeServerDeclaration`,
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
   `TransportDeclaration`, `transportValue`.
-- **Наблюдаемость и пробы** ([design](../../docs/design/container.md)) —
-  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
-  `HealthStatus`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
-  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`,
-  `Metrics`, `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
-- **Реэкспорт соседей** — [`@nestlingjs/operations`](../nestling.operations/)
-  (45 имён), [`@nestlingjs/logging`](../nestling.logging/) (6 имён) и
+- **Наблюдаемость и пробы** ([design](../../docs/design/container.md)) — `Health`,
+  `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`, `HealthStatus`,
+  `LivenessReport`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
+  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`, `Metrics`,
+  `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
+- **Реэкспорт соседей** — [`@nestlingjs/operations`](../nestling.operations/) (45
+  имён), [`@nestlingjs/logging`](../nestling.logging/) (6 имён) и
   [`@nestlingjs/common.misc`](../common.misc/) (8 имён); перечни в их README.
 - **Подпуть `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
   `WiredEndpoint`, `WireOptions`.

@@ -63,6 +63,7 @@ describe('capability-валидация через build', () => {
       method: 'POST',
       path: '/upload',
       input: multipart({ files: { blob: upload() } }),
+      output: z.unknown(),
       handler: async () => new Ok({ ok: true }),
     });
 

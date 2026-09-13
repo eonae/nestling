@@ -18,6 +18,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { ContainerBuilder } from '@nestlingjs/container';
+import { z } from 'zod';
 
 /** Строит контейнер с kernel-модулем конфига, транспортом и его сервером */
 async function build(declaration: ReturnType<typeof http>) {
@@ -41,6 +42,7 @@ async function build(declaration: ReturnType<typeof http>) {
 const ping = (path: string, body: string): ExecutableDeclaration =>
   httpEndpoint.get(path, {
     pipeline: makePipeline(),
+    output: z.unknown(),
     handler: () => new Ok({ body }),
   }) as unknown as ExecutableDeclaration;
 

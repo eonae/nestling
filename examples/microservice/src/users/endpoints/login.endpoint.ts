@@ -29,7 +29,7 @@ export class LoginHandler {
   async handle(
     input: { email: string },
     meta: HttpHandlerMeta,
-  ): HttpOutput<never, typeof UserNotFound> {
+  ): HttpOutput<never, typeof UserNotFound, 'no_content'> {
     const user = await this.users.byEmail(input.email);
     if (!user) {
       return UserNotFound({ id: input.email });

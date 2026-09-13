@@ -44,6 +44,9 @@ const meta = (input?: AnyPayload): EndpointMeta => ({
   transport: 'test',
   pattern: 'POST /things',
   input,
+  // Выход объявлен: тесты проверяют ответ со значением, а декларация без
+  // `output` объявляет исход `no_content`
+  output: z.unknown(),
   errors: [NoToken],
 });
 

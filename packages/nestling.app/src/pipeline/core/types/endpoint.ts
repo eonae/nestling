@@ -3,10 +3,10 @@ import type {
   AnyInput,
   AnyOutput,
   AnyPayload,
+  DeclaredOutput,
+  DeclaredOutputSync,
   InferInput,
-  InferOutput,
-  Output,
-  OutputSync,
+  SuccessStatus,
   ValidateHandlerFails,
 } from '@nestlingjs/operations';
 
@@ -43,16 +43,20 @@ type HandlerMetaOf<P extends AnyInput> = (P extends { payload: unknown }
  * @param E - множество объявленных отказов (`errors:` декларации). По
  * умолчанию пусто: без декларации хендлер не может **вернуть** отказ —
  * иначе типы разрешали бы то, что граница превратит в `InternalError`.
+ * @param S - статус единственного исхода (`status:` декларации). Не
+ * объявлен — статус даёт умолчание; несколько исходов приходят развилкой
+ * в `O`
  */
 export type HandlerFn<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   E extends AnyFail = never,
+  S extends SuccessStatus = never,
 > = (
   payload: InferInput<I>,
   meta: HandlerMetaOf<P>,
-) => OutputSync<InferOutput<O>, E> | Output<InferOutput<O>, E>;
+) => DeclaredOutputSync<O, E, S> | DeclaredOutput<O, E, S>;
 
 /**
  * Результат хендлера с любым отказом: ограничение слота `handler` формы с
@@ -62,9 +66,10 @@ export type HandlerFn<
  * проверяет бренд `ValidateHandlerFails` в возвращаемом типе. Проверку
  * значения `Ok` ограничение держит по-прежнему.
  */
-export type AnyHandlerResult<O extends AnyOutput = AnyOutput> =
-  | OutputSync<InferOutput<O>, AnyFail>
-  | Output<InferOutput<O>, AnyFail>;
+export type AnyHandlerResult<
+  O extends AnyOutput = AnyOutput,
+  S extends SuccessStatus = never,
+> = DeclaredOutputSync<O, AnyFail, S> | DeclaredOutput<O, AnyFail, S>;
 
 /**
  * Слот `handler` формы с функцией: сигнатура `HandlerFn` с проверкой

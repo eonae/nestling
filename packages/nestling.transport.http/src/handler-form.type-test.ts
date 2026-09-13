@@ -108,3 +108,36 @@ const stepsOnBus = implement(Login, {
   pipeline: httpBase,
   handler: LoginHandler,
 });
+
+const CreateUser = makeRequest({
+  name: 'handler-form.users.create',
+  http: 'POST /users',
+  input: z.object({ email: z.string() }),
+  output: z.object({ id: z.string() }),
+  status: 'created',
+});
+
+/** Класс-хендлер операции возвращает объявленный исход */
+class CreateUserHttpHandler implements HttpHandler<typeof CreateUser> {
+  async handle(input: { email: string }, meta: HttpHandlerMeta) {
+    return HttpResponse.of(Ok.created({ id: input.email }), {
+      headers: { 'x-agent': meta.http.headers['user-agent'] ?? 'unknown' },
+    });
+  }
+}
+
+/** Анонимная декларация с тем же статусом принимает этот класс */
+const declaredStatus = httpEndpoint.post('/users', {
+  input: z.object({ email: z.string() }),
+  output: z.object({ id: z.string() }),
+  status: 'created',
+  handler: CreateUserHttpHandler,
+});
+
+/** Исход вне объявленного множества не компилируется */
+class CreateUserWrongStatus implements HttpHandler<typeof CreateUser> {
+  // @ts-expect-error объявлен `created`, возвращается `ok`
+  async handle(input: { email: string }, _meta: HttpHandlerMeta) {
+    return new Ok({ id: input.email });
+  }
+}

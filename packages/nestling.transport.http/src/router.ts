@@ -2,7 +2,7 @@ import { bindingNeedsBody, httpBindingOf } from './binding.js';
 import type { HttpSource } from './interfaces.js';
 
 import type { FormDescriptor, RouteDeclaration } from '@nestlingjs/app';
-import { describeForm } from '@nestlingjs/app';
+import { describeForm, isOutcomes } from '@nestlingjs/app';
 import type { HttpBinding } from '@nestlingjs/operations';
 import Router from 'find-my-way';
 
@@ -47,6 +47,11 @@ export class HttpRouter {
     });
   }
 
+  /** Форма кадрирования развилки исходов: у веток вид один */
+  private static readonly VALUE_FORM: FormDescriptor = Object.freeze({
+    kind: 'value' as const,
+  });
+
   /** Регистрирует маршрут по проекции декларации */
   route(declaration: RouteDeclaration): void {
     const [method, path] = declaration.pattern.split(' ');
@@ -56,7 +61,12 @@ export class HttpRouter {
       declaration,
       binding,
       inputForm: describeForm(declaration.input),
-      outputForm: describeForm(declaration.output),
+      // Развилка исходов кадрируется как значение: потоковая форма
+      // объявляется единственным исходом, поэтому вид кадра у всех её
+      // веток один
+      outputForm: isOutcomes(declaration.output)
+        ? HttpRouter.VALUE_FORM
+        : describeForm(declaration.output),
       needsBody: bindingNeedsBody(binding),
       readsQuery:
         binding.rest === 'query' ||

@@ -40,7 +40,7 @@ const ctxOf = (
   const endpoint: EndpointMeta = {
     transport: 'http',
     pattern: PATTERN,
-    ...(output === undefined ? {} : { output }),
+    output: output ?? z.unknown(),
   };
 
   return makeEmptyContext(raw, endpoint, signal);

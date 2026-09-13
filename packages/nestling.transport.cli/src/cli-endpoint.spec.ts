@@ -78,7 +78,12 @@ describe('cliEndpoint', () => {
   });
 
   it('пустое имя команды — ошибка в момент создания', () => {
-    expect(() => cliEndpoint('', { handler: async () => new Ok({}) })).toThrow(
+    expect(() =>
+      cliEndpoint('', {
+        output: z.unknown(),
+        handler: async () => new Ok({}),
+      }),
+    ).toThrow(
       /cliEndpoint\('<command>', { … }\): the command name must be a non-empty string/,
     );
   });
@@ -88,6 +93,7 @@ describe('cliEndpoint', () => {
 
     const Vacuum = cliEndpoint('vacuum', {
       detached: reason,
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
@@ -96,6 +102,7 @@ describe('cliEndpoint', () => {
     expect(() =>
       cliEndpoint('vacuum', {
         detached: '',
+        output: z.unknown(),
         handler: async () => new Ok({}),
       }),
     ).toThrow(/'detached' must state a reason/);
@@ -128,6 +135,7 @@ describe('cliEndpoint', () => {
   it('в поток вывода уходит только значение, без статуса и обёрток', async () => {
     const Greet = cliEndpoint('greet', {
       output: z.object({ message: z.string() }),
+      status: 'created',
       pipeline: makePipeline(),
       handler: async () => new Ok('created', { message: 'hello' }),
     });

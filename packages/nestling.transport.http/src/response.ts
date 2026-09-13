@@ -3,8 +3,13 @@ import { HTTP_TRANSPORT_NAME } from './token.js';
 import type {
   AnyFail,
   AnyFailDefinition,
+  AnyOutput,
+  DeclaredOutputSync,
+  DeclaredStatuses,
+  InferOutput,
   OutputSync,
   RedirectStatus,
+  SuccessStatus,
   TransportResponse,
 } from '@nestlingjs/operations';
 import { Ok, TRANSPORT_RESPONSE } from '@nestlingjs/operations';
@@ -128,8 +133,10 @@ export interface HttpResponseMeta {
  * return HttpResponse.redirect('/app', { status: 303 });
  * ```
  */
-export class HttpResponse<TValue = unknown>
-  implements TransportResponse<TValue>
+export class HttpResponse<
+  TValue = unknown,
+  TStatus extends SuccessStatus = SuccessStatus,
+> implements TransportResponse<TValue, TStatus>
 {
   /** Метка конверта; по ней его распознаёт рантайм пайплайна */
   readonly [TRANSPORT_RESPONSE] = true as const;
@@ -138,7 +145,7 @@ export class HttpResponse<TValue = unknown>
   readonly transport: string = HTTP_TRANSPORT_NAME;
 
   private constructor(
-    readonly result: OutputSync<TValue, AnyFail>,
+    readonly result: OutputSync<TValue, AnyFail, TStatus>,
     readonly meta: HttpResponseMeta,
   ) {}
 
@@ -148,11 +155,11 @@ export class HttpResponse<TValue = unknown>
    * @param result - `Ok` со статусом успеха или само значение
    * @param options - Заголовки и cookie ответа
    */
-  static of<T>(
-    result: Ok<T> | (T & NotFail<T>),
+  static of<T, S extends SuccessStatus = 'ok'>(
+    result: Ok<T, S> | (T & NotFail<T>),
     options: HttpResponseOptions = {},
-  ): HttpResponse<T> {
-    return new HttpResponse<T>(result as OutputSync<T, AnyFail>, options);
+  ): HttpResponse<T, S> {
+    return new HttpResponse<T, S>(result as OutputSync<T, AnyFail, S>, options);
   }
 
   /**
@@ -167,10 +174,13 @@ export class HttpResponse<TValue = unknown>
   static redirect(
     location: string,
     options: RedirectOptions = {},
-  ): HttpResponse<never> {
+  ): HttpResponse<never, 'no_content'> {
     // Значение редиректа — пустой ответ: тело у 3xx не пишется, а статус
     // ставит транспорт по `location`
-    return new HttpResponse<never>(Ok.noContent(), { ...options, location });
+    return new HttpResponse<never, 'no_content'>(Ok.noContent() as never, {
+      ...options,
+      location,
+    });
   }
 }
 
@@ -181,7 +191,8 @@ export class HttpResponse<TValue = unknown>
 export type HttpOutputSync<
   TValue = unknown,
   E extends AnyFailDefinition | AnyFail = never,
-> = OutputSync<TValue, E> | HttpResponse<TValue>;
+  S extends SuccessStatus = 'ok',
+> = OutputSync<TValue, E, S> | HttpResponse<TValue, S>;
 
 /**
  * Асинхронный результат HTTP-хендлера (см. {@link HttpOutputSync}).
@@ -196,4 +207,22 @@ export type HttpOutputSync<
 export type HttpOutput<
   TValue = unknown,
   E extends AnyFailDefinition | AnyFail = never,
-> = Promise<HttpOutputSync<TValue, E>>;
+  S extends SuccessStatus = 'ok',
+> = Promise<HttpOutputSync<TValue, E, S>>;
+
+/**
+ * Результат HTTP-хендлера: объявленные исходы плюс HTTP-форма ответа.
+ *
+ * Конверт `HttpResponse` несёт тот же статус: заголовки и cookie ответ
+ * получает от транспорта, а исход по-прежнему объявляет декларация.
+ *
+ * Тип один на обе формы хендлера: его читает слот `handler` анонимной
+ * декларации и интерфейс `HttpHandler` класса-хендлера операции.
+ */
+export type HttpDeclaredResult<
+  O extends AnyOutput,
+  E extends AnyFailDefinition | AnyFail,
+  S extends SuccessStatus,
+> =
+  | DeclaredOutputSync<O, E, S>
+  | HttpResponse<InferOutput<O>, DeclaredStatuses<O, S>>;

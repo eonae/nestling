@@ -60,6 +60,7 @@ describe('политика в декларации', () => {
       cliEndpoint('deploy', {
         // @ts-expect-error политик две, третьей не бывает
         missing: 'ask',
+        output: z.unknown(),
         handler: async () => new Ok({}),
       }),
     ).toThrow(/'missing' must be 'error' or 'prompt'/);

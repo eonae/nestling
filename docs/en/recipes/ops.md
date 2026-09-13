@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `e2500af3`.
+> Guide to the current API; verified against `5cd76452`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
@@ -185,7 +185,8 @@ class KillSubscriptionHandler {
 export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound],
-  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
+  status: 'no_content',
+  doc: { summary: 'Завершить подписку', tags: ['ops'] },
   pipeline: authed,
   handler: KillSubscriptionHandler,
 });

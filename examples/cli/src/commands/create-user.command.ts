@@ -5,7 +5,8 @@ import {
   Unauthorized,
   User,
 } from '@examples/microservice/operations';
-import type { Output } from '@nestlingjs/app';
+import type { DeclaredOutput } from '@nestlingjs/app';
+import { outputs } from '@nestlingjs/app';
 import { cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
@@ -27,6 +28,9 @@ const CreateUserInput = z.object({
 
 type CreateUserInput = z.infer<typeof CreateUserInput>;
 
+/** Исходы команды: те же, что объявила операция сервиса */
+const CreateUserOutcomes = outputs({ ok: User, created: User });
+
 /**
  * `create-user [--name …] [--email …] [--check]`: недостающее спрашивает.
  *
@@ -36,14 +40,19 @@ type CreateUserInput = z.infer<typeof CreateUserInput>;
  */
 export const CreateUser = cliEndpoint('create-user', {
   input: CreateUserInput,
-  output: User,
+  // Исходы те же, что у операции сервиса: запись отвечает `created`,
+  // проверка без записи — `ok`
+  output: CreateUserOutcomes,
   // Отказы те же, что объявила операция сервиса: команда их не
   // придумывает, а перечисляет
   errors: [EmailTaken, Unauthorized],
   missing: 'prompt',
   handler: async (
     input: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof Unauthorized> => {
+  ): DeclaredOutput<
+    typeof CreateUserOutcomes,
+    typeof EmailTaken | typeof Unauthorized
+  > => {
     const created = await api.createUser({
       name: input.name,
       email: input.email,

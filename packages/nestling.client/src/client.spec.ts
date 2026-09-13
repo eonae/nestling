@@ -9,6 +9,7 @@
 import { makeClient } from './client.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { AnyFail } from '@nestlingjs/operations';
 import {
   events,
   makeCommand,
@@ -16,6 +17,7 @@ import {
   makeFail,
   makeRequest,
   multipart,
+  outputs,
   query,
   upload,
 } from '@nestlingjs/operations';
@@ -36,6 +38,7 @@ const CreateUser = makeRequest({
     dryRun: z.boolean().optional(),
   }),
   output: User,
+  status: 'created',
   errors: [EmailTaken],
 });
 
@@ -54,6 +57,14 @@ const ListUsers = makeRequest({
     tag: z.array(z.string()).optional(),
   }),
   output: z.array(User),
+});
+
+/** Операция с развилкой исходов: у каждой ветки своя схема */
+const CreateJob = makeRequest({
+  name: 'client.jobs.create',
+  http: 'POST /jobs',
+  input: z.object({ async: z.boolean() }),
+  output: outputs({ ok: User, accepted: z.object({ jobId: z.string() }) }),
 });
 
 const DeleteUser = makeCommand({
@@ -368,7 +379,7 @@ describe('makeClient: разбор успеха', () => {
   });
 
   it('validateOutput: false отдаёт тело как есть', async () => {
-    const stub = stubFetch(() => json(200, { id: 'u-1' }));
+    const stub = stubFetch(() => json(201, { id: 'u-1' }));
     const api = makeClient(
       { createUser: CreateUser },
       { baseUrl, fetch: stub.fetch, validateOutput: false },
@@ -377,6 +388,63 @@ describe('makeClient: разбор успеха', () => {
     const result = await api.createUser({ email: 'a@b.c' });
 
     expect(result).toMatchObject({ isFail: false, value: { id: 'u-1' } });
+  });
+
+  it('код вне объявленного множества даёт InternalError с телом в cause', async () => {
+    const body = { id: 'u-1', email: 'a@b.c' };
+    const stub = stubFetch(() => json(202, body));
+    const api = makeClient(
+      { createUser: CreateUser },
+      { baseUrl, fetch: stub.fetch },
+    );
+
+    const result = await api.createUser({ email: 'a@b.c' });
+
+    expect(result).toMatchObject({
+      isFail: true,
+      code: 'internal_error',
+      cause: body,
+    });
+    expect((result as AnyFail).message).toMatch(
+      /answered with 202, which the operation does not declare \(declared: 201\)/,
+    );
+  });
+
+  it('тело развилки разбирается схемой пришедшего исхода', async () => {
+    const stub = stubFetch(() => json(202, { jobId: 'j-1' }));
+    const api = makeClient(
+      { createJob: CreateJob },
+      { baseUrl, fetch: stub.fetch },
+    );
+
+    const result = await api.createJob({ async: true });
+
+    expect(result).toMatchObject({
+      isFail: false,
+      status: 'accepted',
+      value: { jobId: 'j-1' },
+    });
+
+    // Сужение по статусу: значение ветки типизировано её схемой
+    if (!result.isFail && result.status === 'accepted') {
+      const jobId: string = result.value.jobId;
+      expect(jobId).toBe('j-1');
+    }
+  });
+
+  it('тело, не сошедшееся со схемой своего исхода, даёт InternalError', async () => {
+    const stub = stubFetch(() => json(202, { id: 'u-1', email: 'a@b.c' }));
+    const api = makeClient(
+      { createJob: CreateJob },
+      { baseUrl, fetch: stub.fetch },
+    );
+
+    const result = await api.createJob({ async: true });
+
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
+    expect((result as AnyFail).message).toMatch(
+      /schema of the 'accepted' outcome/,
+    );
   });
 });
 

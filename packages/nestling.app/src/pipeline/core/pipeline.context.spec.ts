@@ -47,7 +47,7 @@ function makeCtx(
   const endpoint: EndpointMeta = {
     transport: 'test',
     pattern: 'TEST /',
-    ...(output === undefined ? {} : { output }),
+    output: output ?? z.unknown(),
   };
 
   return makeEmptyContext(raw, endpoint, abort);

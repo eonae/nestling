@@ -76,7 +76,12 @@ class UserService {
 const contextFor = (
   pattern: string,
   payload?: unknown,
-  declaration?: { input?: unknown; errors?: unknown },
+  declaration?: {
+    input?: unknown;
+    output?: unknown;
+    status?: unknown;
+    errors?: unknown;
+  },
 ): ExtendableContext<AnyInput> =>
   makeEmptyContext(
     { transport: 'test', pattern, payload, attributes: {} },
@@ -84,6 +89,10 @@ const contextFor = (
       transport: 'test',
       pattern,
       input: declaration?.input as never,
+      // Транспорт переносит объявленные исходы декларации: по ним рантайм
+      // выбирает статус ответа
+      output: declaration?.output as never,
+      status: declaration?.status as never,
       errors: declaration?.errors as never,
     },
   );
@@ -101,13 +110,17 @@ describe('makeDispatch', () => {
     transport: TestTransport$,
     pattern: 'POST /echo',
     input: z.object({ text: z.string() }),
+    output: z.unknown(),
     handler: async (payload: { text: string }) => new Ok(payload),
   });
 
   it('исполняет endpoint с пайплайном', async () => {
     const dispatch = makeDispatch([Ping]);
 
-    const response = await dispatch.call('GET /ping', contextFor('GET /ping'));
+    const response = await dispatch.call(
+      'GET /ping',
+      contextFor('GET /ping', undefined, Ping),
+    );
 
     expect(response).toMatchObject({ isSuccess: true, value: { pong: true } });
   });
@@ -145,6 +158,7 @@ describe('makeDispatch', () => {
     const Nope = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /nope-fail',
+      output: z.unknown(),
       handler: async () => {
         throw Fail.notFound('nope');
       },
@@ -181,6 +195,7 @@ describe('makeDispatch', () => {
     const Nope = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /standalone-fail',
+      output: z.unknown(),
       handler: async () => {
         throw Fail.notFound('nope');
       },
@@ -218,6 +233,7 @@ describe('makeDispatch', () => {
     const Raw = makeEndpoint({
       transport: TestTransport$,
       pattern: 'POST /raw',
+      output: z.unknown(),
       handler: async (_payload: unknown, meta: { rawBody?: Uint8Array }) => {
         seen = meta as Record<string, unknown>;
         return new Ok({ ok: true });
@@ -275,6 +291,7 @@ describe('makeDispatch', () => {
       transport: TestTransport$,
       pattern: 'GET /boom',
       pipeline: makePipeline(),
+      output: z.unknown(),
       handler: async () => {
         throw new Error('secret detail');
       },
@@ -317,6 +334,7 @@ describe('makeDispatch', () => {
     const Probe = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /probe',
+      output: z.unknown(),
       handler: ProbeHandler,
     });
 
@@ -332,7 +350,7 @@ describe('makeDispatch', () => {
         payload: undefined,
         attributes: {},
       },
-      { transport: 'test', pattern: 'GET /probe' },
+      { transport: 'test', pattern: 'GET /probe', output: z.unknown() },
       controller.signal,
     );
 
@@ -355,6 +373,7 @@ describe('makeDispatch', () => {
       transport: TestTransport$,
       pattern: 'GET /users',
       pipeline: makePipeline(),
+      output: z.unknown(),
       handler: ListUsersHandler,
     });
 

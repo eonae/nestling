@@ -80,6 +80,7 @@ class SignupService {
 const anyEndpoint = testEndpoint({
   method: 'GET',
   path: '/users',
+  output: z.unknown(),
   handler: async () => new Ok({}),
 });
 
@@ -124,6 +125,7 @@ describe('closeOverCalls', () => {
         testEndpoint({
           method: 'POST',
           path: '/users',
+          output: z.unknown(),
           handler: PlaceOrderHandler,
         }),
       ],

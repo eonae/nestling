@@ -1,3 +1,4 @@
+import { none, outputs, stream } from './io/index.js';
 import { EmitterFamily, PortFamily } from './families.js';
 import { makeFail } from './make-fail.js';
 import { errorsOf, makeCommand, makeEvent, makeRequest } from './operation.js';
@@ -134,13 +135,12 @@ describe('конструкторы операций', () => {
   it('несёт секцию `doc` и отдаёт её вместе с интерфейсом операции', () => {
     const Create = makeRequest({
       name: 'spec.doc.create',
-      doc: { summary: 'Create user', tags: ['users'], status: 'created' },
+      doc: { summary: 'Create user', tags: ['users'] },
     });
 
     expect(Create.doc).toEqual({
       summary: 'Create user',
       tags: ['users'],
-      status: 'created',
     });
   });
 
@@ -160,9 +160,11 @@ describe('конструкторы операций', () => {
     expect(() =>
       makeRequest({
         name: 'spec.doc.status',
-        doc: { status: 'partial_content' as never },
+        doc: { status: 'created' } as never,
       }),
-    ).toThrow(/Operation 'spec\.doc\.status': 'doc\.status' must be one of/);
+    ).toThrow(
+      /Operation 'spec\.doc\.status': 'doc\.status' is not a field of the documentation section/,
+    );
   });
 
   it('отвергает вторую операцию с занятым именем', () => {
@@ -189,5 +191,144 @@ describe('errorsOf', () => {
     const Plain = makeRequest({ name: 'spec.errors-of.plain' });
 
     expect(errorsOf(Plain)).toEqual([]);
+  });
+});
+
+describe('объявление успешных исходов', () => {
+  const User = z.object({ id: z.string() });
+  const Job = z.object({ jobId: z.string() });
+
+  it('запрос несёт объявленный статус на значении', () => {
+    const Create = makeRequest({
+      name: 'spec.status.created',
+      output: User,
+      status: 'created',
+    });
+
+    expect(Create.status).toBe('created');
+  });
+
+  it('операция без поля его не несёт: умолчание считает потребитель', () => {
+    const List = makeRequest({ name: 'spec.status.absent', output: User });
+
+    expect('status' in List).toBe(false);
+  });
+
+  it('развилка исходов лежит в слоте `output` как есть', () => {
+    const form = outputs({ ok: User, accepted: Job });
+    const Create = makeRequest({ name: 'spec.status.outcomes', output: form });
+
+    expect(Create.output).toBe(form);
+  });
+
+  it('отвергает статус вне словаря ядра', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.status.unknown',
+        output: User,
+        status: 'partial_content' as never,
+      }),
+    ).toThrow(
+      /Operation 'spec\.status\.unknown': 'status' must be one of 'ok', 'created', 'accepted', 'no_content'/,
+    );
+  });
+
+  it('отвергает список статусов, называя развилку', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.status.list',
+        output: User,
+        status: ['ok', 'created'] as never,
+      }),
+    ).toThrow(
+      /takes one status, not a list.*outputs\({ ok: …, accepted: … }\)/s,
+    );
+  });
+
+  it('отвергает числовой код', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.status.code',
+        output: User,
+        status: 201 as never,
+      }),
+    ).toThrow(/not an HTTP code — the number is chosen by the transport/);
+  });
+
+  it('отвергает `no_content` при объявленном выходе', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.status.no-content',
+        output: User,
+        status: 'no_content',
+      }),
+    ).toThrow(/promises a body by a schema/);
+  });
+
+  it('отвергает пустую развилку и развилку из одного ключа', () => {
+    expect(() =>
+      makeRequest({ name: 'spec.outcomes.empty', output: outputs({}) }),
+    ).toThrow(/without a single outcome/);
+
+    expect(() =>
+      makeRequest({
+        name: 'spec.outcomes.single',
+        output: outputs({ created: User }),
+      }),
+    ).toThrow(/with a single outcome.*'status: 'created''/s);
+  });
+
+  it('отвергает ключ развилки вне словаря статусов', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.outcomes.unknown-key',
+        output: outputs({ ok: User, partial_content: Job } as never),
+      }),
+    ).toThrow(/the key 'partial_content' of outputs\({ … }\) must be one of/);
+  });
+
+  it('отвергает `status` вместе с развилкой', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.outcomes.with-status',
+        output: outputs({ ok: User, created: User }),
+        status: 'created' as never,
+      }),
+    ).toThrow(/already names the statuses with its keys/);
+  });
+
+  it('отвергает потоковую форму веткой развилки и называет причину', () => {
+    expect(() =>
+      makeRequest({
+        name: 'spec.outcomes.stream',
+        output: outputs({ ok: stream(User), no_content: none() } as never),
+      }),
+    ).toThrow(/streaming form is declared as the only outcome/);
+  });
+
+  it('отвергает `none()` вне развилки', () => {
+    expect(() =>
+      makeRequest({ name: 'spec.outcomes.none', output: none() as never }),
+    ).toThrow(/only valid inside outputs\({ … }\)/);
+  });
+
+  it('отвергает исход у команды и у события', () => {
+    expect(() =>
+      makeCommand({
+        name: 'spec.outcomes.command',
+        status: 'accepted' as never,
+      }),
+    ).toThrow(
+      /Operation 'spec\.outcomes\.command' \(kind 'command'\): 'status' declares a successful outcome, and this kind has no reply to carry it/,
+    );
+
+    expect(() =>
+      makeEvent({
+        name: 'spec.outcomes.event',
+        output: outputs({ ok: User, created: User }),
+      } as never),
+    ).toThrow(
+      /\(kind 'event'\): outputs\({ … }\) declares a successful outcome, and this kind has no reply to carry it/,
+    );
   });
 });

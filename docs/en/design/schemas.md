@@ -258,7 +258,6 @@ interface DeclarationDoc {
   description?: string;
   tags?: readonly string[];
   deprecated?: boolean;
-  status?: SuccessStatus;   // successful response; default ok, no_content with no output
   hidden?: string;          // do not document — only with a reason
 }
 ```
@@ -285,7 +284,13 @@ generator reads the same slot, so it has no `operationId`,
   par with `input`, `output` and `errors`: two implementations of the
   same operation describe it the same way.
 
+The section carries no success status: it describes the response on the
+wire, not the text of the documentation, and is declared by the `status`
+field at the top level of the declaration
+([endpoints.md §2](./endpoints.md)). The generator reads the outcomes of a
+branching `outputs({ … })` from there as well: each one is printed as its
+own response with its own schema and its own media type.
+
 The section is checked when the value is created. A non-string, `tags`
-not shaped as an array of strings, a status outside the list of
-successful ones, `hidden: true` and an unknown field all give an error
-at declaration, not at the build of the application.
+not shaped as an array of strings, `hidden: true` and an unknown field all
+give an error at declaration, not at the build of the application.

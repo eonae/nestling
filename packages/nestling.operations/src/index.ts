@@ -69,13 +69,17 @@ export type {
   SseConfig,
 } from './http/index.js';
 
-// ./io/index.js — 43
+// ./io/index.js — 52
 export {
-  assertFormSlots,
   assertFormsSupported,
+  assertIoDeclaration,
+  declaredOutcomes,
   describeForm,
+  describeOutcomes,
   events,
   isForm,
+  isNone,
+  isOutcomes,
   isPrimitiveLeaf,
   isStreamKind,
   isUploadSpec,
@@ -83,17 +87,21 @@ export {
   mediaTypeOf,
   multipart,
   nameOfForm,
+  none,
+  outputs,
   stream,
   upload,
 } from './io/index.js';
 export type {
   AnyInput,
   AnyMultipartForm,
+  AnyOutcomesForm,
   AnyOutput,
   AnyPayload,
   AnyStreamForm,
   BindableFields,
   ChainStep,
+  DeclaredOutcome,
   EmptyInput,
   FilePart,
   FilesOf,
@@ -108,6 +116,12 @@ export type {
   ItemOptions,
   LeafType,
   MultipartForm,
+  NoneForm,
+  OutcomeForm,
+  OutcomeMap,
+  OutcomesForm,
+  OutcomeValue,
+  OutcomeValues,
   StreamForm,
   StreamFormOptions,
   StreamKind,
@@ -149,7 +163,7 @@ export type {
   ResponseLike,
 } from './make-fail.js';
 
-// ./operation.js — 20
+// ./operation.js — 21
 export { errorsOf, makeCommand, makeEvent, makeRequest } from './operation.js';
 export type {
   AnyOperation,
@@ -166,20 +180,30 @@ export type {
   OutputFormOf,
   OutputOf,
   RequestOperation,
+  StatusOf,
   UndeclaredHandlerFails,
   ValidateHandlerFails,
   ValidateOperationFails,
 } from './operation.js';
 
-// ./output.js — 2
-export type { Output, OutputSync } from './output.js';
+// ./output.js — 6
+export type {
+  DeclaredOk,
+  DeclaredOutput,
+  DeclaredOutputSync,
+  DeclaredStatuses,
+  EffectiveStatus,
+  OutcomeOks,
+  Output,
+  OutputSync,
+} from './output.js';
 
 // ./registry.js — 1
 export { lookupOperation } from './registry.js';
 
-// ./result.js — 6
+// ./result.js — 7
 export { Fail, isFail, Ok } from './result.js';
-export type { AnyFail, FailData, FailOptions } from './result.js';
+export type { AnyFail, AnyOk, FailData, FailOptions } from './result.js';
 
 // ./schema-doc.js — 7
 export {
@@ -194,12 +218,14 @@ export type {
   SchemaDocOptions,
 } from './schema-doc.js';
 
-// ./status.js — 10
+// ./status.js — 12
 export {
   assertFailCode,
+  assertSuccessStatus,
   categories,
   categoryOf,
   isCategory,
+  isSuccessStatus,
   statuses,
   successStatuses,
 } from './status.js';

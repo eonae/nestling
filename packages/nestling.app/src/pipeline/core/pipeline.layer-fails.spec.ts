@@ -31,6 +31,7 @@ import type {
   EmptyInput,
 } from '@nestlingjs/operations';
 import { BadRequest, Fail, makeFail, Ok } from '@nestlingjs/operations';
+import { z } from 'zod';
 
 const Unauthorized = makeFail('unauthorized', { message: 'No token' });
 
@@ -53,6 +54,7 @@ function makeCtx(
     transport: 'test',
     pattern: 'TEST /',
     errors,
+    output: z.unknown(),
   };
 
   return makeEmptyContext(raw, endpoint);

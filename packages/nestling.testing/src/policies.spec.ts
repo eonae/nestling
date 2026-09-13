@@ -25,6 +25,7 @@ import {
 } from '@nestlingjs/app';
 import { Component } from '@nestlingjs/container';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
+import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
   transportValue(HttpTransport$('default'), transport, {
@@ -42,11 +43,13 @@ const hasAuth = () =>
 
 const Authed = httpEndpoint.get('/me', {
   pipeline: compose(observability, authedBase),
+  output: z.unknown(),
   handler: async () => new Ok({ id: '1' }),
 });
 
 const Unauthed = httpEndpoint.get('/admin/users', {
   pipeline: observability,
+  output: z.unknown(),
   handler: async () => new Ok({ users: [] }),
 });
 

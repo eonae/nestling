@@ -128,6 +128,9 @@ export const toRouteDeclaration = (
   if (definition.output !== undefined) {
     route.output = definition.output;
   }
+  if (definition.status !== undefined) {
+    route.status = definition.status;
+  }
   if (definition.binding !== undefined) {
     route.binding = definition.binding;
   }

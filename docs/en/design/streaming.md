@@ -51,6 +51,21 @@ The set of outcomes for `.finally` observers:
 declaration, including `multipart`, are described in
 [endpoints.md](./endpoints.md).
 
+### A streaming shape is declared as the only outcome
+
+`stream(...)` and `events(...)` stand alone in the `output` slot: a
+streaming shape is not declared as a branch of `outputs({ … })`
+([endpoints.md §5](./endpoints.md)).
+
+The reason is that the settings of a streaming response are read before
+the handler runs, when the outcome is not known yet. The transport puts
+`last-event-id` into the start context while parsing the request, the
+`sse` section is declared with `events(...)`, the output item chain is
+attached by the shape of the declaration, and the capability check
+matches one shape against the transport. An endpoint that answers with a
+stream in one case and an object in another is described by two
+addresses.
+
 ### The moment of finalization
 
 For a streaming `output`, the outcome is known only after delivery, so
