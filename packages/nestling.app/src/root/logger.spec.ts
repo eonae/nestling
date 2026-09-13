@@ -8,7 +8,7 @@ import type {
   AnyEndpointDefinition,
   AnyInput,
   ExtendableContext,
-  PreUnitFn,
+  PreStepFn,
 } from '../pipeline/index.js';
 import {
   contextVar,
@@ -195,7 +195,7 @@ describe('поля корреляции корня', () => {
     );
 
   /** Endpoint, который пишет запись запомненным логгером */
-  const writing = (sink: Sink, layer: PreUnitFn<any, any>) =>
+  const writing = (sink: Sink, layer: PreStepFn<any, any>) =>
     testEndpoint({
       method: 'GET',
       path: '/write',
