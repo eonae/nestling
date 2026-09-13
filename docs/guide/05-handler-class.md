@@ -1,6 +1,6 @@
 # 5. Хендлер как класс
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §3.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-09-03] Поле
 > `handler`: зависимости принадлежат хендлеру; канон `return`;
@@ -12,7 +12,7 @@
 которое видно тесту и в которое дальше можно добавить зависимости.
 
 ```typescript
-// шаг главы 5; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 import type { Output } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { httpEndpoint } from '@nestlingjs/transport.http';
@@ -57,7 +57,7 @@ Endpoint регистрирует класс-хендлер сам: при сб�
 Перечислять класс в `providers:` фичи не нужно:
 
 ```typescript
-// шаг главы 4; итоговая версия: examples/users-service/src/users.feature.ts
+// src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -87,7 +87,7 @@ endpoint'ам, и они разделят один экземпляр: клас�
 Класс — обычное значение, поэтому тест создаёт его через `new`:
 
 ```typescript
-// шаг главы 5; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 it('возвращает отказ EmailTaken для занятого email', async () => {
@@ -105,7 +105,7 @@ it('возвращает отказ EmailTaken для занятого email', a
 другим способом — через декларацию, а не через `new`.
 
 ```bash
-yarn workspace @examples/users-service test
+yarn test
 ```
 
 ## Две формы поля `handler`

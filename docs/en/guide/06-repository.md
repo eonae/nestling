@@ -1,6 +1,6 @@
 # 6. Where the handler gets the repository from
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -13,7 +13,7 @@ connection must open at start and close at stop, and an endpoint must not
 assemble all of this by hand.
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 ```
 
@@ -24,7 +24,7 @@ from an interface of the same name. The kernel's DI tokens are named the same
 way, for example `HttpTransport$`.
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 /** The user store: everything the endpoints need from the database */
 export interface UsersRepository {
   all(): Promise<User[]>;
@@ -46,7 +46,7 @@ database.
 ## The handler and the repository as dependencies
 
 ```typescript
-// chapter 6 step; final version: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 @Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -99,7 +99,7 @@ instance with ready dependencies, as in chapter 5.
 The implementation of the repository is declared the same way:
 
 ```typescript
-// chapter 5 step; final version: examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 @Component([db.connection, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
@@ -150,7 +150,7 @@ The feature lists the providers that the container creates — the services and
 the pipeline unit classes:
 
 ```typescript
-// chapter 5 step; final version: examples/users-service/src/users.feature.ts
+// src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -259,7 +259,7 @@ The handler is created with a fake of the repository, without a container and
 without a transport:
 
 ```typescript
-// chapter 6 step; final version: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
 const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });
@@ -271,7 +271,7 @@ expect(result).toMatchObject({
 ```
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl localhost:3000/users/1
 ```
 

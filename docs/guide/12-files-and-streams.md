@@ -1,6 +1,6 @@
 # 12. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
@@ -26,7 +26,7 @@
 ## Файл в форме
 
 ```typescript
-// examples/users-service/src/users/endpoints/upload-avatar.endpoint.ts
+// src/users/endpoints/upload-avatar.endpoint.ts
 import type { FilePart } from '@nestlingjs/operations';
 import { multipart, upload } from '@nestlingjs/operations';
 
@@ -101,7 +101,7 @@ Bearer-токена, потому что композирован от `authed`.
 объявленным отказом `AvatarRequired`.
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
@@ -116,7 +116,7 @@ curl -X POST http://localhost:3000/users/1/avatar \
 ## Выгрузка потоком
 
 ```typescript
-// examples/users-service/src/users/endpoints/export-users.endpoint.ts
+// src/users/endpoints/export-users.endpoint.ts
 import { stream } from '@nestlingjs/operations';
 import { HttpResponse } from '@nestlingjs/transport.http';
 
@@ -181,7 +181,7 @@ curl -N http://localhost:3000/users/export
 ## Загрузка потоком
 
 ```typescript
-// examples/users-service/src/users/endpoints/import-users.endpoint.ts
+// src/users/endpoints/import-users.endpoint.ts
 import { stream } from '@nestlingjs/operations';
 
 const ImportResult = z.object({

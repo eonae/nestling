@@ -1,6 +1,6 @@
 # 11. Писать в базу транзакцией запроса
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/persistence.md](../design/persistence.md).
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-09-11]
 > Соединение с базой: сателлит `drizzle.pg`».
@@ -21,7 +21,7 @@ PostgreSQL, переменную транзакции и слой, которы�
 ## Соединение объявляется значением
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const db = drizzlePg({ schema });
 ```
 
@@ -35,7 +35,7 @@ export const db = drizzlePg({ schema });
 зачем эта таблица нужна, показывает [глава 16](./16-durable-events.md):
 
 ```typescript
-// examples/users-service/src/schema.ts
+// src/schema.ts
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -76,7 +76,7 @@ DI-токена фичи, а фоновым задачам пакета нужн
 пайплайна:
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const transactional = compose(authed, db.transaction());
 ```
 
@@ -107,7 +107,7 @@ drizzle, привязанный к этой транзакции. `.ok` комм
 запроса:
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 @Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
@@ -156,7 +156,7 @@ export class DbUsersRepository implements UsersRepository {
 Endpoint, который меняет данные, композируется от слоя транзакции:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: transactional,
   handler: CreateUserHandler,
@@ -175,7 +175,7 @@ Bearer-токена приходит вместе с ним, и endpoint не п
 endpoint'ов она касается:
 
 ```typescript
-// examples/users-service/src/app.ts
+// src/app.ts
 policies: [
   everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(authed, 'authed'),
   db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / }),
@@ -195,9 +195,9 @@ policies: [
 репликами.
 
 ```bash
-yarn workspace @examples/users-service db:up       # PostgreSQL в docker
-yarn workspace @examples/users-service db:generate # миграция из схемы
-yarn workspace @examples/users-service db:migrate  # накатить
+yarn db:up       # PostgreSQL в docker
+yarn db:generate # миграция из схемы
+yarn db:migrate  # накатить
 
 TEST_DATABASE_URL=postgresql://users:users@localhost:5432/users yarn verify
 ```
@@ -215,13 +215,13 @@ TEST_DATABASE_URL=postgresql://users:users@localhost:5432/users yarn verify
 запросы ждут его.
 
 ```bash
-DATABASE_POOL_MAX=5 yarn workspace @examples/users-service start:dev
+DATABASE_POOL_MAX=5 yarn start:dev
 ```
 
 ## Проверка
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('создаёт пользователя по Bearer-токену из конфига', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,

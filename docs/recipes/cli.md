@@ -1,6 +1,6 @@
 # CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `simple-cli` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
@@ -14,7 +14,7 @@
 ## Команда с аргументами
 
 ```typescript
-// examples/simple-cli/src/commands/greet.command.ts
+// src/commands/greet.command.ts
 const GreetInput = z.object({
   args: z.array(z.string()).min(1, 'name is required'),
   shout: z.boolean().optional(),
@@ -50,7 +50,7 @@ export const Greet = cliEndpoint('greet', {
 `bad_request` с путём `args`, не вызывая хендлер.
 
 ```bash
-yarn workspace @examples/simple-cli start:dev greet Alice --shout
+yarn start:dev greet Alice --shout
 ```
 
 ```json
@@ -65,7 +65,7 @@ yarn workspace @examples/simple-cli start:dev greet Alice --shout
 ## Команда без входа
 
 ```typescript
-// examples/simple-cli/src/commands/help.command.ts (фрагмент)
+// src/commands/help.command.ts (фрагмент)
 export const Help = cliEndpoint('help', {
   output: HelpOutput,
   handler: async () => {
@@ -83,7 +83,7 @@ export const Help = cliEndpoint('help', {
 ## Недостающий вход
 
 ```typescript
-// examples/simple-cli/src/commands/deploy.command.ts
+// src/commands/deploy.command.ts
 const DeployInput = z.object({
   env: z.enum(['dev', 'prod']).describe('Target environment'),
   force: z.boolean().describe('Skip the safety checks'),
@@ -120,7 +120,7 @@ export const Deploy = cliEndpoint('deploy', {
 где нужно число), работает с вопросами без единой правки.
 
 ```bash
-yarn workspace @examples/simple-cli start:dev deploy
+yarn start:dev deploy
 ```
 
 ```
@@ -159,7 +159,7 @@ host (localhost):
 ## Поток из stdin
 
 ```typescript
-// examples/simple-cli/src/commands/process-stdin.command.ts (фрагмент)
+// src/commands/process-stdin.command.ts (фрагмент)
 export const ProcessStdin = cliEndpoint('process-stdin', {
   input: stream('binary'),
   output: ProcessStdinOutput,
@@ -190,7 +190,7 @@ export const ProcessStdin = cliEndpoint('process-stdin', {
 потоковый `output` транспорт писал бы в stdout тем же NDJSON.
 
 ```typescript
-// examples/simple-cli/src/errors.ts
+// src/errors.ts
 export const EmptyStdin = makeFail('bad_request:empty_stdin', {
   message: 'No data received on stdin',
 });
@@ -203,7 +203,7 @@ export const EmptyStdin = makeFail('bad_request:empty_stdin', {
 400.
 
 ```bash
-printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin
+printf "a\nb\n" | yarn start:dev process-stdin
 ```
 
 ```
@@ -218,7 +218,7 @@ Processing: b
 ## Транспорт и режимы запуска
 
 ```typescript
-// examples/simple-cli/src/main.ts
+// src/main.ts
 const argv = process.argv.slice(2);
 
 const cli = new CliTransport({
@@ -269,7 +269,7 @@ async function main() {
 ответ приходит значением, stdout в этом пути не участвует.
 
 ```typescript
-// examples/simple-cli/src/commands.spec.ts (фрагмент)
+// src/commands.spec.ts (фрагмент)
 describe('команды через execute', () => {
   let cli: CliTransport;
 
@@ -323,7 +323,7 @@ describe('команды через execute', () => {
 подставленный поток терминалом не является.
 
 ```typescript
-// examples/simple-cli/src/commands.spec.ts (фрагмент)
+// src/commands.spec.ts (фрагмент)
 const cli = new CliTransport({
   mode: 'argv',
   argv: [],
@@ -345,8 +345,8 @@ expect(response.value).toEqual({
 ```
 
 ```bash
-yarn workspace @examples/simple-cli start:dev            # REPL
-yarn workspace @examples/simple-cli test
+yarn start:dev            # REPL
+yarn test
 ```
 
 Рецепт [«Зависимости по имени и сбор вкладов из

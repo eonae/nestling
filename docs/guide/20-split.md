@@ -1,6 +1,6 @@
 # 20. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
@@ -25,7 +25,7 @@
 ## Объявите шину и назначьте ей роль
 
 ```typescript
-// examples/split-nats/src/app.ts
+// src/app.ts
 export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
@@ -68,7 +68,7 @@ export const app = declareApp();
 ## Оставьте код фич как есть
 
 ```typescript
-// examples/split-nats/src/users.ts
+// src/users.ts
 @Component([ClaimQuota.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
@@ -109,7 +109,7 @@ export class RegistrationService {
 ## Долговечность события и контекст через границу процесса
 
 ```typescript
-// examples/split-nats/src/operations.ts
+// src/operations.ts
 export const UserRegistered = makeEvent({
   name: 'users.registered',
   durable: true,
@@ -126,7 +126,7 @@ export const UserRegistered = makeEvent({
 компилируется.
 
 ```typescript
-// examples/split-nats/src/quotas.ts
+// src/quotas.ts
 @Handler([QuotaLedger])
 class UserRegisteredInArchiveHandler {
   constructor(private readonly ledger: QuotaLedger) {}
@@ -152,7 +152,7 @@ class UserRegisteredInArchiveHandler {
 стороны: издатель ждёт подтверждения записи, подписчик читает из потока.
 
 ```typescript
-// examples/split-nats/src/context.ts
+// src/context.ts
 export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 ```
 
@@ -164,7 +164,7 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 проходит.
 
 ```typescript
-// examples/split-nats/src/users.ts
+// src/users.ts
 @Handler([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
@@ -190,14 +190,14 @@ class RegisterUserHandler {
 процесса.
 
 ```typescript
-// examples/split-nats/src/base.ts
+// src/base.ts
 export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
   .pre(withTracing())
   .pre(TenantId.propagated());
 ```
 
 ```typescript
-// examples/split-nats/src/quotas.ts (фрагмент)
+// src/quotas.ts (фрагмент)
 @Component([Ctx(TenantId), Logger$.auto])
 export class QuotaLedger {
   readonly limit = 100;
@@ -266,8 +266,8 @@ docker run --rm -p 4222:4222 nats:2 -js
 создастся, и сборка остановится.
 
 ```bash
-APP_FEATURES=quotas yarn workspace @examples/split-nats start:dev
-APP_FEATURES=users yarn workspace @examples/split-nats start:dev
+APP_FEATURES=quotas yarn start:dev
+APP_FEATURES=users yarn start:dev
 ```
 
 Владельца запроса запускайте первым. У брокера нет очереди ожидания для
@@ -296,7 +296,7 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 `NatsDouble`, и сеть не нужна:
 
 ```typescript
-// examples/split-nats/src/split.spec.ts (фрагмент)
+// src/split.spec.ts (фрагмент)
   it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
     const topology = await run(broker, 'quotas', 'users');
@@ -335,7 +335,7 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 владельца `quotas.claim` и убеждается, что сборка проходит.
 
 ```bash
-yarn workspace @examples/split-nats test
+yarn test
 ```
 
 Операция стала границей между процессами, и её изменение теперь может

@@ -1,6 +1,6 @@
 # 8. Make sure it works without starting a server
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/testing.md](../design/testing.md). Why: entry
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
@@ -11,7 +11,7 @@ fast unit test of the handler needs neither a container, nor an application,
 nor a database.
 
 ```typescript
-// examples/users-service/src/app.ts (fragment)
+// src/app.ts (fragment)
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
@@ -25,7 +25,7 @@ composition. The declaration therefore lives in a separate file, and
 the composition dictionary: `assembleTest` accepts the declaration itself.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 import { app } from './app.js';
 
 /** The test config: an object instead of `process.env` */
@@ -71,7 +71,7 @@ the condition with the `--conditions=testing` flag.
 ## A call through the full pipeline
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -107,7 +107,7 @@ The response carries `isSuccess`, `status` and `value`. For a failure,
 the code:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
@@ -118,7 +118,7 @@ expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
 ## Replacing graph nodes
 
 ```typescript
-// examples/users-service/src/testing.ts
+// src/testing.ts
 export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
   const rows: User[] = seed.map((user) => ({ ...user }));
 
@@ -135,7 +135,7 @@ next to the interface: the interface changed, and the fake stopped
 compiling in the same commit.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -163,7 +163,7 @@ The database connection is not on this list: the outbox store shares it
 only consumer falls out — and this is visible as a value, not a guess.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
   await using testApp = await assembleTest(app, {
     config: vars({
@@ -186,7 +186,7 @@ source is not initialized in the test.
 ## A unit test of the handler
 
 ```typescript
-// chapter 8 step; final version: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// src/users/endpoints/create-user.endpoint.spec.ts
 describe('CreateUserHandler', () => {
   it('создаёт пользователя и отвечает статусом created', async () => {
     const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
@@ -210,7 +210,7 @@ pipeline, the schemas and the `errors` list: that is the job of the test
 that calls the endpoint through the full pipeline.
 
 ```bash
-yarn workspace @examples/users-service test
+yarn test
 ```
 
 The service is built and covered with tests. The next part prepares it for

@@ -1,6 +1,6 @@
 # 14. Separate the second area
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "Feature boundary" and "Plugin" sections, and
 > [design/operations.md](../design/operations.md). Why: entries
@@ -25,7 +25,7 @@ same as in `users-service`.
 ## The second feature
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quota.service.ts
+// src/features/quotas/quota.service.ts
 @Component([])
 export class QuotaService {
   /** The user limit; deliberately small in the example */
@@ -47,7 +47,7 @@ export class QuotaService {
 ```
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quotas.feature.ts
+// src/features/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaService, SignupJournal],
@@ -92,7 +92,7 @@ works over any transport.
 ## An operation instead of a DI token
 
 ```typescript
-// examples/app-with-http/src/operations.ts
+// src/operations.ts
 import {
   makeFail,
   makeCommand,
@@ -133,7 +133,7 @@ owner.
 ## The implementation in the owning feature
 
 ```typescript
-// examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts
+// src/features/quotas/claim-quota.endpoint.ts
 @Handler([QuotaService, Logger$.auto])
 class ClaimQuotaHandler {
   constructor(
@@ -178,7 +178,7 @@ assembly.
 ## Calling through the caller
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/create-user.endpoint.ts
 const QUOTA_CALL_BUDGET_MS = 500;
 
 @Handler([
@@ -253,7 +253,7 @@ this failure, and the operation is a contract for the client, which does
 not see the pipeline of the implementation:
 
 ```typescript
-// examples/app-with-http/src/api/operations.ts
+// src/api/operations.ts
 export const CreateUser = makeRequest({
   name: 'users.create',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
@@ -291,7 +291,7 @@ Both features need the `observability` layer. A provider that two
 features depend on is declared as a plugin:
 
 ```typescript
-// examples/app-with-http/src/plugins/observability/observability.plugin.ts
+// src/plugins/observability/observability.plugin.ts
 export const appObservability: Plugin = makePlugin({
   name: 'app-observability',
   // The unit class of the observability layer: without registering it the layer will not assemble
@@ -311,7 +311,7 @@ is declared right here.
 A parameterized plugin is a function that returns a value:
 
 ```typescript
-// examples/app-with-http/src/app.ts (fragment)
+// src/app.ts (fragment)
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
@@ -330,7 +330,7 @@ open and close events.
 The DI token check is built the same way:
 
 ```typescript
-// examples/app-with-http/src/plugins/auth/index.ts
+// src/plugins/auth/index.ts
 export const appAuth = makePlugin({
   name: 'app-auth',
   providers: [Authenticate],
@@ -351,7 +351,7 @@ suggestion to move the module into `plugins:`.
 ## Modules inside a feature
 
 ```typescript
-// examples/app-with-http/src/features/users/users.feature.ts
+// src/features/users/users.feature.ts
 export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
@@ -386,7 +386,7 @@ module, lists the endpoints.
 ## The application declaration
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
@@ -422,7 +422,7 @@ same name, and the assembly would stop.
 ## Check
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 it('возвращает отказ соседней фичи при исчерпанной квоте', async () => {
   await using testApp = await assembleTest(app, {
     ...testConfig,
@@ -456,7 +456,7 @@ implementation from the same process directly, `always-remote` sends every
 call through the bus as a message. The call code does not change.
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 for i in 1 2 3 4 5 6; do
   curl -s -X POST localhost:3000/users \
     -H 'authorization: Bearer secret' -H 'content-type: application/json' \

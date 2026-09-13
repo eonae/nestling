@@ -1,6 +1,6 @@
 # 13. Give the frontend the documentation and the client
 
-> Guide to the current API; verified against `users-service`, `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/schemas.md](../design/schemas.md) §2.1 and
 > [design/operations.md](../design/operations.md) §5. Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -14,7 +14,7 @@ the client should be described a second time by hand: the server already
 has the schemas, the addresses and the failure lists in the declarations.
 
 ```typescript
-// examples/users-service/src/app.ts
+// src/app.ts
 import { openapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/schema.zod';
 
@@ -78,7 +78,7 @@ no need to bring up the application: the document is built from the
 declaration by a pure function.
 
 ```typescript
-// examples/app-with-http/src/openapi.ts
+// src/openapi.ts
 import { writeFileSync } from 'node:fs';
 
 import { app, openapiOptions } from './app.js';
@@ -109,10 +109,10 @@ declares three features and the `docs` switch, and the difference shows
 right away:
 
 ```bash
-yarn workspace @examples/app-with-http openapi
+yarn openapi
 # …/openapi.json: 11 path(s)
 
-yarn workspace @examples/app-with-http openapi users
+yarn openapi users
 # …/openapi.json: 8 path(s) — the three /ops/subscriptions… paths did not make it into the document
 ```
 
@@ -134,7 +134,7 @@ JSON Schema describes the data, but not the operation itself. The name,
 the tags and the success status are declared in the `doc:` slot:
 
 ```typescript
-// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
@@ -164,7 +164,7 @@ A service endpoint is removed from the document with the `hidden` field
 and a reason:
 
 ```typescript
-// examples/users-service/src/ops.plugin.ts
+// src/ops.plugin.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
@@ -191,7 +191,7 @@ the handler and not the dependencies. These parts move out of the
 declaration into an operation:
 
 ```typescript
-// examples/users-service/src/api/operations.ts
+// src/api/operations.ts
 import { body, makeRequest, query } from '@nestlingjs/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -238,7 +238,7 @@ An implementation connects the operation with the transport's second
 constructor:
 
 ```typescript
-// examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// src/users/endpoints/get-user.endpoint.ts
 @Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -268,7 +268,7 @@ What remains is `pipeline` and `handler`. `CreateUser` in
 ## The client
 
 ```typescript
-// examples/users-service/src/api/client.ts
+// src/api/client.ts
 import { makeClient } from '@nestlingjs/client';
 
 /** The consumer sets the method names: the keys of the object */
@@ -331,8 +331,8 @@ method accepts `signal` for cancellation and `deadline` for a time budget.
 Start the server and the script:
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
-API_TOKEN=secret yarn workspace @examples/users-service client
+API_TOKEN=secret yarn start:dev
+API_TOKEN=secret yarn client
 # created 3
 # fetched Carol
 ```

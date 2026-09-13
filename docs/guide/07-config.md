@@ -1,6 +1,6 @@
 # 7. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины», «[2026-07-13] Конфиг:
@@ -13,7 +13,7 @@
 на первом запросе.
 
 ```typescript
-// examples/users-service/src/app.config.ts
+// src/app.config.ts
 import { from, makeConfig, secret } from '@nestlingjs/app';
 import { z } from 'zod';
 
@@ -98,7 +98,7 @@ export const DatabaseConfig = makeConfig.family(
 ## Секция как зависимость
 
 ```typescript
-// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 @Handler([UsersRepository$, AppConfig])
 export class ListUsersHandler {
   constructor(
@@ -132,7 +132,7 @@ export const ListUsers = httpEndpoint.get('/users', {
 подставляет проверенное значение.
 
 ```bash
-API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace @examples/users-service start:dev
+API_TOKEN=secret APP_PAGE_SIZE=1 yarn start:dev
 curl 'localhost:3000/users'
 ```
 
@@ -162,7 +162,7 @@ Sources consulted, in priority order: process.env
 ```
 
 ```bash
-yarn workspace @examples/users-service start:dev   # без API_TOKEN: ошибка при старте
+yarn start:dev   # без API_TOKEN: ошибка при старте
 ```
 
 Секция проверяется при сборке графа, до создания экземпляров и до открытия сокета.
@@ -180,7 +180,7 @@ yarn workspace @examples/users-service start:dev   # без API_TOKEN: ошиб�
 вовсе: она не открывает сокет.
 
 ```bash
-API_TOKEN=secret HTTP_PORT=8080 yarn workspace @examples/users-service start:dev
+API_TOKEN=secret HTTP_PORT=8080 yarn start:dev
 curl localhost:8080/users
 ```
 

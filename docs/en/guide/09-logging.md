@@ -1,6 +1,6 @@
 # 9. See every request in the log
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/container.md](../design/container.md), the "Kernel logger" section.
 > Why: entries [ideas.md](../../decisions/ideas.md)
@@ -21,7 +21,7 @@ the framework and the application use it. The service takes it as an
 ordinary dependency:
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 import type { CtxReader, Logger } from '@nestlingjs/app';
 import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 import { Component } from '@nestlingjs/container';
@@ -98,7 +98,7 @@ The log needs two phases: `.pre`, to put the request and trace
 identifiers into the context, and `.finally`, to record the outcome.
 
 ```typescript
-// examples/users-service/src/observability.ts
+// src/observability.ts
 import type {
   ExtendableContext,
   Logger,
@@ -176,7 +176,7 @@ methods, an ordinary value. It is exported and connected to every endpoint.
 ## Connecting to endpoints
 
 ```typescript
-// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
@@ -196,7 +196,7 @@ the `providers:` of the feature. A unit class missing from `providers:`
 stops the assembly on the ASSEMBLE phase, before the socket opens.
 
 ```typescript
-// chapter 8 step; final version: examples/users-service/src/users.feature.ts
+// src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [DbUsersRepository, AuditOutcome, Authenticate],
@@ -208,7 +208,7 @@ Start the service and make a request:
 
 ```bash
 API_TOKEN=secret NESTLING_LOG_LEVEL=debug \
-  yarn workspace @examples/users-service start:dev
+  yarn start:dev
 curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 ```
 
@@ -233,7 +233,7 @@ it `requestId` as a parameter: the store reads the value from the context
 itself.
 
 ```typescript
-// chapter 8 step; final version: examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 import type { CtxReader, Logger } from '@nestlingjs/app';
 import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 
@@ -350,7 +350,7 @@ it. There is no second way to declare the root: a provider under
 ## Check
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('пишет запись аудита через логгер ядра', async () => {
   // The override of the root intercepts the records of every member of
   // Logger$: both the kernel and the application. The scope of the record

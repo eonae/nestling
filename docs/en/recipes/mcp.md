@@ -1,6 +1,6 @@
 # Expose the operations to an agent over MCP
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/transports.md](../design/transports.md) §8,
 > [design/operations.md](../design/operations.md) §1.8. Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
@@ -19,7 +19,7 @@ MCP is an inbound protocol, so it is declared as a transport next to
 stays one.
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
 export const api = server();
 
 export const app = makeApp({
@@ -50,7 +50,7 @@ comes from `doc.description`, then `doc.summary`. The handler is the same
 class that serves the HTTP declaration.
 
 ```typescript
-// examples/app-with-http/src/features/users/tools/get-user.tool.ts
+// src/features/users/tools/get-user.tool.ts
 export const GetUserTool = mcpTool.implement(GetUserOperation, {
   annotations: { readOnlyHint: true },
   pipeline: observability,
@@ -67,7 +67,7 @@ The tool goes into `endpoints:` of the feature next to the HTTP
 declarations. The transport has no separate list of the composition.
 
 ```typescript
-// examples/app-with-http/src/features/users/users.feature.ts
+// src/features/users/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
@@ -82,7 +82,7 @@ substring instead of a paged list. Such a tool is declared by the
 anonymous shape together with the schemas.
 
 ```typescript
-// examples/app-with-http/src/features/users/tools/search-users.tool.ts
+// src/features/users/tools/search-users.tool.ts
 export const SearchUsersTool = mcpTool('search_users', {
   description:
     'Найти пользователей по подстроке в адресе почты. Возвращает число ' +
@@ -107,7 +107,7 @@ layer. The headers of the agent request reach the pipeline the usual way,
 so `authed` works on a tool the same way it works on an HTTP declaration.
 
 ```typescript
-// examples/app-with-http/src/features/users/tools/create-user.tool.ts
+// src/features/users/tools/create-user.tool.ts
 export const CreateUserTool = mcpTool.implement(CreateUserOperation, {
   annotations: { idempotentHint: false },
   pipeline: authed,
@@ -119,7 +119,7 @@ The requirement «every tool carries the layer» is written as a policy of
 the root — the same one that writes it for HTTP.
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
 everyEndpoint({ transport: McpTransport$('default') }).hasLayer(
   observability,
   'observability',

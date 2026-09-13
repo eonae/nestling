@@ -1,6 +1,6 @@
 # Dependencies by name and contributions collected from modules
 
-> Guide to the current API; verified against `container` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/container.md](../design/container.md), the
 > sections "DI token families" and "Kernel logger". Rationale: the entries
 > [ideas.md](../../decisions/ideas.md)
@@ -22,7 +22,7 @@ that differ by a parameter. The kernel logger from chapter
 ## A family instead of a DI token
 
 ```typescript
-// examples/container/src/counters/registry.ts
+// src/counters/registry.ts
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /** A named counter: counts events of one kind */
@@ -53,7 +53,7 @@ interface in imports.
 ## A member as an ordinary dependency
 
 ```typescript
-// examples/container/src/users/users.service.ts (fragment)
+// src/users/users.service.ts (fragment)
 @Component([UserRepository, Counter$('users'), Logger$('users')])
 export class UserService {
   #repository: UserRepository;
@@ -85,7 +85,7 @@ mechanism, only the recipe is registered by the kernel.
 ## One recipe for the whole family
 
 ```typescript
-// examples/container/src/counters/counters.plugin.ts (fragment)
+// src/counters/counters.plugin.ts (fragment)
 export const appCounters = makePlugin({
   name: 'app-counters',
   providers: [
@@ -139,7 +139,7 @@ second recipe for the same family is a registration error.
 ## The member's name from the consumer: `.auto`
 
 ```typescript
-// examples/container/src/users/users.repository.ts
+// src/users/users.repository.ts
 @Component([Database$, Logger$.auto])
 export class UserRepository {
   #database: Database;
@@ -190,7 +190,7 @@ critical flag and a check method. The member of the family sets the
 check's name, so the class itself carries no name:
 
 ```typescript
-// examples/container/src/database/database.health.ts (fragment)
+// src/database/database.health.ts (fragment)
 @Component([Database$, HealthConfig])
 export class DatabaseHealthCheck implements HealthCheck {
   readonly critical = true;
@@ -207,7 +207,7 @@ It is registered as an ordinary provider with the member's DI token, in
 the module where it belongs:
 
 ```typescript
-// examples/container/src/database/database.module.ts
+// src/database/database.module.ts
 export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
@@ -221,7 +221,7 @@ A second contribution lives in a different module, and the first
 module needed no change for it:
 
 ```typescript
-// examples/container/src/api/api.module.ts (fragment)
+// src/api/api.module.ts (fragment)
 classProvider(HealthCheck$('api'), ApiHealthCheck),
 ```
 
@@ -236,7 +236,7 @@ But `.all` also works on the kernel family: a dependency on
 was registered.
 
 ```typescript
-// examples/container/src/demo.ts (fragment)
+// src/demo.ts (fragment)
 @Component([Health$, HealthCheck$.all, /* … */])
 export class Demo {
   constructor(
@@ -311,10 +311,10 @@ logger's lines by replacing `RootLogger$`: chapter
 [18](../guide/18-testing-features.md).
 
 ```bash
-yarn workspace @examples/container start:dev
+yarn start:dev
 # the graph with family members in the browser
-yarn workspace @examples/container export-metadata
-yarn workspace @examples/container visualize
+yarn export-metadata
+yarn visualize
 ```
 
 The same example reads the config from several sources and changes

@@ -1,6 +1,6 @@
 # Альтернативные формы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Каждая форма показана в одном месте примера.
 
 Главы гайда используют одну форму записи для каждой задачи. Фреймворк
@@ -20,7 +20,7 @@
 ## Отказ из юнита
 
 ```typescript
-// examples/app-with-http/src/plugins/auth/authenticate.ts
+// src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
       return Unauthorized();
     }
@@ -49,7 +49,7 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 ## Слой `.catch` с проверкой по коду
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
 @Handler([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
@@ -89,7 +89,7 @@ export class AuditDeletion {
 ## `Ok.noContent()` и `Ok.accepted()`
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// src/features/users/endpoints/delete-user.endpoint.ts
     return removed ? Ok.noContent() : UserNotFound({ id: input.id });
 ```
 
@@ -105,7 +105,7 @@ export class AuditDeletion {
 ## `providers:` и `modules:` у фичи
 
 ```typescript
-// examples/app-with-http/src/features/quotas/quotas.feature.ts
+// src/features/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaService, SignupJournal],
@@ -114,7 +114,7 @@ export const QuotasFeature = makeFeature({
 ```
 
 ```typescript
-// examples/app-with-http/src/features/users/users.feature.ts
+// src/features/users/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],

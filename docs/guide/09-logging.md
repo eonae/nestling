@@ -1,6 +1,6 @@
 # 9. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
@@ -20,7 +20,7 @@
 фреймворк, и приложение. Сервис берёт его как обычную зависимость:
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 import type { CtxReader, Logger } from '@nestlingjs/app';
 import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 import { Component } from '@nestlingjs/container';
@@ -97,7 +97,7 @@ DI-токенов: `Logger$('db')` даёт логгер с областью `db
 трассы в контекст, и `.finally`, чтобы записать итог.
 
 ```typescript
-// examples/users-service/src/observability.ts
+// src/observability.ts
 import type {
   ExtendableContext,
   Logger,
@@ -171,7 +171,7 @@ export const observability = makePipeline()
 ## Подключение к endpoint'ам
 
 ```typescript
-// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
@@ -191,7 +191,7 @@ export const ListUsers = httpEndpoint.get('/users', {
 сборку на фазе ASSEMBLE, до открытия сокета.
 
 ```typescript
-// шаг главы 8; итоговая версия: examples/users-service/src/users.feature.ts
+// src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [DbUsersRepository, AuditOutcome, Authenticate],
@@ -203,7 +203,7 @@ export const UsersFeature = makeFeature({
 
 ```bash
 API_TOKEN=secret NESTLING_LOG_LEVEL=debug \
-  yarn workspace @examples/users-service start:dev
+  yarn start:dev
 curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 ```
 
@@ -226,7 +226,7 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 `requestId` параметром: хранилище читает значение из контекста само.
 
 ```typescript
-// шаг главы 8; итоговая версия: examples/users-service/src/users/users.repository.ts
+// src/users/users.repository.ts
 import type { CtxReader, Logger } from '@nestlingjs/app';
 import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 
@@ -339,7 +339,7 @@ export const app = makeApp({
 ## Проверка
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('пишет запись аудита через логгер ядра', async () => {
   // Подмена корня перехватывает записи всех членов Logger$: и ядра, и
   // приложения. Область записи — имя класса, взявшего Logger$.auto

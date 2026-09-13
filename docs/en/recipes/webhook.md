@@ -1,6 +1,6 @@
 # Webhook with a signature check
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/endpoints.md](../design/endpoints.md), the "Raw
 > bytes: `rawBody` " section. Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
@@ -18,7 +18,7 @@ token, so the policy "every `POST` checks a Bearer token" from
 ## The failure and the signature secret
 
 ```typescript
-// examples/app-with-http/src/features/users/users.errors.ts
+// src/features/users/users.errors.ts
 export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
   message: 'Webhook signature does not match the body',
 });
@@ -28,7 +28,7 @@ The failure is declared the same way as the feature's other failures.
 The transport translates the `unauthorized` status into `401`.
 
 ```typescript
-// examples/app-with-http/src/app.config.ts (fragment)
+// src/app.config.ts (fragment)
 export const AppConfig = makeConfig('app', {
   // …
   webhookSecret: secret(from('WEBHOOK_SECRET', z.string().min(1))),
@@ -43,7 +43,7 @@ when the section is printed and in error text, as in
 ## A pre-unit that checks the signature
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts (fragment)
+// src/features/users/endpoints/user-webhook.endpoint.ts (fragment)
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // …
 
@@ -89,7 +89,7 @@ unit throws the failure, and the handler is not called.
 ## A declaration with `rawBody: true`
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
+// src/features/users/endpoints/user-webhook.endpoint.ts
 @Handler([UsersRepository$])
 class UserWebhookHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -168,7 +168,7 @@ The signature is computed by the same algorithm as in the unit:
 HMAC-SHA256 of the body's bytes, in hex.
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 
 body='{"type":"user.deleted","userId":"2"}'
 sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac hook | sed 's/^.* //')
@@ -195,7 +195,7 @@ goes over the network, not through `testApp.call`: an app test accepts
 a ready payload and does not serialize the body.
 
 ```typescript
-// examples/app-with-http/e2e/webhook.spec.e2e.ts (fragment)
+// e2e/webhook.spec.e2e.ts (fragment)
 const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =>
   createHmac('sha256', secret).update(body).digest('hex');
 
@@ -234,7 +234,7 @@ keys (`e2e/helpers/create-test-app.ts`); the test does not touch
 `process.env`.
 
 ```bash
-yarn workspace @examples/app-with-http test:e2e
+yarn test:e2e
 ```
 
 The same declarations and pipeline work from the command line too —

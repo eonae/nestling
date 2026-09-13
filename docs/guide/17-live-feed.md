@@ -1,6 +1,6 @@
 # 17. Живая лента для клиента
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
 > «`stream(T)` и `events(T)`» и «Источники событий». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Стриминг: `stream(T)` ≠
@@ -14,7 +14,7 @@
 ## Источник событий
 
 ```typescript
-// examples/app-with-http/src/features/users/activity.hub.ts (фрагмент)
+// src/features/users/activity.hub.ts (фрагмент)
 @Resource([])
 export class ActivityHub {
   static async acquire(_signal: AbortSignal): Promise<ActivityHub> {
@@ -101,7 +101,7 @@ export class ActivityHub {
 ## Endpoint с формой `events`
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+// src/features/users/endpoints/activity-stream.endpoint.ts
 const ActivityEvent = z.object({
   id: z.string(),
   kind: z.enum(['created', 'updated', 'deleted']),
@@ -175,7 +175,7 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
 ## Публикация из хендлера
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
+// src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);
 
@@ -192,7 +192,7 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
 Откройте ленту в одном терминале и создайте пользователя в другом:
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 curl -N localhost:3000/users/activity
 ```
 
@@ -222,7 +222,7 @@ curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'
 Кадры SSE проверяет e2e-тест на настоящем сокете:
 
 ```typescript
-// examples/app-with-http/e2e/streaming.spec.e2e.ts
+// e2e/streaming.spec.e2e.ts
 it('отдаёт событие создания по SSE', async () => {
   const controller = new AbortController();
   const feed = await fetch(`${context.baseUrl}/users/activity`, {

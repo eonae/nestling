@@ -1,6 +1,6 @@
 # Конфиг из файла и без перезапуска
 
-> Гайд по текущему API; сверено с кодом `container` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/config.md](../design/config.md), разделы 2–8.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Конфиг:
 > keys-capability вместо `configs:`-владения» [2026-07-10], «Конфиг:
@@ -19,7 +19,7 @@
 ## Источник, привязанный к ключам секции
 
 ```typescript
-// examples/container/src/main.ts
+// src/main.ts
 const app = makeApp({
   features: [AppFeature],
   plugins: [appCounters],
@@ -65,7 +65,7 @@ await app.close();
 `makeApp`, через `ContainerBuilder`:
 
 ```typescript
-// examples/container/src/container.ts
+// src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
@@ -130,7 +130,7 @@ config: [[env({ prefix: 'SERVICE_1_' }), '*']],
 ## Право привязки вместо секции
 
 ```typescript
-// examples/container/src/config/app.config.ts
+// src/config/app.config.ts
 export const AppConfig = makeConfig('app', {
   metricsPrefix: z.string().min(1).default('app'),
   databaseUrl: secret(
@@ -142,7 +142,7 @@ export const appConfigKeys = AppConfig.keys;
 ```
 
 ```typescript
-// examples/container/src/config/index.ts
+// src/config/index.ts
 export { appConfigKeys } from './app.config.js';
 ```
 
@@ -156,7 +156,7 @@ DI-токен секции импортируют по прямому пути �
 ## Общий ключ у двух секций
 
 ```typescript
-// examples/container/src/health/health.config.ts
+// src/health/health.config.ts
 export const HealthConfig = makeConfig('health', {
   databaseUrl: from(
     'DATABASE_URL',
@@ -182,7 +182,7 @@ export const HealthConfig = makeConfig('health', {
 объявленным секциям и не обращается к источникам:
 
 ```typescript
-// examples/container/src/config/secrets.spec.ts (фрагмент)
+// src/config/secrets.spec.ts (фрагмент)
     const entry = describeConfig().keys.find(
       (item) => item.key === 'DATABASE_URL',
     );
@@ -224,7 +224,7 @@ snapshot.sections[0].keys[0].schema;
 ## Значения без перезапуска
 
 ```typescript
-// examples/container/src/runtime/runtime.config.ts
+// src/runtime/runtime.config.ts
 export const RuntimeConfig = makeConfig.reloadable('runtime', {
   rps: z.coerce.number().int().positive().default(100),
 });
@@ -238,7 +238,7 @@ export const runtimeConfigKeys = RuntimeConfig.keys;
 с именем `onChange` в такой секции запрещено: это имя занято подпиской.
 
 ```typescript
-// examples/container/src/runtime/rate-limiter.ts
+// src/runtime/rate-limiter.ts
 @Component([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
@@ -313,7 +313,7 @@ const RuntimeConfig = makeConfig.reloadable(
 Тест собирает контейнер с источником, который потом меняет:
 
 ```typescript
-// examples/container/src/runtime/reload.spec.ts
+// src/runtime/reload.spec.ts
   it('отдаёт новое значение после обновления источника', async () => {
     source.set('RUNTIME_RPS', '20');
     await settle();
@@ -340,8 +340,8 @@ const RuntimeConfig = makeConfig.reloadable(
 адрес.
 
 ```bash
-yarn workspace @examples/container start:dev
-yarn workspace @examples/container test
+yarn start:dev
+yarn test
 ```
 
 Эксплуатационные endpoint'ы: кто сейчас подключён к сервису и как

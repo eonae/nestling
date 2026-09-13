@@ -1,6 +1,6 @@
 # 15. Оповещать соседей о случившемся
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/operations.md](../design/operations.md),
 > разделы «Три вида» и «Профиль вызова». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Порты: межфичевое
@@ -14,7 +14,7 @@
 отличать от новой регистрации.
 
 ```typescript
-// examples/app-with-http/src/operations.ts
+// src/operations.ts
 export const UserRegisteredInput = z.object({
   id: z.string(),
   email: z.string(),
@@ -35,7 +35,7 @@ export const UserRegistered = makeEvent({
 файле, что запрос `ClaimQuota` из [главы 14](./14-features.md).
 
 ```typescript
-// examples/app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
+// src/features/quotas/user-registered-in-quotas.endpoint.ts
 @Handler([Logger$.auto])
 class UserRegisteredInQuotasHandler {
   constructor(private readonly logger: Logger) {}
@@ -71,7 +71,7 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 ## Публикация
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/create-user.endpoint.ts
 @Handler([
   UsersRepository$,
   ClaimQuota.caller,
@@ -125,7 +125,7 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 Запись в журнал квот делает не событие, а команда:
 
 ```typescript
-// examples/app-with-http/src/operations.ts
+// src/operations.ts
 export const SignupRecordedInput = z.object({
   userId: z.string(),
   email: z.string(),
@@ -147,7 +147,7 @@ export const SignupRecorded = makeCommand({
 ([глава 16](./16-durable-events.md)).
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/create-user.endpoint.ts
     // Команда: ключ идемпотентности задаёт вызывающий, чтобы повтор после
     // сбоя нёс тот же ключ. Без ключа порт сгенерировал бы новый
     await this.signup.emit(
@@ -165,7 +165,7 @@ export const SignupRecorded = makeCommand({
 Владелец команды читает ключ из контекста:
 
 ```typescript
-// examples/app-with-http/src/features/quotas/signup-recorded.endpoint.ts
+// src/features/quotas/signup-recorded.endpoint.ts
 @Handler([SignupJournal])
 class SignupRecordedHandler {
   constructor(private readonly journal: SignupJournal) {}
@@ -182,7 +182,7 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
 ```
 
 ```typescript
-// examples/app-with-http/src/features/quotas/signup.journal.ts
+// src/features/quotas/signup.journal.ts
 @Component([Logger$.auto, Ctx(IdempotencyKey)])
 export class SignupJournal {
   constructor(
@@ -210,7 +210,7 @@ export class SignupJournal {
 Что юнит стоит в пайплайне реализации, проверяет политика:
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
     // Реализация команды регистрации кладёт ключ идемпотентности в
     // контекст: сервис в глубине графа читает его через `Ctx`
     everyEndpoint({
@@ -243,7 +243,7 @@ export class SignupJournal {
 
 ```bash
 API_TOKEN=secret WEBHOOK_SECRET=hook NESTLING_LOG_LEVEL=debug \
-  yarn workspace @examples/app-with-http start:dev
+  yarn start:dev
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"User 1","email":"user1@example.com"}'
@@ -264,7 +264,7 @@ curl -X POST localhost:3000/users \
 ## Проверка
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 it('доставляет ключ идемпотентности команды до сервиса в глубине', async () => {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {

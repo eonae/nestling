@@ -1,6 +1,6 @@
 # 10. Let only your own through
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/composition.md](../design/composition.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -13,7 +13,7 @@ handler and answers `401` with a machine code. It must be impossible to
 forget it on a new endpoint.
 
 ```typescript
-// examples/users-service/src/errors.ts
+// src/errors.ts
 import { makeFail } from '@nestlingjs/operations';
 
 /** The failure of the Bearer token check. The pre-unit of the `authed` layer returns it. */
@@ -27,7 +27,7 @@ The failure is declared the same way as the handler failures in
 status into the HTTP code `401`.
 
 ```typescript
-// examples/users-service/src/auth.ts
+// src/auth.ts
 import type { Config, EmptyInput, ExtendableContext } from '@nestlingjs/app';
 import { compose, makePipeline } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
@@ -100,7 +100,7 @@ an outer layer that does not add the `caller` field does not compile.
 ## Connecting the layer and the policies
 
 ```typescript
-// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
@@ -172,7 +172,7 @@ everyone through. So that such an endpoint does not reach production, the
 root declares assembly policies:
 
 ```typescript
-// chapter 9 step; final version: examples/users-service/src/app.ts
+// src/app.ts
 import { everyEndpoint } from '@nestlingjs/app';
 import { http, HttpTransport$ } from '@nestlingjs/transport.http';
 
@@ -234,7 +234,7 @@ the reader is the same for every route.
 The presence of the variable requires a second predicate:
 
 ```typescript
-// examples/users-service/src/app.ts
+// src/app.ts
 everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
   RequestId,
   'requestId',
@@ -266,7 +266,7 @@ poll. An endpoint is taken out from under the policies by the `detached`
 field:
 
 ```typescript
-// examples/users-service/src/ops.plugin.ts
+// src/ops.plugin.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
@@ -297,7 +297,7 @@ The `endpoint-has-layer` rule from `@nestlingjs/eslint-plugin` hints at the
 same invariant right in the editor:
 
 ```javascript
-// examples/users-service/eslint.config.js
+// eslint.config.js
 export default [
   ...createEslintConfig(import.meta.url),
   {
@@ -324,7 +324,7 @@ to the application. `Ok` expresses neither of these — headers and a 3xx
 status belong to HTTP. The response form of its own transport sets them:
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/login.endpoint.ts
+// src/features/users/endpoints/login.endpoint.ts
 @Handler([UsersRepository$])
 export class LoginHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -409,7 +409,7 @@ in the declaration.
 ## Check
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
   const repo = inMemoryUsersRepo([alice]);
   await using testApp = await assembleTest(app, {
@@ -453,7 +453,7 @@ policies in the test assembly are the same as in `main.ts`: the test
 assembles the same `app` declaration, not a copy of its dictionary.
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl -X POST http://localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'

@@ -1,6 +1,6 @@
 # 12. Files and large exports
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/endpoints.md](../design/endpoints.md) §5 and
 > [design/streaming.md](../design/streaming.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -26,7 +26,7 @@ solve the three tasks above.
 ## A file in the shape
 
 ```typescript
-// examples/users-service/src/users/endpoints/upload-avatar.endpoint.ts
+// src/users/endpoints/upload-avatar.endpoint.ts
 import type { FilePart } from '@nestlingjs/operations';
 import { multipart, upload } from '@nestlingjs/operations';
 
@@ -103,7 +103,7 @@ form without a file gives `files.avatar` equal to `undefined`, and the
 handler answers with the declared `AvatarRequired` failure.
 
 ```bash
-API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn start:dev
 curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
@@ -118,7 +118,7 @@ then the handler gets a `FilePart[]`.
 ## Exporting as a stream
 
 ```typescript
-// examples/users-service/src/users/endpoints/export-users.endpoint.ts
+// src/users/endpoints/export-users.endpoint.ts
 import { stream } from '@nestlingjs/operations';
 import { HttpResponse } from '@nestlingjs/transport.http';
 
@@ -184,7 +184,7 @@ curl -N http://localhost:3000/users/export
 ## Importing as a stream
 
 ```typescript
-// examples/users-service/src/users/endpoints/import-users.endpoint.ts
+// src/users/endpoints/import-users.endpoint.ts
 import { stream } from '@nestlingjs/operations';
 
 const ImportResult = z.object({

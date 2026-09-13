@@ -1,6 +1,6 @@
 # Configuration from a file and without a restart
 
-> Guide to the current API; verified against `container` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/config.md](../design/config.md), sections 2–8.
 > Rationale: the entries [ideas.md](../../decisions/ideas.md)
 > `Конфиг: keys-capability вместо configs:-владения` [2026-07-10],
@@ -21,7 +21,7 @@ on an invalid config are described in chapter
 ## A source bound to a section's keys
 
 ```typescript
-// examples/container/src/main.ts
+// src/main.ts
 const app = makeApp({
   features: [AppFeature],
   plugins: [appCounters],
@@ -69,7 +69,7 @@ The same list is accepted by `bootstrapConfig()` when the container is
 assembled without `makeApp`, through `ContainerBuilder`:
 
 ```typescript
-// examples/container/src/container.ts
+// src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
@@ -140,7 +140,7 @@ the source, and only there.
 ## The right to bind, not the section
 
 ```typescript
-// examples/container/src/config/app.config.ts
+// src/config/app.config.ts
 export const AppConfig = makeConfig('app', {
   metricsPrefix: z.string().min(1).default('app'),
   databaseUrl: secret(
@@ -152,7 +152,7 @@ export const appConfigKeys = AppConfig.keys;
 ```
 
 ```typescript
-// examples/container/src/config/index.ts
+// src/config/index.ts
 export { appConfigKeys } from './app.config.js';
 ```
 
@@ -167,7 +167,7 @@ token is imported by a direct path inside the application.
 ## A shared key between two sections
 
 ```typescript
-// examples/container/src/health/health.config.ts
+// src/health/health.config.ts
 export const HealthConfig = makeConfig('health', {
   databaseUrl: from(
     'DATABASE_URL',
@@ -194,7 +194,7 @@ knowledge. The rules for a shared key:
 the declared sections and does not reach the sources:
 
 ```typescript
-// examples/container/src/config/secrets.spec.ts (fragment)
+// src/config/secrets.spec.ts (fragment)
     const entry = describeConfig().keys.find(
       (item) => item.key === 'DATABASE_URL',
     );
@@ -240,7 +240,7 @@ has no `schema` field.
 ## Values without a restart
 
 ```typescript
-// examples/container/src/runtime/runtime.config.ts
+// src/runtime/runtime.config.ts
 export const RuntimeConfig = makeConfig.reloadable('runtime', {
   rps: z.coerce.number().int().positive().default(100),
 });
@@ -255,7 +255,7 @@ valid value. A field named `onChange` is forbidden in such a section:
 this name is taken by the subscription.
 
 ```typescript
-// examples/container/src/runtime/rate-limiter.ts
+// src/runtime/rate-limiter.ts
 @Component([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** The values of `rps` received through `onChange` */
@@ -333,7 +333,7 @@ section, the field and the list of dependencies.
 A test assembles the container with a source that it then changes:
 
 ```typescript
-// examples/container/src/runtime/reload.spec.ts
+// src/runtime/reload.spec.ts
   it('отдаёт новое значение после обновления источника', async () => {
     source.set('RUNTIME_RPS', '20');
     await settle();
@@ -360,8 +360,8 @@ printing the `health` section equals `{"databaseUrl":"***"}`, and
 reading the field returns the real address.
 
 ```bash
-yarn workspace @examples/container start:dev
-yarn workspace @examples/container test
+yarn start:dev
+yarn test
 ```
 
 Operational endpoints: who is connected to the service right now and

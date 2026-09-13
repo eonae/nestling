@@ -1,6 +1,6 @@
 # 16. Не потерять событие при падении процесса
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/persistence.md](../design/persistence.md).
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-09-07]
 > Транзакционный outbox: точка врезки, предпосылка транзакции и
@@ -31,10 +31,10 @@
 хранилища:
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const outboxStore = pgOutboxStore(db);
 
-// examples/users-service/src/app.ts
+// src/app.ts
 export const appOutbox = outbox({
   transaction: db.tx,
   store: outboxStore.token,
@@ -49,7 +49,7 @@ export const appOutbox = outbox({
 В хендлере меняется одна строка — та, что называет зависимость:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 @Handler([UsersRepository$, outboxed(UserCreated)])
 export class CreateUserHandler {
   constructor(
@@ -129,7 +129,7 @@ relay от него зависит.
 приложение, а хранилище приходит DI-токеном.
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const inboxStore = pgInboxStore(db);
 
 export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
@@ -142,7 +142,7 @@ export const subscribed = compose(observability, db.transaction());
 Подписчик композирует слой приёма **внутрь** слоя транзакции:
 
 ```typescript
-// examples/users-service/src/users/endpoints/welcome-email.endpoint.ts
+// src/users/endpoints/welcome-email.endpoint.ts
 export const WelcomeEmail = implement(UserCreated, {
   subscriber: 'welcome-email',
   pipeline: compose(subscribed, appInbox.layer),
@@ -207,7 +207,7 @@ nats({ name: 'events', dedupeWindowMs: 600_000 });
 ([глава 8](./08-testing.md)), поэтому проход делает сам тест:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('кладёт событие в outbox и доставляет его проходом relay', async () => {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {
@@ -265,7 +265,7 @@ it('кладёт событие в outbox и доставляет его про�
 
 ```bash
 OUTBOX_RELAY=false INBOX_SWEEP=false \
-  yarn workspace @examples/users-service start:dev
+  yarn start:dev
 ```
 
 Задержку доставки видно операцией `outbox.published`: разница между
@@ -282,7 +282,7 @@ OUTBOX_RELAY=false INBOX_SWEEP=false \
 между публикацией и отметкой.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('повторная публикация записи не вызывает хендлер второй раз', async () => {
   // … создание пользователя и первый проход relay
   const connection = testApp.get(db.connection);

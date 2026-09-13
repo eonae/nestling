@@ -1,6 +1,6 @@
 # 15. Tell the neighbours what happened
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/operations.md](../design/operations.md), the
 > "Three kinds" and "Call profile" sections. Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -15,7 +15,7 @@ log must tell a repeated delivery of one message apart from a new
 registration.
 
 ```typescript
-// examples/app-with-http/src/operations.ts
+// src/operations.ts
 export const UserRegisteredInput = z.object({
   id: z.string(),
   email: z.string(),
@@ -37,7 +37,7 @@ The event lies in the same file as the `ClaimQuota` request from
 [chapter 14](./14-features.md).
 
 ```typescript
-// examples/app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
+// src/features/quotas/user-registered-in-quotas.endpoint.ts
 @Handler([Logger$.auto])
 class UserRegisteredInQuotasHandler {
   constructor(private readonly logger: Logger) {}
@@ -76,7 +76,7 @@ implementation of the request. The list from
 ## Publishing
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/create-user.endpoint.ts
 @Handler([
   UsersRepository$,
   ClaimQuota.caller,
@@ -132,7 +132,7 @@ The record in the quotas log is written not by an event but by a
 command:
 
 ```typescript
-// examples/app-with-http/src/operations.ts
+// src/operations.ts
 export const SignupRecordedInput = z.object({
   userId: z.string(),
   email: z.string(),
@@ -155,7 +155,7 @@ only when the publisher has passed it
 ([chapter 16](./16-durable-events.md)).
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+// src/features/users/endpoints/create-user.endpoint.ts
     // A command: the caller sets the idempotency key so that a retry
     // after a failure carries the same key. Without a key the port
     // would generate a new one
@@ -174,7 +174,7 @@ it, and it stays the same for every repeated delivery of one `emit`.
 The command's owner reads the key from the context:
 
 ```typescript
-// examples/app-with-http/src/features/quotas/signup-recorded.endpoint.ts
+// src/features/quotas/signup-recorded.endpoint.ts
 @Handler([SignupJournal])
 class SignupRecordedHandler {
   constructor(private readonly journal: SignupJournal) {}
@@ -191,7 +191,7 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
 ```
 
 ```typescript
-// examples/app-with-http/src/features/quotas/signup.journal.ts
+// src/features/quotas/signup.journal.ts
 @Component([Logger$.auto, Ctx(IdempotencyKey)])
 export class SignupJournal {
   constructor(
@@ -220,7 +220,7 @@ is up to the command's owner.
 A policy checks that the unit stands in the implementation's pipeline:
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
     // The implementation of the signup command puts the idempotency
     // key into the context: a service deep in the graph reads it
     // through `Ctx`
@@ -256,7 +256,7 @@ Start the service at the `debug` level and create a user:
 
 ```bash
 API_TOKEN=secret WEBHOOK_SECRET=hook NESTLING_LOG_LEVEL=debug \
-  yarn workspace @examples/app-with-http start:dev
+  yarn start:dev
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"User 1","email":"user1@example.com"}'
@@ -277,7 +277,7 @@ context, including `requestId`, do not reach the implementation.
 ## Checking
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 it('доставляет ключ идемпотентности команды до сервиса в глубине', async () => {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {

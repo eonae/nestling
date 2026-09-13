@@ -1,6 +1,6 @@
 # 7. The port and the database address from the environment
 
-> Guide to the current API; verified against `users-service` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/config.md](../design/config.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-08] Kernel/user space; конфиг как token-families; плагины`,
@@ -13,7 +13,7 @@ variable is missing, the application must crash at start, not answer `500` on
 the first request.
 
 ```typescript
-// examples/users-service/src/app.config.ts
+// src/app.config.ts
 import { from, makeConfig, secret } from '@nestlingjs/app';
 import { z } from 'zod';
 
@@ -101,7 +101,7 @@ instance is inserted into the keys: `DATABASE_ANALYTICS_URL` for the
 ## A section as a dependency
 
 ```typescript
-// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// src/users/endpoints/list-users.endpoint.ts
 @Handler([UsersRepository$, AppConfig])
 export class ListUsersHandler {
   constructor(
@@ -136,7 +136,7 @@ factory: the section's DI token stands in the list of dependencies, and the
 container supplies the checked value.
 
 ```bash
-API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace @examples/users-service start:dev
+API_TOKEN=secret APP_PAGE_SIZE=1 yarn start:dev
 curl 'localhost:3000/users'
 ```
 
@@ -166,7 +166,7 @@ Sources consulted, in priority order: process.env
 ```
 
 ```bash
-yarn workspace @examples/users-service start:dev   # without API_TOKEN: error at start
+yarn start:dev   # without API_TOKEN: error at start
 ```
 
 The section is checked when the graph is assembled, before the instances are
@@ -185,7 +185,7 @@ reads `HTTP_ADMIN_PORT` and `HTTP_ADMIN_HOST`. A test assembly needs no port at
 all: it does not open a socket.
 
 ```bash
-API_TOKEN=secret HTTP_PORT=8080 yarn workspace @examples/users-service start:dev
+API_TOKEN=secret HTTP_PORT=8080 yarn start:dev
 curl localhost:8080/users
 ```
 

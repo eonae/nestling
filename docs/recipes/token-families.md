@@ -1,6 +1,6 @@
 # Зависимости по имени и сбор вкладов из модулей
 
-> Гайд по текущему API; сверено с кодом `container` (2026-09-12).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/container.md](../design/container.md), разделы
 > «Семейства DI-токенов» и «Логгер ядра». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Token families + модули без
@@ -22,7 +22,7 @@
 ## Семейство вместо DI-токена
 
 ```typescript
-// examples/container/src/counters/registry.ts
+// src/counters/registry.ts
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /** Счётчик с именем: считает события одного вида */
@@ -52,7 +52,7 @@ DI-токен. Член семейства работает везде, где �
 ## Член как обычная зависимость
 
 ```typescript
-// examples/container/src/users/users.service.ts (фрагмент)
+// src/users/users.service.ts (фрагмент)
 @Component([UserRepository, Counter$('users'), Logger$('users')])
 export class UserService {
   #repository: UserRepository;
@@ -83,7 +83,7 @@ export class UserService {
 ## Один рецепт на всё семейство
 
 ```typescript
-// examples/container/src/counters/counters.plugin.ts (фрагмент)
+// src/counters/counters.plugin.ts (фрагмент)
 export const appCounters = makePlugin({
   name: 'app-counters',
   providers: [
@@ -134,7 +134,7 @@ export const appCounters = makePlugin({
 ## Имя члена по потребителю: `.auto`
 
 ```typescript
-// examples/container/src/users/users.repository.ts
+// src/users/users.repository.ts
 @Component([Database$, Logger$.auto])
 export class UserRepository {
   #database: Database;
@@ -184,7 +184,7 @@ export class UserRepository {
 имени нет:
 
 ```typescript
-// examples/container/src/database/database.health.ts (фрагмент)
+// src/database/database.health.ts (фрагмент)
 @Component([Database$, HealthConfig])
 export class DatabaseHealthCheck implements HealthCheck {
   readonly critical = true;
@@ -201,7 +201,7 @@ export class DatabaseHealthCheck implements HealthCheck {
 место:
 
 ```typescript
-// examples/container/src/database/database.module.ts
+// src/database/database.module.ts
 export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
@@ -215,7 +215,7 @@ export const DatabaseModule = makeModule({
 пришлось:
 
 ```typescript
-// examples/container/src/api/api.module.ts (фрагмент)
+// src/api/api.module.ts (фрагмент)
 classProvider(HealthCheck$('api'), ApiHealthCheck),
 ```
 
@@ -229,7 +229,7 @@ classProvider(HealthCheck$('api'), ApiHealthCheck),
 зарегистрированы.
 
 ```typescript
-// examples/container/src/demo.ts (фрагмент)
+// src/demo.ts (фрагмент)
 @Component([Health$, HealthCheck$.all, /* … */])
 export class Demo {
   constructor(
@@ -297,10 +297,10 @@ export class Demo {
 `RootLogger$`: глава [18](../guide/18-testing-features.md).
 
 ```bash
-yarn workspace @examples/container start:dev
+yarn start:dev
 # граф с членами семейств в браузере
-yarn workspace @examples/container export-metadata
-yarn workspace @examples/container visualize
+yarn export-metadata
+yarn visualize
 ```
 
 Тот же пример читает конфиг из нескольких источников и меняет значения

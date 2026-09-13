@@ -1,6 +1,6 @@
 # 20. Spread the features across processes
 
-> Guide to the current API; verified against `split-nats` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/composition.md](../design/composition.md) "L4",
 > [design/operations.md](../design/operations.md) §3 and §4.4,
 > [design/transports.md](../design/transports.md) §7. Why: entries
@@ -27,7 +27,7 @@ spread across services on staging.
 ## Declare the bus and assign it a role
 
 ```typescript
-// examples/split-nats/src/app.ts
+// src/app.ts
 export function declareApp(options: DeclareOptions = {}): App {
   const exporter = prometheusExporter();
 
@@ -75,7 +75,7 @@ reads from `APP_FEATURES` before the assembly, as in chapter
 ## Leave the feature's code as is
 
 ```typescript
-// examples/split-nats/src/users.ts
+// src/users.ts
 @Component([ClaimQuota.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
@@ -118,7 +118,7 @@ other processes.
 ## Event durability and context across the process boundary
 
 ```typescript
-// examples/split-nats/src/operations.ts
+// src/operations.ts
 export const UserRegistered = makeEvent({
   name: 'users.registered',
   durable: true,
@@ -136,7 +136,7 @@ accept the field: for a `request` the caller waits for the response,
 and `durable: true` does not compile for it.
 
 ```typescript
-// examples/split-nats/src/quotas.ts
+// src/quotas.ts
 @Handler([QuotaLedger])
 class UserRegisteredInArchiveHandler {
   constructor(private readonly ledger: QuotaLedger) {}
@@ -164,7 +164,7 @@ sides must know about it: the publisher waits for the write's
 acknowledgment, and the subscriber reads from the stream.
 
 ```typescript
-// examples/split-nats/src/context.ts
+// src/context.ts
 export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 ```
 
@@ -176,7 +176,7 @@ value from the current request's context and puts it into the
 the rest of the context does not cross the boundary.
 
 ```typescript
-// examples/split-nats/src/users.ts
+// src/users.ts
 @Handler([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
@@ -202,14 +202,14 @@ stands in the pipeline of every implementation: both `quotas.claim` and
 `users.registered` arrive from another process.
 
 ```typescript
-// examples/split-nats/src/base.ts
+// src/base.ts
 export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
   .pre(withTracing())
   .pre(TenantId.propagated());
 ```
 
 ```typescript
-// examples/split-nats/src/quotas.ts (fragment)
+// src/quotas.ts (fragment)
 @Component([Ctx(TenantId), Logger$.auto])
 export class QuotaLedger {
   readonly limit = 100;
@@ -281,8 +281,8 @@ The `-js` flag turns on JetStream. Without it the stream under
 `users.registered` is not created, and the assembly stops.
 
 ```bash
-APP_FEATURES=quotas yarn workspace @examples/split-nats start:dev
-APP_FEATURES=users yarn workspace @examples/split-nats start:dev
+APP_FEATURES=quotas yarn start:dev
+APP_FEATURES=users yarn start:dev
 ```
 
 Start the request's owner first. The broker has no waiting queue for a
@@ -312,7 +312,7 @@ The test brings up both processes in one jest process on top of the
 `NatsDouble` broker double, and no network is needed:
 
 ```typescript
-// examples/split-nats/src/split.spec.ts (fragment)
+// src/split.spec.ts (fragment)
   it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
     const topology = await run(broker, 'quotas', 'users');
@@ -354,7 +354,7 @@ process with no owner of `quotas.claim` and makes sure the assembly
 goes through.
 
 ```bash
-yarn workspace @examples/split-nats test
+yarn test
 ```
 
 The operation has become the boundary between processes, and changing

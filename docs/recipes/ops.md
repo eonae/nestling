@@ -1,6 +1,6 @@
 # Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-13).
+> Гайд по текущему API; сверено с кодом `da754bb4`.
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок», и [design/composition.md](../design/composition.md)
 > §6 «Узлы ядра: пробы и логгер». Почему так: записи
@@ -21,7 +21,7 @@
 ## Плагин в корне
 
 ```typescript
-// examples/app-with-http/src/app.ts (фрагмент)
+// src/app.ts (фрагмент)
 import { subscriptions } from '@nestlingjs/subscriptions';
 // …
 
@@ -61,7 +61,7 @@ export const app = makeApp({
 ## Слой `tracked` на endpoint'е подписки
 
 ```typescript
-// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+// src/features/users/endpoints/activity-stream.endpoint.ts
 @Handler([ActivityHub])
 class ActivityStreamHandler {
   constructor(private readonly hub: ActivityHub) {}
@@ -116,7 +116,7 @@ Endpoint'ы лежат в фиче `ops`: у неё нет своих прова
 наблюдаемость, аутентификация и реестр приходят плагинами.
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
+// src/features/ops/subscriptions.endpoint.ts
 @Handler([SubscriptionRegistry])
 class ListSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -139,7 +139,7 @@ export const ListSubscriptions = httpEndpoint.get('/ops/subscriptions', {
 элементов. `toWire` переводит снимок в схему ответа API.
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
+// src/features/ops/subscriptions.endpoint.ts
 @Handler([SubscriptionRegistry])
 class KillSubscriptionHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -170,7 +170,7 @@ export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
 Bearer-токен.
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
+// src/features/ops/subscriptions.endpoint.ts (фрагмент)
 @Handler([SubscriptionRegistry])
 class WatchSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -211,7 +211,7 @@ export const WatchSubscriptions = httpEndpoint.get('/ops/subscriptions/live', {
 ## Факты открытия и закрытия
 
 ```typescript
-// examples/app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
+// src/features/ops/subscription-facts.ts (фрагмент)
 @Handler([Logger$.auto])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
@@ -259,7 +259,7 @@ split-развёртывании из [главы 20](../guide/20-split.md) од
 `Health$`, а адреса и коды ответа даёт плагин HTTP-транспорта.
 
 ```typescript
-// examples/app-with-http/src/app.ts (фрагмент)
+// src/app.ts (фрагмент)
 import { http, httpProbes } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
@@ -303,7 +303,7 @@ export const app = makeApp({
 ## Запросы
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 
 # в отдельных терминалах: подписка и лента реестра
 curl -N localhost:3000/users/activity
@@ -351,7 +351,7 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 ## Проверка
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () => {
   await using testApp = await assembleTest(app, {
     ...testConfig,
@@ -403,7 +403,7 @@ App-тест проходит весь сценарий без сокета: `te
 `opened`.
 
 ```bash
-yarn workspace @examples/app-with-http test
+yarn test
 ```
 
 Те же примитивы без `makeApp`: встраивание в чужой сервер и контейнер

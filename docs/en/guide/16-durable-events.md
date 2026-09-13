@@ -1,6 +1,6 @@
 # 16. Do not lose an event when the process falls
 
-> Guide to the current API; verified against `users-service` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/persistence.md](../design/persistence.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-07] Транзакционный outbox: точка врезки, предпосылка транзакции и результат замера границы`
@@ -34,10 +34,10 @@ The outbox store is declared on the same connection, and the
 DI token of the store:
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const outboxStore = pgOutboxStore(db);
 
-// examples/users-service/src/app.ts
+// src/app.ts
 export const appOutbox = outbox({
   transaction: db.tx,
   store: outboxStore.token,
@@ -53,7 +53,7 @@ call site of `emit` names it, and more on that below.
 In the handler one line changes: the one that names the dependency:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// src/users/endpoints/create-user.endpoint.ts
 @Handler([UsersRepository$, outboxed(UserCreated)])
 export class CreateUserHandler {
   constructor(
@@ -140,7 +140,7 @@ package provides it. Its precondition is the same as the outbox's: the
 application opens the transaction, and the store arrives as a DI token.
 
 ```typescript
-// examples/users-service/src/persistence.ts
+// src/persistence.ts
 export const inboxStore = pgInboxStore(db);
 
 export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
@@ -154,7 +154,7 @@ The subscriber composes the inbox layer **inside** the transaction
 layer:
 
 ```typescript
-// examples/users-service/src/users/endpoints/welcome-email.endpoint.ts
+// src/users/endpoints/welcome-email.endpoint.ts
 export const WelcomeEmail = implement(UserCreated, {
   subscriber: 'welcome-email',
   pipeline: compose(subscribed, appInbox.layer),
@@ -223,7 +223,7 @@ assembly stops after the WIRE phase and does not run `@OnStart`
 ([chapter 8](./08-testing.md)), so the test makes the pass itself:
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('кладёт событие в outbox и доставляет его проходом relay', async () => {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {
@@ -285,7 +285,7 @@ replicas of the sweeper would compete for one table.
 
 ```bash
 OUTBOX_RELAY=false INBOX_SWEEP=false \
-  yarn workspace @examples/users-service start:dev
+  yarn start:dev
 ```
 
 The delivery delay shows through the `outbox.published` operation: the
@@ -302,7 +302,7 @@ published record back to the `pending` state, the way a relay that
 crashed between the publish and the mark would.
 
 ```typescript
-// examples/users-service/src/app.spec.ts
+// src/app.spec.ts
 it('повторная публикация записи не вызывает хендлер второй раз', async () => {
   // … creating the user and the first relay pass
   const connection = testApp.get(db.connection);

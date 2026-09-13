@@ -28,11 +28,10 @@ Nest.
 по потребности. Список того, что фреймворк проверяет до первого запроса,
 лежит отдельным справочником — [guarantees.md](../guarantees.md).
 
-Код всех глав лежит в `examples/*`. Часть 1 собирает `users-service`,
-часть 2 продолжает его в `app-with-http` и `split-nats`. Сниппет в главе
-начинается с пути к файлу примера и совпадает с ним. Сниппет, который
-показывает промежуточный шаг, помечен комментарием «шаг главы»; итоговая
-версия файла названа рядом.
+Код глав написан для текста: сниппет начинается с пути в вашем проекте и
+читается на месте. Приложения, собранные целиком, лежат в
+[`examples/`](../../examples/) — глава ссылается на них там, где это
+помогает, но кода примеров не пересказывает.
 
 ## Карта понятий
 
@@ -83,32 +82,32 @@ Nest.
 
 ## Часть 1. Сервис
 
-| Глава | Задача | Пример |
-|---|---|---|
-| [1. Поднять сервис, который отвечает на запрос](./01-first-service.md) | endpoint, `makeApp`, транспорт `http()` | `users-service` |
-| [2. Из чего состоит приложение](./02-composition.md) | три формы корня, провайдеры, модули, фичи, переключатели, аргумент сборки | `users-service` |
-| [3. Принять данные и не пропустить мусор](./03-input.md) | схема `input`, path и query, `bind`, ответ `400` | `users-service` |
-| [4. Сказать клиенту, что пошло не так](./04-errors.md) | `makeFail`, код с категорией, `errors:`, `Ok.created` | `users-service` |
-| [5. Хендлер как класс](./05-handler-class.md) | поле `handler`, `@Handler`, юнит-тест через `new` | `users-service` |
-| [6. Откуда хендлер берёт репозиторий](./06-repository.md) | DI-токен интерфейса, `providers`, роли классов, ресурсы, значения-провайдеры | `users-service` |
-| [7. Порт и адрес базы из окружения](./07-config.md) | `makeConfig`, ключи, `secret`, fail-fast | `users-service` |
-| [8. Убедиться, что работает, без запуска сервера](./08-testing.md) | `assembleTest(app, …)`, `overrides`, `vars`, юнит-тест хендлера | `users-service` |
-| [9. Видеть каждый запрос в логе](./09-logging.md) | пайплайн `.pre` и `.finally`, слой, `compose`, `Ctx(RequestId)` | `users-service` |
-| [10. Пускать только своих](./10-auth.md) | pre-юнит с отказом, контекст слоя, политики `hasLayer` и `hasVar`, `detached`, `HttpResponse` и юниты транспорта | `users-service` |
-| [11. Писать в базу транзакцией запроса](./11-database.md) | `drizzlePg`, транзакция переменной контекста, миграции drizzle-kit | `users-service` |
-| [12. Файлы и большие выгрузки](./12-files-and-streams.md) | `multipart`, `upload`, `stream(T)` на входе и выходе | `users-service` |
-| [13. Отдать фронтенду документацию и клиент](./13-openapi-and-client.md) | `openapi()`, `doc:`, операция с `http:`, `makeClient` | `users-service` |
+| Глава | Задача |
+|---|---|
+| [1. Поднять сервис, который отвечает на запрос](./01-first-service.md) | endpoint, `makeApp`, транспорт `http()` |
+| [2. Из чего состоит приложение](./02-composition.md) | три формы корня, провайдеры, модули, фичи, переключатели, аргумент сборки |
+| [3. Принять данные и не пропустить мусор](./03-input.md) | схема `input`, path и query, `bind`, ответ `400` |
+| [4. Сказать клиенту, что пошло не так](./04-errors.md) | `makeFail`, код с категорией, `errors:`, `Ok.created` |
+| [5. Хендлер как класс](./05-handler-class.md) | поле `handler`, `@Handler`, юнит-тест через `new` |
+| [6. Откуда хендлер берёт репозиторий](./06-repository.md) | DI-токен интерфейса, `providers`, роли классов, ресурсы, значения-провайдеры |
+| [7. Порт и адрес базы из окружения](./07-config.md) | `makeConfig`, ключи, `secret`, fail-fast |
+| [8. Убедиться, что работает, без запуска сервера](./08-testing.md) | `assembleTest(app, …)`, `overrides`, `vars`, юнит-тест хендлера |
+| [9. Видеть каждый запрос в логе](./09-logging.md) | пайплайн `.pre` и `.finally`, слой, `compose`, `Ctx(RequestId)` |
+| [10. Пускать только своих](./10-auth.md) | pre-юнит с отказом, контекст слоя, политики `hasLayer` и `hasVar`, `detached`, `HttpResponse` и юниты транспорта |
+| [11. Писать в базу транзакцией запроса](./11-database.md) | `drizzlePg`, транзакция переменной контекста, миграции drizzle-kit |
+| [12. Файлы и большие выгрузки](./12-files-and-streams.md) | `multipart`, `upload`, `stream(T)` на входе и выходе |
+| [13. Отдать фронтенду документацию и клиент](./13-openapi-and-client.md) | `openapi()`, `doc:`, операция с `http:`, `makeClient` |
 
 ## Часть 2. Приложение
 
-| Глава | Задача | Пример |
-|---|---|---|
-| [14. Выделить вторую область](./14-features.md) | граница фич, операция `request`, `implement`, `.caller`, плагины, модули | `app-with-http` |
-| [15. Оповещать соседей о случившемся](./15-events.md) | `event`, `command`, `subscriber`, ключ идемпотентности | `app-with-http` |
-| [16. Не потерять событие при падении процесса](./16-durable-events.md) | `outboxed(Op)`, relay, отметка приёма, досрочный успех подписчика | `users-service` |
-| [17. Живая лента для клиента](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` | `app-with-http` |
-| [18. Тестировать фичу без соседей](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` | `app-with-http`, `split-nats` |
-| [19. Запускать только часть фич](./19-select.md) | `assemble(args)`, `includeDeps`, переключатели состава, `load()` до сборки, `check()` | `app-with-http` |
-| [20. Разнести фичи по процессам](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` | `split-nats` |
-| [21. Не сломать соседей при изменении операции](./21-compatibility.md) | версия в имени, снапшот операций, `diffOperations` | `app-with-http` |
-| [22. Считать запросы и вызовы между процессами](./22-metrics.md) | `Metrics`, опция `metrics`, `Metrics$.auto`, метрики ядра, адаптер и `/metrics` | `split-nats` |
+| Глава | Задача |
+|---|---|
+| [14. Выделить вторую область](./14-features.md) | граница фич, операция `request`, `implement`, `.caller`, плагины, модули |
+| [15. Оповещать соседей о случившемся](./15-events.md) | `event`, `command`, `subscriber`, ключ идемпотентности |
+| [16. Не потерять событие при падении процесса](./16-durable-events.md) | `outboxed(Op)`, relay, отметка приёма, досрочный успех подписчика |
+| [17. Живая лента для клиента](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` |
+| [18. Тестировать фичу без соседей](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` |
+| [19. Запускать только часть фич](./19-select.md) | `assemble(args)`, `includeDeps`, переключатели состава, `load()` до сборки, `check()` |
+| [20. Разнести фичи по процессам](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
+| [21. Не сломать соседей при изменении операции](./21-compatibility.md) | версия в имени, снапшот операций, `diffOperations` |
+| [22. Считать запросы и вызовы между процессами](./22-metrics.md) | `Metrics`, опция `metrics`, `Metrics$.auto`, метрики ядра, адаптер и `/metrics` |

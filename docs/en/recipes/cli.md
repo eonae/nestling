@@ -1,6 +1,6 @@
 # A CLI tool on the same primitives
 
-> Guide to the current API; verified against `simple-cli` (2026-09-12).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
@@ -14,7 +14,7 @@ way as in HTTP, with no second rulebook for the command line.
 ## A command with arguments
 
 ```typescript
-// examples/simple-cli/src/commands/greet.command.ts
+// src/commands/greet.command.ts
 const GreetInput = z.object({
   args: z.array(z.string()).min(1, 'name is required'),
   shout: z.boolean().optional(),
@@ -52,7 +52,7 @@ name, and the `greet` command with no name answers with the
 `bad_request` failure on the `args` path, without calling the handler.
 
 ```bash
-yarn workspace @examples/simple-cli start:dev greet Alice --shout
+yarn start:dev greet Alice --shout
 ```
 
 ```json
@@ -67,7 +67,7 @@ handler does not write to the console itself.
 ## A command without input
 
 ```typescript
-// examples/simple-cli/src/commands/help.command.ts (fragment)
+// src/commands/help.command.ts (fragment)
 export const Help = cliEndpoint('help', {
   output: HelpOutput,
   handler: async () => {
@@ -85,7 +85,7 @@ and returns a confirmation matching the `output` schema as its result.
 ## A missing input
 
 ```typescript
-// examples/simple-cli/src/commands/deploy.command.ts
+// src/commands/deploy.command.ts
 const DeployInput = z.object({
   env: z.enum(['dev', 'prod']).describe('Target environment'),
   force: z.boolean().describe('Skip the safety checks'),
@@ -124,7 +124,7 @@ choice. A schema written for command-line arguments
 questions without a single edit.
 
 ```bash
-yarn workspace @examples/simple-cli start:dev deploy
+yarn start:dev deploy
 ```
 
 ```
@@ -165,7 +165,7 @@ brings `serve` down: the questions and the stream read the same input.
 ## A stream from stdin
 
 ```typescript
-// examples/simple-cli/src/commands/process-stdin.command.ts (fragment)
+// src/commands/process-stdin.command.ts (fragment)
 export const ProcessStdin = cliEndpoint('process-stdin', {
   input: stream('binary'),
   output: ProcessStdinOutput,
@@ -197,7 +197,7 @@ NDJSON and check every line against the schema, as in chapter
 write the same NDJSON to the transport's stdout.
 
 ```typescript
-// examples/simple-cli/src/errors.ts
+// src/errors.ts
 export const EmptyStdin = makeFail('bad_request:empty_stdin', {
   message: 'No data received on stdin',
 });
@@ -210,7 +210,7 @@ depend on the transport: CLI prints the code as it is, HTTP would
 translate `bad_request` to 400.
 
 ```bash
-printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin
+printf "a\nb\n" | yarn start:dev process-stdin
 ```
 
 ```
@@ -225,7 +225,7 @@ Processing: b
 ## The transport and the run modes
 
 ```typescript
-// examples/simple-cli/src/main.ts
+// src/main.ts
 const argv = process.argv.slice(2);
 
 const cli = new CliTransport({
@@ -277,7 +277,7 @@ Commands run through `execute`: `parseArgv` parses the arguments, the
 response arrives as a value, stdout takes no part in this path.
 
 ```typescript
-// examples/simple-cli/src/commands.spec.ts (fragment)
+// src/commands.spec.ts (fragment)
 describe('команды через execute', () => {
   let cli: CliTransport;
 
@@ -332,7 +332,7 @@ turns the questions on explicitly: a substituted stream is not a
 terminal.
 
 ```typescript
-// examples/simple-cli/src/commands.spec.ts (fragment)
+// src/commands.spec.ts (fragment)
 const cli = new CliTransport({
   mode: 'argv',
   argv: [],
@@ -354,8 +354,8 @@ expect(response.value).toEqual({
 ```
 
 ```bash
-yarn workspace @examples/simple-cli start:dev            # REPL
-yarn workspace @examples/simple-cli test
+yarn start:dev            # REPL
+yarn test
 ```
 
 The recipe [Dependencies by name and contributions collected from

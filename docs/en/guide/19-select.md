@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -18,7 +18,7 @@ first request.
 ## Read the assembly argument before the container
 
 ```typescript
-// examples/app-with-http/src/main.ts
+// src/main.ts
 import { app } from './app.js';
 
 import { from, load, makeConfig } from '@nestlingjs/app';
@@ -86,7 +86,7 @@ error lists the available ones, the same as two features with one
 name, an empty selection, and a selection with no `features:`.
 
 ```bash
-APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 ```
@@ -143,7 +143,7 @@ and that is not a reason to set up a feature for the sake of one
 plugin.
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// src/app.ts
 export const Docs = makeSwitch('docs', { default: 'on' });
 
 export const app = makeApp({
@@ -212,7 +212,7 @@ and in the `check()` report as the `switches` field.
 ## Plugins and checking every role with no sockets
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` is selected alone: there are no providers of the `users`
     // feature in the graph, and plugins are in every assembly
@@ -232,7 +232,7 @@ through `plugins:` and do not depend on the feature selection. There
 are no providers of the `users` feature in this assembly.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
 /**
  * The declaration for `check()`: the structural check has no
  * overrides, so the secret values are bound to the section's keys by
@@ -273,7 +273,7 @@ section's keys right in the declaration. The `API_TOKEN` and
 the configuration section.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
     const reports = await checkTopologies(checked, [
@@ -309,7 +309,7 @@ to the documentation plugin, and the implementations of operations are
 visible under names like `subscriptions.opened@ops`.
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
     const [{ report }] = await checkTopologies(checked, ['all']);
 
@@ -328,7 +328,7 @@ visible under names like `subscriptions.opened@ops`.
 ```
 
 ```typescript
-// examples/app-with-http/src/app.spec.ts
+// src/app.spec.ts
   it('проверяет обе ветки переключателя документации', async () => {
     const [withDocs, withoutDocs] = await checkTopologies(checked, [
       { features: 'all', docs: 'on' },
@@ -353,8 +353,8 @@ values in the report: the test compares a list rather than reading
 console output.
 
 ```bash
-yarn workspace @examples/app-with-http test
-APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+yarn test
+APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
 ```
 
 The roles assemble separately, but for now they run in one process:

@@ -1,6 +1,6 @@
 # 21. Do not break the neighbours when an operation changes
 
-> Guide to the current API; verified against `app-with-http` (2026-09-13).
+> Guide to the current API; verified against `da754bb4`.
 > Target description: [design/operations.md](../design/operations.md) §1.6 and
 > §1.7. Why: entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-31] Версионирование контрактов: снапшот, вердикт по слоту, третий вердикт unknown`.
@@ -21,7 +21,7 @@ allowed.
 ## The snapshot of the assembly's operations
 
 ```typescript
-// examples/app-with-http/src/operations.compat.spec.ts
+// src/operations.compat.spec.ts
 /**
  * The same declaration with secrets from an object: `check()`
  * assembles the graph, and the section is read
@@ -86,7 +86,7 @@ declared but implemented in no topology does not land in the snapshot.
 Every published operation remembers which topologies published it:
 
 ```json
-// examples/app-with-http/operations.snapshot.json (fragment)
+// operations.snapshot.json (fragment)
 {
   "snapshotVersion": 1,
   "operations": [
@@ -130,7 +130,7 @@ serialization order.
 ## Comparison against the baseline and verdicts
 
 ```typescript
-// examples/app-with-http/src/operations.compat.spec.ts
+// src/operations.compat.spec.ts
   it('текущая сборка совпадает с опубликованным снапшотом', async () => {
     const current = await currentSnapshot();
 
@@ -189,7 +189,7 @@ operation. This is what the snapshot would look like before the change
 that removed this field:
 
 ```typescript
-// examples/app-with-http/src/operations.compat.spec.ts (fragment)
+// src/operations.compat.spec.ts (fragment)
     const report = diffOperations(baseline, current);
 
     expect(report.breaking).toMatchObject([
@@ -225,7 +225,7 @@ expected step: rewrite the snapshot and commit it together with the
 change to the operation.
 
 ```bash
-UPDATE_SNAPSHOT=1 yarn workspace @examples/app-with-http test src/operations.compat.spec.ts
+UPDATE_SNAPSHOT=1 yarn test src/operations.compat.spec.ts
 ```
 
 An incompatible change is made through a new name. Declare
@@ -237,7 +237,7 @@ example's test also treats removing an operation from the snapshot as
 an error, because `diffOperations` classes it as `breaking`.
 
 ```bash
-yarn workspace @examples/app-with-http test src/operations.compat.spec.ts
+yarn test src/operations.compat.spec.ts
 ```
 
 The path is complete. Tasks that come up outside its order lie in
