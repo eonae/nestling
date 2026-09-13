@@ -25,9 +25,19 @@
     if (t) return t;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
+
+  var MOON =
+    '<path d="M13.4 9.6A5.8 5.8 0 0 1 6.4 2.6a5.8 5.8 0 1 0 7 7Z" ' +
+    'stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>';
+  var SUN =
+    '<circle cx="8" cy="8" r="3.2" stroke="currentColor" stroke-width="1.4"/>' +
+    '<path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.2 1.2M11.8 11.8 13 13' +
+    'M13 3l-1.2 1.2M4.2 11.8 3 13" stroke="currentColor" stroke-width="1.4" ' +
+    'stroke-linecap="round"/>';
+
   function applyThemeIcon() {
-    var btn = document.getElementById('theme-btn');
-    if (btn) btn.textContent = currentTheme() === 'dark' ? '☀' : '☾';
+    var svg = document.querySelector('#theme-btn svg');
+    if (svg) svg.innerHTML = currentTheme() === 'dark' ? SUN : MOON;
   }
   window.__toggleTheme = function () {
     var next = currentTheme() === 'dark' ? 'light' : 'dark';
@@ -36,19 +46,14 @@
     applyThemeIcon();
   };
 
-  /* ---------- Mobile sidebar ---------- */
+  /* ---------- Меню на узком экране ---------- */
+  /* Панель сайдбара и затемнение показывает один класс на body: затемнение
+     лежит вне сетки страницы, и общего родителя у них нет. */
   window.__toggleMenu = function () {
-    var sb = document.querySelector('.sidebar');
-    var bd = document.querySelector('.backdrop');
-    if (!sb) return;
-    var open = sb.classList.toggle('open');
-    if (bd) bd.classList.toggle('show', open);
+    document.body.classList.toggle('menu-open');
   };
   window.__closeMenu = function () {
-    var sb = document.querySelector('.sidebar');
-    var bd = document.querySelector('.backdrop');
-    if (sb) sb.classList.remove('open');
-    if (bd) bd.classList.remove('show');
+    document.body.classList.remove('menu-open');
   };
 
   /* Пункт сайдбара в одном файле ведёт якорем внутрь того же документа: смена
@@ -209,6 +214,53 @@
     window.addEventListener('load', function () { measure(); onScroll(); });
   }
 
+  /* ---------- Копирование кода ---------- */
+
+  /* В буфер попадает текст блока: подпись файла и разметка подсветки лежат
+     вне `pre`, поэтому копируется ровно то, что читатель видит кодом.
+     Файл, открытый с диска, — не защищённый источник, и `navigator.clipboard`
+     там недоступен: текст кладётся полем ввода. */
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+
+    try {
+      document.execCommand('copy');
+    } catch (e) {
+      /* браузер запретил копирование: кнопка просто не отметится */
+    }
+
+    document.body.removeChild(area);
+
+    return Promise.resolve();
+  }
+
+  function initCopy() {
+    list('.code .copy').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var block = btn.closest('.code');
+        var code = block && block.querySelector('pre');
+        if (!code) return;
+
+        copyText(code.textContent).then(function () {
+          btn.textContent = ui.copied || 'copied';
+          setTimeout(function () {
+            btn.textContent = ui.copy || 'copy';
+          }, 1400);
+        });
+      });
+    });
+  }
+
   /* ---------- Поиск ---------- */
 
   /* Индекс весит сотни килобайт и нужен не каждому читателю, поэтому
@@ -283,14 +335,47 @@
       load().then(function () { render(search(query), query); });
     }
 
+    /* На узком экране поле свёрнуто в лупу и разворачивается по нажатию:
+       место в шапке занимают марка, меню и переключатели. */
+    var panel = input.closest('.search');
+
+    function open() {
+      panel.classList.add('open');
+      load();
+      input.focus();
+    }
+
+    function close() {
+      input.value = '';
+      box.hidden = true;
+      panel.classList.remove('open');
+      input.blur();
+    }
+
     input.addEventListener('focus', load);
     input.addEventListener('input', run);
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { input.value = ''; box.hidden = true; input.blur(); }
+      if (e.key === 'Escape') close();
     });
+
+    panel.addEventListener('click', function (e) {
+      if (!e.target.closest('input')) open();
+    });
+
     document.addEventListener('click', function (e) {
-      if (!e.target.closest('.search')) box.hidden = true;
+      if (!e.target.closest('.search')) { box.hidden = true; panel.classList.remove('open'); }
     });
+
+    /* Поиск открывается с любой страницы: `⌘K` у Apple, `Ctrl+K` у прочих */
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        open();
+      }
+    });
+
+    var hint = document.querySelector('.search kbd');
+    if (hint && !/Mac|iPhone|iPad/.test(navigator.platform)) hint.textContent = 'Ctrl K';
   }
 
   /* ---------- Anchor links on headings ---------- */
@@ -309,6 +394,7 @@
     applyThemeIcon();
     closeMenuOnNav();
     addHeadingAnchors();
+    initCopy();
     initSearch();
     if (mode === 'single') {
       initScrollSpy();
