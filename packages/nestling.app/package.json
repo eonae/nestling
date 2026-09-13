@@ -55,9 +55,7 @@
   "dependencies": {
     "@nestlingjs/common.misc": "workspace:*",
     "@nestlingjs/container": "workspace:*",
-    "@nestlingjs/operations": "workspace:*"
-  },
-  "devDependencies": {
+    "@nestlingjs/operations": "workspace:*",
     "zod": "^4.0.0"
   },
   "nx": {

@@ -106,9 +106,9 @@ describe('buildToolDefinitions(routes, { converters })', () => {
     ]);
   });
 
-  it('падает, когда конвертера для вендора схемы не передали', () => {
+  it('падает, когда вендора схемы не знает ни один конвертер', () => {
     expect(() => buildToolDefinitions(routesOf(Search), {})).toThrow(
-      /tool 'search_users'.*'input' schema is a 'zod' schema.*no converter/s,
+      /tool 'search_users'.*'input' schema comes from vendor 'zod'/s,
     );
   });
 

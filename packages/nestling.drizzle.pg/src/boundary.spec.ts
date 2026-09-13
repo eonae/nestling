@@ -110,10 +110,15 @@ const manifest = JSON.parse(
 
 describe('@nestlingjs/drizzle.pg: состав зависимостей', () => {
   it('драйвер приходит peer-зависимостью, а не своей', () => {
+    // Валидатор в списке своих — не послабление: схемы своей секции пакет
+    // пишет сам, и выбор валидатора для них — решение фреймворка. Границу
+    // приложения держат публичные типы, а не состав зависимостей
     expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual([
       '@nestlingjs/app',
       '@nestlingjs/common.misc',
       '@nestlingjs/container',
+      '@nestlingjs/schema.zod',
+      'zod',
     ]);
     expect(Object.keys(manifest.peerDependencies ?? {})).toContain(
       'drizzle-orm',

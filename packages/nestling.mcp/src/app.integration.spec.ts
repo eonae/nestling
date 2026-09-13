@@ -24,9 +24,8 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { Handler, makeModule } from '@nestlingjs/container';
-import { buildOpenApiDocument } from '@nestlingjs/openapi';
+import { openapi } from '@nestlingjs/openapi';
 import { makeRequest } from '@nestlingjs/operations';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import type { HttpServer } from '@nestlingjs/transport.http';
 import {
   http,
@@ -99,7 +98,6 @@ const spec = makeApp({
     mcp({
       server: api,
       info: { name: 'users-service', version: '1.0.0' },
-      converters: [zodConverter()],
     }),
   ],
   config: [[socket, serverKeys()]],
@@ -210,10 +208,9 @@ describe('две поверхности одной операции', () => {
 
 describe('состав документа OpenAPI', () => {
   it('не описывает инструменты: у них нет адреса по HTTP', () => {
-    const document = buildOpenApiDocument(spec.discover().endpoints, {
+    const document = openapi({
       info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
-    });
+    }).document(spec.discover());
 
     expect(Object.keys(document.paths)).toEqual(['/users']);
     expect(JSON.stringify(document)).not.toContain('count_users');

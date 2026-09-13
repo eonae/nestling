@@ -6,10 +6,11 @@ import type { SchemaIssue, StandardSchemaV1 } from '@nestlingjs/common.misc';
 /**
  * Схема деталей отказа проверки входа, написанная вручную.
  *
- * Standard Schema — интерфейс, поэтому ядро объявляет схему без
- * библиотеки-валидатора. Конвертеры документации вендор `nestling` не
- * знают, поэтому JSON Schema для схем ядра объявлена аннотацией
- * `jsonSchema`.
+ * Редкий случай, когда вендорская схема не подходит, и причина не в
+ * нейтральности: JSON Schema этих деталей объявлена аннотацией
+ * `jsonSchema`, а её диспетчер предпочитает любому конвертеру. Вендор
+ * прибавил бы зависимость самому нижнему пакету стопки и не дал бы
+ * взамен ничего.
  */
 const rawIssuesSchema: StandardSchemaV1<unknown, readonly SchemaIssue[]> = {
   '~standard': {
@@ -53,7 +54,7 @@ const issuesSchema = jsonSchema(rawIssuesSchema, {
 
 /**
  * Схема объекта с одним числовым полем; написана вручную и аннотирована,
- * как `issuesSchema`.
+ * как `rawIssuesSchema`, и по той же причине.
  */
 function numberFieldSchema<K extends string>(
   field: K,

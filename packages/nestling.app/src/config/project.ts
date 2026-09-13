@@ -67,6 +67,21 @@ export const applyDerived = (
 };
 
 /**
+ * Пустое значение ключа — то же, что незаданный ключ.
+ *
+ * `KEY=` в окружении или в файле означает «ключ не задан», и решает дальше
+ * схема поля: `default` даёт умолчание, обязательное поле даёт отказ. Ядро
+ * сводит пустую строку к `undefined` **до** схемы, поэтому схемам полей
+ * знать об этом правиле не нужно — ни своим, ни пользовательским.
+ *
+ * Правило живёт здесь одно на оба пути чтения: проекцию секции из графа и
+ * первичное чтение фазы 0 (`load`). Порядок поиска значения оно не трогает
+ * — значение уже взято у первой привязки, которая ключ покрывает.
+ */
+export const presentValue = (raw: unknown): unknown =>
+  raw === '' ? undefined : raw;
+
+/**
  * Читает и валидирует все поля секции.
  *
  * Валидация независима по полям: отказ одного не прекращает проверку
@@ -82,7 +97,7 @@ const readValues = (
   const failures: ConfigFieldFailure[] = [];
 
   for (const field of declaration.fields) {
-    const rawValue = reader.read(field.key);
+    const rawValue = presentValue(reader.read(field.key));
 
     try {
       values[field.name] = validateSync(

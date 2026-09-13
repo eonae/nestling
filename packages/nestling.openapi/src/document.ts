@@ -1,11 +1,12 @@
 /**
- * `buildOpenApiDocument` — чистая функция из деклараций в документ.
+ * Построение документа из деклараций — одна функция на обоих потребителей.
  *
- * Ни контейнера, ни транспортов, ни поднятого приложения ей не нужно: на
- * входе то же значение, что отдаёт `app.discover(args)`. Поэтому документ
- * кладётся в артефакты CI тремя строками — и той же функцией пользуется
- * модуль-издатель, когда строит документ на ASSEMBLE.
+ * Её зовут метод плагина (`appOpenapi.document(app.discover(args))`) и
+ * фабрика провайдера документа. Поэтому документ из артефактов CI и
+ * документ, отдаваемый endpoint'ом, совпадают по построению.
  *
+ * Ни контейнера, ни транспортов, ни поднятого приложения построению не
+ * нужно: на входе то же значение, что отдаёт `app.discover(args)`.
  * Аргумент сборки задаёт состав документа: при том же `args` документ
  * описывает те endpoint'ы, которые обслуживает `app.assemble(args).run()`.
  */
@@ -26,6 +27,7 @@ import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { assertConverters, busBindingOf, describeForm } from '@nestlingjs/app';
 import type { HttpBinding } from '@nestlingjs/operations';
 import { isHttpBinding } from '@nestlingjs/operations';
+import { withZodDefault } from '@nestlingjs/schema.zod';
 import { httpBindingOf } from '@nestlingjs/transport.http';
 
 /** Endpoint, отобранный для документа: его карта уже прочитана */
@@ -43,6 +45,10 @@ interface Documented {
  * помеченный `doc: { hidden: '<причина>' }`, исключается вместе со своими
  * схемами: это единственный способ не документировать HTTP-endpoint.
  *
+ * Список конвертеров разрешается здесь — одной точкой на обоих
+ * потребителей: сначала fail-fast на дублях вендора в списке вызывающего,
+ * затем умолчание.
+ *
  * @param endpoints - Поле `endpoints` результата `app.discover(args?)`
  * (или любой структурно совпадающий список)
  * @param options - `info` (обязательно), конвертеры и поля, переносимые
@@ -52,21 +58,16 @@ interface Documented {
  * path-параметр без свойства в схеме; неразложимый вход. Нарушения
  * перечисляются **все сразу**
  *
- * @example
- * ```typescript
- * const { endpoints } = app.discover(process.argv[2]);
- * writeFileSync('openapi.json', JSON.stringify(
- *   buildOpenApiDocument(endpoints, { info, converters: [zodConverter()] }),
- * ));
- * ```
+ * @internal Наружу пакет отдаёт метод плагина `openapi(options).document()`
  */
-export function buildOpenApiDocument(
+export function buildDocument(
   endpoints: readonly DocumentedEndpoint[],
   options: OpenApiOptions,
 ): OpenApiDocument {
   assertConverters(options.converters);
   assertInfo(options.info);
 
+  const converters = withZodDefault(options.converters);
   const diagnostics = new Diagnostics();
   const documented = select(endpoints);
 
@@ -79,7 +80,7 @@ export function buildOpenApiDocument(
     const method = item.binding.method.toLowerCase();
 
     const context: ConvertContext = {
-      converters: options.converters,
+      converters,
       diagnostics,
       where: whereOf(item.endpoint.pattern, item.moduleName),
     };
@@ -113,8 +114,8 @@ function assertInfo(info: unknown): void {
 
   if (typeof title !== 'string' || typeof version !== 'string') {
     throw new TypeError(
-      `buildOpenApiDocument(…, { info }): 'info' must carry a 'title' and a ` +
-        `'version' — both are required by the OpenAPI specification.`,
+      `openapi({ info }): 'info' must carry a 'title' and a 'version' — ` +
+        `both are required by the OpenAPI specification.`,
     );
   }
 }
@@ -253,6 +254,8 @@ function operationOf(
  * В документ список не попадает: документ уходит наружу, а «что мы решили
  * не показывать» это внутреннее знание. Печатает его модуль-издатель на
  * старте, рядом со списком detached-endpoint'ов.
+ *
+ * @internal
  */
 export function hiddenEndpoints(
   endpoints: readonly DocumentedEndpoint[],

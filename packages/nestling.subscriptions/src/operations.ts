@@ -11,9 +11,9 @@
  * публикация, и платить ею должно быть решением композиции.
  */
 
-import { num, optionalStr, record, str } from './schema.js';
-
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { makeEvent } from '@nestlingjs/operations';
+import { z } from 'zod';
 
 /** Значения `kind` снимка — тем же значением их перечисляет схема факта */
 const KINDS = ['value', 'stream', 'events'] as const;
@@ -49,21 +49,42 @@ export interface SubscriptionClosedFact {
 }
 
 /**
+ * Схемы фактов: значение написано на zod, объявленный тип — нейтральный.
+ *
+ * Тип операции уходит в публичные объявления пакета, и вендор в нём
+ * называть нельзя: приложение подписывается на факт, не выбирая
+ * валидатора. Значение при этом остаётся zod-схемой, поэтому штатный
+ * конвертер переводит её в JSON Schema без аннотации.
+ */
+const openedSchema: StandardSchemaV1<unknown, SubscriptionOpenedFact> =
+  z.object({
+    node: z.string().optional(),
+    id: z.string(),
+    transport: z.string(),
+    pattern: z.string(),
+    kind: z.enum(KINDS),
+    identity: z.string().optional(),
+    startedAt: z.number(),
+  });
+
+/** Схема факта «подписка закрыта» — тем же правилом */
+const closedSchema: StandardSchemaV1<unknown, SubscriptionClosedFact> =
+  z.object({
+    node: z.string().optional(),
+    id: z.string(),
+    reason: z.enum(REASONS),
+    itemsOut: z.number(),
+    closedAt: z.number(),
+  });
+
+/**
  * Факт: подписка открыта.
  *
  * Публикуется **до** вызова хендлера, тем же порядком, что и событие ленты.
  */
 export const SubscriptionOpened = makeEvent({
   name: 'subscriptions.opened',
-  input: record<SubscriptionOpenedFact>({
-    node: optionalStr(),
-    id: str(),
-    transport: str(),
-    pattern: str(),
-    kind: str(KINDS),
-    identity: optionalStr(),
-    startedAt: num(),
-  }),
+  input: openedSchema,
   doc: {
     summary: 'Subscription opened',
     description:
@@ -82,13 +103,7 @@ export const SubscriptionOpened = makeEvent({
  */
 export const SubscriptionClosed = makeEvent({
   name: 'subscriptions.closed',
-  input: record<SubscriptionClosedFact>({
-    node: optionalStr(),
-    id: str(),
-    reason: str(REASONS),
-    itemsOut: num(),
-    closedAt: num(),
-  }),
+  input: closedSchema,
   doc: {
     summary: 'Subscription closed',
     description:

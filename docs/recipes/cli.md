@@ -1,6 +1,6 @@
 # CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `76ea1866`.
+> Гайд по текущему API; сверено с кодом `890d758b`.
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
@@ -139,12 +139,13 @@ host (localhost):
 }
 ```
 
-Команде с политикой нужен конвертер схем: вопрос выводится из JSON Schema
-формы `input`, а Standard Schema интроспекции не даёт. Список передаётся
-опцией транспорта — `cli({ converters: [zodConverter()] })` из
-`@nestlingjs/schema.zod`. Конвертера нет — `serve` падает с именем
-команды и вендором её схемы, а не молча задаёт вопросы по одним именам
-полей.
+Вопрос выводится из JSON Schema формы `input`: Standard Schema
+интроспекции не даёт, и схему кто-то должен перевести. Объявлять переводчик
+не нужно — конвертер вендора, на котором написаны схемы фреймворка,
+транспорт подставляет умолчанием. Приложение на другом валидаторе передаёт
+свой список опцией `cli({ converters })`. Схема, которую не перевёл ни один
+конвертер, роняет `serve` с именем команды и вендором её схемы, а не молча
+задаёт вопросы по одним именам полей.
 
 Вопросы задаются, пока ввод — терминал и переменная `CI` не задана. В
 конвейере команда доходит до валидации и отвечает отказом, как команда без
@@ -224,7 +225,6 @@ const argv = process.argv.slice(2);
 const cli = new CliTransport({
   mode: argv.length > 0 ? 'argv' : 'repl',
   argv,
-  converters: [zodConverter()],
 });
 
 const dispatch = makeDispatch([Help, Greet, Deploy, ProcessStdin]);
@@ -275,11 +275,7 @@ describe('команды через execute', () => {
 
   beforeEach(async () => {
     // Пустой `argv`: `serve` регистрирует команды и ничего не выполняет
-    cli = new CliTransport({
-      mode: 'argv',
-      argv: [],
-      converters: [zodConverter()],
-    });
+    cli = new CliTransport({ mode: 'argv', argv: [] });
     await cli.serve(
       makeDispatch([Help, Greet, Deploy, ProcessStdin]),
       new AbortController().signal,
@@ -330,7 +326,6 @@ const cli = new CliTransport({
   input: answers('2\n', 'y\n', '\n'),
   output: collecting(printed),
   interactive: true,
-  converters: [zodConverter()],
 });
 
 await cli.serve(makeDispatch([Deploy]), new AbortController().signal);

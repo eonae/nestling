@@ -1,6 +1,6 @@
 # Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `76ea1866`.
+> Гайд по текущему API; сверено с кодом `890d758b`.
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
@@ -149,17 +149,21 @@ tracked)`. Обязательность слоя задаёт политика �
 
 ```typescript
 // packages/nestling.subscriptions/src/operations.ts
+/** Значение — zod-схема, объявленный тип — нейтральный */
+const openedSchema: StandardSchemaV1<unknown, SubscriptionOpenedFact> =
+  z.object({
+    node: z.string().optional(),
+    id: z.string(),
+    transport: z.string(),
+    pattern: z.string(),
+    kind: z.enum(KINDS),
+    identity: z.string().optional(),
+    startedAt: z.number(),
+  });
+
 export const SubscriptionOpened = makeEvent({
   name: 'subscriptions.opened',
-  input: record<SubscriptionOpenedFact>({
-    node: optionalStr(),
-    id: str(),
-    transport: str(),
-    pattern: str(),
-    kind: str(KINDS),
-    identity: optionalStr(),
-    startedAt: num(),
-  }),
+  input: openedSchema,
   doc: {
     summary: 'Subscription opened',
     description:
@@ -173,11 +177,15 @@ export const SubscriptionOpened = makeEvent({
 Факты «подписка открыта» и «подписка закрыта» публикуются обычными
 `event`-операциями. Приёмник в любой фиче и в любом процессе пишет
 `implement(SubscriptionOpened, { subscriber: '…' })`, как в фиче `ops` из
-рецепта [«Кто сейчас подключён и как его отключить»](./ops.md). Схемы фактов написаны руками в `schema.ts` и
-реализуют Standard Schema, поэтому пакет не зависит от zod и не навязывает
-приложению вендора. Аннотация `jsonSchema(...)` даёт этим схемам JSON
-Schema, и факты попадают в документ и в снапшот совместимости из
-[главы 21](../guide/21-compatibility.md).
+рецепта [«Кто сейчас подключён и как его отключить»](./ops.md).
+
+Схемы фактов написаны на том же валидаторе, что и остальные схемы
+фреймворка, поэтому штатный конвертер переводит их в JSON Schema без
+аннотации, и факты попадают в документ и в снапшот совместимости из
+[главы 21](../guide/21-compatibility.md). Вендора приложению это не
+навязывает: тип операции объявлен нейтральным
+`StandardSchemaV1<unknown, T>`, и подписчик пишет свои схемы на чём
+хочет.
 
 ## Параметризованный плагин
 

@@ -8,9 +8,7 @@ import { UsersFeature } from './users.feature.js';
 import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
 import { mcp, McpTransport$ } from '@nestlingjs/mcp';
-import type { OpenApiOptions } from '@nestlingjs/openapi';
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
 
 /**
@@ -26,19 +24,15 @@ export const exporter = prometheusExporter();
 export const Docs = makeSwitch('docs', { default: 'on' });
 
 /**
- * Опции документа: одно значение для плагина и для скрипта `openapi.ts`.
+ * Плагин документации: обе ветки переключателя видны статически.
  *
- * Второго `info` и второго списка конвертеров рядом не заводится: документ
- * из CI и документ по `GET /openapi.json` описывают одно API.
+ * Опции документа объявлены здесь и только здесь: скрипт `openapi.ts`
+ * строит документ методом этого же значения, поэтому второго `info` рядом
+ * не заводится. Конвертер схем не назван — схемы приложения написаны на
+ * вендоре фреймворка, и его конвертер подставляется умолчанием.
  */
-export const openapiOptions: OpenApiOptions = {
-  info: { title: 'Users API', version: '1.0.0' },
-  converters: [zodConverter()],
-};
-
-/** Плагин документации: обе ветки переключателя видны статически */
 export const appOpenapi = openapi({
-  ...openapiOptions,
+  info: { title: 'Users API', version: '1.0.0' },
   pipeline: observability,
 });
 
@@ -75,8 +69,6 @@ export const app = makeApp({
     mcp({
       server: api,
       info: { name: 'microservice', version: '1.0.0' },
-      // Те же конвертеры, что у документа: схемы переводит один механизм
-      converters: openapiOptions.converters,
     }),
   ],
   metrics: exporter,

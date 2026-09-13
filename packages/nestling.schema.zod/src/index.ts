@@ -1,57 +1,38 @@
 /**
- * `@nestlingjs/schema.zod` — конвертер схем zod в JSON Schema.
+ * `@nestlingjs/schema.zod` — единственный дом zod во фреймворке.
  *
- * Весь пакет это десять строк поверх штатного `z.toJSONSchema()`, и так и
- * задумано: конвертер — единственное место, знающее устройство конкретного
- * валидатора, и живёт он **отдельным пакетом**, потому что его мажоры
- * следуют за мажорами валидатора, а не за мажорами фреймворка. Пользователь
- * ставит ровно то, чем пользуется; `zod` здесь peer-зависимость.
+ * Standard Schema играет во фреймворке две роли, и пакет обслуживает обе.
+ * Первая роль — **граница**: приложение приносит схему любого вендора, ядро
+ * зовёт `~standard.validate` и по вендору не ветвится. Вторая роль —
+ * **авторство**: схемы своих секций конфигурации и своих фактов фреймворк
+ * пишет сам, и пишет он их на zod. Отсюда состав пакета: конвертер для
+ * границы, билдеры и модели для авторства.
  *
- * Имя пакета не называет потребителя: результат — JSON Schema, и её читают
- * генератор OpenAPI, структурная проверка контрактов и вопросы
- * CLI-транспорта. Реестра «вендор → конвертер» нет ни у одного из них:
- * список конвертеров это данные вызывающего, и даже в стопроцентно-zod
- * приложении конвертер называется явно одной строкой. Цена explicit over
- * implicit посчитана в журнале решений и принята.
+ * Конвертер zod потребители подставляют умолчанием — `withZodDefault()`.
+ * Список `converters` остаётся данными вызывающего: он **добавляет**
+ * конвертер другого вендора или **заменяет** конвертер zod своим. Реестра
+ * «вендор — конвертер» нет ни у одного потребителя.
+ *
+ * `zod` здесь peer-зависимость: конвертер переводит схемы приложения и
+ * обязан работать той же копией валидатора, что и оно.
+ *
+ * Барель перечисляет имена поимённо, а не через `export *`. Имя, которого
+ * здесь нет, остаётся внутренним: его можно менять, не ломая тех, кто
+ * установил пакет.
  */
 
-import type { SchemaDocConverter } from '@nestlingjs/app';
-import { z } from 'zod';
+// ./converter.js — 1
+export { zodConverter } from './converter.js';
+export type { ZodConverterOptions } from './converter.js';
 
-/** Опции `z.toJSONSchema` — принимаются как есть, кроме `io` */
-export type ZodConverterOptions = Omit<
-  NonNullable<Parameters<typeof z.toJSONSchema>[1]>,
-  'io'
->;
+// ./default.js — 2
+export { withZodDefault } from './default.js';
 
-/**
- * Конвертер схем zod.
- *
- * Направление (`io`) конвертер не выбирает: его называет вызывающий, потому
- * что знает, что описывает — тело запроса или тело ответа. Схема с
- * преобразованием (`z.string().transform(Number)`) даёт по сети строку, а
- * хендлеру число, и одна из этих форм всегда была бы неверной.
- * Без подсказки поведение штатное — то же, что у голого `z.toJSONSchema()`.
- *
- * @param options - Прочие опции `z.toJSONSchema` (`unrepresentable`,
- * `cycles`, `reused` и т. д.)
- * @returns Значение `SchemaDocConverter` с `vendor: 'zod'`
- *
- * @example
- * ```typescript
- * openapi({ info: { title: 'My API', version: '1.0.0' },
- *           converters: [zodConverter()] })
- * ```
- */
-export function zodConverter(
-  options: ZodConverterOptions = {},
-): SchemaDocConverter {
-  return {
-    vendor: 'zod',
-    toJsonSchema: (schema, hint) =>
-      z.toJSONSchema(schema as z.ZodType, {
-        ...options,
-        ...(hint?.io === undefined ? {} : { io: hint.io }),
-      }),
-  };
-}
+// ./builders.js — 3
+export { flag, int } from './builders.js';
+
+// ./from-type.fn.js — 4
+export { fromType } from './from-type.fn.js';
+
+// ./from-scratch.fn.js — 5
+export { fromScratch, makeModel } from './from-scratch.fn.js';

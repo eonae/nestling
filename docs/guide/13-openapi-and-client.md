@@ -1,6 +1,6 @@
 # 13. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `76ea1866`.
+> Гайд по текущему API; сверено с кодом `890d758b`.
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -16,14 +16,12 @@
 ```typescript
 // src/app.ts
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/schema.zod';
 
 export const app = makeApp({
   features: [UsersFeature],
   plugins: [
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
       pipeline: observability,
     }),
   ],
@@ -37,18 +35,21 @@ export const app = makeApp({
 `plugins:`.
 
 Плагин строит документ OpenAPI 3.1 из тех же деклараций, которые
-обслуживают запросы, и отдаёт его endpoint'ом `GET /openapi.json`. Три
-опции:
+обслуживают запросы, и отдаёт его endpoint'ом `GET /openapi.json`. Две
+опции здесь и третья — по необходимости:
 
 - `info` — заголовок документа.
-- `converters` — кто переводит схемы в JSON Schema. Ядро принимает любой
-  валидатор Standard Schema и не умеет заглядывать внутрь схемы, поэтому
-  конвертер называется явно даже в приложении целиком на zod. Схема, для
-  которой нет конвертера, останавливает запуск: документ строится на фазе
-  ASSEMBLE, а не при первом запросе к `/openapi.json`.
 - `pipeline` — слой для endpoint'а `GET /openapi.json`. Политика из
   [главы 10](./10-auth.md) требует `observability` от каждого
   HTTP-endpoint'а, и endpoint плагина не исключение.
+- `converters` — кто переводит схемы в JSON Schema. Схемы, написанные на
+  валидаторе фреймворка, переводятся без этой строки: его конвертер плагин
+  подставляет умолчанием. Список нужен приложению на другом валидаторе —
+  он **добавляет** конвертер этого вендора, не теряя умолчания, — или
+  тому, кому нужен свой `zodConverter({ … })` с другими опциями: конвертер
+  того же вендора умолчание **заменяет**. Схема, которую не перевёл ни
+  один конвертер, останавливает запуск: документ строится на фазе
+  ASSEMBLE, а не при первом запросе к `/openapi.json`.
 
 ```bash
 curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
@@ -71,22 +72,19 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 ## Документ в CI
 
 Плагин отдаёт документ работающего приложения. В CI приложение поднимать
-незачем: документ строится из декларации чистой функцией.
+незачем: документ строит тот же плагин — своим методом, от результата
+`app.discover(args)`.
 
 ```typescript
 // src/openapi.ts
 import { writeFileSync } from 'node:fs';
 
-import { app, openapiOptions } from './app.js';
-
-import { buildOpenApiDocument } from '@nestlingjs/openapi';
+import { app, appOpenapi } from './app.js';
 
 /** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
 const args = process.argv[2];
 
-const { endpoints } = app.discover(args);
-
-const document = buildOpenApiDocument(endpoints, openapiOptions);
+const document = appOpenapi.document(app.discover(args));
 
 // `file` — `openapi.json` в корне пакета примера
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
@@ -111,16 +109,20 @@ yarn openapi users
 # …/openapi.json: 8 path(s) — три пути `/ops/subscriptions…` в документ не попали
 ```
 
-Опции документа лежат рядом с плагином одним значением: `info` и
-`converters` объявлены в `src/app.ts` как `openapiOptions`, а плагин
-добавляет к ним только `pipeline`. Документ из CI и документ по
-`GET /openapi.json` описывают одно API, и второго `info` рядом не заводится.
+Опции документа берутся у самого плагина — того значения, которое стоит в
+`plugins:`. Поэтому `info` записан ровно в одном месте, а документ из CI и
+документ по `GET /openapi.json` совпадают по построению: метод и провайдер
+зовут одну функцию.
 
-Метод бросает ошибки фазы 0: неизвестное имя фичи, значение переключателя
-вне словаря, дубликат паттерна на экземпляре транспорта. Соберётся ли
-граф — вопрос к `app.check(args)` из [главы 19](./19-select.md):
-неудовлетворённая зависимость и нарушенная политика `discover()` не
-мешают.
+Метод работает и тогда, когда плагин не попал в состав. Значение живёт в
+декларации, а `Docs.when(appOpenapi)` решает только судьбу endpoint'а:
+документ для контура с `docs=off` строится тем же вызовом.
+
+`app.discover(args)` бросает ошибки фазы 0: неизвестное имя фичи, значение
+переключателя вне словаря, дубликат паттерна на экземпляре транспорта.
+Соберётся ли граф — вопрос к `app.check(args)` из
+[главы 19](./19-select.md): неудовлетворённая зависимость и нарушенная
+политика `discover()` не мешают.
 
 ## Слот `doc:`
 

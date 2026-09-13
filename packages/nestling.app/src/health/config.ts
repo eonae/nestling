@@ -11,50 +11,22 @@
 
 import { makeConfig } from '../config/index.js';
 
-import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
-
-/**
- * Схема неотрицательного целого числа миллисекунд с умолчанием.
- *
- * Написана руками по тому же приёму, что схемы секций логгера и портов:
- * Standard Schema это интерфейс, а не библиотека, и ядру не нужен вендор,
- * чтобы проверить одно число.
- */
-const milliseconds = (fallback: number): StandardSchemaV1<unknown, number> => ({
-  '~standard': {
-    version: 1,
-    vendor: 'nestling',
-    validate: (value) => {
-      if (value === undefined || value === null || value === '') {
-        return { value: fallback };
-      }
-
-      const parsed = typeof value === 'number' ? value : Number(value);
-
-      return Number.isInteger(parsed) && parsed >= 0
-        ? { value: parsed }
-        : {
-            issues: [
-              {
-                message:
-                  `Expected a non-negative integer number of milliseconds, ` +
-                  `got ${JSON.stringify(value)}`,
-              },
-            ],
-          };
-    },
-  },
-});
+import { z } from 'zod';
 
 /**
  * Секция конфигурации проб: `NESTLING_HEALTH_TIMEOUT` и
  * `NESTLING_HEALTH_CACHE`.
  *
+ * Оба поля — неотрицательное целое число миллисекунд; приведение строки
+ * нужно потому, что значение из окружения приходит строкой. Цепочка
+ * написана здесь, а не взята билдером из `@nestlingjs/schema.zod`: тот
+ * пакет зависит от этого, и обратная стрелка замкнула бы цикл.
+ *
  * @internal Инжектится узлом проб; наружу отдаётся только `.keys`
  */
 export const NestlingHealthConfig = makeConfig('nestlingHealth', {
-  timeout: milliseconds(2000),
-  cache: milliseconds(1000),
+  timeout: z.coerce.number().int().min(0).default(2000),
+  cache: z.coerce.number().int().min(0).default(1000),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */

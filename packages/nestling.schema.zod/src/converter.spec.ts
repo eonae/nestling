@@ -3,7 +3,7 @@
  * штатного конвертера валидатора, взятый как есть.
  */
 
-import { zodConverter } from './index.js';
+import { zodConverter } from './converter.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { leafJsonSchema } from '@nestlingjs/app';

@@ -1,6 +1,6 @@
 # Without `makeApp`
 
-> Guide to the current API; verified against `76ea1866` and `container` (2026-09-06).
+> Guide to the current API; verified against `890d758b` and `container` (2026-09-06).
 > Target description: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Rationale: the entries

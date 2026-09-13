@@ -1,6 +1,6 @@
 # Extend the kernel with your own package
 
-> Guide to the current API; verified against `76ea1866`.
+> Guide to the current API; verified against `890d758b`.
 > Target description: [design/principles.md](../design/principles.md), the
 > "Kernel boundary" section, and [design/streaming.md](../design/streaming.md)
 > §4.1. Rationale: the entries [ideas.md](../../decisions/ideas.md)
@@ -159,17 +159,21 @@ finish normally.
 
 ```typescript
 // packages/nestling.subscriptions/src/operations.ts
+/** The value is a zod schema, the declared type is neutral */
+const openedSchema: StandardSchemaV1<unknown, SubscriptionOpenedFact> =
+  z.object({
+    node: z.string().optional(),
+    id: z.string(),
+    transport: z.string(),
+    pattern: z.string(),
+    kind: z.enum(KINDS),
+    identity: z.string().optional(),
+    startedAt: z.number(),
+  });
+
 export const SubscriptionOpened = makeEvent({
   name: 'subscriptions.opened',
-  input: record<SubscriptionOpenedFact>({
-    node: optionalStr(),
-    id: str(),
-    transport: str(),
-    pattern: str(),
-    kind: str(KINDS),
-    identity: optionalStr(),
-    startedAt: num(),
-  }),
+  input: openedSchema,
   doc: {
     summary: 'Subscription opened',
     description:
@@ -184,12 +188,15 @@ The facts "subscription opened" and "subscription closed" are
 published as ordinary `event` operations. A receiver in any feature
 and any process writes `implement(SubscriptionOpened, { subscriber:
 '…' })`, as in the `ops` feature from the recipe [Who is connected
-right now and how to disconnect them](./ops.md). The fact schemas are
-hand-written in `schema.ts` and implement Standard Schema, so the
-package does not depend on zod and does not impose a vendor on the
-application. The `jsonSchema(...)` annotation gives these schemas a
-JSON Schema, and the facts land in the document and in the
+right now and how to disconnect them](./ops.md).
+
+The fact schemas are written in the same validator as the rest of the
+framework's schemas, so the usual converter translates them into JSON
+Schema with no annotation, and the facts land in the document and in the
 compatibility snapshot from [chapter 21](../guide/21-compatibility.md).
+This imposes no vendor on the application: the type of the operation is
+declared as the neutral `StandardSchemaV1<unknown, T>`, and a subscriber
+writes its own schemas in whatever it likes.
 
 ## A parametrized plugin
 

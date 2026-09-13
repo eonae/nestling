@@ -6,9 +6,8 @@
  * транспортов.
  */
 
-import { flag, int } from './schema.js';
-
 import { makeConfig } from '@nestlingjs/app';
+import { flag, int } from '@nestlingjs/schema.zod';
 
 /**
  * Секция relay.
@@ -21,19 +20,19 @@ import { makeConfig } from '@nestlingjs/app';
  */
 export const OutboxConfig = makeConfig('outbox', {
   /** Пауза между проходами, когда прошлая партия была пуста */
-  pollIntervalMs: int(1000, 0),
+  pollIntervalMs: int().min(0).default(1000),
 
   /** Сколько записей relay берёт за один проход */
-  batchSize: int(100, 1),
+  batchSize: int().min(1).default(100),
 
   /** Пауза перед первым повтором; дальше она удваивается */
-  backoffMs: int(500, 0),
+  backoffMs: int().min(0).default(500),
 
   /** Потолок паузы между повторами */
-  backoffMaxMs: int(30_000, 0),
+  backoffMaxMs: int().min(0).default(30_000),
 
   /** Сколько попыток публикации до отметки «застряла» */
-  maxAttempts: int(10, 1),
+  maxAttempts: int().min(1).default(10),
 
   /**
    * Крутит ли этот процесс relay.
@@ -42,7 +41,7 @@ export const OutboxConfig = makeConfig('outbox', {
    * один: две реплики relay конкурируют за одну таблицу, и платить этим
    * без нужды незачем.
    */
-  relay: flag(true),
+  relay: flag().default(true),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */

@@ -49,10 +49,10 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
     "@nestlingjs/transport.http": "workspace:*"
   },
   "devDependencies": {
-    "@nestlingjs/schema.zod": "workspace:*",
     "@nestlingjs/transport.cli": "workspace:*",
     "typescript": "5.7.3",
     "zod": "^4.0.0"

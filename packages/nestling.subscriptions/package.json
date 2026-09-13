@@ -49,11 +49,11 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/common.misc": "workspace:*",
     "@nestlingjs/container": "workspace:*",
-    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/operations": "workspace:*",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nestlingjs/testing": "workspace:*",
-    "typescript": "5.7.3",
-    "zod": "^4.0.0"
+    "typescript": "5.7.3"
   }
 }

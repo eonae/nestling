@@ -56,14 +56,14 @@ export type PromptPlan = readonly PromptQuestion[];
  * прошёл бы флаг.
  *
  * @param route - Проекция маршрута команды
- * @param converters - Список конвертеров из `cli({ converters })`
+ * @param converters - Разрешённый список конвертеров транспорта
  * @returns Вопросы по обязательным полям понятной формы
  * @throws {Error} Если у команды поток на входе или для вендора схемы нет
  * конвертера
  */
 export function buildPromptPlan(
   route: RouteDeclaration,
-  converters: readonly SchemaDocConverter[] | undefined,
+  converters: readonly SchemaDocConverter[],
 ): PromptPlan {
   const form = describeForm(route.input);
 
@@ -87,9 +87,9 @@ export function buildPromptPlan(
   if (outcome.outcome === 'unconvertible') {
     throw new Error(
       `Command "${route.pattern}" declares missing: 'prompt', and its input ` +
-        `schema comes from vendor '${outcome.vendor}'. No converter for ` +
-        `that vendor was passed: add one to cli({ converters: [...] }) — ` +
-        `for example zodConverter() from @nestlingjs/schema.zod.`,
+        `schema comes from vendor '${outcome.vendor}'. None of the ` +
+        `converters translates that vendor: pass its converter in ` +
+        `cli({ converters: [...] }).`,
     );
   }
 

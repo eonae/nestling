@@ -14,7 +14,7 @@
 
 import { makeConfig } from '../config/index.js';
 
-import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import { z } from 'zod';
 
 /**
  * Политика диспатча.
@@ -31,39 +31,11 @@ import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
  */
 export type DispatchPolicy = 'local-first' | 'always-remote';
 
-/** Допустимые значения — тем же значением их перечисляет текст ошибки */
-const POLICIES: readonly DispatchPolicy[] = ['local-first', 'always-remote'];
-
-/**
- * Схема поля `dispatch` — написана руками.
- *
- * Standard Schema это интерфейс, а не библиотека: ядру не нужен вендор,
- * чтобы объявить перечисление из двух значений (тот же приём, что у
- * отказов ядра в пайплайне).
- */
-const dispatchSchema: StandardSchemaV1<unknown, DispatchPolicy> = {
-  '~standard': {
-    version: 1,
-    vendor: 'nestling',
-    validate: (value) => {
-      if (value === undefined || value === null || value === '') {
-        return { value: 'local-first' };
-      }
-
-      return POLICIES.includes(value as DispatchPolicy)
-        ? { value: value as DispatchPolicy }
-        : {
-            issues: [
-              {
-                message:
-                  `Expected one of ${POLICIES.map((p) => `'${p}'`).join(', ')}, ` +
-                  `got ${JSON.stringify(value)}`,
-              },
-            ],
-          };
-    },
-  },
-};
+/** Допустимые значения; `satisfies` сторожит совпадение с типом политики */
+const POLICIES = [
+  'local-first',
+  'always-remote',
+] as const satisfies readonly DispatchPolicy[];
 
 /**
  * Секция конфигурации портов: `NESTLING_PORTS_DISPATCH`.
@@ -71,7 +43,7 @@ const dispatchSchema: StandardSchemaV1<unknown, DispatchPolicy> = {
  * @internal Инжектится рецептами вызывателей; наружу отдаётся только `.keys`
  */
 export const NestlingPortsConfig = makeConfig('nestlingPorts', {
-  dispatch: dispatchSchema,
+  dispatch: z.enum(POLICIES).default('local-first'),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */

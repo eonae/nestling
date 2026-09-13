@@ -1,6 +1,6 @@
 # 13. Give the frontend the documentation and the client
 
-> Guide to the current API; verified against `76ea1866`.
+> Guide to the current API; verified against `890d758b`.
 > Target description: [design/schemas.md](../design/schemas.md) §2.1 and
 > [design/operations.md](../design/operations.md) §5. Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -16,14 +16,12 @@ has the schemas, the addresses and the failure lists in the declarations.
 ```typescript
 // src/app.ts
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/schema.zod';
 
 export const app = makeApp({
   features: [UsersFeature],
   plugins: [
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
       pipeline: observability,
     }),
   ],
@@ -37,19 +35,22 @@ the whole application, not for one feature. Here it is enough to put it
 into `plugins:`.
 
 The plugin builds an OpenAPI 3.1 document from the same declarations that
-serve requests, and gives it out at the `GET /openapi.json` endpoint.
-Three options:
+serve requests, and gives it out at the `GET /openapi.json` endpoint. Two
+options here, and a third when you need it:
 
 - `info` — the header of the document.
-- `converters` — who translates schemas into JSON Schema. The kernel
-  accepts any Standard Schema validator and cannot look inside a schema,
-  so the converter is named explicitly even in an application that is
-  entirely on zod. A schema without a converter stops the start: the
-  document is built on the ASSEMBLE phase, not on the first request to
-  `/openapi.json`.
 - `pipeline` — the layer for the `GET /openapi.json` endpoint. The policy
   from [chapter 10](./10-auth.md) requires `observability` from every
   HTTP endpoint, and the plugin's endpoint is no exception.
+- `converters` — who translates schemas into JSON Schema. Schemas written
+  in the validator of the framework are translated without this line: the
+  plugin substitutes its converter by default. The list is for an
+  application on another validator — it **adds** the converter of that
+  vendor without losing the default — or for someone who wants their own
+  `zodConverter({ … })` with different options: a converter of the same
+  vendor **replaces** the default. A schema that no converter translated
+  stops the start: the document is built on the ASSEMBLE phase, not on
+  the first request to `/openapi.json`.
 
 ```bash
 curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
@@ -74,23 +75,19 @@ after parsing.
 ## The document in CI
 
 The plugin gives out the document of a running application. In CI there is
-no need to bring up the application: the document is built from the
-declaration by a pure function.
+no need to bring up the application: the document is built by that same
+plugin — through its method, from the result of `app.discover(args)`.
 
 ```typescript
 // src/openapi.ts
 import { writeFileSync } from 'node:fs';
 
-import { app, openapiOptions } from './app.js';
-
-import { buildOpenApiDocument } from '@nestlingjs/openapi';
+import { app, appOpenapi } from './app.js';
 
 /** The assembly argument is a command-line argument; without it every feature is selected */
 const args = process.argv[2];
 
-const { endpoints } = app.discover(args);
-
-const document = buildOpenApiDocument(endpoints, openapiOptions);
+const document = appOpenapi.document(app.discover(args));
 
 // `file` is `openapi.json` in the root of the example package
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
@@ -116,17 +113,21 @@ yarn openapi users
 # …/openapi.json: 8 path(s) — the three /ops/subscriptions… paths did not make it into the document
 ```
 
-The options of the document live next to the plugin as one value: `info`
-and `converters` are declared in `src/app.ts` as `openapiOptions`, and the
-plugin adds only `pipeline` to them. The document from CI and the document
-at `GET /openapi.json` describe one API, and a second `info` is not set up
-next to it.
+The options of the document come from the plugin itself — the value that
+stands in `plugins:`. So `info` is written in exactly one place, and the
+document from CI and the document at `GET /openapi.json` coincide by
+construction: the method and the provider call one function.
 
-The method throws the errors of phase 0: an unknown feature name, a switch
-value outside the dictionary, a duplicate pattern on a transport instance.
-Whether the graph will assemble is a question for `app.check(args)` from
-[chapter 19](./19-select.md): an unsatisfied dependency and a violated
-policy do not stand in the way of `discover()`.
+The method works even when the plugin never made it into the composition.
+The value lives in the declaration, and `Docs.when(appOpenapi)` decides
+only the fate of the endpoint: the document for a contour with `docs=off`
+is built by the same call.
+
+`app.discover(args)` throws the errors of phase 0: an unknown feature
+name, a switch value outside the dictionary, a duplicate pattern on a
+transport instance. Whether the graph will assemble is a question for
+`app.check(args)` from [chapter 19](./19-select.md): an unsatisfied
+dependency and a violated policy do not stand in the way of `discover()`.
 
 ## The `doc:` slot
 

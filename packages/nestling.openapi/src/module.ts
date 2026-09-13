@@ -15,7 +15,7 @@
  * затевалось.
  */
 
-import { buildOpenApiDocument, hiddenEndpoints } from './document.js';
+import { buildDocument, hiddenEndpoints } from './document.js';
 import type { OpenApiDocument, OpenApiOptions } from './types.js';
 
 import type {
@@ -80,28 +80,55 @@ export interface OpenApiServeOptions<
 }
 
 /**
+ * Плагин документации: обычная единица состава плюс метод построения.
+ *
+ * Опции документа у плагина уже есть, поэтому документ для артефактов
+ * сборки строится тем же значением: второго словаря опций рядом с
+ * декларацией не заводится, и `info` записан ровно в одном месте.
+ */
+export interface OpenApiPlugin extends Plugin {
+  /**
+   * Строит документ из результата `app.discover(args?)`.
+   *
+   * Ни контейнера, ни транспортов, ни поднятого приложения не требуется.
+   * Метод работает и тогда, когда плагин не попал в состав: значение живёт
+   * в декларации приложения, а ветка переключателя решает только судьбу
+   * endpoint'а `GET /openapi.json`.
+   *
+   * @param discovery - Результат `app.discover(args?)`
+   * @returns JSON-сериализуемый документ OpenAPI 3.1
+   */
+  document(discovery: EndpointDiscovery): OpenApiDocument;
+}
+
+/**
  * Плагин, строящий документ на ASSEMBLE и отдающий его endpoint'ом.
  *
  * @param options - Опции документа плюс опции подачи (`path`, `pipeline`,
  * `detached`)
- * @returns Значение-плагин для `plugins:` корня
+ * @returns Значение-плагин для `plugins:` корня; у него же метод
+ * `document(discovery)`
  *
  * @example
  * ```typescript
+ * export const appOpenapi = openapi({
+ *   info: { title: 'Users API', version: '1.0.0' },
+ *   pipeline: observabilityBase,
+ * });
+ *
  * assemble({
  *   features: [UsersFeature],
- *   plugins: [openapi({
- *     info: { title: 'Users API', version: '1.0.0' },
- *     converters: [zodConverter()],
- *     pipeline: observabilityBase,
- *   })],
+ *   plugins: [appOpenapi],
  *   transports: [http()],
  * });
+ *
+ * // Тот же документ для артефактов сборки, без поднятия приложения:
+ * appOpenapi.document(app.discover(args));
  * ```
  */
 export function openapi<P extends AnyInput = AnyInput, PN = never>(
   options: OpenApiOptions & OpenApiServeOptions<P, PN>,
-): Plugin {
+): OpenApiPlugin {
   const { path, pipeline, detached, announceHidden, ...documentOptions } =
     options;
 
@@ -123,7 +150,7 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     handler: DocumentHandler,
   });
 
-  return makePlugin({
+  const plugin = makePlugin({
     name: '@nestlingjs/openapi',
     providers: [
       factoryProvider(
@@ -134,6 +161,14 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
       ),
     ],
     endpoints: [document],
+  });
+
+  // Метод и провайдер зовут одну функцию: документ из артефактов сборки и
+  // документ по `GET /openapi.json` совпадают по построению
+  return Object.freeze({
+    ...plugin,
+    document: (discovery: EndpointDiscovery) =>
+      buildDocument(discovery.endpoints, documentOptions),
   });
 }
 
@@ -156,5 +191,5 @@ function build(
     }
   }
 
-  return buildOpenApiDocument(discovery.endpoints, options);
+  return buildDocument(discovery.endpoints, options);
 }

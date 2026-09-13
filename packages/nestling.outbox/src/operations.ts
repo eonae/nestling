@@ -8,9 +8,9 @@
  * подписчиков легален.
  */
 
-import { num, optionalStr, record, str } from './schema.js';
-
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { makeEvent } from '@nestlingjs/operations';
+import { z } from 'zod';
 
 /** Полезная нагрузка факта «запись опубликована» */
 export interface OutboxPublishedFact {
@@ -52,6 +52,35 @@ export interface OutboxStuckFact {
 }
 
 /**
+ * Схемы фактов: значение написано на zod, объявленный тип — нейтральный.
+ *
+ * Тип операции уходит в публичные объявления пакета, и вендор в нём
+ * называть нельзя: приложение подписывается на факт, не выбирая
+ * валидатора. Значение при этом остаётся zod-схемой, поэтому штатный
+ * конвертер переводит её в JSON Schema без аннотации.
+ */
+const publishedSchema: StandardSchemaV1<unknown, OutboxPublishedFact> =
+  z.object({
+    id: z.string(),
+    subject: z.string(),
+    partitionKey: z.string().optional(),
+    attempts: z.number(),
+    createdAt: z.number(),
+    publishedAt: z.number(),
+  });
+
+/** Схема факта «запись застряла» — тем же правилом */
+const stuckSchema: StandardSchemaV1<unknown, OutboxStuckFact> = z.object({
+  id: z.string(),
+  subject: z.string(),
+  partitionKey: z.string().optional(),
+  attempts: z.number(),
+  createdAt: z.number(),
+  stuckAt: z.number(),
+  reason: z.string().optional(),
+});
+
+/**
  * Факт: запись опубликована.
  *
  * Разница `publishedAt - createdAt` и есть задержка доставки — та цена,
@@ -60,14 +89,7 @@ export interface OutboxStuckFact {
  */
 export const OutboxPublished = makeEvent({
   name: 'outbox.published',
-  input: record<OutboxPublishedFact>({
-    id: str(),
-    subject: str(),
-    partitionKey: optionalStr(),
-    attempts: num(),
-    createdAt: num(),
-    publishedAt: num(),
-  }),
+  input: publishedSchema,
   doc: {
     summary: 'Outbox record published',
     description:
@@ -84,15 +106,7 @@ export const OutboxPublished = makeEvent({
  */
 export const OutboxStuck = makeEvent({
   name: 'outbox.stuck',
-  input: record<OutboxStuckFact>({
-    id: str(),
-    subject: str(),
-    partitionKey: optionalStr(),
-    attempts: num(),
-    createdAt: num(),
-    stuckAt: num(),
-    reason: optionalStr(),
-  }),
+  input: stuckSchema,
   doc: {
     summary: 'Outbox record stuck',
     description:

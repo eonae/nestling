@@ -12,17 +12,18 @@ the agent is not needed.
 ## Install
 
 ```bash
-npm install @nestlingjs/mcp @nestlingjs/schema.zod
+npm install @nestlingjs/mcp
 ```
 
-`@nestlingjs/schema.zod` is needed if the schemas are written in zod.
-For another validator, its converter is connected.
+The converter for the vendor the framework writes its own schemas in
+comes as a dependency of the package. An application on another
+validator needs that validator's converter — it is passed in the
+`converters` list.
 
 ## Minimal example
 
 ```typescript
 import { mcp, mcpTool } from '@nestlingjs/mcp';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { http, server } from '@nestlingjs/transport.http';
 
 export const GetUserTool = mcpTool.implement(GetUser, {
@@ -39,7 +40,6 @@ makeApp({
     mcp({
       server: api,
       info: { name: 'users-api', version: '1.0.0' },
-      converters: [zodConverter()],
     }),
   ],
 });

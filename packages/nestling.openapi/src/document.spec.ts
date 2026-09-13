@@ -1,12 +1,14 @@
 /**
  * Правила маппинга: адрес, параметры, тело, media types, ответы.
  *
- * Каждый случай проверяется на **чистой функции** — без контейнера и без
- * поднятого приложения: если для проверки документа нужно приложение,
- * значит документ выводится не только из деклараций.
+ * Каждый случай проверяется на **построении из деклараций** — без
+ * контейнера и без поднятого приложения: если для проверки документа
+ * нужно приложение, значит документ выводится не только из деклараций.
+ * Наружу эту функцию пакет отдаёт методом плагина; здесь она зовётся
+ * напрямую, потому что предмет проверки — правила маппинга, а не подача.
  */
 
-import { buildOpenApiDocument } from './document.js';
+import { buildDocument } from './document.js';
 import type { DocumentedEndpoint, OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -39,7 +41,7 @@ const documentOf = (
   endpoints: readonly AnyEndpointDefinition[],
   options: { converters?: ReturnType<typeof zodConverter>[] } = {},
 ): OpenApiDocument =>
-  buildOpenApiDocument(
+  buildDocument(
     endpoints.map((endpoint) => ({ endpoint, moduleName: 'module:test' })),
     { info, converters: options.converters ?? [zodConverter()] },
   );
@@ -75,7 +77,7 @@ describe('документ строится из деклараций', () => {
   });
 
   it('переносит servers, security, securitySchemes и externalDocs как есть', () => {
-    const document = buildOpenApiDocument([], {
+    const document = buildDocument([], {
       info,
       servers: [{ url: 'https://api.example.com' }],
       security: [{ bearer: [] }],
@@ -92,9 +94,9 @@ describe('документ строится из деклараций', () => {
   });
 
   it('info без title или version отвергается', () => {
-    expect(() =>
-      buildOpenApiDocument([], { info: { title: 'x' } as never }),
-    ).toThrow(/'info' must carry a 'title' and a 'version'/);
+    expect(() => buildDocument([], { info: { title: 'x' } as never })).toThrow(
+      /'info' must carry a 'title' and a 'version'/,
+    );
   });
 });
 
@@ -278,7 +280,7 @@ describe('адрес операции и её параметры', () => {
     });
 
     expect(() =>
-      buildOpenApiDocument(
+      buildDocument(
         [
           { endpoint: first, moduleName: 'module:a' },
           { endpoint: second, moduleName: 'module:b' },
@@ -758,7 +760,7 @@ describe('вход генератора — декларация приложе�
   });
 
   const documentFor = (args?: Parameters<typeof app.discover>[0]) =>
-    buildOpenApiDocument(app.discover(args).endpoints, {
+    buildDocument(app.discover(args).endpoints, {
       info,
       converters: [zodConverter()],
     });

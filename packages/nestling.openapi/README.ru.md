@@ -10,41 +10,42 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/openapi @nestlingjs/schema.zod
+npm install @nestlingjs/openapi
 ```
 
-`@nestlingjs/schema.zod` нужен, если схемы написаны на zod. Для другого
-валидатора подключается его конвертер.
+Конвертер схем вендора, на котором написаны схемы фреймворка, приходит
+зависимостью пакета. Приложению на другом валидаторе нужен его конвертер —
+он передаётся списком `converters`.
 
 ## Минимальный пример
 
 ```typescript
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/schema.zod';
+
+export const appOpenapi = openapi({
+  info: { title: 'Users API', version: '1.0.0' },
+  pipeline: observability, // если политика корня требует слой
+});
 
 makeApp({
   features: [UsersFeature],
-  plugins: [
-    openapi({
-      info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
-      pipeline: observability, // если политика корня требует слой
-    }),
-  ],
+  plugins: [appOpenapi],
   transports: [http()],
 });
 // GET /openapi.json
+
+// Тот же документ для артефактов сборки, без поднятия приложения:
+appOpenapi.document(app.discover(args));
 ```
 
 ## Экспорты
 
 | Имя | Что делает |
 |---|---|
-| `openapi` | плагин: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом |
-| `buildOpenApiDocument` | чистая функция: документ из `app.discover(args).endpoints` |
+| `openapi` | плагин: строит документ на фазе ASSEMBLE, отдаёт его endpoint'ом, а методом `document(discovery)` — значением |
 | `OpenApiDocument$` | DI-токен готового документа |
-| `hiddenEndpoints` | endpoint'ы, скрытые полем `doc.hidden` |
-| `OpenApiOptions` | `info`, `converters`, `servers`, `security`, `externalDocs` |
+| `OpenApiPlugin` | значение плагина: обычная единица состава плюс метод `document` |
+| `OpenApiOptions` | `info`, необязательные `converters`, `servers`, `security`, `externalDocs` |
 | `OpenApiServeOptions` | опции плагина: `path`, `pipeline`, `detached`, `announceHidden` |
 | `OpenApiDocument` | документ целиком |
 | `OpenApiInfo` | секция `info` |
@@ -61,4 +62,5 @@ makeApp({
 ## Границы пакета
 
 Пакет не поставляет Swagger UI, не выводит `servers` из конфигурации и не
-генерирует AsyncAPI.
+генерирует AsyncAPI. Валидатора его публичные типы не называют: схема
+приходит от приложения, а перевод в JSON Schema — конвертером.

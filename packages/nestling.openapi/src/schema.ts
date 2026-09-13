@@ -79,11 +79,10 @@ export function convertLeaf(
   if (resolved.outcome === 'unconvertible') {
     context.diagnostics.add(
       context.where,
-      `the '${slot}' schema is a '${resolved.vendor}' schema, and no ` +
-        `converter for that vendor was passed. Either add one to ` +
-        `'converters' (for example zodConverter() from ` +
-        `@nestlingjs/schema.zod), or declare the schema explicitly with ` +
-        `jsonSchema(schema, { … }).`,
+      `its '${slot}' schema comes from vendor '${resolved.vendor}', and ` +
+        `none of the converters translates that vendor. Pass its converter ` +
+        `in 'converters' of openapi({ … }), or declare the schema ` +
+        `explicitly with jsonSchema(schema, { … }).`,
     );
     return undefined;
   }

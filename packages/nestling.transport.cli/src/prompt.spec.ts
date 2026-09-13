@@ -11,6 +11,7 @@ import { cliEndpoint, CliTransport } from './index.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeDispatch, makePipeline, Ok, stream } from '@nestlingjs/app';
+import type { StandardSchemaV1 } from '@nestlingjs/operations';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { z } from 'zod';
 
@@ -419,7 +420,7 @@ describe('вопрос внутри REPL', () => {
 });
 
 describe('ошибки serve', () => {
-  it('нет конвертера для вендора схемы', async () => {
+  it('вопросы строятся без объявления конвертера', async () => {
     const cli = new CliTransport({ argv: [], input: source(), output: sink() });
 
     await expect(
@@ -427,7 +428,36 @@ describe('ошибки serve', () => {
         makeDispatch([deployCommand([])]),
         new AbortController().signal,
       ),
-    ).rejects.toThrow(/Command "deploy" .* vendor 'zod'.* cli\({ converters/s);
+    ).resolves.toBeUndefined();
+
+    await cli.close();
+  });
+
+  it('нет конвертера для чужого вендора', async () => {
+    /** Схема вендора, которого список конвертеров не знает */
+    const foreign: StandardSchemaV1<unknown, { env: string }> = {
+      '~standard': {
+        version: 1,
+        vendor: 'valibot',
+        validate: (value: unknown) => ({ value: value as { env: string } }),
+      },
+    };
+
+    const Foreign = cliEndpoint('deploy', {
+      input: foreign,
+      output: z.object({ done: z.boolean() }),
+      missing: 'prompt',
+      pipeline: makePipeline(),
+      handler: async () => new Ok({ done: true }),
+    });
+
+    const cli = new CliTransport({ argv: [], input: source(), output: sink() });
+
+    await expect(
+      cli.serve(makeDispatch([Foreign]), new AbortController().signal),
+    ).rejects.toThrow(
+      /Command "deploy" .* vendor 'valibot'.* cli\({ converters/s,
+    );
   });
 
   it('поток на входе вместе с политикой', async () => {

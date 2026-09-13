@@ -22,7 +22,6 @@ npm install @nestlingjs/transport.cli
 
 ```typescript
 import { makeApp, Ok } from '@nestlingjs/app';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { cli, cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
@@ -40,18 +39,21 @@ export const Deploy = cliEndpoint('deploy', {
 // node dist/main.js deploy --env prod --force
 await makeApp({
   features: [ToolsFeature],
-  transports: [cli({ converters: [zodConverter()] })],
+  transports: [cli()],
 })
   .assemble()
   .run();
 ```
 
-A command with the `missing: 'prompt'` policy needs a schema converter
-in `cli({ converters })`: the question is derived from the JSON Schema
-of the `input` form, and Standard Schema gives no introspection.
-Without a converter, `serve` fails, naming the command and the vendor
-of its schema. An input stream together with the policy also fails
-`serve`: the questions and the stream read the same input.
+The question is derived from the JSON Schema of the `input` form:
+Standard Schema gives no introspection, so someone has to translate the
+schema. Declaring that someone is not needed — the transport substitutes
+the converter of the vendor the framework writes its own schemas in. An
+application on another validator passes its own list in
+`cli({ converters })`. A schema that no converter translated fails
+`serve`, naming the command and the vendor of its schema. An input
+stream together with the policy also fails `serve`: the questions and
+the stream read the same input.
 
 ## Exports
 
@@ -63,7 +65,7 @@ of its schema. An input stream together with the policy also fails
 | `CliTransport` | the `ITransport` implementation: argv parsing, run, REPL, questions |
 | `CliTransport$` | the DI token of the transport |
 | `CLI_TRANSPORT_NAME` | the short name of the transport (`'cli'`) |
-| `CliTransportOptions` | the mode, the arguments, the streams, the converters, the questions |
+| `CliTransportOptions` | the mode, the arguments, the streams, the optional converters, the questions |
 | `CliEndpointDictionary` | the dictionary of the CLI declaration for `cliEndpoint` |
 | `CliBinding` | the binding policy in the `binding` field of the declaration |
 | `CliMissingPolicy` | `'error'` or `'prompt'` |
@@ -77,8 +79,8 @@ of its schema. An input stream together with the policy also fails
 | `PromptKind` | the shape of a question: a list, a confirmation, a string |
 
 `CliTransportOptions` takes `mode` and `argv` (the run mode), `input`,
-`output` and `errorOutput` (the defaults are the process channels),
-`converters` and `interactive`. The streams are substituted by value, so
+`output` and `errorOutput` (the defaults are the process channels), the
+optional `converters` and `interactive`. The streams are substituted by value, so
 a test checks the questions and the result output without a terminal.
 
 ## Package boundaries

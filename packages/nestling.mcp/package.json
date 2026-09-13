@@ -51,15 +51,15 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
-    "@nestlingjs/transport.http": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@nestlingjs/openapi": "workspace:*",
-    "@nestlingjs/schema.zod": "workspace:*",
     "@nestlingjs/testing": "workspace:*",
-    "typescript": "5.7.3",
-    "zod": "^4.0.0"
+    "typescript": "5.7.3"
   },
   "nx": {
     "targets": {

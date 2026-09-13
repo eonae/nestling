@@ -1,10 +1,15 @@
 /**
- * Граница пакета: генератор не знает ни одного валидатора.
+ * Граница пакета: генератор не называет валидатора в типах.
  *
- * Обещание из предложения — «в `@nestlingjs/openapi` зависимости ни от
- * одного валидатора нет» — проверяется, а не декларируется в README. Обход
- * тот же, что у `@nestlingjs/operations`, но с двумя отличиями, и оба
- * намеренные:
+ * Граница проходит по публичному API, а не по составу зависимостей.
+ * Генератор зависит от `@nestlingjs/schema.zod` — это выбор реализации:
+ * конвертер вендора, на котором написаны схемы фреймворка, подставляется
+ * умолчанием, и приложению эта зависимость видна только строкой в
+ * `node_modules`. А вот вендор в **типе** отнял бы у приложения выбор
+ * собственного валидатора, и вот его тест и сторожит — по собранным
+ * объявлениям.
+ *
+ * Обход импортов остаётся, с двумя намеренными отличиями:
  *
  * - **обход не спускается в зависимости.** Генератор серверный: он зависит
  *   от `@nestlingjs/transport.http`, чья конфиг-секция читает zod. Утверждать
@@ -12,19 +17,15 @@
  *   а тест, проверяющий неправду, зелёным быть не может;
  * - **`node:*` не нарушение.** Под браузер этот пакет не собирается, и
  *   требовать от него отсутствия Node-встроенных модулей незачем.
- *
- * Плюс вторая половина того же обещания — на манифесте: валидатора нет ни
- * в `dependencies`, ни в `peerDependencies`. Конвертер приходит **данными**,
- * и его пакет (`@nestlingjs/schema.zod`) остаётся зависимостью пользователя.
  */
 
-import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
   collectForbiddenImports,
   formatViolations,
+  validatorsInTypes,
 } from '../../../scripts/boundary/package-boundary.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -37,19 +38,9 @@ const ALLOW = [
   '@nestlingjs/app',
   '@nestlingjs/container',
   '@nestlingjs/operations',
+  '@nestlingjs/schema.zod',
   '@nestlingjs/transport.http',
 ];
-
-/** Валидаторы: их отсутствие в манифесте и есть предмет обещания */
-const VALIDATORS = new Set([
-  'zod',
-  'valibot',
-  'arktype',
-  '@sinclair/typebox',
-  'effect',
-  'yup',
-  'joi',
-]);
 
 describe('@nestlingjs/openapi: package boundary', () => {
   it('импортирует только объявленные пакеты фреймворка', () => {
@@ -64,19 +55,7 @@ describe('@nestlingjs/openapi: package boundary', () => {
     expect(formatViolations(violations)).toBe('');
   });
 
-  it('не объявляет валидатор ни в dependencies, ни в peerDependencies', () => {
-    const manifest = JSON.parse(
-      readFileSync(resolve(packageDir, 'package.json'), 'utf8'),
-    ) as {
-      dependencies?: Record<string, string>;
-      peerDependencies?: Record<string, string>;
-    };
-
-    const declared = [
-      ...Object.keys(manifest.dependencies ?? {}),
-      ...Object.keys(manifest.peerDependencies ?? {}),
-    ];
-
-    expect(declared.filter((name) => VALIDATORS.has(name))).toEqual([]);
+  it('не называет валидатора в собранных объявлениях типов', () => {
+    expect(validatorsInTypes(packageDir)).toEqual([]);
   });
 });

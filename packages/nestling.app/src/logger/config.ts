@@ -12,50 +12,21 @@ import { makeConfig } from '../config/index.js';
 
 import type { LogLevel } from './interface.js';
 
-import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import { z } from 'zod';
 
 /** Формат записи в `stderr` */
 export type LogFormat = 'text' | 'json';
 
-/** Допустимые уровни — тем же значением их перечисляет текст ошибки */
-const LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];
+/** Допустимые уровни; `satisfies` сторожит совпадение с типом `LogLevel` */
+const LEVELS = [
+  'debug',
+  'info',
+  'warn',
+  'error',
+] as const satisfies readonly LogLevel[];
 
-/** Допустимые форматы — тем же значением их перечисляет текст ошибки */
-const FORMATS: readonly LogFormat[] = ['text', 'json'];
-
-/**
- * Схема перечисления с умолчанием, написанная руками.
- *
- * Standard Schema это интерфейс, а не библиотека: ядру не нужен вендор,
- * чтобы объявить перечисление из нескольких значений (тот же приём, что у
- * секции портов).
- */
-const enumeration = <T extends string>(
-  values: readonly T[],
-  fallback: T,
-): StandardSchemaV1<unknown, T> => ({
-  '~standard': {
-    version: 1,
-    vendor: 'nestling',
-    validate: (value) => {
-      if (value === undefined || value === null || value === '') {
-        return { value: fallback };
-      }
-
-      return values.includes(value as T)
-        ? { value: value as T }
-        : {
-            issues: [
-              {
-                message:
-                  `Expected one of ${values.map((v) => `'${v}'`).join(', ')}, ` +
-                  `got ${JSON.stringify(value)}`,
-              },
-            ],
-          };
-    },
-  },
-});
+/** Допустимые форматы; тот же перечень, что у типа `LogFormat` */
+const FORMATS = ['text', 'json'] as const satisfies readonly LogFormat[];
 
 /** Префикс секции логгера ядра */
 export const NESTLING_LOG_PREFIX = 'nestlingLog';
@@ -63,12 +34,17 @@ export const NESTLING_LOG_PREFIX = 'nestlingLog';
 /**
  * Секция конфигурации логгера: `NESTLING_LOG_LEVEL` и `NESTLING_LOG_FORMAT`.
  *
+ * Схемы написаны на zod, как и все схемы, которые фреймворк пишет сам:
+ * перечисление конвертируется в JSON Schema штатным конвертером, а текст
+ * отказа приходит от валидатора. Билдеры `@nestlingjs/schema.zod` ядру не
+ * годятся: тот пакет зависит от этого, и обратная стрелка замкнула бы цикл.
+ *
  * @internal Проецируется на фазе 0 корневым логгером; наружу отдаётся
  * только `.keys`
  */
 export const NestlingLogConfig = makeConfig(NESTLING_LOG_PREFIX, {
-  level: enumeration(LEVELS, 'info'),
-  format: enumeration(FORMATS, 'text'),
+  level: z.enum(LEVELS).default('info'),
+  format: z.enum(FORMATS).default('text'),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */

@@ -2336,6 +2336,7 @@ __metadata:
     "@nestlingjs/inbox": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/outbox": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
     "@types/pg": "npm:^8.23.0"
     drizzle-orm: "npm:^0.45.0"
@@ -2375,8 +2376,10 @@ __metadata:
     "@nestlingjs/app": "workspace:*"
     "@nestlingjs/common.misc": "workspace:*"
     "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -2394,14 +2397,6 @@ __metadata:
     "@nestlingjs/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@nestlingjs/models@workspace:packages/nestling.models":
-  version: 0.0.0-use.local
-  resolution: "@nestlingjs/models@workspace:packages/nestling.models"
-  peerDependencies:
-    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -2439,6 +2434,7 @@ __metadata:
     "@nestlingjs/common.misc": "workspace:*"
     "@nestlingjs/container": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"

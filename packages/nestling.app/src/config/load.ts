@@ -9,7 +9,7 @@
 import type { ConfigSectionToken } from './declaration.js';
 import type { ConfigFieldFailure } from './errors.js';
 import { ConfigValidationError } from './errors.js';
-import { applyDerived } from './project.js';
+import { applyDerived, presentValue } from './project.js';
 import {
   defineDisplayHooks,
   secretFieldsOf,
@@ -58,7 +58,7 @@ export const load = <Values>(
   const failures: ConfigFieldFailure[] = [];
 
   for (const field of declaration.fields) {
-    const rawValue = process.env[field.key];
+    const rawValue = presentValue(process.env[field.key]);
 
     try {
       values[field.name] = validateSync(

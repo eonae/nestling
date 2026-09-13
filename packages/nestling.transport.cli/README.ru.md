@@ -21,7 +21,6 @@ npm install @nestlingjs/transport.cli
 
 ```typescript
 import { makeApp, Ok } from '@nestlingjs/app';
-import { zodConverter } from '@nestlingjs/schema.zod';
 import { cli, cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
@@ -39,17 +38,20 @@ export const Deploy = cliEndpoint('deploy', {
 // node dist/main.js deploy --env prod --force
 await makeApp({
   features: [ToolsFeature],
-  transports: [cli({ converters: [zodConverter()] })],
+  transports: [cli()],
 })
   .assemble()
   .run();
 ```
 
-Команде с политикой `missing: 'prompt'` нужен конвертер схем в
-`cli({ converters })`: вопрос выводится из JSON Schema формы `input`, а
-Standard Schema интроспекции не даёт. Конвертера нет — `serve` падает с
-именем команды и вендором её схемы. Поток на входе вместе с политикой тоже
-роняет `serve`: вопросы и поток читают один и тот же ввод.
+Вопрос выводится из JSON Schema формы `input`: Standard Schema
+интроспекции не даёт, и схему кто-то должен перевести. Объявлять
+переводчик не нужно — конвертер вендора, на котором написаны схемы
+фреймворка, транспорт подставляет умолчанием. Приложение на другом
+валидаторе передаёт свой список в `cli({ converters })`. Схема, которую не
+перевёл ни один конвертер, роняет `serve` с именем команды и вендором её
+схемы. Поток на входе вместе с политикой тоже роняет `serve`: вопросы и
+поток читают один и тот же ввод.
 
 ## Экспорты
 
@@ -61,7 +63,7 @@ Standard Schema интроспекции не даёт. Конвертера н�
 | `CliTransport` | реализация `ITransport`: разбор argv, запуск, REPL, вопросы |
 | `CliTransport$` | DI-токен транспорта |
 | `CLI_TRANSPORT_NAME` | короткое имя транспорта (`'cli'`) |
-| `CliTransportOptions` | режим, аргументы, потоки, конвертеры, вопросы |
+| `CliTransportOptions` | режим, аргументы, потоки, необязательные конвертеры, вопросы |
 | `CliEndpointDictionary` | словарь CLI-декларации для `cliEndpoint` |
 | `CliBinding` | политика биндинга в поле `binding` декларации |
 | `CliMissingPolicy` | `'error'` или `'prompt'` |
@@ -75,8 +77,8 @@ Standard Schema интроспекции не даёт. Конвертера н�
 | `PromptKind` | форма вопроса: список, подтверждение, строка |
 
 `CliTransportOptions` принимает `mode` и `argv` (режим запуска), `input`,
-`output` и `errorOutput` (умолчания — каналы процесса), `converters` и
-`interactive`. Потоки подставляются значением, поэтому вопросы и печать
+`output` и `errorOutput` (умолчания — каналы процесса), необязательные
+`converters` и `interactive`. Потоки подставляются значением, поэтому вопросы и печать
 результата проверяются тестом без терминала.
 
 ## Границы пакета
