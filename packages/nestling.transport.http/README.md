@@ -47,10 +47,10 @@ await makeApp({
 ## Exports
 
 - **Transport** ([design](../../docs/en/design/transports.md)) — `http`,
-  `HTTP_CAPABILITIES`, `HTTP_TRANSPORT_NAME`, `httpServerKeys`,
-  `HttpTransport`, `HttpTransport$`.
-- **Server and probes** — `httpProbes`, `httpServer`, `HttpServer`,
-  `HttpServer$`.
+  `HTTP_CAPABILITIES`, `HTTP_TRANSPORT_NAME`, `HttpTransport`,
+  `HttpTransport$`.
+- **Server and probes** — `httpProbes`, `HttpServer`, `HttpServer$`,
+  `server`, `serverKeys`.
 - **Endpoint declaration** ([design](../../docs/en/design/endpoints.md))
   — `httpBindingOf`, `httpEndpoint`, `httpEndpoint.implement`,
   `HttpRouter`, `HttpStartContext`.

@@ -31,8 +31,8 @@ import type { HttpServer } from '@nestlingjs/transport.http';
 import {
   http,
   httpEndpoint,
-  httpServer,
-  httpServerKeys,
+  server,
+  serverKeys,
 } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
@@ -89,13 +89,12 @@ const socket = objectSource(
 );
 
 /** Один сервер на два протокола: объявление сервера общее */
-const api = httpServer();
+const api = server();
 
 /** Декларация приложения: из неё берётся и discovery, и сборка */
 const spec = makeApp({
   features: [UsersFeature],
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,
@@ -103,7 +102,7 @@ const spec = makeApp({
       converters: [zodConverter()],
     }),
   ],
-  config: [[socket, httpServerKeys()]],
+  config: [[socket, serverKeys()]],
 });
 
 let app: AssembledApp;
@@ -114,8 +113,8 @@ beforeAll(async () => {
   app = spec.assemble();
   await app.run();
 
-  const server = app.servers.get('default') as HttpServer | undefined;
-  const address = server?.address();
+  const instance = app.servers.get('default') as HttpServer | undefined;
+  const address = instance?.address();
 
   if (!address) {
     throw new Error('server is not listening');

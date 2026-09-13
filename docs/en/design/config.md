@@ -230,7 +230,7 @@ composition of such members is known only inside `build()`, and the
 source's `get()` is synchronous and does no I/O.
 
 A transport declares its own section and gives out one descriptor:
-`httpServerKeys(name?)` at `@nestlingjs/transport.http`,
+`serverKeys(name?)` at `@nestlingjs/transport.http`,
 `natsConfigKeys` at `@nestlingjs/transport.nats`. Both are the same
 right to bind a source as `.keys` on an application section; the
 transport keeps the DI token of the section private, so only the

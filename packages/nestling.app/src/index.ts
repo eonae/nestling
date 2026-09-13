@@ -207,7 +207,7 @@ export type {
   PluginOptions,
 } from './root/index.js';
 
-// ./transport/index.js — 15
+// ./transport/index.js — 14
 export {
   DEFAULT_INSTANCE,
   makeDispatch,
@@ -225,7 +225,6 @@ export type {
   RouteDeclaration,
   ServerDeclaration,
   TransportDeclaration,
-  TransportEntry,
 } from './transport/index.js';
 
 // @nestlingjs/common.misc — 8

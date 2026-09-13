@@ -14,7 +14,6 @@ import type {
   ServerDeclaration,
   TransportDeclaration,
 } from '../transport/index.js';
-import { isTransport } from '../transport/index.js';
 
 import type { AssembleArgs, ParsedArgs } from './args.js';
 import { parseArgs, resolveSwitchValues, undeclaredSwitch } from './args.js';
@@ -69,10 +68,10 @@ export interface AppComposition {
   readonly transports: readonly TransportDeclaration[];
 
   /**
-   * Серверы сборки после раскрытия веток, в порядке объявления.
+   * Серверы сборки после раскрытия веток, без повторов.
    *
-   * Собраны из элементов `transports:` и из полей `server` объявлений
-   * транспортов, без повторов.
+   * Собраны из полей `server` объявлений транспортов, в порядке первого
+   * упоминания.
    */
   readonly servers: readonly ServerDeclaration[];
 }
@@ -122,7 +121,7 @@ export function resolveComposition(
 
   // Транспорты и серверы разделяются здесь: до раскрытия веток состав
   // списка неизвестен
-  const entries = resolveBranches(spec.transports, values, undeclaredSwitch);
+  const transports = resolveBranches(spec.transports, values, undeclaredSwitch);
 
   const selection = resolveSelection(
     spec.features,
@@ -165,7 +164,7 @@ export function resolveComposition(
     bundles: [...features, ...alwaysOn],
     named: selected.map((feature) => feature.name),
     includeDeps: selection.includeDeps,
-    transports: entries.filter(isTransport),
-    servers: collectServers(entries),
+    transports,
+    servers: collectServers(transports),
   };
 }

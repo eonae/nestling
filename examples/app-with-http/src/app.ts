@@ -22,8 +22,8 @@ import { subscriptions } from '@nestlingjs/subscriptions';
 import {
   http,
   httpProbes,
-  httpServer,
   HttpTransport$,
+  server,
 } from '@nestlingjs/transport.http';
 
 /**
@@ -72,10 +72,11 @@ export const appOpenapi = openapi({
 /**
  * Сервер приложения: сокетом владеет он, а не транспорт.
  *
- * Объявлен явно, потому что транспортов на этом сокете два. Порт и хост
- * сервер читает из своей секции — `HTTP_PORT` и `HTTP_HOST`.
+ * Объявлен явно, потому что транспортов на этом сокете два: каждый
+ * получает это объявление опцией `server`. Порт и хост сервер читает из
+ * своей секции — `HTTP_PORT` и `HTTP_HOST`.
  */
-export const api = httpServer();
+export const api = server();
 
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
@@ -92,10 +93,9 @@ export const app = makeApp({
   ],
   switches: [Docs],
   // Два протокола на одном сокете: HTTP-endpoint'ы и сообщения MCP по
-  // `POST /mcp`. Сервер объявлен отдельно и передан обоим транспортам;
-  // второго слушателя не появляется
+  // `POST /mcp`. Сервер передан обоим транспортам, в списке не
+  // перечисляется; второго слушателя не появляется
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,

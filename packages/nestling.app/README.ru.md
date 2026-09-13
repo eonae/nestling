@@ -92,7 +92,7 @@ await app.assemble().run();
   `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`, `ExecutableDeclaration`,
   `IListener`, `ITransport`, `makeDispatch`, `makeServerDeclaration`,
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
-  `TransportDeclaration`, `TransportEntry`, `transportValue`.
+  `TransportDeclaration`, `transportValue`.
 - **Наблюдаемость и пробы** ([design](../../docs/design/container.md)) —
   `Fields`, `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
   `HealthStatus`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,

@@ -92,7 +92,7 @@ const VALUE_ONLY: TransportCapabilities = {
  * Объявляет слушателя-фейка.
  *
  * @param options - Имя экземпляра и журнал отметок
- * @returns Объявление сервера для `transports:` корня
+ * @returns Объявление сервера для опции `server` транспорта
  */
 export function testServer(options: {
   name?: string;

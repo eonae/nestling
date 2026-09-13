@@ -23,9 +23,7 @@ import type {
   ExecutableDeclaration,
   ServerDeclaration,
   TransportDeclaration,
-  TransportEntry,
 } from '../transport/index.js';
-import { isTransport } from '../transport/index.js';
 
 import type { AssembleArgs } from './args.js';
 import { RESERVED_ARG_FIELDS } from './args.js';
@@ -52,8 +50,9 @@ import { branchCandidates } from '@nestlingjs/container';
  * Транспорт под веткой переключателя в словарь не входит: роль интеркома
  * назначается тому, кто есть в каждой сборке.
  */
-export type IntercomName<T extends readonly Branchable<TransportEntry>[]> =
-  Extract<T[number], BusDeclaration>['name'];
+export type IntercomName<
+  T extends readonly Branchable<TransportDeclaration>[],
+> = Extract<T[number], BusDeclaration>['name'];
 
 /**
  * Общая часть словаря `makeApp`: поля, которые есть у всех трёх форм
@@ -63,7 +62,7 @@ export type IntercomName<T extends readonly Branchable<TransportEntry>[]> =
  * @template S - Объявленные переключатели; из них выводится аргумент сборки
  */
 export interface AppSpecCommon<
-  T extends readonly Branchable<TransportEntry>[],
+  T extends readonly Branchable<TransportDeclaration>[],
   S extends readonly AnySwitch[],
 > {
   /**
@@ -109,9 +108,9 @@ export interface AppSpecCommon<
    * Транспорты корня — объявления экземпляров (`http()`, `cli()`,
    * `nats({ name: 'events' })`).
    *
-   * Здесь же перечисляются серверы (`httpServer({ name: 'api' })`): сокет
-   * держит отдельный узел, и объявляется он рядом с транспортом, который
-   * на нём работает. Что есть что, различает дискриминатор `kind`.
+   * Только транспорты. Сокет держит отдельный узел — сервер, — и в сборку
+   * он попадает по ссылке: `http({ server: api })`. Объявление сервера,
+   * попавшее в список, отвергается на фазе ASSEMBLE.
    */
   transports?: T;
 
@@ -160,7 +159,7 @@ export interface AppSpecCommon<
  */
 export type AppSpec<
   T extends
-    readonly Branchable<TransportEntry>[] = readonly Branchable<TransportEntry>[],
+    readonly Branchable<TransportDeclaration>[] = readonly Branchable<TransportDeclaration>[],
   S extends readonly AnySwitch[] = readonly AnySwitch[],
 > =
   | (AppSpecCommon<T, S> & {
@@ -231,14 +230,12 @@ export interface NormalizedAppSpec {
   readonly switches: readonly AnySwitch[];
 
   /**
-   * Элементы поля `transports:` в порядке объявления: транспорты и
-   * серверы одним списком, ветки нераскрыты.
+   * Объявления транспортов в порядке объявления, ветки нераскрыты.
    *
-   * Что есть что, различает дискриминатор `kind`, а разделяет сборка:
-   * до раскрытия веток состав списка неизвестен. Серверы, вложенные в
-   * объявления транспортов полем `server`, тоже собирает она.
+   * Серверы здесь не лежат: их собирает сборка по полям `server` — до
+   * раскрытия веток состав списка неизвестен.
    */
-  readonly transports: readonly Branchable<TransportEntry>[];
+  readonly transports: readonly Branchable<TransportDeclaration>[];
   readonly intercom?: TransportDeclaration;
   readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
@@ -350,54 +347,71 @@ function resolveIntercom(
 }
 
 /**
- * Собирает серверы сборки: перечисленные в `transports:` явно и вложенные
- * в объявления транспортов полем `server`.
+ * Проверяет, что `transports:` перечисляет только транспорты.
  *
- * Один и тот же сервер встречается дважды штатно — элементом списка и
- * аргументом `http({ server: api })`, — поэтому повтор **того же**
- * объявления даёт одну регистрацию. Два **разных** объявления с одним
- * именем — ошибка: имя задаёт префикс конфиг-секции сервера, и молча
- * выбрать одно из двух значит выбрать за автора, чей порт слушать.
+ * Компилятор отвергает сервер в списке, но декларацию пишут и из
+ * JavaScript. Проверка идёт до `collectServers`: иначе сервер молча
+ * пропал бы из сборки.
  *
- * @param entries - Элементы поля `transports:` в порядке объявления
+ * @param candidates - Кандидаты поля `transports:` всех веток
+ * @throws {TypeError} Элемент списка — объявление сервера
+ */
+function assertTransports(candidates: readonly TransportDeclaration[]): void {
+  for (const candidate of candidates) {
+    if ((candidate as { kind: string }).kind === 'server') {
+      throw new TypeError(
+        `makeApp({ … }): 'transports' takes transport declarations only, ` +
+          `but got a server declaration named '${candidate.name}'. Pass the ` +
+          `server to the transport that works on it: ` +
+          `http({ server: theServer }).`,
+      );
+    }
+  }
+}
+
+/**
+ * Собирает серверы сборки: объявления из полей `server` транспортов.
+ *
+ * Сервер, названный несколькими транспортами, штатно встречается
+ * несколько раз, поэтому повтор **той же** ссылки даёт одну регистрацию.
+ * Два **разных** объявления с одним именем — ошибка: имя задаёт префикс
+ * конфиг-секции сервера, и молча выбрать одно из двух значит выбрать за
+ * автора, чей порт слушать.
+ *
+ * Сервер, на который не ссылается ни один транспорт, в сборку не
+ * попадает: узел берётся из ссылки, ссылки нет — узла нет.
+ *
+ * @param transports - Объявления транспортов в порядке объявления
  * @returns Объявления серверов без повторов, в порядке первого упоминания
  * @throws {Error} Два разных объявления сервера с одним именем
  */
 export function collectServers(
-  entries: readonly TransportEntry[],
+  transports: readonly TransportDeclaration[],
 ): readonly ServerDeclaration[] {
   const byName = new Map<string, ServerDeclaration>();
 
-  const add = (declaration: ServerDeclaration): void => {
-    const existing = byName.get(declaration.name);
+  for (const { server } of transports) {
+    if (!server) {
+      continue;
+    }
 
-    if (existing === declaration) {
-      return;
+    const existing = byName.get(server.name);
+
+    if (existing === server) {
+      continue;
     }
 
     if (existing) {
       throw new Error(
-        `Two different server declarations are named ` +
-          `'${declaration.name}'. The name is the prefix of the server's ` +
-          `config section, so both would read the same port. Declare the ` +
-          `server once (const api = httpServer({ name: ` +
-          `'${declaration.name}' })) and pass that value to every transport ` +
-          `that works on it.`,
+        `Two different server declarations are named '${server.name}'. ` +
+          `The name is the prefix of the server's config section, so both ` +
+          `would read the same port. Declare the server once ` +
+          `(const api = server({ name: '${server.name}' })) and pass that ` +
+          `value to every transport that works on it.`,
       );
     }
 
-    byName.set(declaration.name, declaration);
-  };
-
-  for (const entry of entries) {
-    if (entry.kind === 'server') {
-      add(entry);
-      continue;
-    }
-
-    if (entry.server) {
-      add(entry.server);
-    }
+    byName.set(server.name, server);
   }
 
   return [...byName.values()];
@@ -612,26 +626,23 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
 
   const root = normalizeRoot(spec);
 
-  // Интерком и имена серверов проверяются по кандидатам всех веток: и
-  // роль, и имя назначаются объявлению, а не сборке, поэтому опечатка
-  // ловится здесь. Разделяет список на транспорты и серверы сборка: до
-  // раскрытия веток состав неизвестен
-  const entries = [...(spec.transports ?? [])];
-  const candidates = branchCandidates(entries);
+  // Состав списка, имена серверов и интерком проверяются по кандидатам
+  // всех веток: и роль, и имя назначаются объявлению, а не сборке,
+  // поэтому опечатка ловится здесь — а не в той сборке, куда попала ветка
+  const transports = [...(spec.transports ?? [])];
+  const candidates = branchCandidates(transports);
 
+  assertTransports(candidates);
   collectServers(candidates);
 
-  const intercom = resolveIntercom(
-    candidates.filter(isTransport),
-    spec.intercom,
-  );
+  const intercom = resolveIntercom(candidates, spec.intercom);
 
   return {
     features: [...(spec.features ?? [])],
     ...(root ? { root } : {}),
     plugins: [...(spec.plugins ?? [])],
     switches: normalizeSwitches(spec.switches),
-    transports: entries,
+    transports,
     ...(intercom ? { intercom } : {}),
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],

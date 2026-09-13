@@ -12,7 +12,7 @@ import { UsersFeature } from './users.js';
 
 import type { App } from '@nestlingjs/app';
 import { makeApp, objectSource } from '@nestlingjs/app';
-import { http, httpServerKeys } from '@nestlingjs/transport.http';
+import { http, serverKeys } from '@nestlingjs/transport.http';
 import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
 import { nats } from '@nestlingjs/transport.nats';
 
@@ -59,7 +59,7 @@ export function declareApp(options: DeclareOptions = {}): App {
           config: [
             [
               objectSource({ HTTP_PORT: String(options.httpPort) }),
-              httpServerKeys(),
+              serverKeys(),
             ],
           ],
         }),

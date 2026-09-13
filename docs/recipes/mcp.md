@@ -13,17 +13,16 @@ Model Context Protocol. Второго описания писать не нуж
 ## Транспорт на том же сокете
 
 MCP — входящий протокол, поэтому он объявляется транспортом рядом с
-`http()`. Сервер объявляется отдельно и передаётся обоим: сокет остаётся
-один.
+`http()`. Сервер объявляется отдельно и передаётся обоим опцией `server`;
+в списке транспортов он не перечисляется, а сокет остаётся один.
 
 ```typescript
 // examples/app-with-http/src/app.ts
-export const api = httpServer();
+export const api = server();
 
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,

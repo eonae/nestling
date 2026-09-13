@@ -23,19 +23,18 @@ For another validator, its converter is connected.
 ```typescript
 import { mcp, mcpTool } from '@nestlingjs/mcp';
 import { zodConverter } from '@nestlingjs/schema.zod';
-import { http, httpServer } from '@nestlingjs/transport.http';
+import { http, server } from '@nestlingjs/transport.http';
 
 export const GetUserTool = mcpTool.implement(GetUser, {
   annotations: { readOnlyHint: true },
   handler: GetUserHandler,
 });
 
-const api = httpServer();
+const api = server();
 
 makeApp({
   features: [UsersFeature], // GetUserTool goes into `endpoints:` of the feature
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,

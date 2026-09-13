@@ -14,17 +14,17 @@ agent are taken from the declaration that serves the requests.
 ## The transport on the same socket
 
 MCP is an inbound protocol, so it is declared as a transport next to
-`http()`. The server is declared separately and passed to both: the
-socket stays one.
+`http()`. The server is declared separately and passed to both through the
+`server` option; it is not listed among the transports, and the socket
+stays one.
 
 ```typescript
 // examples/app-with-http/src/app.ts
-export const api = httpServer();
+export const api = server();
 
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,

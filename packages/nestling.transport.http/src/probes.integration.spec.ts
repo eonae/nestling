@@ -8,7 +8,7 @@
 
 import { request } from 'node:http';
 
-import { httpServerKeys } from './config.js';
+import { serverKeys } from './config.js';
 import { httpProbes } from './probes.js';
 import type { HttpServer } from './server.js';
 import { HttpTransport$ } from './token.js';
@@ -84,7 +84,7 @@ const start = async (
     features: [makeFeature({ name: 'db', modules: [DbModule] })],
     plugins: [plugin],
     transports: [http()],
-    config: [[socket, httpServerKeys()]],
+    config: [[socket, serverKeys()]],
   }).assemble();
 
   await app.run();
@@ -201,7 +201,7 @@ describe('пробы HTTP', () => {
       features: [makeFeature({ name: 'db', modules: [DbModule] })],
       plugins: [httpProbes()],
       transports: [http()],
-      config: [[socket, httpServerKeys()]],
+      config: [[socket, serverKeys()]],
       policies: [
         everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
           authed,

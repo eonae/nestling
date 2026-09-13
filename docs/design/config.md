@@ -213,7 +213,7 @@ await app.assemble(argv(process.argv)).run({
 делает.
 
 Свою секцию транспорт объявляет сам и наружу отдаёт один дескриптор:
-`httpServerKeys(name?)` у `@nestlingjs/transport.http`, `natsConfigKeys` у
+`serverKeys(name?)` у `@nestlingjs/transport.http`, `natsConfigKeys` у
 `@nestlingjs/transport.nats`. Оба — то же право привязать источник, что и
 `.keys` у секции приложения; DI-токен секции транспорт держит приватным,
 поэтому инжектировать её может только он сам.

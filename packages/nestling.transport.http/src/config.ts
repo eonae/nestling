@@ -1,7 +1,7 @@
 /**
  * Конфиг-секция HTTP-сервера — семейство по имени экземпляра.
  *
- * Наружу уходит только `httpServerKeys(name?)` (право привязать источник);
+ * Наружу уходит только `serverKeys(name?)` (право привязать источник);
  * DI-токен секции остаётся приватным, и инжектировать её может только
  * этот пакет (см. `@nestlingjs/app`).
  */
@@ -32,10 +32,9 @@ export const HttpServerConfig = makeConfig.family('http', {
  *
  * @example
  * ```typescript
- * config: [[dotenv('.env'), httpServerKeys()]]
- * config: [[dotenv('.env'), httpServerKeys('admin')]]
+ * config: [[dotenv('.env'), serverKeys()]]
+ * config: [[dotenv('.env'), serverKeys('admin')]]
  * ```
  */
-export const httpServerKeys = (
-  instance: string = DEFAULT_INSTANCE,
-): ConfigKeys => HttpServerConfig(instance).keys;
+export const serverKeys = (instance: string = DEFAULT_INSTANCE): ConfigKeys =>
+  HttpServerConfig(instance).keys;

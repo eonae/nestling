@@ -47,11 +47,11 @@ import {
 import { factoryProvider } from '@nestlingjs/container';
 import type { HttpServer } from '@nestlingjs/transport.http';
 import {
-  httpServer,
   HttpServer$,
   parseRaw,
   PayloadTooLargeError,
   sendResponse,
+  server as declareServer,
 } from '@nestlingjs/transport.http';
 
 /**
@@ -429,12 +429,11 @@ function runtimeOptions(options: McpTransportOptions): McpRuntimeOptions {
  *
  * @example Один сокет на два протокола
  * ```typescript
- * const api = httpServer();
+ * const api = server();
  *
  * makeApp({
  *   features: [UsersFeature],
  *   transports: [
- *     api,
  *     http({ server: api }),
  *     mcp({
  *       server: api,
@@ -453,7 +452,7 @@ export const mcp = <const Name extends string = typeof DEFAULT_INSTANCE>(
 
   const {
     name = DEFAULT_INSTANCE as Name,
-    server = httpServer({ name }),
+    server = declareServer({ name }),
     converters,
   } = options;
   const token = McpTransport$(name);

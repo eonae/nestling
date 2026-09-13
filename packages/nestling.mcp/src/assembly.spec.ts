@@ -1,9 +1,10 @@
 /**
  * Инварианты сборки, которые держит ядро, а не пакет.
  *
- * Два инструмента с одним именем и инструмент с потоковой формой должны
- * валить сборку до INIT и до открытия сокета. Ни того, ни другого пакет не
- * проверяет сам: уникальность паттерна и формы io — правила ядра, и
+ * Два инструмента с одним именем, инструмент с потоковой формой и два
+ * транспорта, каждый со своим сервером имени `'default'`, должны валить
+ * сборку до INIT и до открытия сокета. Ничего из этого пакет не проверяет
+ * сам: уникальность паттерна, формы io и имена серверов — правила ядра, и
  * проверяются они на фазе ASSEMBLE.
  */
 
@@ -20,7 +21,7 @@ import {
   stream,
 } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
-import { httpServerKeys } from '@nestlingjs/transport.http';
+import { http, serverKeys } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const socket = objectSource(
@@ -43,7 +44,7 @@ const checkWith = (endpoints: readonly AnyEndpointDefinition[]) =>
         converters: [zodConverter()],
       }),
     ],
-    config: [[socket, httpServerKeys()]],
+    config: [[socket, serverKeys()]],
   }).check();
 
 describe('уникальность имени инструмента', () => {
@@ -75,5 +76,25 @@ describe('формы io инструмента', () => {
     });
 
     await expect(checkWith([Streaming])).rejects.toThrow(/stream/i);
+  });
+});
+
+describe('общий сервер двух транспортов', () => {
+  it('`http()` и `mcp()` без общего сервера валят сборку именем', () => {
+    // Каждая фабрика без опции `server` объявляет свой сервер именем
+    // транспорта, и оба здесь — `'default'`: один порт, два объявления
+    expect(() =>
+      makeApp({
+        features: [makeFeature({ name: 'tools', endpoints: [] })],
+        transports: [
+          http(),
+          mcp({
+            info: { name: 'spec-server', version: '1.0.0' },
+            converters: [zodConverter()],
+          }),
+        ],
+        config: [[socket, serverKeys()]],
+      }),
+    ).toThrow(/Two different server declarations are named 'default'/);
   });
 });

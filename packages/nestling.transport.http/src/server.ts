@@ -1,6 +1,6 @@
 /**
  * `HttpServer` — узел графа, который владеет сокетом, и его объявление
- * `httpServer({ name? })`.
+ * `server({ name? })`.
  *
  * Сокет отделён от транспорта потому, что разделяемая вещь — именно он:
  * два слушателя на один порт не биндятся, а транспортов на одном порту
@@ -364,23 +364,26 @@ function chainOf(
  * `HTTP_ADMIN_HOST` у `name: 'admin'`. Опций порта и хоста у фабрики нет:
  * адрес меняется без пересборки образа, поэтому он в конфиге.
  *
- * Объявлять сервер явно нужно там, где на одном сокете работает больше
- * одного транспорта. `transports: [http()]` заводит сервер сам.
+ * В сборку объявление попадает по ссылке: транспорт принимает его опцией
+ * `server`, и корень регистрирует узел оттуда. В `transports:` сервер не
+ * перечисляется. Объявлять его явно нужно там, где на одном сокете
+ * работает больше одного транспорта: `transports: [http()]` заводит сервер
+ * сам.
  *
  * @param options - Имя экземпляра и таймауты `node:http`
- * @returns Объявление сервера для `transports:` корня
+ * @returns Объявление сервера для опции `server` транспорта
  *
  * @example Два транспорта на одном сокете
  * ```typescript
- * const api = httpServer({ name: 'api' });
+ * const api = server({ name: 'api' });
  *
  * await makeApp({
  *   features: [Users],
- *   transports: [api, http({ server: api }), graphql({ server: api })],
+ *   transports: [http({ server: api }), graphql({ server: api })],
  * }).assemble().run();
  * ```
  */
-export const httpServer = <const Name extends string = typeof DEFAULT_INSTANCE>(
+export const server = <const Name extends string = typeof DEFAULT_INSTANCE>(
   options: HttpServerOptions & { readonly name?: Name } = {},
 ): ServerDeclaration<Name> => {
   const { name = DEFAULT_INSTANCE as Name, ...serverOptions } = options;
@@ -400,7 +403,7 @@ export const httpServer = <const Name extends string = typeof DEFAULT_INSTANCE>(
           host: config.host,
           ...serverOptions,
         }),
-      release: (server: HttpServer) => server.release(),
+      release: (instance: HttpServer) => instance.release(),
     }),
   });
 };

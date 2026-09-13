@@ -4,7 +4,7 @@ import { api, app } from '../../src/app.js';
 import type { AssembledApp } from '@nestlingjs/app';
 import { makeApp, objectSource } from '@nestlingjs/app';
 import type { HttpServer } from '@nestlingjs/transport.http';
-import { httpServerKeys } from '@nestlingjs/transport.http';
+import { serverKeys } from '@nestlingjs/transport.http';
 
 /** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';
@@ -44,7 +44,7 @@ export async function createTestApp(): Promise<TestAppContext> {
       ],
       [
         objectSource({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }, 'e2e-http'),
-        httpServerKeys(),
+        serverKeys(),
       ],
     ],
   }).assemble();

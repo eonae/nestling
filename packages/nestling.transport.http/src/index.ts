@@ -19,7 +19,7 @@
 export { http, HTTP_CAPABILITIES, HttpTransport } from './transport.js';
 
 // ./server.js — 3
-export { HttpServer, HttpServer$, httpServer } from './server.js';
+export { HttpServer, HttpServer$, server } from './server.js';
 
 // ./token.js — 2
 export { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
@@ -78,4 +78,4 @@ export { httpProbes } from './probes.js';
  * привязать источник. DI-токен секции остаётся приватным, и у каждого
  * сервера он свой.
  */
-export { httpServerKeys } from './config.js';
+export { serverKeys } from './config.js';
