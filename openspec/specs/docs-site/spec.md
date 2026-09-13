@@ -307,9 +307,9 @@ SHALL лежать в самом HTML.
 
 #### Scenario: Подпись блока кода
 
-- **WHEN** блок кода начинается со строки `// examples/users-service/src/app.ts`
-- **THEN** блок получает `data-file="examples/users-service/src/app.ts"`,
-  а строка-комментарий остаётся в коде
+- **WHEN** блок кода начинается со строки `// src/app.ts`
+- **THEN** блок получает `data-file="src/app.ts"`, а строка-комментарий
+  остаётся в коде
 
 #### Scenario: Подсветка без JavaScript
 
