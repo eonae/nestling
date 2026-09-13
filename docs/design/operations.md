@@ -49,16 +49,46 @@ export const OrderPlaced = makeEvent({
 });
 ```
 
-| Конструктор | Вызыватель | `output` / `errors` | `durable` | `subscriber` у реализации |
-|---|---|---|---|---|
-| `makeRequest` | `.caller` | есть | невыразим | запрещён |
-| `makeCommand` | `.emitter` | есть | есть | запрещён |
-| `makeEvent` | `.emitter` | невыразимы | есть | обязателен |
+| Конструктор | Вызыватель | `output` / `errors` | `status` | `durable` | `subscriber` у реализации |
+|---|---|---|---|---|---|
+| `makeRequest` | `.caller` | есть | есть | невыразим | запрещён |
+| `makeCommand` | `.emitter` | есть | невыразим | есть | запрещён |
+| `makeEvent` | `.emitter` | невыразимы | невыразим | есть | обязателен |
 
 Правила читаются как типы, а не как проверки при создании значения:
 `makeEvent({ output })` не компилируется, потому что ответа у события нет;
 `makeRequest({ durable })` не компилируется, потому что вызывающий ждёт
 ответа и переживать нечего.
+
+### 1.0. Успешные исходы
+
+`makeRequest` принимает поле `status` — статус единственного успешного
+исхода:
+
+```typescript
+export const CreateUser = makeRequest({
+  name: 'users.create',
+  http: 'POST /users',
+  input: NewUser,
+  output: User,
+  status: 'created',                 // ответ уходит кодом 201
+});
+```
+
+Несколько исходов объявляются развилкой в слоте `output`:
+
+```typescript
+output: outputs({ ok: User, accepted: JobAccepted })
+```
+
+Правила объявления общие с endpoint-декларацией
+([endpoints.md §5](./endpoints.md)): ключи развилки — статусы из словаря
+ядра, поле `status` рядом с развилкой не объявляется, а умолчание даёт `ok`
+при объявленном `output` и `no_content` без него. Объявленные исходы читают
+реализация, генератор документации и типизированный клиент.
+
+`makeCommand` и `makeEvent` оба объявления отвергают: ответа у них нет, как
+нет и `output`.
 
 `errorsOf(операция)` отдаёт `errors:` запроса или команды тем же значением:
 `errors: [...errorsOf(ClaimQuota), EmailTaken]` включает отказы `ClaimQuota`

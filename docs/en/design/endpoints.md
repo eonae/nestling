@@ -89,9 +89,9 @@ give an error right away: an empty path, a path with no leading `/`, a
 repeated path parameter, an empty command name. The `errors:` list is
 checked there too: an element not created by `makeFail`, and a repeated
 `code`, give an error naming the endpoint and the offending value. The
-`doc:` section rejects an unknown field, `hidden: true` and a status
-outside the list of successful ones; the `detached` mark rejects a
-non-string and an empty reason. Checks that need to match the path
+`doc:` section rejects an unknown field and `hidden: true`; the `detached`
+mark rejects a non-string and an empty reason. The declaration of
+successful outcomes is checked there too (§5). Checks that need to match the path
 template against the schema live at the level of the bind map (§4):
 Standard Schema does not give out a list of keys.
 
@@ -114,8 +114,8 @@ kernel carries the reason over to the value and keeps it through
 `resolve`, like `binding` and `errors:`.
 
 **`doc:`.** The documentation section: `summary`, `description`, `tags`,
-`deprecated`, a successful `status`, `hidden: '<reason>'`. It does not
-depend on the transport or on the documentation format. The kernel does
+`deprecated`, `hidden: '<reason>'`. It does not depend on the transport or
+on the documentation format. The kernel does
 not interpret it: no path of request execution depends on it; the
 kernel carries the section over to the value and keeps it at `resolve`,
 like `binding`. Description generators read it
@@ -123,6 +123,14 @@ like `binding`. Description generators read it
 meaningful only for one format; for example, `operationId` is derived,
 not declared. In an operation implementation, the section belongs to
 the operation, next to `input`, `output` and `errors`.
+
+**`status:`.** The field names the status of the single successful
+outcome: `ok`, `created`, `accepted` or `no_content`. This is the response
+contract on the wire: the runtime, the documentation generator and the
+typed client read it. With no field the default applies: `ok` when
+`output` is declared, `no_content` without it. Several outcomes are
+declared by a branching `output` (§5), and the field is not declared next
+to it.
 
 **Brand.** A declaration carries a symbol brand. The value stays an
 ordinary object: a spread, `Object.keys` and serialization do not see
@@ -358,6 +366,46 @@ At declaration creation, the following are rejected: `multipart` in
 `output`; `upload()` outside `multipart`; a streaming shape with no
 leaf; an item-chain step that changes the type (`.batch`) in `output`.
 The error text names the endpoint, the slot and the shape.
+
+### Branching outcomes: `outputs({ … })`
+
+The `output` slot also takes a branching declaration — several successful
+outcomes, each with its own status and its own shape:
+
+```typescript
+output: outputs({ ok: User, accepted: JobAccepted, no_content: none() })
+```
+
+The keys of the branching are statuses from the kernel dictionary, the
+values are io shapes: a schema, a primitive, or `none()` for an outcome
+with no body. The keys are the declared set of statuses, so the `status`
+field is not declared next to the branching. `none()` is valid only inside
+a branching: a declaration with no body is written by leaving out
+`output`.
+
+The handler result type of a branching declaration is a discriminated
+union of `Ok` by status. The check `result.status === 'accepted'` narrows
+`value` to the type of that branch; a bare value without the `Ok` wrapper
+does not compile under a branching, because the execution path picks the
+outcome. Under a single outcome a bare value is allowed and takes the
+declared status from the runtime.
+
+The document describes every outcome on its own: its code, its schema and
+its media type ([schemas.md §2.2](./schemas.md)). The response is
+validated by the shape of the outcome whose status the result carries, and
+an `Ok` with a status outside the declared set is replaced by the boundary
+with `internal_error` — the same way it treats an undeclared failure
+([errors.md](./errors.md)).
+
+A streaming shape is declared as the only outcome
+([streaming.md §2](./streaming.md)).
+
+At declaration creation, the following are rejected: an empty branching
+and a branching with a single key; a key outside the dictionary of
+successful statuses; `status` together with a branching; `status` next to
+`redirect`; `none()` outside a branching; `status: 'no_content'` with a
+declared `output`. The error text names the declaration, the field and the
+allowed values.
 
 ### `multipart({ fields, files })` and `upload(...)`
 

@@ -28,13 +28,14 @@ model repeats the pair `Result` and `panic!` from Rust.
   a call chain, where there is no one to return it to; it replaces the
   `?` operator that JS does not have. The compiler does not see a throw,
   so the runtime checks it at the boundary (§4).
-- `Output<T, E> = Promise<Ok<T> | E | KernelFail | T>` (there is also
+- `Output<T, E, S> = Promise<Ok<T, S> | E | KernelFail | T>` (there is also
   `OutputSync`). A bare value `T` is wrapped into `Ok`. `KernelFail`
   covers the failures of the kernel (§4): a handler returns them without
   declaring them, and the boundary passes them through without a
   declaration too. `E` defaults to `never`: an endpoint with no
   `errors:` cannot return a domain failure. `E` is written by failure
   definitions: `Output<User, typeof UserNotFound | typeof EmailTaken>`.
+  `S` is the declared status of the outcome; it defaults to `ok`.
   For a declaration with no `output`, the result type takes `void`: a
   handler with nothing to return does not write `return undefined`.
   `Ok` with no value stays allowed there too — `Ok.noContent()` and
@@ -91,7 +92,8 @@ The list of categories is closed and does not depend on the transport:
   document of §6.
 - Success statuses live on `Ok` and are written in the same register:
   `ok`, `created`, `accepted`, `no_content`. The `status` field of the
-  response context is a success status or a failure category.
+  response context is a success status or a failure category. The status
+  is part of the value type as well: `Ok<TValue, TStatus>` (§5).
 
 ## 3. Domain failures: `makeFail` and identity by `code`
 
@@ -207,6 +209,17 @@ no headers. Headers, cookies and a redirect are set by the
 handler that does not depend on the transport does not set them. The
 transport translates a failure category and a success status into its
 own code by the table in §2.
+
+The status is part of the value type: `Ok<TValue, TStatus>`. The literal
+is inferred where the value is created — `new Ok(order)` gives
+`Ok<Order, 'ok'>`, `Ok.created(order)` gives `Ok<Order, 'created'>`,
+`Ok.noContent()` gives `Ok<null, 'no_content'>`, and
+`new Ok('accepted', job)` gives `Ok<Job, 'accepted'>`. The declaration
+needs that type: it limits the handler result to the declared outcomes, so
+`Ok.created(...)` under a declaration with `status: 'ok'` is a compilation
+error ([endpoints.md §5](./endpoints.md)). The handler of a branching
+declaration picks the outcome itself by returning the `Ok` of that
+branch.
 
 ## 6. The failure body at the HTTP boundary: an RFC 9457 document
 
