@@ -15,7 +15,8 @@
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки`,
 > `[2026-09-06] Логгер ядра: RootLogger$, семейство Logger$ с .auto и child`,
 > `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2,
-> `[2026-09-06] Термины и гайд: DI-токен, суффикс $ одним правилом`.
+> `[2026-09-06] Термины и гайд: DI-токен, суффикс $ одним правилом`,
+> `[2026-09-13] Логгер: опция logging, пакет @nestlingjs/logging, поля-декларации, pino сателлитом`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## DI tokens and providers
@@ -372,7 +373,9 @@ class CreateUserHandler { /* ... */ }
 ## The kernel logger
 
 `Logger` is the logger interface both the kernel and the application
-work with.
+work with. It lives in the `@nestlingjs/logging` package together with
+the `makeConsoleLogger(options)` factory; `@nestlingjs/app` re-exports
+the types.
 
 ```typescript
 type Fields = Record<string, unknown> & { err?: unknown };
@@ -395,18 +398,19 @@ interface Logger {
   `logger.child({ orderId })`.
 - `RootLogger$` is the DI token of the root logger. The root itself
   lives **outside the graph**: the assembly creates it on phase 0 — it
-  is the value of the root's `logger` option, or a `ConsoleLogger` built
-  from the snapshot of the `nestlingLog` section — and registers
-  `valueProvider(RootLogger$, root)`. So the kernel writes into the same
-  logger on every phase, including 0 and 1, when there are no graph
-  nodes yet. An application provider under `RootLogger$` is a duplicate
-  error: there is no second way to declare the root.
+  is the value of the root's `logging.logger`, or the kernel logger
+  built from the snapshot of the `nestlingLog` section, wrapped in a
+  correlation decorator ([composition.md §6](./composition.md)) — and
+  registers `valueProvider(RootLogger$, root)`. So the kernel writes
+  into the same logger on every phase, including 0 and 1, when there
+  are no graph nodes yet. An application provider under `RootLogger$`
+  is a duplicate error: there is no second way to declare the root.
   `Logger$(scope)` and `Logger$.auto` are family members with the
   recipe `root.child({ scope })`, so replacing the root changes every
   member.
 - The request and trace identifiers are not part of the interface: the
-  implementation reads them itself. The kernel's `ConsoleLogger` reads
-  `requestId` and `traceId` from the ambient context directly, not
+  correlation decorator adds them, from the `logging.fields` list. It
+  reads the variables from the ambient context directly, not
   through the `Ctx(RequestId)` and `Ctx(Trace)` nodes: the root exists
   before the graph and cannot depend on its nodes. The fields are added
   to a record when the context has the values and the call did not set

@@ -109,14 +109,15 @@ there too.
   in `app.ts` and the `app.assemble(args)` call in `main.ts`.
 - **Application declaration** (`декларация приложения`, `makeApp`) — a
   value with the composition of the application: the endpoints of the root
-  or the features, plugins, switches, transports and servers, policies,
-  configuration binding. The methods are `assemble(args?)` and
-  `check(args?)`.
+  or the features, plugins, switches, transports, policies, the logger.
+  The methods are `assemble(args?)`, `check(args?, options?)` and
+  `discover(args?)`.
 - **Assembly argument** (`аргумент сборки`, `AssembleArgs`) — what to
   assemble in this process: the feature selection and the values of the
-  switches. The shapes are `'all'`, a list of feature names or
-  `{ features?, includeDeps?, …switch values }`. It is read by user code
-  before the container through `load(RootConfig)`.
+  switches. The shapes are the object
+  `{ features?, includeDeps?, …switch values }` or the
+  `argv(process.argv)` marker, which the assembly parses by the schema
+  of the declaration.
 - **Root composition shape** (`форма состава корня`) — one of the three
   records of `makeApp`: `{ endpoints, providers? }`,
   `{ endpoints, modules? }` or `{ features }`. The first two are the
@@ -132,7 +133,8 @@ there too.
   a function: both branches are read without running code. It is expanded
   on the ASSEMBLE phase, before discovery.
 - **Assembled application** (`собранное приложение`, `AssembledApp`) — the
-  result of `assemble`: the methods `run()` and `close()`.
+  result of `assemble`: the methods `run(options?)` and `close()`.
+  `options.config` carries the bindings of the configuration sources.
 - **Phase** (`фаза`) — a stage of the application lifecycle: `0 BOOTSTRAP`,
   `1 ASSEMBLE`, `2 INIT`, `3 WIRE`, `4 START`, `5 RUN`, `6 SHUTDOWN`.
 - **Feature** (`фича`, `makeFeature`) — a unit of the application that may
@@ -148,9 +150,10 @@ there too.
   only by operations». An edge of the graph between two features and an
   edge from a plugin into a feature are assembly errors.
 - **Feature selection** (`выбор фич`) — which features to include in this
-  assembly: `'all'`, a list of names or the `features` field of the object
-  assembly argument. It is read before the container is assembled.
-  `includeDeps` closes the selection over the called operations.
+  assembly: the `features` field of the assembly argument, `'all'`, a
+  list of names, or `--features` from the command line. It is read
+  before the container is assembled. `includeDeps` closes the selection
+  over the called operations.
 - **Discovery** (`discovery`) — a flat pass over the selected features and
   the connected plugins that collects their endpoints, transports and
   operation implementations. In the graph the result lies under the DI
@@ -162,7 +165,7 @@ there too.
   root declares **instances**: `http()`, `http({ name: 'admin' })`. A
   declaration chooses its own through `on:`. The transport knows nothing
   about the pipeline and the handlers.
-- **Server** (`сервер`, `httpServer`) — a resource that holds the socket
+- **Server** (`сервер`, `server`) — a resource that holds the socket
   and opens it last on START. The HTTP transport attaches to the server;
   several transports on one socket get one server.
 - **Intercom** (`интерком`, `intercom:`) — the role of the carrier of
@@ -357,10 +360,13 @@ there too.
 - **Key** (`ключ`) — the name of the variable a field is read from:
   `APP_LOG_LEVEL`. It is derived from the prefix of the section and the
   name of the field; `from('NAME', schema)` sets the exact name.
-- **Source** (`источник`) — where the values come from: `process.env`
-  (always, with the lowest priority), `env({ prefix })`, `objectSource`, a
-  file, Vault. It is bound to keys in
-  `makeApp({ config: [[source, keys]] })`.
+- **Source** (`источник`) — where the values come from: `env()`,
+  `dotenv(path)`, Vault, the test `vars()`. It is bound to keys at run:
+  `run({ config: [bind(source, { keys })] })`. With no `config`, the
+  default applies: the environment, then `.env`.
+- **Binding** (`привязка`, `bind(source, { keys, optional, timeout })`) —
+  the source and the keys it is responsible for. The order of the list
+  sets the priority.
 - **`.keys`** — the exported description of the keys of a section. It
   grants the right to bind a source to them, but not the right to read the
   values.

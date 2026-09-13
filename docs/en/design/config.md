@@ -11,7 +11,9 @@
 > `[2026-09-06] Фаза 0 BOOTSTRAP: источники до сборки, синхронный build(), фабрики без I/O`,
 > `[2026-09-06] Конфиг: derived, env({ prefix }), описания полей через конвертеры`,
 > `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server })`
-> (a family section).
+> (a family section),
+> `[2026-09-13] Конфигурация: привязки на run(), env() и dotenv() умолчанием, bind(), needs у источника`,
+> `[2026-09-13] Аргумент сборки: argv() по схеме декларации`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. Section
@@ -135,48 +137,97 @@ carry `.keys` by itself, with no wrapper class. `.keys` is an instance
 of `ConfigKeys<Prefix>`: it has neither an `id` nor a constructor, so
 it does not type-check in `deps`.
 
-## 3. Sources and binding at the root
+## 3. Sources and bindings at run
 
-A source is not a provider, it is a `ConfigSource { get; init?;
-close?; watch? }` object. One private reader in the kernel reads every
-source. It initializes the sources on phase 0 BOOTSTRAP and puts the
-values into a snapshot; the sections are computed from the snapshot on
+A source is a `ConfigSource { get; init?; close?; watch?; needs? }`
+object, not a provider. One private reader in the kernel reads every
+source. It brings up the sources on phase 0 BOOTSTRAP and puts the
+values into a snapshot. The sections are computed from the snapshot on
 ASSEMBLE, synchronously ([composition.md §1](./composition.md)).
-`process.env` is the default source, with the lowest priority; it is
-not mentioned in the list of bindings. A source reads its own
-coordinates (`path`, `addr`) from `process.env` in `init()`; this is
-its only contact with the environment.
+
+`run()` takes the list of bindings: where the values come from is a
+property of the process, not of the application. `check(args, {
+config })` and the test root `assembleTest(app, { config })` accept
+the same list. `discover()` reads no configuration. The `makeApp`
+declaration has no field for sources: only the assembly argument
+determines the composition of the application, and the configuration
+has no effect on the composition.
+
+```typescript
+// default: write nothing about configuration
+await app.assemble(argv(process.argv)).run();
+
+// the same thing written explicitly: the environment above the local file
+await app.assemble(argv(process.argv)).run({
+  config: [
+    bind(env()),
+    bind(dotenv('.env'), { optional: true }),
+  ],
+});
+
+// staging: Vault on top of the default
+await app.assemble(argv(process.argv)).run({
+  config: [bind(vault(VaultConfig), { timeout: 3000 }), ...defaultSources],
+});
+```
+
+The list passed in replaces the default entirely. The default is
+exported as the `defaultSources` value. The test root has no default:
+a key that is not in the sources passed in is absent, and the test
+does not depend on the machine's environment.
+
+A binding is `bind(source, options?)`: the source and the keys it is
+responsible for. The order of the list sets the priority: the first
+source that returns a value wins.
+
+| Option | What it does |
+|---|---|
+| `keys` | the `.keys` descriptors of sections and key globs; `'*'` by default |
+| `optional` | the source did not come up — the reader skips it instead of failing; this is how `dotenv('.env')`, which is not in the container, is declared |
+| `timeout` | the wait limit for `init()`, 10 seconds by default; a failure names the source |
+
+A binding addresses keys, not DI tokens. The assembly creates every
+section injected in the selected features on ASSEMBLE, and validates
+them there too. An invalid configuration stops the start (fail-fast).
+
+The kernel has two sources. `env({ prefix? })` reads environment
+variables. With a prefix, it reads `<prefix><KEY>` and gives the value
+under `KEY`, so one `.env` file serves several services. `dotenv(path)`
+reads a file in the `.env` format through `util.parseEnv`. It has no
+dependencies. The kernel itself does not read `process.env`: the
+environment reaches the snapshot only through a declared `env()`.
+Sources with network access live in packages: `vault(...)` in
+`@nestlingjs/config.vault`. The test source `vars({...})` lives in
+`@nestlingjs/testing` ([testing.md §4](./testing.md)).
+
+The coordinates of a source come as constructor arguments or from a
+section declared by the `needs` field, and never from the keys the
+source itself fills. `dotenv(path)` gets the path as a string.
+`vault(VaultConfig)` declares `needs: VaultConfig` and gets the
+validated values of the section in `init(values)`: the address and the
+credentials are read from sources already brought up. The reader
+brings up sources in dependency order, not in list order: Vault, with
+a higher priority than `.env`, is read after it, because it takes its
+coordinates from there. A cycle in `needs` is a failure before any
+I/O. The reader takes a section named by `needs` from sources already
+brought up. A dependent source does not serve its own `needs` keys,
+and after it comes up the section is not reprojected. A section not
+covered by the sources brought up is a phase 0 failure listing the
+missing keys.
+
+The behavior of the source itself is set by its options, not by the
+binding: `vault({ retries: 3, watch: false })`. A failure of `init()`
+stops the start with an error naming the source, unless the binding is
+`optional`. Exactly the I/O listed in `config` happens on phase 0. The
+reader lives for the duration of `run()`: `close()` of the sources is
+called as an explicit step of SHUTDOWN, after the container is
+destroyed, and a structural check closes them right after the report.
 
 The snapshot of phase 0 contains every declared key. A key that no
 section names — a member of the `Config(key)` family under an unbound
 glob — is read on first access and remembered in the snapshot: the
 composition of such members is known only inside `build()`, and the
 source's `get()` is synchronous and does no I/O.
-
-A failure of `init()` stops the start with an error naming the source;
-retries are declared by the source itself (`vault({ retries: 3 })`).
-The reader lives for the duration of `run()`: `close()` of the sources
-is called as an explicit step of SHUTDOWN, after the container is
-destroyed, and a structural check closes them right after the report.
-
-```typescript
-// env only → write nothing about configuration in the root
-await makeApp({ features: [OrdersFeature], transports: [http()] }).assemble().run();
-
-// other sources appear → a flat list, order = priority
-await makeApp({
-  config: [
-    [vault(), [ordersKeys]],            // section descriptors
-    [file('config.yaml'), ['*_URL']],   // and key globs
-  ],
-  /* ... */
-}).assemble().run();
-```
-
-A binding addresses keys (`.keys` descriptors and globs), not DI
-tokens. The assembly creates every section injected in the selected
-features on ASSEMBLE, and validates them there too. An invalid
-configuration stops the start (fail-fast).
 
 A transport declares its own section and gives out one descriptor:
 `httpServerKeys(name?)` at `@nestlingjs/transport.http`,
@@ -185,18 +236,8 @@ right to bind a source as `.keys` on an application section; the
 transport keeps the DI token of the section private, so only the
 transport itself can inject it.
 
-`env({ prefix })` is an explicit env source with a prefix: it reads
-`<prefix><KEY>` and gives the value under `KEY`. The binding
-`[[env({ prefix: 'SERVICE_1_' }), ['*']]]` gets a higher priority than
-the implicit `process.env`, so `SERVICE_1_HTTP_PORT` overrides
-`HTTP_PORT`, while exact keys like `DATABASE_URL` stay shared. So one
-`.env` file serves several services; the sections and `.keys` stay
-relative.
-
 The kernel module responsible for configuration is always registered:
-there is no field for it in `makeApp`. So an application that needs
-nothing beyond `process.env` writes nothing about configuration in the
-root.
+there is no field for it in `makeApp`.
 
 A glob that matched no declared key gives a warning at start, not an
 error: the warning catches a typo like `'*_UR'`, while a glob can also

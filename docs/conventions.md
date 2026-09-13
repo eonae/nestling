@@ -76,17 +76,27 @@
 
 ## Переключатели
 
-- Переключатель называется по тому, что он выбирает, в PascalCase:
-  `Storage = makeSwitch('storage', ['s3', 'local'])`. Имя в нижнем
-  регистре совпадает с полем `RootConfig`, из которого приходит значение:
-  `storage: Storage.schema`.
-- Двухпозиционный переключатель называется по тому, что включает:
-  `Audit = makeSwitch('audit')`.
+- Многозначный переключатель называется по тому, что он выбирает, в
+  PascalCase: `Storage = makeSwitch('storage', ['s3', 'local'])`. Строковое
+  имя в нижнем регистре совпадает с флагом аргумента сборки:
+  `--storage s3`.
+- Двухпозиционный переключатель называется предикатом:
+  `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapiPlugin)`.
+  Строковое имя остаётся существительным: `'audit'`.
+- Суффикса `Switch` нет: вид значения называет метод `when` или `pick` в
+  месте использования.
+
+## Плагины
+
+- Экземпляр плагина — значение в lowerCamelCase с суффиксом `Plugin`:
+  `authPlugin = makePlugin({ … })`, `openapiPlugin = openapi({ … })`.
+  Инлайновый вызов в `plugins:` суффикса не получает: `httpProbes()`.
+- Строковое имя плагина (`name: 'app-auth'`) от суффикса не зависит.
 
 ## Пайплайн
 
-- Слой это значение в lowerCamelCase, названное по тому, что он даёт:
-  `observability`, `authed`.
+- Слой — значение в lowerCamelCase с суффиксом `Layer`, основа
+  существительным: `authLayer`, `observabilityLayer`.
 - Класс-юнит называется по действию: `Authenticate`, `AuditOutcome`.
 
 ## Файлы

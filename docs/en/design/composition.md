@@ -15,7 +15,11 @@
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки; формы корня без фич`,
 > `[2026-09-06] Пробы: HealthCheck$ и Health$ в ядре, транспорты адаптируют`,
 > `[2026-09-06] Логгер ядра: RootLogger$, семейство Logger$ с .auto и child`,
-> `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server })`.
+> `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server })`,
+> `[2026-09-13] Конфигурация: привязки на run(), env() и dotenv() умолчанием, bind(), needs у источника`,
+> `[2026-09-13] Аргумент сборки: argv() по схеме декларации`,
+> `[2026-09-13] Логгер: опция logging, пакет @nestlingjs/logging, поля-декларации, pino сателлитом`,
+> `[2026-09-13] Сервер: server(), не перечисляется в transports:`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. Lifecycle
@@ -188,17 +192,17 @@ export const app = makeApp({
   features?,    // L2: the features of the application; the assembly argument picks a subset
   plugins?,     // cross-cutting infrastructure; connected always
   switches?,    // L2: the dictionary of composition switches (§3)
-  config?,      // L1: the binding of sources [[src, keys | glob]] (config.md)
-  transports?,  // L0+: the declarations of transport and server instances
+  transports?,  // L0+: the declarations of transport instances (§4)
   intercom?,    // L4: the name of the transport that carries the operations
-  logger?,      // the root logger of the application; a ready Logger value
+  logging?,     // the root logger and correlation fields: { logger, fields } (§6)
   policies?,    // invariants on the assembled graph; checked at the end
                 //   of phase 1 ASSEMBLE — in run(), check() and assembleTest
                 //   (pipeline.md §7)
-});             // App: app.assemble(args?) · app.check(args?, options?)
+});             // App: app.assemble(args?) · app.check(args?, options?) · app.discover(args?)
 
 // main.ts — how the application starts this process
-await app.assemble(args).run();     // AssembledApp: run() · close()
+await app.assemble(argv(process.argv)).run();   // AssembledApp: run(options?) · close()
+// run({ config }) sets the configuration sources (config.md §3); the default with no option
 
 // The dispatch policy of the callers is set by the configuration
 // (NESTLING_PORTS_DISPATCH), and the intercom field sets the role of
@@ -214,15 +218,13 @@ feature with no name; their endpoints are attributed to the internal
 unit named `app`, and the providers of the root get the module label
 `app`. Cross-cutting infrastructure (logging, tracing, documentation)
 is listed in `plugins:` and connected always; features are listed in
-`features:` and are selected. Binding the configuration sources is a
-field of the declaration: the sources are part of what the application
-is, and the differences between environments are expressed by the
-coordinates of the sources themselves ([config.md §3](./config.md)).
-The `logger:` field sets the root logger, the only way to replace the
-kernel's `ConsoleLogger`. The value is ready: the root exists before
-the graph and cannot depend on its nodes, and the records of every
-phase, including the assembly warnings, go into it
-([container.md](./container.md), "The kernel logger"). Substituting
+`features:` and are selected. The configuration sources do not belong
+to the declaration: `run()` accepts their list
+([config.md §3](./config.md)). The `logging:` field sets the root
+logger and the correlation fields (§6). The logger is a ready value:
+the root exists before the graph and cannot depend on its nodes, and
+the records of every phase, including the assembly warnings, go into
+it ([container.md](./container.md), "The kernel logger"). Substituting
 graph nodes (`overrides`) exists only on the test root
 `assembleTest` ([testing.md](./testing.md)); `makeApp` knows nothing
 about substitutions and does not pass them into the container.
@@ -232,15 +234,23 @@ belongs to the assembly, not to the declaration: it changes the
 composition of the process, not of the application. `app.assemble(args?)`
 is synchronous and reads nothing; it returns an `AssembledApp`, and
 `run()` runs the phases. The type of the argument is derived from the
-declaration: `{ features?, ...switch values from switches: }`; the
-string shape `assemble('all')` sets only the feature selection.
+declaration: `{ features?, includeDeps?, ...switch values from
+switches: }`. The entry point passes the command-line arguments
+through the `argv(process.argv)` marker: the assembly parses them by
+the same schema. `--features` accepts `all` or a list of names,
+`--include-deps` is a flag, every switch is a flag under its own name
+with the values from `makeSwitch`; `--help` prints the schema and ends
+the process. The parsing is strict: an unknown flag, an unknown
+feature or a foreign switch value is a failure before phase 0. The
+kernel does not read `process.argv` itself.
 
-The declaration and the assembled application provide three methods:
+The declaration and the assembled application provide four methods:
 
 | Method | Where | Phases | What it does |
 |---|---|---|---|
-| `run()` | `AssembledApp` | 0–5 | brings the application to RUN and stays there; sets up signal handlers |
-| `check(args?, options?)` | `App` | 0–1 | a structural check: the graph is checked, no instances are created, no resources are acquired; checks `policies:`; returns a report on the composition (the features, the switches, the endpoints by transport with `detached` reasons, the transports, the map of operations), and throws the same errors `run()` would throw at these phases. `options.config` replaces the sources of the declaration, as in `assembleTest` |
+| `run(options?)` | `AssembledApp` | 0–5 | brings the application to RUN and stays there; sets up signal handlers. `options.config` carries the bindings of the configuration sources instead of the default ([config.md §3](./config.md)) |
+| `check(args?, options?)` | `App` | 0–1 | a structural check: the graph is checked, no instances are created, no resources are acquired; checks `policies:`; returns a report on the composition (the features, the switches, the endpoints by transport with `detached` reasons, the transports, the map of operations), and throws the same errors `run()` would throw at these phases. `options.config` carries the bindings of the configuration sources instead of the default, the same as for `run()` |
+| `discover(args?)` | `App` | phase 0 of the declaration | the composition by the assembly argument, as a value: the features, the switches, the endpoints by transport; no sources, no graph. The entry of the OpenAPI generator ([schemas.md §2.1](./schemas.md)) |
 | `close()` | `AssembledApp` | 6 | SHUTDOWN in strict reverse order; idempotent |
 
 `check()` lives on the declaration, not on the assembled application:
@@ -592,15 +602,21 @@ gets its own name, and a declaration picks its own through `on:`; with
 no `on:` this is `'default'`. There is no limit of "one HTTP per
 assembly".
 
-A server is a resource that holds a socket. The HTTP transport attaches
-to a server; with no explicit server, it declares its own, under the
-same name. Several transports on one socket get one server:
+A server is a resource, `server({ name? })`, that holds a socket. It is
+not listed in `transports:`: the assembly collects the servers from the
+transport declarations by the `server` reference and unfolds them as
+nodes, one node per reference. A server no transport references is not
+created. A transport with no `server` declares its own server under
+the same name. Several transports on one socket reference one
+variable:
 
 ```typescript
 transports: [http()],                                  // the default server: HTTP_PORT, HTTP_HOST
 
-const api = httpServer({ name: 'api' });               // HTTP_API_PORT, HTTP_API_HOST
-transports: [http({ server: api }), graphql({ server: api })],
+const api = server();                                  // the same default server, declared explicitly
+transports: [http({ server: api }), mcp({ server: api })],
+
+const admin = server({ name: 'admin' });               // HTTP_ADMIN_PORT, HTTP_ADMIN_HOST
 ```
 
 A declaration references a transport by DI token; if there is no
@@ -779,16 +795,26 @@ state: a failed INIT ends the process.
 ### The logger
 
 `RootLogger$` is the DI token of the root logger, with the `Logger`
-interface ([container.md](./container.md), the interface is there too).
-The kernel module registers `ConsoleLogger` as the default; an
-application provider under the same DI token replaces the default with
-no duplicate error. The level and the format are set by the
-`nestlingLog` kernel section: `NESTLING_LOG_LEVEL` (`debug` | `info` |
-`warn` | `error`, `info` by default) and `NESTLING_LOG_FORMAT`
-(`text` | `json`, `text` by default). Records go to `stderr`: for a
-CLI transport, `stdout` is taken by the result of the command. The
-implementation reads the request identifier from `Ctx(RequestId)` and
-adds it as the `requestId` field.
+interface from `@nestlingjs/logging` ([container.md](./container.md),
+the interface is there too). The root sets it through the
+`logging: { logger?, fields? }` option. `logger` is a ready value, the
+kernel logger by default. `fields` are context variables whose values
+land in every record, `[RequestId, Trace]` by default. The assembly
+wraps the passed logger in a correlation decorator: it reads the
+declared variables from the ambient context and adds them as fields,
+so any implementation gets `requestId` and `traceId` with no knowledge
+of the kernel internals. A plugin declares its own fields in
+`makePlugin({ logFields })`, and the assembly collects them together
+with the providers; `logField(Var, 'name')` sets the field name,
+otherwise the variable name is used. Two fields with the same name are
+an assembly error. A missing value leaves out the field. Static
+process fields (`node`, `version`) are added through
+`logger.child({...})` at creation. The level and the format of the
+kernel logger are set by the `nestlingLog` kernel section:
+`NESTLING_LOG_LEVEL` (`debug` | `info` | `warn` | `error`, `info` by
+default) and `NESTLING_LOG_FORMAT` (`text` | `json`, `text` by
+default). Records go to `stderr`: for a CLI transport, `stdout` is
+taken by the result of the command.
 
 `Logger$(scope)` is a family with the recipe `root.child({ scope })`.
 `Logger$.auto` gives a member named after the consumer. Replacing the
@@ -812,5 +838,8 @@ assembly takes the container warnings from
 (`makeDispatch`, `new InProcessBus()`) use `ConsoleLogger` with its
 defaults, so an undeclared failure is not swallowed silently. In a
 test, `spyLogger()` intercepts the records by substituting `RootLogger$`
-([testing.md](./testing.md)). Adapters to pino and similar loggers are
-satellite packages.
+([testing.md](./testing.md)). `@nestlingjs/logging.pino` gives
+`pinoLogger(options)` for the `logger` option: it writes to `stderr`,
+in a human-readable format with no `pino-pretty`. A script outside the
+application creates the kernel logger through the
+`makeConsoleLogger(options)` factory from `@nestlingjs/logging`.

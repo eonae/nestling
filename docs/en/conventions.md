@@ -83,17 +83,29 @@
 
 ## Switches
 
-- A switch is named after what it chooses, in PascalCase:
-  `Storage = makeSwitch('storage', ['s3', 'local'])`. The lower-case
-  name matches the `RootConfig` field the value comes from:
-  `storage: Storage.schema`.
-- A two-position switch is named after what it turns on:
-  `Audit = makeSwitch('audit')`.
+- A multi-valued switch is named after what it chooses, in PascalCase:
+  `Storage = makeSwitch('storage', ['s3', 'local'])`. Its lower-case
+  string name matches the flag of the assembly argument:
+  `--storage s3`.
+- A two-position switch is named as a predicate:
+  `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapiPlugin)`.
+  Its string name stays a noun: `'audit'`.
+- There is no `Switch` suffix: the `when` or `pick` method at the point
+  of use names the kind of value.
+
+## Plugins
+
+- A plugin instance is a value in lowerCamelCase with the `Plugin`
+  suffix: `authPlugin = makePlugin({ … })`, `openapiPlugin =
+  openapi({ … })`. An inline call in `plugins:` gets no suffix:
+  `httpProbes()`.
+- The string name of a plugin (`name: 'app-auth'`) does not depend on
+  the suffix.
 
 ## Pipeline
 
-- A layer is a value in lowerCamelCase, named after what it gives:
-  `observability`, `authed`.
+- A layer is a value in lowerCamelCase with the `Layer` suffix. Its
+  base is a noun: `authLayer`, `observabilityLayer`.
 - A unit class is named after the action: `Authenticate`,
   `AuditOutcome`.
 

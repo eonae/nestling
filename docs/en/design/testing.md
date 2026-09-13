@@ -7,7 +7,8 @@
 > `[2026-09-03] Декларация приложения: makeApp, assemble(select), AssembledApp`,
 > `[2026-09-06] Фаза 0 BOOTSTRAP: источники до сборки, синхронный build(), фабрики без I/O`,
 > `[2026-09-06] Ресурсы и роли классов: @Component, @Resource, @Handler; экземпляры на INIT`,
-> `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки`.
+> `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки`,
+> `[2026-09-13] Конфигурация: привязки на run(), env() и dotenv() умолчанием, bind(), needs у источника`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. Test levels and the visibility boundary
@@ -81,7 +82,7 @@ console output: they are checked against the `.check()` matrix (§6).
 With no `overrides`, pruning changes nothing: the graph stays the
 same down to the last node ([container.md](./container.md)).
 
-### A run with no sockets
+### A run with no sockets and `run()`
 
 The test application goes through phases 0–3 (BOOTSTRAP…WIRE):
 `dispatch` is created, START does not run, the transports accept no
@@ -91,9 +92,14 @@ test. Resources are acquired on INIT, so they are open in a test; the
 ones you do not need are substituted through `overrides`, and pruning
 removes them from the graph.
 
+`testApp.run()` continues from START to RUN: the transports open
+sockets, the signal handlers are installed, and `testApp.baseUrl`
+gives the address of the HTTP server. This is e2e in the same process,
+with the same `overrides`, `stubs` and `config` as a run with no
+sockets. Port `0` in `vars` gives a free port.
+
 `await using` runs SHUTDOWN in reverse order. `close()` is also
-available explicitly; calling it again is safe. A real e2e test is an
-ordinary `run()` on a random port, outside the package.
+available explicitly; calling it again is safe.
 
 ### `testApp.call` and `testApp.emit`
 
@@ -139,14 +145,15 @@ the public boundaries.
 
 ### Configuration: `vars`
 
-`vars({...})` is an object `ConfigSource` with `watch` and a
-programmatic `set()`. It is also used to test the reload machinery:
-reprojecting, keep-last-good, `onChange`. `process.env` is not
-touched, so tests can run in parallel. In the test root, `config:`
-accepts three shapes: a source (a shorthand for `[[source, '*']]`),
-one binding, or a list of bindings. The `makeApp` declaration has no
-shorthand. A binding from the test root replaces the binding of the
-declaration.
+`vars({...}, name?)` is an object `ConfigSource` from
+`@nestlingjs/testing` with `watch` and the programmatic `set()` and
+`assign()`. It is also used to test the reload machinery:
+reprojecting, keep-last-good, `onChange`. The test root has no default
+sources and does not read `process.env`: a key that is not in `vars`
+is absent, so the tests are hermetic and run in parallel. `config:`
+accepts a list of `bind(...)` bindings ([config.md §3](./config.md)).
+One source is passed as `config: vars({...})`, shorthand for
+`[bind(vars({...}))]`.
 
 ### Calls between features: `stub`
 
@@ -247,8 +254,7 @@ same errors `run()` would throw on these phases, and it does not
 affect a later `run()` of the same application. The `check(args?,
 options?)` arguments are optional: the first is the assembly argument
 (the feature selection and the switch values), the second is options:
-the schema converters and `config` in place of the sources of the
-declaration.
+the schema converters and `config` in place of the default sources.
 
 ```typescript
 for (const features of ['all', 'orders', 'billing'] as const) {

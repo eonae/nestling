@@ -6,7 +6,8 @@
 > `[2026-08-29] Стиль документации: правила, глоссарий, перенос обоснований из design/`,
 > `[2026-08-29] Проверка входа по input: обязанность рантайма, точка после .pre-юнитов`,
 > `[2026-09-06] Документ OpenAPI без запуска: buildOpenApiDocument(app, args)`,
-> `[2026-09-06] Конфиг: derived, env({ prefix }), описания полей через конвертеры`.
+> `[2026-09-06] Конфиг: derived, env({ prefix }), описания полей через конвертеры`,
+> `[2026-09-13] Схемы: Standard Schema на границе, zod внутри; один пакет schema.zod`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. The kernel accepts Standard Schema
@@ -20,8 +21,16 @@ inference.
 
 Validation runs through `~standard.validate`, types are inferred
 through `InferOutput`. The user chooses and installs the validator:
-zod, `zod/mini`, valibot, arktype. The validator is not a dependency of
-the kernel. The documentation examples use zod as one of the options.
+zod, `zod/mini`, valibot, arktype. The public types of the kernel name
+no validator.
+
+Inside the framework, there is one validator: zod. The schemas the
+framework itself writes (the configuration sections of packages, the
+field helpers) are written in it, and the packages that need JSON
+Schema take the zod converter by default (§2). For an application this
+is an implementation choice, not a requirement: an application on
+another validator assembles and works, and passes its own converter
+wherever a document is needed.
 
 **One point of validation.** Every validation in the kernel goes
 through one function, `validateSync(schema, value, message)`:
@@ -90,10 +99,12 @@ by whoever publishes the description of the API.
 A converter is the public interface of the schema layer:
 `SchemaDocConverter { vendor; toJsonSchema(schema, options?) }`.
 Dispatch runs on the `~standard.vendor` of the schema. The kernel does
-not branch on the vendor and does not introspect a schema. The caller
-passes the list of converters; there is no global registry. Two
-converters with the same `vendor` in the list is an error at the point
-they are passed.
+not branch on the vendor and does not introspect a schema. A consumer
+of JSON Schema holds the zod converter by default and accepts a
+`converters` list that adds converters for other vendors or replaces
+the zod converter. There is no global registry. Two converters with
+the same `vendor` in the list is an error at the point they are
+passed.
 
 `options` carries one hint: `io: 'input' | 'output'`. A schema with a
 transform describes two shapes: what arrives over the network and what
@@ -136,11 +147,17 @@ A converter is the only place that knows the internals of a particular
 validator. It is written in ten lines on top of the validator's own
 converter (`z.toJSONSchema()` and its counterparts).
 
+Everything the framework does with zod lives in one package,
+`@nestlingjs/schema.zod`: the `zodConverter()` converter, the section
+field helpers `int()` and `flag()` — open builders the caller extends
+with bounds and a default (`int().min(1).default(500)`) — and the
+`makeModel` and `fromType` models, which check a schema against an
+existing TypeScript type.
+
 ### 2.1. OpenAPI: an opt-in module
 
 ```typescript
-openapi({ info: { title: 'My API', version: '1.0.0' },
-          converters: [zodConverter()], pipeline: observability })
+openapi({ info: { title: 'My API', version: '1.0.0' }, pipeline: observability })
 ```
 
 The document is needed in two modes — served by an endpoint, and
@@ -151,19 +168,18 @@ which the CI mode gets the composition of the application.
 
 | Surface | What it does |
 |---|---|
-| `buildOpenApiDocument(endpoints, options)` | a pure function: the input is the same value discovery gives out; no container, no transports |
+| `buildOpenApiDocument(discovery)` | a pure function of the result of `app.discover(args)`: it takes its options from the `openapi()` plugin of the declaration; no container, no transports |
 | `app.discover(args?)` | the input of the generator: phase 0 of the declaration gives out the composition by value, with no graph and no sources. The CI document is built with the same assembly argument that starts the process ([composition.md](./composition.md)) |
 | `openapi(options)` | a parameterized infrastructure module: it builds the document on phase 1 ASSEMBLE and serves it through an endpoint (`GET /openapi.json`) |
 | `OpenApiDocument$` | the DI token of the ready document; the endpoint is a way to serve it, not the place where it comes into being |
 
-- `@nestlingjs/openapi` knows nothing about any validator. It accepts
-  the same `SchemaDocConverter` as the snapshot of operations, and
-  does not introduce its own type. A test of the import boundary
-  checks this.
-- Converters are separate packages (`@nestlingjs/schema.zod` depends
-  on zod as a peer). The user installs exactly what they use; the
-  major versions of a converter follow the major versions of the
-  validator.
+- `@nestlingjs/openapi` accepts the same `SchemaDocConverter` as the
+  snapshot of operations, and introduces no type of its own. It takes
+  the zod converter from `@nestlingjs/schema.zod` by default; its
+  public types do not mention zod.
+- A converter for another validator is a separate package, built on
+  the pattern of `schema.zod`; the major versions of a converter
+  follow the major versions of the validator.
 - The document is built by a provider factory on phase ASSEMBLE. Any
   diagnostic fails the assembly before INIT and before the socket
   opens. There is no lazy build. The check is exhaustive: the
@@ -175,10 +191,9 @@ which the CI mode gets the composition of the application.
 - The module reads the composition of the application from
   `Discovery$` ([composition.md](./composition.md)): this way it sees
   the selected topology with no duplication of `select`. The CI script
-  takes the same composition from `app.discover(args)` — the pure
-  function gets no second signature for this: the call
-  `buildOpenApiDocument(app.discover(args).endpoints, options)` is
-  already a one-liner.
+  takes the same composition from `app.discover(args)`, and the
+  document options come from the plugin in the declaration: `info` is
+  written once.
 - Besides JSON Schema, the document is assembled from the
   declarations: the `doc:` slot (§2.2); `errors:` become `responses`,
   with `InternalError` as the default response

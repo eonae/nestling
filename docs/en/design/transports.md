@@ -14,6 +14,7 @@
 > `[2026-09-05] Сигнал отмены запроса: реестр контроллеров вместо AbortSignal.any`,
 > `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; юниты транспорта`,
 > `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server }); дубликат паттерна на ASSEMBLE`,
+> `[2026-09-13] Сервер: server(), не перечисляется в transports:`,
 > `[2026-09-06] Пробы: HealthCheck$ и Health$ в ядре, транспорты адаптируют`,
 > `[2026-09-12] Транзакционный приём: inbox как вторая половина гарантии outbox'а`,
 > open question 2 (the stream deduplication window and `Nats-Msg-Id`),
@@ -285,10 +286,12 @@ an export, not a change to the satellite.
 
 ### 4.2 The server as a resource
 
-`httpServer({ name? })` is a resource ([container.md](./container.md))
-that holds an `http.Server`. It is declared in the root's
-`transports:`. It reads the port and the host from a family section by
-its own name: `HTTP_PORT` and `HTTP_HOST` for the default server,
+`server({ name? })` is a resource ([container.md](./container.md)) that
+holds an `http.Server`. It is not listed in the root's `transports:`: a
+transport references it through the `server` field, and the assembly
+creates a node by the reference ([composition.md §4](./composition.md)).
+It reads the port and the host from a family section by its own name:
+`HTTP_PORT` and `HTTP_HOST` for the default server,
 `HTTP_ADMIN_PORT` and `HTTP_ADMIN_HOST` for `name: 'admin'`.
 `http({ server })` attaches to the server; with no `server`, the
 transport declares its own server with the same name as itself.
@@ -511,17 +514,15 @@ transport is built, so `mcp(...)` is declared in `transports:` of the
 root next to `http()`.
 
 ```typescript
-const api = httpServer();
+const api = server();
 
 makeApp({
   features: [UsersFeature],
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,
       info: { name: 'users-service', version: '1.0.0' },
-      converters: [zodConverter()],
     }),
   ],
 });

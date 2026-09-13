@@ -12,6 +12,7 @@
 > «Сигнал отмены запроса: реестр контроллеров вместо `AbortSignal.any`» [2026-09-05],
 > «HTTP-хендлер явной формой: `Handler<Op>`, `HttpHandler<Op>`, `HttpResponse`; `Ok` без заголовков; юниты транспорта» [2026-09-06],
 > «HTTP-сервер как ресурс: `httpServer({ name })`, `http({ server })`; дубликат паттерна на ASSEMBLE» [2026-09-06],
+> «Сервер: `server()`, не перечисляется в `transports:`» [2026-09-13],
 > «Пробы: `HealthCheck$` и `Health$` в ядре, транспорты адаптируют» [2026-09-06],
 > «Транзакционный приём: inbox как вторая половина гарантии outbox'а» [2026-09-12],
 > открытый вопрос 2 (окно дедупликации потока и `Nats-Msg-Id`),
@@ -252,8 +253,10 @@ OpenAPI, поэтому документ и ответ не расходятся
 
 ### 4.2 Сервер как ресурс
 
-`httpServer({ name? })` — ресурс ([container.md](./container.md)),
-который держит `http.Server`. Объявляется в `transports:` корня. Порт и
+`server({ name? })` — ресурс ([container.md](./container.md)), который
+держит `http.Server`. В `transports:` корня он не перечисляется: транспорт
+ссылается на него полем `server`, и сборка создаёт узел по ссылке
+([composition.md §4](./composition.md)). Порт и
 хост он читает из секции-семейства по своему имени: `HTTP_PORT` и
 `HTTP_HOST` у сервера по умолчанию, `HTTP_ADMIN_PORT` и `HTTP_ADMIN_HOST`
 у `name: 'admin'`. `http({ server })` присоединяется к серверу; без
@@ -448,17 +451,15 @@ MCP — входящий протокол: агент присылает `tools/
 поэтому `mcp(...)` объявляется в `transports:` корня рядом с `http()`.
 
 ```typescript
-const api = httpServer();
+const api = server();
 
 makeApp({
   features: [UsersFeature],
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,
       info: { name: 'users-service', version: '1.0.0' },
-      converters: [zodConverter()],
     }),
   ],
 });
