@@ -355,7 +355,8 @@ describe('portsKernel', () => {
         consumers: [portConsumer],
         dispatch: 'balanced' as never,
       }),
-    ).rejects.toThrow(/'local-first', 'always-remote'/);
+      // Перечень значений приходит от валидатора
+    ).rejects.toThrow(/"local-first"\|"always-remote"/);
   });
 
   it('недостижимая операция — ошибка сборки', async () => {

@@ -217,8 +217,10 @@ describe('секция nestlingLog', () => {
       const reader = await bootstrapConfig();
 
       expect(() => makeKernelLogger(reader)).toThrow(ConfigValidationError);
+      // Перечень приходит от валидатора: секция написана на нём, и второго
+      // текста про те же значения ядро не держит
       expect(() => makeKernelLogger(reader)).toThrow(
-        /'debug', 'info', 'warn', 'error'.*got "loud"/s,
+        /"debug"\|"info"\|"warn"\|"error"/s,
       );
     } finally {
       restore();
