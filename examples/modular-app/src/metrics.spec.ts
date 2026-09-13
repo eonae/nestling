@@ -16,6 +16,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { makeApp } from '@nestlingjs/app';
 import { assembleTest } from '@nestlingjs/testing';
+import { http } from '@nestlingjs/transport.http';
 
 describe('адаптер Prometheus', () => {
   it('складывает счётчики по имени и меткам', () => {
@@ -51,6 +52,29 @@ describe('адаптер Prometheus', () => {
 
     expect(exporter.render()).toContain('x{a="1",b="2"} 2');
   });
+
+  it('endpoint /metrics отдаёт накопленный текст', async () => {
+    const exporter = prometheusExporter();
+    const plugin = metricsPlugin(exporter);
+
+    // Приложение без фич: endpoint приносит плагин, и базы ему не нужно
+    const observed = makeApp({
+      features: [],
+      plugins: [plugin],
+      transports: [http()],
+      metrics: exporter,
+    });
+
+    exporter.counter('orders.created', 7);
+
+    await using testApp = await assembleTest(observed);
+
+    const [endpoint] = plugin.endpoints as readonly AnyEndpointDefinition[];
+    const response = await testApp.call(endpoint);
+
+    expect(response.isSuccess).toBe(true);
+    expect(String(response.value)).toContain('orders_created 7');
+  });
 });
 
 describeWithDatabase('метрики ядра в экспорте примера', () => {
@@ -75,25 +99,5 @@ describeWithDatabase('метрики ядра в экспорте примера
     expect(text).toContain('nestling_requests{');
     expect(text).toContain('nestling_request_duration_count{');
     expect(text).toMatch(/nestling_port_calls{[^}]*binding="local"/);
-  });
-
-  it('endpoint /metrics отдаёт накопленный текст', async () => {
-    const exporter = prometheusExporter();
-    const plugin = metricsPlugin(exporter);
-    const observed = makeApp({
-      features: [],
-      plugins: [plugin],
-      metrics: exporter,
-    });
-
-    exporter.counter('orders.created', 7);
-
-    await using testApp = await assembleTest(observed);
-
-    const [endpoint] = plugin.endpoints as readonly AnyEndpointDefinition[];
-    const response = await testApp.call(endpoint);
-
-    expect(response.isSuccess).toBe(true);
-    expect(String(response.value)).toContain('orders_created 7');
   });
 });

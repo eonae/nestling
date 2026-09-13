@@ -3,12 +3,15 @@
  *
  * Приложению нужна настоящая база: пул открывается на фазе INIT, а слой
  * транзакции, хранилище outbox'а и отметки приёма пишут SQL. Адрес
- * приходит переменной `TEST_DATABASE_URL`; без неё прогон пропускается, и
- * `yarn verify` на машине без базы остаётся зелёным. База поднимается
- * локально `yarn db:up` и мигрируется `yarn db:migrate`.
+ * приходит переменной `MODULAR_TEST_DATABASE_URL`; без неё прогон
+ * пропускается, и `yarn verify` на машине без базы остаётся зелёным. База
+ * поднимается локально `yarn db:up` и мигрируется `yarn db:migrate`.
  *
- * Имя переменной своё, а не `DATABASE_URL`: прогон тестов не должен
- * зависеть от того, что лежит в окружении под именем боевого ключа.
+ * Имя переменной своё по двум причинам. Оно не `DATABASE_URL`, потому что
+ * прогон тестов не должен зависеть от того, что лежит в окружении под
+ * именем боевого ключа. И оно не общее `TEST_DATABASE_URL`, потому что у
+ * этого приложения своя база: таблица пользователей есть и у него, и у
+ * `examples/microservice`, а миграции у них разные.
  */
 
 import { describe } from '@jest/globals';
@@ -16,7 +19,7 @@ import type { ConfigInput } from '@nestlingjs/app';
 import { vars } from '@nestlingjs/testing';
 
 /** Адрес базы; без него набор пропускается */
-export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
+export const TEST_DATABASE_URL = process.env.MODULAR_TEST_DATABASE_URL;
 
 /** `describe`, который молчит без базы */
 export const describeWithDatabase: (title: string, suite: () => void) => void =

@@ -103,7 +103,7 @@ describeWithDatabase('microservice', () => {
 
     // Логгер и ридер контекста нужны только боевому хранилищу: после
     // подмены контейнер их не создаёт. Соединение с базой в списке не
-    // окажется — его делит хранилище outbox'а
+    // окажется — его держит слой транзакции
     expect(testApp.pruned).toContain('Logger:DbUsersRepository');
     expect(testApp.pruned).toContain('Ctx:requestId');
   });

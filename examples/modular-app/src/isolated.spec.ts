@@ -16,7 +16,7 @@ import {
 } from './operations.js';
 import { db } from './persistence.js';
 import { inbox, outbox, users } from './schema.js';
-import { describeWithDatabase, testConfig } from './testing.js';
+import { describeWithDatabase, testConfig, waitFor } from './testing.js';
 import { CHECK_OPTIONS, TOPOLOGIES } from './topologies.js';
 
 import { expect, it } from '@jest/globals';
@@ -24,17 +24,22 @@ import { makeApp } from '@nestlingjs/app';
 import { OutboxRelay$ } from '@nestlingjs/outbox';
 import type { TestApp } from '@nestlingjs/testing';
 import { assembleTest, checkTopologies, stub } from '@nestlingjs/testing';
+import { http } from '@nestlingjs/transport.http';
 
 /**
- * Декларация для изоляции: те же фичи и те же плагины хранения, но без
- * транспортов. Шины в такой сборке нет, соединение с брокером не
- * открывается, а соседние операции подменяются стабами.
+ * Декларация для изоляции: те же фичи и плагины, но без шины.
+ *
+ * `http()` остаётся: пробы и метрики объявлены HTTP-endpoint'ами, и без
+ * их транспорта сборка остановилась бы на ASSEMBLE. Брокера нет,
+ * соединение с ним не открывается, а соседние операции подменяются
+ * стабами.
  */
 const isolated = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
   switches: app.spec.switches,
   policies: app.spec.policies,
+  transports: [http()],
 });
 
 /** Убирает данные прошлого теста: соединение берётся из собранного графа */
@@ -89,6 +94,10 @@ describeWithDatabase('фича users в изоляции', () => {
       claimed: 1,
       published: 1,
     });
+
+    // Подписчик разбирает тему отдельной задачей: тест ждёт следствие, а
+    // не фиксированное время
+    await waitFor(() => registered.length === 1, 'факт регистрации');
     expect(registered).toEqual([
       { id: expect.any(String), name: 'Alice', email: 'alice@example.com' },
     ]);

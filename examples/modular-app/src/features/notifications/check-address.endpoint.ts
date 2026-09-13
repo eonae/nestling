@@ -4,14 +4,22 @@ import { AddressRejected, CheckAddress } from '../../operations.js';
 
 import { Suppressions } from './suppressions.js';
 
-import { implement } from '@nestlingjs/app';
+import type { Logger } from '@nestlingjs/app';
+import { implement, Logger$ } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 
-@Handler([Suppressions])
+@Handler([Suppressions, Logger$.auto])
 class CheckAddressHandler {
-  constructor(private readonly suppressions: Suppressions) {}
+  constructor(
+    private readonly suppressions: Suppressions,
+    private readonly logger: Logger,
+  ) {}
 
   async handle(payload: CheckAddressInput) {
+    // Запись этого процесса несёт тот же `traceId`, что запись соседнего:
+    // трассу привёз конверт вызова, а базовый слой вернул её в контекст
+    this.logger.info('address checked');
+
     const reason = this.suppressions.reasonFor(payload.email);
 
     return reason === undefined

@@ -215,14 +215,14 @@ describeWithDatabase('split-развёртывание через NATS', () => {
       process.env.NESTLING_LOG_FORMAT = previous;
     }
 
-    const sent = records.find(({ msg }) => msg === 'register');
-    const mailed = records.find(({ msg }) => msg === 'mail sent');
+    const users = records.find(({ msg }) => msg === 'register');
+    const notifications = records.find(({ msg }) => msg === 'address checked');
 
     // Трасса началась в процессе `users` и продолжилась в
     // `notifications`: её привёз конверт вызова, а базовый слой вернул в
     // контекст
-    expect(sent?.traceId).toMatch(/^[\da-f]{32}$/);
-    expect(mailed?.traceId).toBe(sent?.traceId);
+    expect(users?.traceId).toMatch(/^[\da-f]{32}$/);
+    expect(notifications?.traceId).toBe(users?.traceId);
   });
 
   it('процесс users собирается без владельца notifications.check-address', async () => {
