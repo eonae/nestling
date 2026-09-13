@@ -42,6 +42,7 @@ describe('errors: — проверка при создании декларац�
       transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached, CardDeclined],
+      output: z.unknown(),
       handler: async () => new Ok({ id: '1' }),
     });
 
@@ -61,6 +62,7 @@ describe('errors: — проверка при создании декларац�
       transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached],
+      output: z.unknown(),
       handler: ChargeHandler,
     });
 
@@ -78,6 +80,7 @@ describe('errors: — проверка при создании декларац�
         pattern: 'POST /orders',
         // Класс ошибки — не определение отказа
         errors: [OrderLimitReached, Fail as never],
+        output: z.unknown(),
         handler: async () => new Ok({ id: '1' }),
       });
 
@@ -91,6 +94,7 @@ describe('errors: — проверка при создании декларац�
         transport: HttpTransport$,
         pattern: 'POST /orders',
         errors: [CardDeclined, CardDeclined],
+        output: z.unknown(),
         handler: async () => new Ok({ id: '1' }),
       });
 
@@ -106,6 +110,7 @@ describe('errors: — проверка при создании декларац�
         transport: HttpTransport$,
         pattern: 'POST /orders',
         errors: OrderLimitReached as never,
+        output: z.unknown(),
         handler: async () => new Ok({ id: '1' }),
       });
 
@@ -121,6 +126,7 @@ describe('эффективное множество: errors: плюс отказ
       pipeline: makePipeline().pre(() => Unauthorized(), {
         errors: [Unauthorized],
       }),
+      output: z.unknown(),
       handler: async () => new Ok({ id: '1' }),
     });
 
@@ -135,6 +141,7 @@ describe('эффективное множество: errors: плюс отказ
       pipeline: makePipeline().pre(() => Unauthorized(), {
         errors: [Unauthorized],
       }),
+      output: z.unknown(),
       handler: async () => OrderLimitReached({ limit: 10 }),
     });
 
@@ -149,6 +156,7 @@ describe('эффективное множество: errors: плюс отказ
       pipeline: makePipeline().pre(() => Unauthorized(), {
         errors: [Unauthorized],
       }),
+      output: z.unknown(),
       handler: async () => Unauthorized(),
     });
 
@@ -168,6 +176,7 @@ describe('эффективное множество: errors: плюс отказ
       pipeline: makePipeline().pre(() => Unauthorized(), {
         errors: [Unauthorized],
       }),
+      output: z.unknown(),
       handler: ChargeHandler,
     });
 
@@ -181,6 +190,7 @@ describe('эффективное множество: errors: плюс отказ
       transport: HttpTransport$,
       pattern: 'POST /orders',
       pipeline: makePipeline().pre(() => ({ requestId: 'r-1' })),
+      output: z.unknown(),
       handler: async () => new Ok({ id: '1' }),
     });
 
@@ -311,6 +321,7 @@ describe('эффективное множество: errors: плюс отказ
   const NoOutput = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'POST /orders/close',
+    output: z.unknown(),
     handler: async () => {
       // тело без `return`
     },
@@ -319,12 +330,14 @@ describe('эффективное множество: errors: плюс отказ
   const NoContent = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'POST /orders/close',
+    output: z.unknown(),
     handler: () => Ok.noContent(),
   });
 
   const ExplicitNull = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'POST /orders/close',
+    output: z.unknown(),
     handler: () => new Ok(null),
   });
 }

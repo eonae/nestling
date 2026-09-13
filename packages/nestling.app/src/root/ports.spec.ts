@@ -40,10 +40,21 @@ const asTransport = (transport: ITransport) =>
     capabilities: ALL_FORMS,
   });
 
-const contextFor = (pattern: string, payload?: unknown) =>
+const contextFor = (
+  pattern: string,
+  payload?: unknown,
+  declaration?: { output?: unknown; status?: unknown },
+) =>
   makeEmptyContext(
     { transport: 'test', pattern, payload, attributes: {} },
-    { transport: 'test', pattern },
+    {
+      transport: 'test',
+      pattern,
+      // Транспорт переносит объявленные исходы декларации: по ним рантайм
+      // выбирает статус успешного ответа
+      output: declaration?.output as never,
+      status: declaration?.status as never,
+    },
   ) as ExtendableContext<AnyInput>;
 
 const ChargeCard = makeRequest({
@@ -188,7 +199,13 @@ describe('build — порты', () => {
 
     const response = await transport.dispatch?.call(
       'POST /orders',
-      contextFor('POST /orders', { amount: 42 }),
+      contextFor(
+        'POST /orders',
+        { amount: 42 },
+        {
+          output: z.object({ chargeId: z.string() }),
+        },
+      ),
     );
 
     expect(response).toMatchObject({

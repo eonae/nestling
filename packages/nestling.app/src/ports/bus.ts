@@ -691,6 +691,7 @@ export class InProcessBus implements IMessageBus, ITransport {
       pattern: route.pattern,
       input: route.input,
       output: route.output,
+      status: route.status,
       // Объявленные отказы попадают в проверку ответа через контекст:
       // декларация передаёт их транспорту, транспорт кладёт сюда
       errors: route.errors,

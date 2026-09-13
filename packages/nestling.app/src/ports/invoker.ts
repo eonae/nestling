@@ -326,6 +326,7 @@ function makeCallContext(
     pattern,
     input: operation.input,
     output: operation.output,
+    status: operation.status,
     errors: operation.errors,
   };
 

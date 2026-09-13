@@ -767,7 +767,7 @@ export function handlerClassOf(
  */
 export function makeEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
@@ -782,7 +782,7 @@ export function makeEndpoint<
 ): EndpointDefinition<I, O, P, PN>;
 export function makeEndpoint<
   I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
+  O extends AnyOutput = undefined,
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],

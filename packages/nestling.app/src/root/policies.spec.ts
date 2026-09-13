@@ -31,6 +31,7 @@ import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { Component, makeToken } from '@nestlingjs/container';
+import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport, {
@@ -45,6 +46,7 @@ const Authed = testEndpoint({
   method: 'GET',
   path: '/me',
   pipeline: compose(observability, authedBase),
+  output: z.unknown(),
   handler: async () => new Ok({ id: '1' }),
 });
 
@@ -52,12 +54,14 @@ const Unauthed = testEndpoint({
   method: 'GET',
   path: '/users',
   pipeline: compose(observability, base),
+  output: z.unknown(),
   handler: async () => new Ok({ users: [] }),
 });
 
 const NoPipeline = testEndpoint({
   method: 'GET',
   path: '/metrics',
+  output: z.unknown(),
   handler: async () => new Ok({ up: 1 }),
 });
 
@@ -65,6 +69,7 @@ const Detached = testEndpoint({
   method: 'GET',
   path: '/health',
   detached: 'liveness-проба балансировщика: до auth не доходит',
+  output: z.unknown(),
   handler: async () => new Ok({ status: 'up' }),
 });
 
@@ -120,6 +125,7 @@ describe('политики — точка проверки', () => {
     const Orphan = makeEndpoint({
       transport: CliTransport$,
       pattern: 'orphan',
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 

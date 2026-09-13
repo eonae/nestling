@@ -74,7 +74,12 @@ const anyEndpoint = (path: string, deps: readonly unknown[] = []) => {
     }
   }
 
-  return testEndpoint({ method: 'GET', path, handler: AnyHandler });
+  return testEndpoint({
+    method: 'GET',
+    path,
+    output: z.unknown(),
+    handler: AnyHandler,
+  });
 };
 
 /** Единица с раскрытыми ветками: у этих фикстур веток нет */
@@ -221,6 +226,7 @@ describe('фичи связаны только операциями', () => {
         testEndpoint({
           method: 'POST',
           path: '/orders',
+          output: z.unknown(),
           handler: PlaceOrderHandler,
         }),
       ],

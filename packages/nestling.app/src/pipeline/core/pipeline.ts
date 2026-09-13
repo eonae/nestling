@@ -48,9 +48,9 @@ import type {
   AnyInput,
   DeclaredOutcome,
   EmptyInput,
-  FormDescriptor,
   FailOf,
   FailsOf,
+  FormDescriptor,
   KernelFail,
   Output,
   OutputSync,
@@ -1162,9 +1162,15 @@ class PipelineImpl {
 
       if (earlySuccess) {
         // Проверка входа и хендлер пропускаются: их результат некому
-        // читать. Ответ — успех без значения, как у декларации без
-        // `output`
-        response = { isSuccess: true, status: 'ok', value: undefined };
+        // читать. Ответ — успех без значения, а декларация с таким
+        // пайплайном объявлена без `output`, поэтому статус её
+        // единственного исхода — `no_content`
+        response = {
+          isSuccess: true,
+          status: singleOutcome(outcomesOf(ctx.endpoint), ctx.endpoint.pattern)
+            .status,
+          value: undefined,
+        };
       } else {
         const finalInput = ctx.input;
         const { payload, ...meta } = finalInput as AnyAddition & {

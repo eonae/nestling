@@ -19,6 +19,7 @@ import { compose, derivesFrom, makePipeline } from './pipeline.js';
 
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 import { Ok } from '@nestlingjs/operations';
+import { z } from 'zod';
 
 function makeCtx(): ExtendableContext<EmptyInput> {
   const raw: Raw = {
@@ -31,6 +32,7 @@ function makeCtx(): ExtendableContext<EmptyInput> {
   const endpoint: EndpointMeta = {
     transport: 'test',
     pattern: 'TEST /',
+    output: z.unknown(),
   };
 
   return makeEmptyContext(raw, endpoint);

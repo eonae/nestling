@@ -44,21 +44,21 @@
 
 ## 3. Ядро: `@nestlingjs/app`
 
-- [ ] 3.1 `pipeline/metadata/endpoint.ts`: поле `status` в `EndpointOptions`,
+- [x] 3.1 `pipeline/metadata/endpoint.ts`: поле `status` в `EndpointOptions`,
       объявленное множество исходов на `EndpointDefinition`, перенос при
       `resolve`; проверки объявления в `makeEndpoint`
-- [ ] 3.2 `pipeline/core/types/endpoint.ts`: `HandlerFn` и
+- [x] 3.2 `pipeline/core/types/endpoint.ts`: `HandlerFn` и
       `CheckedHandlerFn` выводят объявленные исходы и передают их в
       `Output`
-- [ ] 3.3 `pipeline/core/pipeline.ts`, `normalizeResponse`: голое значение
+- [x] 3.3 `pipeline/core/pipeline.ts`, `normalizeResponse`: голое значение
       получает объявленный статус вместо сегодняшнего `'ok'`; `Ok` отдаёт
       свой статус
-- [ ] 3.4 Валидация выхода выбирает форму по статусу результата; ветка
+- [x] 3.4 Валидация выхода выбирает форму по статусу результата; ветка
       `none()` тела не несёт
-- [ ] 3.5 Граница: `Ok` со статусом вне объявленного множества заменяется на
+- [x] 3.5 Граница: `Ok` со статусом вне объявленного множества заменяется на
       `internal_error` — рядом с `enforceDeclaredFails`, тем же механизмом
       и с текстом, называющим объявленные статусы
-- [ ] 3.6 Рантайм-тесты пайплайна: умолчание (`ok` при `output`,
+- [x] 3.6 Рантайм-тесты пайплайна: умолчание (`ok` при `output`,
       `no_content` без него), подстановка объявленного статуса голому
       значению, валидация телом своей ветки, замена статуса вне множества
       на `internal_error`

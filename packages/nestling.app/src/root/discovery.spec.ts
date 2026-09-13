@@ -26,6 +26,7 @@ const endpoint = (transport: TransportRef, pattern: string) =>
   makeEndpoint({
     transport,
     pattern,
+    output: z.unknown(),
     handler: async () => new Ok({}),
   });
 
@@ -57,6 +58,7 @@ describe('discoverEndpoints', () => {
       method: 'GET',
       path: '/users/:id',
       input: z.object({ id: z.string() }),
+      output: z.unknown(),
       handler: async () => new Ok({}),
     });
 
