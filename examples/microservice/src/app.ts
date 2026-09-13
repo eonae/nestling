@@ -11,7 +11,7 @@ import { mcp, McpTransport$ } from '@nestlingjs/mcp';
 import type { OpenApiOptions } from '@nestlingjs/openapi';
 import { openapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/schema.zod';
-import { http, httpServer, HttpTransport$ } from '@nestlingjs/transport.http';
+import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
 
 /**
  * Адаптер метрик: он же корень, под которым ядро считает запросы, и он же
@@ -48,7 +48,7 @@ export const appOpenapi = openapi({
  * Объявлен явно, потому что транспортов на этом сокете два. Порт и хост
  * сервер читает из своей секции — `HTTP_PORT` и `HTTP_HOST`.
  */
-export const api = httpServer();
+export const api = server();
 
 /**
  * Декларация приложения: одно значение для `main.ts` и для тестов.
@@ -68,10 +68,9 @@ export const app = makeApp({
   ],
   switches: [Docs],
   // Два протокола на одном сокете: HTTP-endpoint'ы и сообщения MCP по
-  // `POST /mcp`. Сервер объявлен отдельно и передан обоим транспортам;
-  // второго слушателя не появляется
+  // `POST /mcp`. Сервер объявлен отдельно и передан обоим опцией `server`;
+  // в списке транспортов его нет, а сокет остаётся один
   transports: [
-    api,
     http({ server: api }),
     mcp({
       server: api,

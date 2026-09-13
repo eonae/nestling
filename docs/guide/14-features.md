@@ -1,6 +1,6 @@
 # 14. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `da754bb4`.
+> Гайд по текущему API; сверено с кодом `dfbe8e76`.
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -386,7 +386,7 @@ export const app = makeApp({
   switches: [Docs],
   // Два протокола на одном сокете: рецепт
   // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
-  transports: [api, http({ server: api }), mcp({ … })],
+  transports: [http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,

@@ -1,6 +1,6 @@
 # Who is connected right now and how to disconnect them
 
-> Guide to the current API; verified against `da754bb4`.
+> Guide to the current API; verified against `dfbe8e76`.
 > Target description: [design/streaming.md](../design/streaming.md), the "4.1
 > Subscription registry" section, and
 > [design/composition.md](../design/composition.md) §6, the "Kernel nodes:
@@ -280,7 +280,7 @@ import { http, httpProbes } from '@nestlingjs/transport.http';
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [appObservability, appAuth, appSubscriptions, httpProbes(), …],
-  transports: [api, http({ server: api }), …],
+  transports: [http({ server: api }), …],
 });
 ```
 

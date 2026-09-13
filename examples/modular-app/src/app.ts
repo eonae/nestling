@@ -22,7 +22,7 @@ import {
   objectSource,
 } from '@nestlingjs/app';
 import { outbox } from '@nestlingjs/outbox';
-import { http, httpProbes, httpServerKeys } from '@nestlingjs/transport.http';
+import { http, httpProbes, serverKeys } from '@nestlingjs/transport.http';
 import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
 import { nats } from '@nestlingjs/transport.nats';
 
@@ -117,7 +117,7 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
         : [
             [
               objectSource({ HTTP_PORT: String(options.httpPort) }, 'test'),
-              httpServerKeys(),
+              serverKeys(),
             ] as const,
           ]),
       ...(options.databaseUrl === undefined

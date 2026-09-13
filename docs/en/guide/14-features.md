@@ -1,6 +1,6 @@
 # 14. Separate the second area
 
-> Guide to the current API; verified against `da754bb4`.
+> Guide to the current API; verified against `dfbe8e76`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "Feature boundary" and "Plugin" sections, and
 > [design/operations.md](../design/operations.md). Why: entries
@@ -397,7 +397,7 @@ export const app = makeApp({
   switches: [Docs],
   // Two protocols on one socket: the recipe
   // [«Expose the operations to an agent over MCP»](../recipes/mcp.md)
-  transports: [api, http({ server: api }), mcp({ … })],
+  transports: [http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,

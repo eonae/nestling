@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `da754bb4`.
+> Guide to the current API; verified against `dfbe8e76`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -158,7 +158,7 @@ export const app = makeApp({
   switches: [Docs],
   // Two protocols on one socket: the recipe
   // [«Expose the operations to an agent over MCP»](../recipes/mcp.md)
-  transports: [api, http({ server: api }), mcp({ … })],
+  transports: [http({ server: api }), mcp({ … })],
 });
 ```
 

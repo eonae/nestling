@@ -1,6 +1,6 @@
 # Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `da754bb4`.
+> Гайд по текущему API; сверено с кодом `dfbe8e76`.
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок», и [design/composition.md](../design/composition.md)
 > §6 «Узлы ядра: пробы и логгер». Почему так: записи
@@ -265,7 +265,7 @@ import { http, httpProbes } from '@nestlingjs/transport.http';
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [appObservability, appAuth, appSubscriptions, httpProbes(), …],
-  transports: [api, http({ server: api }), …],
+  transports: [http({ server: api }), …],
 });
 ```
 

@@ -6,7 +6,7 @@ import { describe } from '@jest/globals';
 import type { AssembledApp } from '@nestlingjs/app';
 import { makeApp, objectSource } from '@nestlingjs/app';
 import type { HttpServer } from '@nestlingjs/transport.http';
-import { httpServerKeys } from '@nestlingjs/transport.http';
+import { serverKeys } from '@nestlingjs/transport.http';
 import { Pool } from 'pg';
 
 /** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
@@ -98,7 +98,7 @@ export async function createTestApp(): Promise<TestAppContext> {
       [objectSource({ DATABASE_URL: TEST_DATABASE_URL }, 'e2e-db'), db.keys],
       [
         objectSource({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }, 'e2e-http'),
-        httpServerKeys(),
+        serverKeys(),
       ],
     ],
   }).assemble();
