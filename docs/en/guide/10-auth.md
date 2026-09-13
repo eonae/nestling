@@ -1,6 +1,6 @@
 # 10. Let only your own through
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `1ca6e943`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/composition.md](../design/composition.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -162,7 +162,8 @@ Check the responses:
 
 ```bash
 curl -X DELETE http://localhost:3000/users/2
-# {"error":"Bearer token is missing or invalid","code":"unauthorized"} 401
+# {"type":"urn:error:unauthorized","title":"Unauthorized","status":401,
+#  "detail":"Bearer token is missing or invalid"} 401
 curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 # 204
 ```

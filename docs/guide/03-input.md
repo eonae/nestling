@@ -1,6 +1,6 @@
 # 3. Принять данные и не пропустить мусор
 
-> Гайд по текущему API; сверено с кодом `21794632`.
+> Гайд по текущему API; сверено с кодом `1ca6e943`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -61,18 +61,20 @@ export const CreateUser = httpEndpoint.post('/users', {
 значение можно только явной схемой `z.unknown()`. Рантайм проверяет вход
 перед вызовом хендлера, и хендлер получает данные типа `CreateUserInput`;
 обращение к полю, которого в схеме нет, не компилируется. Запрос, который
-схему не проходит, получает `400` с кодом `bad_request`:
+схему не проходит, получает `400` с типом `urn:error:bad_request`:
 
 ```bash
 curl -X POST localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"nope"}'
-# {"error":"Bad request","code":"bad_request",
+# {"type":"urn:error:bad_request","title":"Bad Request","status":400,
+#  "detail":"Bad request",
 #  "details":[{"message":"Invalid email address","path":["email"]}]}
 ```
 
-Поле `details` описывает каждую проблему в формате Standard Schema, без
-полей конкретного валидатора.
+Тело отказа — документ RFC 9457, о нём говорит
+[глава 4](./04-errors.md). Член `details` описывает каждую проблему в
+формате Standard Schema, без полей конкретного валидатора.
 
 ```typescript
 // src/users/endpoints/get-user.endpoint.ts

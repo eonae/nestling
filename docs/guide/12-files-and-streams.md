@@ -1,6 +1,6 @@
 # 12. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `21794632`.
+> Гайд по текущему API; сверено с кодом `1ca6e943`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
@@ -107,7 +107,8 @@ curl -X POST http://localhost:3000/users/1/avatar \
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
 curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@notes.txt;type=text/plain'
-# {"error":"File field 'avatar' expects one of image/png, image/jpeg, got 'text/plain'"} 400
+# {"type":"urn:error:bad_request","title":"Bad Request","status":400,
+#  "detail":"File field 'avatar' expects one of image/png, image/jpeg, got 'text/plain'"} 400
 ```
 
 Несколько файлов в одном поле объявляются как
@@ -258,7 +259,8 @@ curl -X POST http://localhost:3000/users/import \
 # {"imported":1,"skipped":1}
 printf '{"name":"Eve","email":"not-an-email"}\n' | curl -X POST http://localhost:3000/users/import \
   -H 'authorization: Bearer secret' -H 'content-type: application/x-ndjson' --data-binary @-
-# {"error":"Bad request","code":"bad_request","details":[{"message":"Invalid email address","path":["email"]}]} 400
+# {"type":"urn:error:bad_request","title":"Bad Request","status":400,"detail":"Bad request",
+#  "details":[{"message":"Invalid email address","path":["email"]}]} 400
 ```
 
 Проверку элементов можно ослабить в самой форме: `stream(ImportRow,

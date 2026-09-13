@@ -241,21 +241,25 @@ not fit; there is no parallel model of declarations for them
   (`text/event-stream`, `no-cache`, heartbeat comments, `id:` and
   `event:` from the `sse` section of the declaration, accepting
   `Last-Event-ID`). A mid-stream failure: for NDJSON, the connection
-  breaks; for SSE, an `event: error` frame with the body of the
-  failure and a close; in both cases `.finally` sees the `failed`
-  outcome ([streaming.md](./streaming.md)).
+  breaks; for SSE, an `event: error` frame with the same failure
+  document as an ordinary response ([errors.md §6](./errors.md)) and a
+  close; in both cases `.finally` sees the `failed` outcome
+  ([streaming.md](./streaming.md)).
 - The response: the category of a failure is translated into an HTTP
   status by the table in [errors.md §2](./errors.md); headers, cookies
   and a redirect are set by the `HttpResponse` of the HTTP handler
   ([endpoints.md §3](./endpoints.md)). The transport sets
   `Content-Type` and `Content-Length` by the io shape, the handler
-  does not set them.
+  does not set them. The failure body is an RFC 9457 document under the
+  `application/problem+json` media type ([errors.md §6](./errors.md));
+  errors before the pipeline answer with the same document.
 - Protection: a body limit `maxBodySize` (an early abort, a `413`
   response); typed input errors give `400`, not `500`; configurable
   `node:http` timeouts; connection draining by the server; the details
-  of unhandled 500 errors are hidden by default
-  (`exposeErrorDetails`). The response to a validation error is the
-  standard `issues` ([schemas.md](./schemas.md)).
+  of unhandled 500 errors are hidden by default (`exposeErrorDetails`)
+  and, once enabled, travel in the `stack` extension. The details of a
+  validation error are the standard `issues` in the `details` extension
+  ([schemas.md](./schemas.md)).
 - The server holds the socket (§4.2). The server reads the port and
   the host from its own configuration section (`HTTP_PORT`,
   `HTTP_HOST`); `http()` has no port option. The real address after
@@ -274,12 +278,15 @@ separate transport, takes on these tasks.
 
 The byte-level parts of the transport — parsing the body by io shape,
 reading the bind map, the status table, NDJSON and SSE framing, the
-declared io shapes — are the public surface of the package. The
-package exports the status table as the `httpCodeOf` function: it
-accepts a success status or a failure category
-([errors.md §2](./errors.md)) and gives out an HTTP code. The OpenAPI
-generator reads the same function, so the document and the response
-never drift apart. A transport on top of another HTTP server is
+failure body format, the declared io shapes — are the public surface
+of the package. The package exports the status table as the
+`httpCodeOf` function: it accepts a success status or a failure
+category ([errors.md §2](./errors.md)) and gives out an HTTP code. The
+failure body format is declared in `@nestlingjs/operations` and
+re-exported from here: the media type, the type prefix, building and
+parsing the document ([errors.md §6](./errors.md)). The OpenAPI
+generator reads both, so the document and the response never drift
+apart. A transport on top of another HTTP server is
 written as a satellite on top of these, and touches neither the kernel
 nor `transport.http`. If an export is missing for this, the fix adds
 an export, not a change to the satellite.

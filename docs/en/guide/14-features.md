@@ -1,6 +1,6 @@
 # 14. Separate the second area
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `1ca6e943`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "Feature boundary" and "Plugin" sections, and
 > [design/operations.md](../design/operations.md). Why: entries
@@ -280,7 +280,9 @@ A registration to a rejected address gets `409`:
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"Eve","email":"eve@example.invalid"}'
-# {"error":"Address eve@example.invalid is not deliverable: domain does not accept mail","code":"conflict:address_rejected","details":{"email":"eve@example.invalid","reason":"domain does not accept mail"}}
+# {"type":"urn:error:conflict:address_rejected","title":"Conflict","status":409,
+#  "detail":"Address eve@example.invalid is not deliverable: domain does not accept mail",
+#  "details":{"email":"eve@example.invalid","reason":"domain does not accept mail"}}
 ```
 
 ## What is shared goes into plugins

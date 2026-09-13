@@ -86,7 +86,9 @@ The list of categories is closed and does not depend on the transport:
   `details` and `requestId`. `requestId` is added by `.catch` and
   `.finally` units from the context, so the response links to the logs
   without user code. The category is not carried separately: it is
-  restored from the code.
+  restored from the code. This is the shape of a failure inside the
+  application and on the bus; at the HTTP boundary it becomes the
+  document of §6.
 - Success statuses live on `Ok` and are written in the same register:
   `ok`, `created`, `accepted`, `no_content`. The `status` field of the
   response context is a success status or a failure category.
@@ -205,3 +207,55 @@ no headers. Headers, cookies and a redirect are set by the
 handler that does not depend on the transport does not set them. The
 transport translates a failure category and a success status into its
 own code by the table in §2.
+
+## 6. The failure body at the HTTP boundary: an RFC 9457 document
+
+The HTTP boundary answers a failure with an RFC 9457 document under the
+`application/problem+json` media type:
+
+```json
+{
+  "type": "urn:error:not_found:user",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "User 9 not found",
+  "details": { "id": "9" }
+}
+```
+
+The members are filled from the failure like this:
+
+| Member | Source |
+|---|---|
+| `type` | the failure code with a prefix: `urn:error:<code>` |
+| `title` | the HTTP status phrase for the failure category |
+| `status` | the HTTP response code as a number |
+| `detail` | the failure message |
+| `details` | the failure details; an extension, written when present |
+| `stack` | the stack of an unhandled error; an extension, only under `exposeErrorDetails` |
+
+The identity of a failure travels in `type`: the standard makes it the
+primary identifier of a problem type, and a consumer on another stack
+reads it with a regular field of its own library. There is no `code`
+member in the body. The `urn:error:` prefix is required by syntax: the
+bare code `not_found:user` reads under RFC 3986 as the scheme
+`not_found` with the path `user`, and an underscore is forbidden in a
+scheme. The shape is fixed and not configurable.
+
+The format is the same in every case where the boundary reports a
+failure: the pipeline response, the response before the pipeline (broken
+JSON, an exceeded body limit, an internal transport error) and the
+`event: error` frame of a streaming response. The frame carries the
+whole document, `status` included: it describes the failure, not the
+status already sent for the stream.
+
+The tools that build and parse the document are declared in
+`@nestlingjs/operations` and re-exported by `@nestlingjs/transport.http`.
+Dependencies chose the place: the document is read by the typed client,
+and the client runs in a browser and does not pull in the server
+package. The OpenAPI generator and a transport on top of a foreign HTTP
+server use the same tools — there is no second copy of the format.
+
+The NATS bus, the CLI and MCP serialize a failure their own way: the
+document is an HTTP concern, not a concern of the error model. Their
+shape of a failure is the `ErrorDetails` of §2.

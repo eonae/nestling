@@ -47,8 +47,10 @@ Edge-платформа отличается не набором API, а тем,
 ## 3. Протоколы
 
 Пакет `@nestlingjs/transport.http` обслуживает HTTP/1.1 поверх
-`node:http`. Форматы тела — JSON, NDJSON, SSE и multipart; полный перечень
-обещаний пакета — [design/transports.md §4.1](./design/transports.md).
+`node:http`. Форматы тела — JSON, NDJSON, SSE и multipart; тело отказа —
+документ RFC 9457 под медиатипом `application/problem+json`
+([design/errors.md §6](./design/errors.md)). Полный перечень обещаний
+пакета — [design/transports.md §4.1](./design/transports.md).
 
 | Протокол | Кто обслуживает |
 |---|---|

@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `21794632`.
+> Гайд по текущему API; сверено с кодом `1ca6e943`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -160,7 +160,8 @@ handle:
 
 ```bash
 curl -X DELETE http://localhost:3000/users/2
-# {"error":"Bearer token is missing or invalid","code":"unauthorized"} 401
+# {"type":"urn:error:unauthorized","title":"Unauthorized","status":401,
+#  "detail":"Bearer token is missing or invalid"} 401
 curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 # 204
 ```

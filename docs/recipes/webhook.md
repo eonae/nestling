@@ -1,6 +1,6 @@
 # Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `21794632`.
+> Гайд по текущему API; сверено с кодом `1ca6e943`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -169,10 +169,12 @@ curl -X POST localhost:3000/hooks/users \
 
 curl -X POST localhost:3000/hooks/users \
   -H 'content-type: application/json' -H 'x-signature: deadbeef' -d "$body"
-# {"error":"Webhook signature does not match the body","code":"unauthorized:invalid_signature"}  401
+# {"type":"urn:error:unauthorized:invalid_signature","title":"Unauthorized","status":401,
+#  "detail":"Webhook signature does not match the body"}                 401
 
 curl localhost:3000/users/2
-# {"error":"User 2 not found","code":"not_found:user","details":{"id":"2"}}  404
+# {"type":"urn:error:not_found:user","title":"Not Found","status":404,
+#  "detail":"User 2 not found","details":{"id":"2"}}                      404
 ```
 
 Первый запрос прошёл проверку, и хендлер удалил пользователя. Второй
@@ -212,7 +214,9 @@ it('отклоняет тело с чужой подписью', async () => {
   });
 
   expect(response.status).toBe(401);
-  expect(await response.json()).toMatchObject({ code: 'unauthorized:invalid_signature' });
+  expect(await response.json()).toMatchObject({
+    type: 'urn:error:unauthorized:invalid_signature',
+  });
   const kept = await client.get('/users/1');
   expect(kept.status).toBe(200);
 });

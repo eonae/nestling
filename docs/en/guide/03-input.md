@@ -1,6 +1,6 @@
 # 3. Accept data and let no rubbish through
 
-> Guide to the current API; verified against `21794632`.
+> Guide to the current API; verified against `1ca6e943`.
 > Target description: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
@@ -62,18 +62,21 @@ only way to accept any value is an explicit `z.unknown()` schema. The runtime
 checks the input before the handler is called, and the handler receives data of
 type `CreateUserInput`. Accessing a field that is not in the schema does not
 compile. A request that does not pass the schema gets `400` with the
-`bad_request` code:
+`urn:error:bad_request` type:
 
 ```bash
 curl -X POST localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"nope"}'
-# {"error":"Bad request","code":"bad_request",
+# {"type":"urn:error:bad_request","title":"Bad Request","status":400,
+#  "detail":"Bad request",
 #  "details":[{"message":"Invalid email address","path":["email"]}]}
 ```
 
-The `details` field describes every problem in the Standard Schema format,
-without fields specific to a particular validator.
+The failure body is an RFC 9457 document, described in
+[chapter 4](./04-errors.md). The `details` member describes every problem in
+the Standard Schema format, without fields specific to a particular
+validator.
 
 ```typescript
 // src/users/endpoints/get-user.endpoint.ts
