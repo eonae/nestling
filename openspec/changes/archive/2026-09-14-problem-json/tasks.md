@@ -104,11 +104,9 @@
 
 ## 7. Синхронизация решений
 
-- [ ] 7.1 `docs/decisions/roadmap.md`: строка 83 — статус, ссылка на
-  архив change'а и на изменённые спеки. **Делается в `/opsx:archive`**:
-  до архива каталога `openspec/changes/archive/2026-09-14-problem-json/`
-  и спеки `openspec/specs/http-problem-details/` нет, и `yarn docs:audit`
-  падает на ссылках `broken-link`
+- [x] 7.1 `docs/decisions/roadmap.md`: строка 83 — статус `done`, ссылки
+  на архив change'а, на новую спеку `http-problem-details` и на шесть
+  изменённых спек
 - [x] 7.2 `docs/decisions/deferred.md`: запись [2026-07-14] «Wire-формат
   ошибок: RFC 9457» — пометка «РЕАЛИЗОВАНО» с итогом: что вышло целиком,
   чем реализация уточнила решение (идентичность в `type`, место модуля),

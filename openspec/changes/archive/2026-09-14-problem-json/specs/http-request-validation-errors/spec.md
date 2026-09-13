@@ -27,7 +27,7 @@
 
 Отказ валидации SHALL нести kernel-код `bad_request` (capability
 `domain-fail-definitions`): член `type` документа SHALL быть равен
-`"urn:error:bad_request"`.  Такой отказ SHALL проходить проверку
+`"urn:error:bad_request"`. Такой отказ SHALL проходить проверку
 контракта отказов без нормализации и SHALL NOT требовать объявления в
 `errors:` endpoint'а.
 
