@@ -47,13 +47,13 @@ it, and the caller `CreateUser.caller` is injected by a DI token.
 - **Operation** ([design](../../docs/en/design/operations.md)) —
   `AnyOperation`, `assertDoc`, `CommandOperation`, `DeclarationDoc`,
   `EmitMeta`, `Emitter`, `EmitterFamily`, `EmitterToken`,
-  `EmittingOperation`, `EventOperation`, `HandlerResultOf`, `InputFormOf`,
-  `InputOf`, `InvokeArgs`, `KernelPortFail`, `lookupOperation`,
-  `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`, `Operation`,
-  `OperationFailsOf`, `OperationKind`, `OperationSpec`, `OutputFormOf`,
-  `OutputOf`, `Port`, `PortFamily`, `PortMeta`, `PortResult`, `PortToken`,
-  `RequestOperation`, `UndeclaredHandlerFails`, `ValidateHandlerFails`,
-  `ValidateOperationFails`.
+  `EmittingOperation`, `errorsOf`, `EventOperation`, `HandlerResultOf`,
+  `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`,
+  `lookupOperation`, `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`,
+  `Operation`, `OperationFailsOf`, `OperationKind`, `OperationSpec`,
+  `OutputFormOf`, `OutputOf`, `Port`, `PortFamily`, `PortMeta`,
+  `PortResult`, `PortToken`, `RequestOperation`, `UndeclaredHandlerFails`,
+  `ValidateHandlerFails`, `ValidateOperationFails`.
 - **Result and failures** ([design](../../docs/en/design/errors.md)) —
   `AnyFail`, `AnyFailDefinition`, `assertFailCode`, `BadRequest`,
   `categories`, `Category`, `categoryOf`, `DeclaredFail`, `Fail`,

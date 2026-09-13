@@ -63,6 +63,13 @@ The rules read as types, not as checks when the value is created:
 response; `makeRequest({ durable })` does not compile, because the
 caller waits for a response, and there is nothing to survive.
 
+`errorsOf(operation)` returns the `errors:` of a request or a command as
+the same value: `errors: [...errorsOf(ClaimQuota), EmailTaken]` folds
+the failures of `ClaimQuota` into the list of the calling operation
+without listing them by hand, keeping the type of the concrete
+definitions. An event has no expressible `errors:`, so `errorsOf` from
+`makeEvent(...)` does not compile.
+
 ### 1.1. Addresses
 
 `name` is the address of the operation on the bus (a NATS subject) and

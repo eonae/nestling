@@ -60,6 +60,12 @@ export const OrderPlaced = makeEvent({
 `makeRequest({ durable })` не компилируется, потому что вызывающий ждёт
 ответа и переживать нечего.
 
+`errorsOf(операция)` отдаёт `errors:` запроса или команды тем же значением:
+`errors: [...errorsOf(ClaimQuota), EmailTaken]` включает отказы `ClaimQuota`
+в список вызывающей операции без ручного перечисления, сохраняя тип
+конкретных определений. У события `errors:` невыразим, поэтому `errorsOf`
+от `makeEvent(...)` не компилируется.
+
 ### 1.1. Адреса
 
 `name` — адрес операции на шине (subject NATS) и ключ discovery. `http:` —

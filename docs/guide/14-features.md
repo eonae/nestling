@@ -239,12 +239,12 @@ export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
 `internal_error`.
 
 Отказ соседа `QuotaExceeded` доходит до клиента, потому что операция
-`users.create` перечисляет его в `errors:` наравне со своими; отказ, не
-перечисленный в `errors:` вызывающего endpoint'а, заменяется на
-`InternalError` на выходе из пайплайна. `Unauthorized` в списке операции
-остаётся, хотя endpoint его больше не объявляет: этот отказ объявил слой
-`authed`, а операция — контракт для клиента, и клиент пайплайна
-реализации не видит:
+`users.create` подключает список отказов `ClaimQuota` через `errorsOf`
+наравне со своими; отказ, не перечисленный в `errors:` вызывающего
+endpoint'а, заменяется на `InternalError` на выходе из пайплайна.
+`Unauthorized` в списке операции остаётся, хотя endpoint его больше не
+объявляет: этот отказ объявил слой `authed`, а операция — контракт для
+клиента, и клиент пайплайна реализации не видит:
 
 ```typescript
 // examples/app-with-http/src/api/operations.ts
@@ -253,10 +253,15 @@ export const CreateUser = makeRequest({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
-  errors: [EmailTaken, QuotaExceeded, Unauthorized],
+  errors: [EmailTaken, ...errorsOf(ClaimQuota), Unauthorized],
   // …
 });
 ```
+
+`errorsOf(ClaimQuota)` отдаёт `errors:` операции `ClaimQuota` тем же
+значением: спред `...errorsOf(ClaimQuota)` заменяет ручной импорт и
+перечисление `QuotaExceeded`, а тип хендлера остаётся тем же, что при
+прямом перечислении отказа.
 
 `httpEndpoint.implement` сверяет два множества: каждый отказ, объявленный
 слоями её пайплайна, обязан входить в `errors:` операции. Слой `authed`
