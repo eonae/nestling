@@ -1,6 +1,6 @@
 # 6. Where the handler gets the repository from
 
-> Guide to the current API; verified against `e2500af3`.
+> Guide to the current API; verified against `dc8465d7`.
 > Target description: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
