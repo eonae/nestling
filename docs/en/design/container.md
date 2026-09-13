@@ -396,6 +396,14 @@ interface Logger {
 - `child(bindings)` returns a logger that adds `bindings` to every
   record: a series of records about one object is written through
   `logger.child({ orderId })`.
+- The package gives the record format out too: `formatLine(entry, format)`,
+  `serializeError(err)` and the `LogEntry` type. The standard logger
+  prints through them as well, so the format has one implementation in the
+  repository, and the satellite ([composition.md](./composition.md), the
+  "The logger" section) prints the same shape of line without rewriting
+  it. An error arrives at `formatLine` already serialized: an
+  implementation over someone else's library gets the record as a string,
+  and there is no live `Error` in it.
 - `RootLogger$` is the DI token of the root logger. The root itself
   lives **outside the graph**: the build creates it on phase 0 — it
   is the value of the root's `logging.logger`, or the kernel logger

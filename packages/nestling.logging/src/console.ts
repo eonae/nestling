@@ -4,16 +4,16 @@
  * `stderr`, а не `stdout`: у CLI-транспорта `stdout` занят результатом
  * команды, и лог не должен в него попадать.
  *
- * Класс реализации наружу не идёт — пакет отдаёт фабрику
- * {@link makeConsoleLogger}. Полей корреляции логгер не ставит: их
- * подмешивает декоратор корня из `@nestlingjs/app`, а скрипт вне
- * приложения запроса не обрабатывает.
+ * Строку печатает `formatLine` из `./format.js` — та же функция, которой
+ * печатает сателлит логирования. Класс реализации наружу не идёт — пакет
+ * отдаёт фабрику {@link makeConsoleLogger}. Полей корреляции логгер не
+ * ставит: их подмешивает декоратор корня из `@nestlingjs/app`, а скрипт
+ * вне приложения запроса не обрабатывает.
  */
 
+import type { LogEntry, LogFormat } from './format.js';
+import { formatLine, serializeError } from './format.js';
 import type { Fields, Logger, LogLevel, LogMethod } from './interface.js';
-
-/** Формат строки в `stderr` */
-export type LogFormat = 'text' | 'json';
 
 /**
  * Порог записи: уровень или `silent`.
@@ -56,7 +56,7 @@ const THRESHOLD: Readonly<Record<LogThreshold, number>> = {
 type FirstArgument = string | Error | Fields;
 
 /** Запись, разобранная из формы вызова */
-interface Entry {
+interface Parsed {
   readonly message?: string;
   readonly fields: Fields;
 }
@@ -67,7 +67,7 @@ interface Entry {
  * Ошибка первым аргументом даёт сообщение из `error.message` и саму
  * ошибку в `err`; поля второго аргумента не могут её перекрыть.
  */
-function toEntry(first: FirstArgument, second?: Fields): Entry {
+function toParsed(first: FirstArgument, second?: Fields): Parsed {
   if (typeof first === 'string') {
     return { message: first, fields: second ?? {} };
   }
@@ -80,116 +80,7 @@ function toEntry(first: FirstArgument, second?: Fields): Entry {
 }
 
 /**
- * Сериализует ошибку полями: `name`, `message`, `stack`, `cause`.
- *
- * Значение, которое не является `Error`, отдаётся как есть: реализация
- * сериализует ключ `err` как ошибку, но не выдумывает её.
- */
-function serializeError(err: unknown): unknown {
-  if (!(err instanceof Error)) {
-    return err;
-  }
-
-  const out: Record<string, unknown> = { name: err.name, message: err.message };
-
-  if (err.stack) {
-    out.stack = err.stack;
-  }
-
-  if (err.cause !== undefined) {
-    out.cause = serializeError(err.cause);
-  }
-
-  return out;
-}
-
-/** Замена для значений, которые `JSON.stringify` не переносит */
-const replacer = (_key: string, value: unknown): unknown =>
-  typeof value === 'bigint' ? value.toString() : value;
-
-/**
- * `JSON.stringify`, который не роняет запись.
- *
- * Циклическая ссылка в поле — ошибка вызывающего, но терять из-за неё
- * запись целиком нельзя: повторная встреча объекта помечается строкой.
- */
-function toJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, replacer);
-  } catch {
-    const seen = new WeakSet<object>();
-
-    return JSON.stringify(value, (key, item: unknown) => {
-      if (typeof item === 'object' && item !== null) {
-        if (seen.has(item)) {
-          return '[Circular]';
-        }
-
-        seen.add(item);
-      }
-
-      return replacer(key, item);
-    });
-  }
-}
-
-/** Значение поля в текстовом формате: скаляры как есть, объекты — JSON */
-function formatValue(value: unknown): string {
-  if (typeof value === 'string') {
-    return value === '' || /[\s"=]/.test(value) ? JSON.stringify(value) : value;
-  }
-
-  if (
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    typeof value === 'bigint'
-  ) {
-    return String(value);
-  }
-
-  if (value === undefined) {
-    return 'undefined';
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return toJson(value);
-}
-
-/**
- * Ошибка в текстовом формате: `<name>: <message>`, стек на следующих
- * строках, причина — после стека.
- */
-function formatError(err: unknown): string {
-  if (!(err instanceof Error)) {
-    return formatValue(err);
-  }
-
-  // Первая строка стека Node — это `name: message`; она уже напечатана
-  const stackLines = err.stack?.split('\n').slice(1) ?? [];
-  let out = `${err.name}: ${err.message}`;
-
-  for (const line of stackLines) {
-    out += `\n${line}`;
-  }
-
-  if (err.cause !== undefined) {
-    out += `\n    caused by: ${formatError(err.cause)}`;
-  }
-
-  return out;
-}
-
-/**
  * Штатный логгер: порог и формат из опций, записи в `process.stderr`.
- *
- * - `text`: `<время ISO> <УРОВЕНЬ> <scope> <сообщение> key=value …`;
- *   значения-объекты через `JSON.stringify`; `err` — `err=<name>: <message>`
- *   и стек на следующих строках.
- * - `json`: одна строка с полями `time`, `level`, привязками, `msg`,
- *   полями вызова и `err` в виде `{ name, message, stack, cause? }`.
  *
  * Ячейку запроса логгер не читает: поля корреляции ставит декоратор
  * корня, и любая другая реализация получает их тем же способом.
@@ -232,84 +123,27 @@ class ConsoleLogger implements Logger {
       return;
     }
 
-    const { message, fields } = toEntry(first, second);
+    const { message, fields } = toParsed(first, second);
     const { err, ...rest } = fields;
 
-    // Порядок полей и есть порядок в строке: время, уровень, привязки
-    // (`scope` среди них), сообщение, поля вызова, ошибка
-    const data: Record<string, unknown> = { ...this.#bindings, ...rest };
+    // Порядок полей и есть порядок в строке: привязки (`scope` среди них),
+    // затем поля вызова. Ошибка сериализуется до формата: формату всё
+    // равно, дожил ли до него живой `Error`
+    const data: Fields = { ...this.#bindings, ...rest };
 
-    const time = new Date().toISOString();
-    const line =
-      this.#format === 'json'
-        ? formatJson(time, level, message, data, 'err' in fields, err)
-        : formatText(time, level, message, data, 'err' in fields, err);
+    if ('err' in fields) {
+      data.err = serializeError(err);
+    }
 
-    process.stderr.write(`${line}\n`);
+    const entry: LogEntry = {
+      time: new Date().toISOString(),
+      level,
+      message,
+      fields: data,
+    };
+
+    process.stderr.write(`${formatLine(entry, this.#format)}\n`);
   }
-}
-
-/** Строка формата `json` */
-function formatJson(
-  time: string,
-  level: LogLevel,
-  message: string | undefined,
-  data: Record<string, unknown>,
-  hasError: boolean,
-  err: unknown,
-): string {
-  const { scope, ...bindingsAndFields } = data;
-  const record: Record<string, unknown> = { time, level };
-
-  if (scope !== undefined) {
-    record.scope = scope;
-  }
-
-  // Сообщение стоит после привязок и перед полями вызова; привязки и поля
-  // здесь уже слиты в `data`, и разделять их обратно незачем: порядок
-  // ключей важен читателю, а не парсеру
-  if (message !== undefined) {
-    record.msg = message;
-  }
-
-  Object.assign(record, bindingsAndFields);
-
-  if (hasError) {
-    record.err = serializeError(err);
-  }
-
-  return toJson(record);
-}
-
-/** Строка формата `text` */
-function formatText(
-  time: string,
-  level: LogLevel,
-  message: string | undefined,
-  data: Record<string, unknown>,
-  hasError: boolean,
-  err: unknown,
-): string {
-  const { scope, ...rest } = data;
-  const parts = [time, level.toUpperCase().padEnd(5)];
-
-  if (scope !== undefined) {
-    parts.push(String(scope));
-  }
-
-  if (message !== undefined) {
-    parts.push(message);
-  }
-
-  for (const [key, value] of Object.entries(rest)) {
-    parts.push(`${key}=${formatValue(value)}`);
-  }
-
-  if (hasError) {
-    parts.push(`err=${formatError(err)}`);
-  }
-
-  return parts.join(' ');
 }
 
 /**

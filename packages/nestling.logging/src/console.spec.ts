@@ -8,6 +8,7 @@
  */
 
 import { makeConsoleLogger } from './console.js';
+import { formatLine, serializeError } from './format.js';
 import type { Logger, LogLevel } from './interface.js';
 
 import { jest } from '@jest/globals';
@@ -263,5 +264,48 @@ describe('makeConsoleLogger: формат text', () => {
     const [line] = capture(() => logger.info('shown'));
 
     expect(line).toMatch(new RegExp(`^${TIME} INFO  shown\n$`));
+  });
+});
+
+describe('formatLine: запись приходит с сериализованной ошибкой', () => {
+  const TIME = '2026-09-14T10:00:00.000Z';
+
+  it('сериализованный вид печатается как ошибка: имя, стек, причина', () => {
+    // Так запись и приходит к сателлиту: живого `Error` в ней уже нет —
+    // до писателя она добралась строкой JSON
+    const line = formatLine(
+      {
+        time: TIME,
+        level: 'error',
+        message: 'failed',
+        fields: {
+          err: {
+            name: 'TypeError',
+            message: 'boom',
+            stack: 'TypeError: boom\n    at somewhere',
+            cause: { name: 'Error', message: 'inner' },
+          },
+        },
+      },
+      'text',
+    );
+
+    expect(line).toBe(
+      `${TIME} ERROR failed err=TypeError: boom\n    at somewhere\n    caused by: Error: inner`,
+    );
+  });
+
+  it('строка в ключе err печатается значением поля', () => {
+    const [line] = capture(() => text().error('rejected', { err: 'boom' }));
+
+    expect(line).toContain(' rejected err=boom\n');
+  });
+
+  it('serializeError отдаёт не-ошибку как есть', () => {
+    expect(serializeError({ code: 'x', status: 400 })).toEqual({
+      code: 'x',
+      status: 400,
+    });
+    expect(serializeError('boom')).toBe('boom');
   });
 });

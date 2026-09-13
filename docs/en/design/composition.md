@@ -842,7 +842,19 @@ build takes the container warnings from
 defaults, so an undeclared failure is not swallowed silently. In a
 test, `spyLogger()` intercepts the records by substituting `RootLogger$`
 ([testing.md](./testing.md)). `@nestlingjs/logging.pino` gives
-`pinoLogger(options)` for the `logging.logger` field: it writes to `stderr`,
-in a human-readable format with no `pino-pretty`. A script outside the
-application creates the kernel logger through the
+`pinoLogger({ level?, format?, pino? })` for the `logging.logger` field.
+The defaults are `info` and `text`; `level` additionally takes the levels
+of pino, mapping `trace` to `debug` and `fatal` to `error`, and the `pino`
+field passes the rest to the library: redaction, serializers, sampling.
+Records go to `stderr` through a synchronous writer of its own — with no
+`pino.transport`, no `pino-pretty` and no second output stream. In `text`
+the line is printed by `formatLine` from `@nestlingjs/logging`, so the
+output matches the standard logger byte for byte; in `json` the line is
+written by pino itself — the same set of keys, its own order. The keys the
+format rests on (`level`, `timestamp`, `formatters`, `base`, `messageKey`,
+`errorKey`, `transport` and the nested `serializers.err`) belong to the
+adapter: a key that is passed in is refused by name, with its
+replacement.
+
+A script outside the application creates the kernel logger through the
 `makeConsoleLogger(options)` factory from `@nestlingjs/logging`.

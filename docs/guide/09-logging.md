@@ -1,6 +1,6 @@
 # 9. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `2ef7b6a6`.
+> Гайд по текущему API; сверено с кодом `cf01387d`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
@@ -320,17 +320,36 @@ export class AuditTrail {
 
 ## Свой логгер
 
-Логгер ядра по умолчанию пишет в `stderr` текстом или JSON. Библиотека
-логирования подключается полем `logger` словаря `logging`:
+Логгер ядра по умолчанию пишет в `stderr` текстом или JSON. Другая
+библиотека логирования подключается полем `logger` словаря `logging`. Для
+pino готовая реализация лежит в своём пакете:
+
+```bash
+npm install @nestlingjs/logging.pino pino
+```
 
 ```typescript
 // app.ts
+import { pinoLogger } from '@nestlingjs/logging.pino';
+
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
-  logging: { logger: pinoAdapter(pino()) },
+  logging: { logger: pinoLogger({ pino: { redact: ['password'] } }) },
 });
 ```
+
+`pinoLogger` принимает `level`, `format` и поле `pino` — остальные опции
+библиотеки: redaction, сериализаторы, семплирование. В формате `text`
+строка совпадает со штатным логгером до байта: печатает её одна и та же
+функция. В формате `json` строку пишет сам pino — набор ключей тот же,
+порядок его.
+
+Ключи, которыми держится формат, заняты адаптером: `level`, `timestamp`,
+`formatters`, `base`, `messageKey`, `errorKey`, `transport` и вложенный
+`serializers.err`. Переданный занятый ключ останавливает создание логгера,
+и сообщение называет замену. Молча перетереть его адаптер не может: тогда
+формат перестал бы быть обещанием.
 
 Замена корня меняет все члены `Logger$`: и `Logger$.auto` в сервисах, и
 записи самого ядра, включая предупреждения сборки. Значение готовое:
@@ -340,11 +359,14 @@ export const app = makeApp({
 называет опцию `logging`.
 
 Поля корреляции чужая реализация получает даром: их подмешивает ядро, а не
-логгер. Интерфейс `Logger` лежит в отдельном пакете
-`@nestlingjs/logging` — адаптеру нужен интерфейс, а не всё ядро:
+логгер. Реализация под другую библиотеку пишется так же, как `pinoLogger`:
+интерфейс `Logger` лежит в отдельном пакете `@nestlingjs/logging` —
+адаптеру нужен интерфейс, а не всё ядро. Оттуда же берут и формат строки,
+`formatLine` и `serializeError`, чтобы не писать его второй раз:
 
 ```typescript
 import type { Logger } from '@nestlingjs/logging';
+import { formatLine, serializeError } from '@nestlingjs/logging';
 ```
 
 Скрипт рядом с приложением — генератор документа, миграция, внешний

@@ -45,8 +45,14 @@ logger and a script outside the application.
 | `LogFormat` | a line format: `text` or `json` |
 | `ConsoleLoggerOptions` | factory options: `level` and `format` |
 | `makeConsoleLogger` | the standard logger; defaults `info` and `text` |
+| `LogEntry` | a record ready to print: time, level, message, fields |
+| `formatLine` | the line of a record in the chosen format |
+| `serializeError` | an error as `name`, `message`, `stack`, `cause` fields |
 
 The implementation class does not go out: the factory creates the logger.
+The format, on the contrary, is public: both the standard logger and the
+`@nestlingjs/logging.pino` satellite print with it, so the format has one
+implementation.
 
 ## Package boundaries
 

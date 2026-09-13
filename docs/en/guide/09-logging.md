@@ -1,6 +1,6 @@
 # 9. See every request in the log
 
-> Guide to the current API; verified against `2ef7b6a6`.
+> Guide to the current API; verified against `cf01387d`.
 > Target description: [design/pipeline.md](../design/pipeline.md) and
 > [design/container.md](../design/container.md), the "Kernel logger" section.
 > Why: entries [ideas.md](../../decisions/ideas.md)
@@ -332,17 +332,36 @@ outer layer runs later than that of the inner one.
 
 ## Your own logger
 
-By default the kernel logger writes to `stderr` as text or JSON. A logging
-library connects through the `logger` field of the `logging` dictionary:
+By default the kernel logger writes to `stderr` as text or JSON. Another
+logging library connects through the `logger` field of the `logging`
+dictionary. For pino a ready implementation lives in its own package:
+
+```bash
+npm install @nestlingjs/logging.pino pino
+```
 
 ```typescript
 // app.ts
+import { pinoLogger } from '@nestlingjs/logging.pino';
+
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
-  logging: { logger: pinoAdapter(pino()) },
+  logging: { logger: pinoLogger({ pino: { redact: ['password'] } }) },
 });
 ```
+
+`pinoLogger` takes `level`, `format` and the `pino` field — the rest of
+the options of the library: redaction, serializers, sampling. In the
+`text` format the line matches the standard logger byte for byte: one and
+the same function prints it. In the `json` format the line is written by
+pino itself — the same set of keys, its own order.
+
+The keys the format rests on belong to the adapter: `level`, `timestamp`,
+`formatters`, `base`, `messageKey`, `errorKey`, `transport` and the nested
+`serializers.err`. An owned key that is passed in stops the creation of
+the logger, and the message names the replacement. The adapter cannot
+silently overwrite it: the format would stop being a promise.
 
 Replacing the root changes every member of `Logger$`: both `Logger$.auto`
 in the services and the records of the kernel itself, including build
@@ -353,12 +372,16 @@ it. There is no second way to declare the root: a provider under
 `logging` option.
 
 Someone else's implementation gets correlation fields for free: the kernel
-mixes them in, not the logger. The `Logger` interface lives in a separate
-package, `@nestlingjs/logging` — an adapter needs the interface, not the
-whole kernel:
+mixes them in, not the logger. An implementation for another library is
+written the same way as `pinoLogger`: the `Logger` interface lives in a
+separate package, `@nestlingjs/logging` — an adapter needs the interface,
+not the whole kernel. The line format is taken from there too,
+`formatLine` and `serializeError`, so that it is not written a second
+time:
 
 ```typescript
 import type { Logger } from '@nestlingjs/logging';
+import { formatLine, serializeError } from '@nestlingjs/logging';
 ```
 
 A script next to the application — a document generator, a migration, an
