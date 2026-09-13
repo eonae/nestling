@@ -7953,7 +7953,7 @@ function`. Расхождений пять:
 > две формы обработчика у запущенного приложения — `toNodeHandler(app)` и
 > `toFetchHandler(app)`, — интерфейсы байтовой границы `HttpSource` и
 > `HttpSink` с реализациями поверх `Request` и `Response`, карта
-> `AssembledApp.transports` и опция `run({ signals })`. Все формы io
+> `BuiltApp.transports` и опция `run({ signals })`. Все формы io
 > работают обеими формами обработчика, включая SSE с heartbeat, `multipart`
 > и `rawBody`. Интеграционный прогон сверяет три пути на одних декларациях:
 > сокет `http()`, форма `node:http`, форма `fetch`.
