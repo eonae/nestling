@@ -11,9 +11,7 @@ composition root и проверяются на фазе `1 BUILD`, где вс�
 `Policy` — открытый интерфейс: словарь предикатов пополняется значениями того
 же типа, не меняя ни корень, ни дискавери. Приложение только форматирует
 результат, не разбирая содержимое политик.
-
 ## Requirements
-
 ### Requirement: `policies:` — инварианты объявляются значениями в composition root
 
 `makeApp` SHALL принимать опциональное поле `policies: readonly Policy[]` —
@@ -157,3 +155,4 @@ PolicyViolation[]`. `PolicySubject` SHALL нести декларацию и и�
 - **WHEN** `checkTopologies(app, ['all', 'users'])`, где `app` несёт
   `policies`
 - **THEN** политики проверяются в каждой топологии матрицы
+

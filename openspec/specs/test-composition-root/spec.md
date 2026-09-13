@@ -18,9 +18,7 @@
 Конфиг теста задаётся объектом
 (`vars()`), а не `process.env`, поэтому тесты изолированы и параллелимы;
 `await using` завершает прогон честным SHUTDOWN'ом.
-
 ## Requirements
-
 ### Requirement: `buildTest` — тестовый composition root
 
 `@nestlingjs/testing` SHALL экспортировать
@@ -388,3 +386,4 @@ ambient-переменную, SHALL NOT требоваться.
 - **WHEN** тест не подменял ридер и зовёт `testApp.call`
 - **THEN** сервис читает значение, положенное пайплайном, а вне вызова
   `peek()` возвращает `undefined`
+
