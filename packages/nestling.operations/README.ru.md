@@ -46,61 +46,57 @@ export const CreateUser = makeRequest({
 
 - **Операция** ([design](../../docs/design/operations.md)) — `AnyOperation`,
   `assertDoc`, `CommandOperation`, `DeclarationDoc`, `EmitMeta`, `Emitter`,
-  `EmitterFamily`, `EmitterToken`, `EmittingOperation`, `errorsOf`,
-  `EventOperation`, `HandlerResultOf`, `InputFormOf`, `InputOf`,
-  `InvokeArgs`, `KernelPortFail`, `lookupOperation`, `makeCommand`,
-  `makeEvent`, `makeRequest`, `MetaOf`, `Operation`, `OperationFailsOf`,
-  `OperationKind`, `OperationSpec`, `OutputFormOf`, `OutputOf`, `Port`,
-  `StatusOf`,
-  `PortFamily`, `PortMeta`, `PortResult`, `PortToken`, `RequestOperation`,
-  `UndeclaredHandlerFails`, `ValidateHandlerFails`, `ValidateOperationFails`.
+  `EmitterFamily`, `EmitterToken`, `EmittingOperation`, `errorsOf`, `EventOperation`,
+  `HandlerResultOf`, `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`,
+  `lookupOperation`, `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`,
+  `Operation`, `OperationFailsOf`, `OperationKind`, `OperationSpec`, `OutputFormOf`,
+  `OutputOf`, `Port`, `PortFamily`, `PortMeta`, `PortResult`, `PortToken`,
+  `RequestOperation`, `StatusOf`, `UndeclaredHandlerFails`, `ValidateHandlerFails`,
+  `ValidateOperationFails`.
 - **Результат и отказы** ([design](../../docs/design/errors.md)) — `AnyFail`,
-  `AnyFailDefinition`, `assertFailCode`, `BadRequest`, `categories`, `Category`,
-  `categoryOf`, `DeclaredFail`, `Fail`, `FailCode`, `FailCreateOptions`,
-  `FailData`, `FailDefinitionProps`, `FailDefinitionWithDetails`,
-  `FailDefinitionWithoutDetails`, `FailOf`, `FailOfDef`, `FailOptions`,
-  `FailResponseOf`, `FailsOf`, `FailSpecWithDetails`, `FailSpecWithoutDetails`,
-  `InternalError`, `isCategory`, `isFail`, `isFailDefinition`,
-  `isKernelFailCode`, `isSuccessStatus`, `KernelFail`, `makeFail`, `Ok`,
-  `AnyOk`, `assertSuccessStatus`, `DeclaredOk`, `DeclaredOutput`,
-  `DeclaredOutputSync`, `DeclaredStatuses`, `EffectiveStatus`, `OutcomeOks`,
-  `Output`, `OutputSync`, `PayloadTooLarge`, `ProcessingStatus`,
-  `ResponseLike`, `statuses`, `SuccessStatus`, `successStatuses`, `Timeout`.
+  `AnyFailDefinition`, `AnyOk`, `assertFailCode`, `assertSuccessStatus`,
+  `BadRequest`, `categories`, `Category`, `categoryOf`, `DeclaredFail`, `DeclaredOk`,
+  `DeclaredOutput`, `DeclaredOutputSync`, `DeclaredStatuses`, `EffectiveStatus`,
+  `Fail`, `FailCode`, `FailCreateOptions`, `FailData`, `FailDefinitionProps`,
+  `FailDefinitionWithDetails`, `FailDefinitionWithoutDetails`, `FailOf`, `FailOfDef`,
+  `FailOptions`, `FailResponseOf`, `FailsOf`, `FailSpecWithDetails`,
+  `FailSpecWithoutDetails`, `InternalError`, `isCategory`, `isFail`,
+  `isFailDefinition`, `isKernelFailCode`, `isSuccessStatus`, `KernelFail`,
+  `makeFail`, `Ok`, `OutcomeOks`, `Output`, `OutputSync`, `PayloadTooLarge`,
+  `ProcessingStatus`, `ResponseLike`, `statuses`, `SuccessStatus`, `successStatuses`,
+  `Timeout`.
 - **Формы io** ([design](../../docs/design/endpoints.md)) — `AnyInput`,
-  `AnyMultipartForm`, `AnyOutput`, `AnyPayload`, `AnyStreamForm`,
-  `AnyOutcomesForm`, `assertFormsSupported`, `assertIoDeclaration`,
-  `BindableFields`, `ChainStep`, `DeclaredOutcome`, `declaredOutcomes`,
-  `describeForm`, `describeOutcomes`, `EmptyInput`, `events`, `FilePart`,
-  `FilesOf`, `FormBearingDefinition`, `FormDescriptor`, `FormKind`,
-  `FormLeaf`, `FormSlot`, `InferInput`, `InferOutput`, `IOPrimitive`,
-  `isForm`, `isNone`, `isOutcomes`, `isPrimitiveLeaf`, `isStreamKind`,
+  `AnyMultipartForm`, `AnyOutcomesForm`, `AnyOutput`, `AnyPayload`, `AnyStreamForm`,
+  `assertFormsSupported`, `assertIoDeclaration`, `BindableFields`, `ChainStep`,
+  `DeclaredOutcome`, `declaredOutcomes`, `describeForm`, `describeOutcomes`,
+  `EmptyInput`, `events`, `FilePart`, `FilesOf`, `FormBearingDefinition`,
+  `FormDescriptor`, `FormKind`, `FormLeaf`, `FormSlot`, `InferInput`, `InferOutput`,
+  `IOPrimitive`, `isForm`, `isNone`, `isOutcomes`, `isPrimitiveLeaf`, `isStreamKind`,
   `isUploadSpec`, `ItemOptions`, `LeafType`, `makeSummary`, `mediaTypeOf`,
-  `multipart`, `MultipartForm`, `nameOfForm`, `none`, `NoneForm`,
-  `OutcomeForm`, `OutcomeMap`, `outputs`, `OutcomesForm`, `OutcomeValue`,
-  `OutcomeValues`, `stream`, `StreamForm`, `StreamFormOptions`, `StreamKind`,
-  `StreamSummary`, `TransportCapabilities`, `upload`, `UploadOptions`,
-  `UploadSpec`, `ValidateOutputForm`.
+  `multipart`, `MultipartForm`, `nameOfForm`, `none`, `NoneForm`, `OutcomeForm`,
+  `OutcomeMap`, `OutcomesForm`, `OutcomeValue`, `OutcomeValues`, `outputs`, `stream`,
+  `StreamForm`, `StreamFormOptions`, `StreamKind`, `StreamSummary`,
+  `TransportCapabilities`, `upload`, `UploadOptions`, `UploadSpec`,
+  `ValidateOutputForm`.
 - **HTTP-адрес** ([design](../../docs/design/transports.md)) — `assertHttpPath`,
-  `BindMap`, `BindMark`, `BindPlace`, `BindPlacement`, `body`,
-  `buildHttpBinding`, `computeHttpBinding`, `ComputeHttpBindingOptions`,
-  `HttpBinding`, `HttpMethod`, `isBindMark`, `isHttpBinding`,
-  `METHODS_WITHOUT_BODY`, `PathParams`, `query`, `readPathParams`,
-  `RedirectStatus`, `SseConfig`.
-- **Тело отказа HTTP** ([design](../../docs/design/errors.md)) —
-  `ErrorDetailsLike`, `failCodeOf`, `PROBLEM_MEDIA_TYPE`,
-  `PROBLEM_TYPE_PREFIX`, `problemOf`, `problemTitleOf`, `problemTypeOf`,
-  `ProblemDocument`. Документ RFC 9457, которым HTTP-граница отвечает на
-  отказ; объявлен здесь, чтобы клиент читал его, не завися от серверного
-  пакета.
+  `BindMap`, `BindMark`, `BindPlace`, `BindPlacement`, `body`, `buildHttpBinding`,
+  `computeHttpBinding`, `ComputeHttpBindingOptions`, `HttpBinding`, `HttpMethod`,
+  `isBindMark`, `isHttpBinding`, `METHODS_WITHOUT_BODY`, `PathParams`, `query`,
+  `readPathParams`, `RedirectStatus`, `SseConfig`.
+- **Тело отказа HTTP** ([design](../../docs/design/errors.md)) — `ErrorDetailsLike`,
+  `failCodeOf`, `PROBLEM_MEDIA_TYPE`, `PROBLEM_TYPE_PREFIX`, `problemOf`,
+  `problemTitleOf`, `problemTypeOf`, `ProblemDocument`. Документ RFC 9457, которым
+  HTTP-граница отвечает на отказ; объявлен здесь, чтобы клиент читал его, не завися
+  от серверного пакета.
 - **Схемы** ([design](../../docs/design/schemas.md)) — `assertConverters`,
-  `jsonSchema`, `jsonSchemaOf`, `leafJsonSchema`, `LeafJsonSchema`,
-  `pickConverter`, `SchemaDocConverter`, `SchemaDocOptions`, `schemaVendorOf`.
+  `jsonSchema`, `jsonSchemaOf`, `leafJsonSchema`, `LeafJsonSchema`, `pickConverter`,
+  `SchemaDocConverter`, `SchemaDocOptions`, `schemaVendorOf`.
 - **Потоки** ([design](../../docs/design/streaming.md)) — `batch`, `collect`,
   `filter`, `gapTimeout`, `limit`, `tap`, `throttle`, `Topic`, `untilAborted`.
 - **Ответ транспорта** — `isTransportResponse`, `TRANSPORT_RESPONSE`,
   `TransportResponse`.
-- **Реэкспорт [`@nestlingjs/common.misc`](../common.misc/)** — типы Standard Schema, чтобы
-  клиенту и генератору документации не ставить пакет спецификации.
+- **Реэкспорт [`@nestlingjs/common.misc`](../common.misc/)** — типы Standard Schema,
+  чтобы клиенту и генератору документации не ставить пакет спецификации.
 
 ## Границы пакета
 

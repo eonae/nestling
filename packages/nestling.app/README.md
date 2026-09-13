@@ -51,53 +51,51 @@ await app.build().run();
   `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
   `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
   `PluginOptions`, `RunOptions`.
-- **Configuration** ([design](../../docs/en/design/config.md)) —
-  `bootstrapConfig`, `Config`, `ConfigBinding`, `ConfigDerivedError`,
-  `ConfigField`, `ConfigGlob`, `ConfigInput`, `configKernel`, `ConfigKeys`,
-  `ConfigProjection`, `ConfigRecord`, `ConfigSectionToken`,
-  `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
-  `ConfigValidationError`, `ConfigValues`, `DerivedConstructor`,
-  `DerivedField`, `DerivedRecord`, `DeriveFn`, `describeConfig`, `env`, `from`,
-  `FromField`, `load`, `makeConfig`, `objectSource`, `ObjectSource`,
-  `ReloadableConfig`, `secret`, `SecretField`, `toBindings`.
+- **Configuration** ([design](../../docs/en/design/config.md)) — `bootstrapConfig`,
+  `Config`, `ConfigBinding`, `ConfigDerivedError`, `ConfigField`, `ConfigGlob`,
+  `ConfigInput`, `configKernel`, `ConfigKeys`, `ConfigProjection`, `ConfigRecord`,
+  `ConfigSectionToken`, `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
+  `ConfigValidationError`, `ConfigValues`, `DerivedConstructor`, `DerivedField`,
+  `DerivedRecord`, `DeriveFn`, `describeConfig`, `env`, `from`, `FromField`, `load`,
+  `makeConfig`, `objectSource`, `ObjectSource`, `ReloadableConfig`, `secret`,
+  `SecretField`, `toBindings`.
 - **Pipeline and endpoints** ([design](../../docs/en/design/pipeline.md)) —
   `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
   `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,
-  `ClientDisconnectedError`, `collectPropagatedContext`, `compose`,
-  `contextKernel`, `contextVar`, `ContextVar`, `ContextVarDeclarator`,
-  `ContextVarOptions`, `ContextVarUnavailableError`, `Ctx`, `CtxReader`,
-  `DeferredPreStepFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
-  `EndpointMeta`, `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`,
-  `everyEndpoint`, `ExtendableContext`, `FinallyStepFn`, `HandlerClass`,
-  `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isContextVar`, `isDone`,
-  `isEndpointDefinition`, `isMidStreamFailure`, `makeEmptyContext`,
-  `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
-  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreStepFn`,
-  `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
-  `ResponseContext`, `Signal`, `SuccessResponseContext`, `Trace`,
+  `ClientDisconnectedError`, `collectPropagatedContext`, `compose`, `contextKernel`,
+  `contextVar`, `ContextVar`, `ContextVarDeclarator`, `ContextVarOptions`,
+  `ContextVarUnavailableError`, `Ctx`, `CtxReader`, `DeclaredOutput`,
+  `DeclaredOutputSync`, `DeclaredStatuses`, `DeferredPreStepFn`, `done`, `Done`,
+  `EndpointDefinition`, `EndpointFilter`, `EndpointMeta`, `EndpointOptions`,
+  `ErrorDetails`, `ErrorResponseContext`, `everyEndpoint`, `ExtendableContext`,
+  `FinallyStepFn`, `HandlerClass`, `handlerClassOf`, `HandlerFn`, `isAsyncIterable`,
+  `isContextVar`, `isDone`, `isEndpointDefinition`, `isMidStreamFailure`,
+  `makeEmptyContext`, `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`,
+  `parseMetadata`, `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`,
+  `PreStepFn`, `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
+  `ResponseContext`, `Signal`, `StepResolver`, `SuccessResponseContext`, `Trace`,
   `TraceContext`, `traceparent`, `TransportClosingError`, `transportNameOf`,
-  `UndeclaredDoneError`, `StepResolver`, `withRequestId`, `withTracing`.
+  `UndeclaredDoneError`, `withRequestId`, `withTracing`.
 - **Ports and bus** ([design](../../docs/en/design/operations.md)) —
-  `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
-  `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,
-  `CompatibilityReport`, `CompatibilityVerdict`, `Deadline`,
-  `deadlineFromTimeout`, `deadlineIn`, `diffOperations`, `failureResponse`,
-  `formatCompatibility`, `Handler`, `HandlerMeta`, `IDEMPOTENCY_KEY_ATTRIBUTE`,
-  `IdempotencyKey`, `IMessageBus`, `implement`, `InProcessBus`, `isExhausted`,
-  `MessageBus$`, `OperationDescriptor`, `OperationSnapshot`,
-  `profileAttributes`, `PublishOptions`, `RequestOptions`, `serializeSnapshot`,
-  `SnapshotOperation`, `snapshotOperations`, `startBudget`, `SubscribeOptions`,
-  `withIdempotencyKey`.
+  `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`, `BusMessageMeta`,
+  `BusSubscription`, `BusTransport$`, `CompatibilityChange`, `CompatibilityReport`,
+  `CompatibilityVerdict`, `Deadline`, `deadlineFromTimeout`, `deadlineIn`,
+  `diffOperations`, `failureResponse`, `formatCompatibility`, `Handler`,
+  `HandlerMeta`, `IDEMPOTENCY_KEY_ATTRIBUTE`, `IdempotencyKey`, `IMessageBus`,
+  `implement`, `InProcessBus`, `isExhausted`, `MessageBus$`, `OperationDescriptor`,
+  `OperationSnapshot`, `profileAttributes`, `PublishOptions`, `RequestOptions`,
+  `serializeSnapshot`, `SnapshotOperation`, `snapshotOperations`, `startBudget`,
+  `SubscribeOptions`, `withIdempotencyKey`.
 - **Transport** ([design](../../docs/en/design/transports.md)) — `BusDeclaration`,
   `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`, `ExecutableDeclaration`,
   `IListener`, `ITransport`, `makeDispatch`, `makeServerDeclaration`,
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
   `TransportDeclaration`, `transportValue`.
 - **Observability and probes** ([design](../../docs/en/design/container.md)) —
-  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
-  `HealthStatus`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
-  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`,
-  `Metrics`, `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
+  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`, `HealthStatus`,
+  `LivenessReport`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
+  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`, `Metrics`,
+  `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
 - **Re-export of neighbours** — [`@nestlingjs/operations`](../nestling.operations/)
   (45 names), [`@nestlingjs/logging`](../nestling.logging/) (6) and
   [`@nestlingjs/common.misc`](../common.misc/) (8); the lists are in their README.
