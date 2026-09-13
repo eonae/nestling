@@ -17,7 +17,7 @@
 Репозиторий SHALL публиковать пакет `@nestlingjs/eslint-plugin` с правилом
 `endpoint-has-layer`. Правило SHALL быть **подсказкой в редакторе**:
 гарантией присутствия слоя SHALL оставаться проверка на собранном графе
-(capability `assembly-policies`).
+(capability `build-policies`).
 
 Статус правила SHALL быть зафиксирован явно — в тексте его сообщения, в
 README пакета и в документации. Рекомендуемый уровень SHALL быть `warn`, а не

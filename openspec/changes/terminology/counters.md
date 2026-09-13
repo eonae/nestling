@@ -7,18 +7,21 @@
 Архивы (`openspec/changes/archive/`, `docs/history/`, `docs/decisions/`)
 из счёта исключены.
 
+База замера — `main` после слияния `change/examples-rework`: ветка
+перебазирована на него, и цифры «до» пересняты.
+
 ## До
 
 | Область | `assemble` + `*Unit*` + «юнит», файлов | замен | «член семейства», файлов | замен | «юнит-тест» |
 | --- | --- | --- | --- | --- | --- |
-| `packages/` | 227 | 1449 | 34 | 70 | 4 |
-| `examples/` | 39 | 110 | 1 | 1 | 2 |
-| `docs/` | 96 | 1222 | 12 | 28 | 21 |
-| `openspec/specs/` | 64 | 490 | 20 | 49 | 0 |
+| `packages/` | 227 | 1456 | 34 | 70 | 4 |
+| `examples/` | 22 | 56 | 0 | 0 | 2 |
+| `docs/` | 96 | 1207 | 12 | 28 | 21 |
+| `openspec/specs/` | 63 | 490 | 20 | 49 | 0 |
 | `.claude/skills/` | 2 | 11 | 0 | 0 | 0 |
 
-Слово «член» без «семейства» рядом: ещё 376 вхождений в 93 файлах —
-их взяла задача 5.10.
+Слово «член» во всех значениях — 473 вхождения; в значении токена
+семейства их взяла задача 5.10.
 
 ## После
 
@@ -46,8 +49,9 @@
 - требование capability `docs-terminology`, формулирующее тот же запрет;
 - `docs/design/testing.md` — «unit- и модульные тесты», термин индустрии;
 - английское `unit` в значении «единица состава»: `a unit of deployment`,
-  `a unit of communication`, `a unit of selection`. Это пара «единицы» из
-  глоссария, а не пара «шага» — см. решение 8 в `design.md`;
+  `a unit of communication`, `a unit of selection`, `a unit in isolation`
+  и `the package of the unit` в `docs/en/design/testing.md`. Это пара
+  «единицы» из глоссария, а не пара «шага» — см. решение 8 в `design.md`;
 - «член» в двух других значениях: член группы очереди NATS
   (`@nestlingjs/transport.nats`) и член объекта в правиле ESLint
   (`@nestlingjs/eslint-plugin`, capability `dependency-list-rule`).
