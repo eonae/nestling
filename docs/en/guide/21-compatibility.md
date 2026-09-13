@@ -1,6 +1,6 @@
 # 21. Do not break the neighbours when an operation changes
 
-> Guide to the current API; verified against `bd9dce44`.
+> Guide to the current API; verified against `46971d4e`.
 > Target description: [design/operations.md](../design/operations.md) §1.6 and
 > §1.7. Why: entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-31] Версионирование контрактов: снапшот, вердикт по слоту, третий вердикт unknown`.
@@ -22,25 +22,12 @@ allowed.
 
 ```typescript
 // src/operations.compat.spec.ts
-/**
- * The same declaration with secrets from an object: `check()`
- * builds the graph, and the section is read
- */
 const checked = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
   switches: app.spec.switches,
   policies: app.spec.policies,
   transports: app.spec.transports,
-  config: [
-    [
-      objectSource(
-        { API_TOKEN: 'test-token', WEBHOOK_SECRET: 'test-hook' },
-        'test',
-      ),
-      appConfigKeys,
-    ],
-  ],
 });
 
 /** The deployment variants: the snapshot unions what each one publishes */
@@ -61,13 +48,20 @@ const currentSnapshot = async (): Promise<OperationSnapshot> =>
   snapshotOperations(
     await checkTopologies(checked, [...TOPOLOGIES], {
       converters: [zodConverter()],
+      // Secrets from an object: `check()` builds the graph and reads
+      // the configuration section, and it accepts no overrides
+      config: [
+        bind(vars({ API_TOKEN: 'test-token', WEBHOOK_SECRET: 'test-hook' }), {
+          keys: appConfigKeys,
+        }),
+      ],
     }),
   );
 ```
 
 `checked` is the same application declaration as in chapter
-[19](./19-select.md): the secrets are bound to the section's keys by a
-source, because `check()` builds the graph and reads the
+[19](./19-select.md): the secrets are bound by the `config` option of
+`checkTopologies()`, because `check()` builds the graph and reads the
 configuration section, and it accepts no overrides. The source of the
 descriptions is the `check()` report of every topology from the same
 chapter: it contains the `operations` field with descriptors of the

@@ -1,6 +1,6 @@
 # Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `bd9dce44`
+> Гайд по текущему API; сверено с кодом `46971d4e`
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -141,11 +141,15 @@ curl -N localhost:3000/logs/export
 ```typescript
 // src/container.ts
 export const makeContainer = async (
-  runtime: ConfigSource = objectSource({}, 'runtime'),
+  runtime: ConfigSource = { name: 'runtime', get: () => undefined },
 ): Promise<BuiltContainer> => {
+  const defaults: ConfigSource = {
+    name: 'defaults',
+    get: (key) => ({ APP_METRICS_PREFIX: 'demo' } as Record<string, string>)[key],
+  };
   const config = await bootstrapConfig([
-    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
-    [runtime, runtimeConfigKeys],
+    bind(defaults, { keys: appConfigKeys }),
+    bind(runtime, { keys: runtimeConfigKeys }),
   ]);
 
   const builder = new ContainerBuilder()

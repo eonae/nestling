@@ -1,6 +1,6 @@
 # Without `makeApp`
 
-> Guide to the current API; verified against `bd9dce44` and `container` (2026-09-06).
+> Guide to the current API; verified against `46971d4e` and `container` (2026-09-06).
 > Target description: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Rationale: the entries
@@ -145,11 +145,15 @@ from the `stream(T)` form.
 ```typescript
 // src/container.ts
 export const makeContainer = async (
-  runtime: ConfigSource = objectSource({}, 'runtime'),
+  runtime: ConfigSource = { name: 'runtime', get: () => undefined },
 ): Promise<BuiltContainer> => {
+  const defaults: ConfigSource = {
+    name: 'defaults',
+    get: (key) => ({ APP_METRICS_PREFIX: 'demo' } as Record<string, string>)[key],
+  };
   const config = await bootstrapConfig([
-    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
-    [runtime, runtimeConfigKeys],
+    bind(defaults, { keys: appConfigKeys }),
+    bind(runtime, { keys: runtimeConfigKeys }),
   ]);
 
   const builder = new ContainerBuilder()

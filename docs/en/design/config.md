@@ -290,7 +290,9 @@ class RateLimiter {
 }
 
 // the root: a reloadable source is what turns reload on
-await makeApp({ config: [[reloadableFile('runtime.yaml'), [Runtime]]], /* ... */ }).build().run();
+await app.build(args).run({
+  config: [bind(reloadableFile('runtime.yaml'), { keys: Runtime.keys })],
+});
 ```
 
 A source with observation (`watch`) tells the reader about a new

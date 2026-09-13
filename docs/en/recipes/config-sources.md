@@ -1,12 +1,14 @@
 # Configuration from a file and without a restart
 
-> Guide to the current API; verified against `bd9dce44`.
+> Guide to the current API; verified against `46971d4e`.
 > Target description: [design/config.md](../design/config.md), sections 2–8.
 > Rationale: the entries [ideas.md](../../decisions/ideas.md)
 > `Конфиг: keys-capability вместо configs:-владения` [2026-07-10],
-> `Конфиг: secret() и общие ключи` [2026-07-13] and
+> `Конфиг: secret() и общие ключи` [2026-07-13],
 > `Конфиг: derived, env({ prefix }), описания полей через конвертеры`
-> [2026-09-06].
+> [2026-09-06] and
+> `Конфигурация: привязки на run(), env() и dotenv() умолчанием, bind(), needs у источника`
+> [2026-09-13].
 
 Some values in production come from somewhere other than the
 environment: a file, Vault, an object with defaults for a local run.
@@ -22,41 +24,53 @@ on an invalid config are described in chapter
 
 ```typescript
 // src/main.ts
+const defaults: ConfigSource = {
+  name: 'defaults',
+  get: (key) => ({ APP_METRICS_PREFIX: 'demo' } as Record<string, string>)[key],
+};
+const runtime: ConfigSource = {
+  name: 'runtime',
+  get: (key) => ({ RUNTIME_RPS: '50' } as Record<string, string>)[key],
+};
+
 const app = makeApp({
   features: [AppFeature],
   plugins: [appCounters],
   providers: [Demo],
-  config: [
-    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
-    [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
-  ],
 }).build();
 
-await app.run();
+await app.run({
+  config: [
+    bind(defaults, { keys: appConfigKeys }),
+    bind(runtime, { keys: runtimeConfigKeys }),
+    bind(env()),
+  ],
+});
 await app.close();
 ```
 
-The `config` field accepts a list of "source, target" pairs. A source
-is an object with the `ConfigSource` interface: the required
-`get(key)` method and the optional `name`, `init()`, `watch(notify)`
-and `close()`. A target is a section's `.keys`, a glob of the form
-`'*_URL'` or an array of them. In the example, `objectSource` serves
-as the source, an object over a plain record. A file or Vault source
-implements the same interface in a separate package; the kernel ships
-no ready-made sources.
+The `config` option of `run()` accepts a list of `bind(source, options?)`
+bindings. A source is an object with the `ConfigSource` interface: the
+required `get(key)` method and the optional `name`, `init()`,
+`watch(notify)` and `close()`. `options.keys` is a section's `.keys` or a
+glob of the form `'*_URL'`, `'*'` by default. In the example, `defaults`
+and `runtime` serve as the sources — plain objects over a record. A file
+or Vault source implements the same interface in a separate package; the
+kernel ships no ready-made sources with network access.
 
 Reading rules:
 
 - the order of the list sets the priority: the key comes from the
-  first binding whose target covers the key and whose source returned
+  first binding whose `keys` covers the key and whose source returned
   something other than `undefined`;
-- a target limits the source's scope: the `objectSource` from the
-  first line is bound to the keys of the `app` section and is not
-  queried for other sections. A target that covers no declared key
-  gives a warning on start: this catches a typo in the glob;
-- `process.env` is queried last and always; it is not added to the
-  list. `DATABASE_URL` in the example is bound nowhere and is read
-  from the environment;
+- `keys` limits the source's scope: `defaults` is bound to the keys of
+  the `app` section and is not queried for other sections. A scope that
+  covers no declared key gives a warning on start: this catches a typo
+  in the glob;
+- `env()` is a source like any other: without an explicit `bind(env())`
+  in the list, `process.env` is not read at all. `DATABASE_URL` in the
+  example is covered neither by `defaults` nor by `runtime`, so `env()`,
+  last in priority, reads it;
 - a key missing from every source reads as `undefined`, and the
   field's schema decides next: `.default()`, `.optional()` or a
   validation error.
@@ -71,11 +85,11 @@ built without `makeApp`, through `ContainerBuilder`:
 ```typescript
 // src/container.ts
 export const makeContainer = async (
-  runtime: ConfigSource = objectSource({}, 'runtime'),
+  runtime: ConfigSource = { name: 'runtime', get: () => undefined },
 ): Promise<BuiltContainer> => {
   const config = await bootstrapConfig([
-    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
-    [runtime, runtimeConfigKeys],
+    bind(defaults, { keys: appConfigKeys }),
+    bind(runtime, { keys: runtimeConfigKeys }),
   ]);
 
   const builder = new ContainerBuilder()
@@ -123,14 +137,16 @@ One environment file serves several services if each one reads its
 values under its own prefix. The `env` source sets the prefix:
 
 ```typescript
-config: [[env({ prefix: 'SERVICE_1_' }), '*']],
+config: [bind(env({ prefix: 'SERVICE_1_' })), bind(env())],
 ```
 
 The source reads `SERVICE_1_<KEY>` and returns the value under the
 name `KEY`. It gets its priority by the position of the binding, like
-any other source, so `SERVICE_1_HTTP_PORT` overrides `HTTP_PORT`. A
-key missing under the prefix is read by the implicit `process.env`
-without the prefix: `DATABASE_URL` stays shared across every service.
+any other source, so `SERVICE_1_HTTP_PORT` overrides `HTTP_PORT`. The
+`env({ prefix })` binding does not cover a key without the prefix: it
+stays shared only with an explicit second binding without a prefix —
+`bind(env())` as the last item of the list — and then `DATABASE_URL`,
+missing under `SERVICE_1_`, is read by it.
 
 Sections know nothing about the prefix. `.keys` lists `HTTP_PORT` and
 `HTTP_HOST`, the registry snapshot names the same names, and the
@@ -296,9 +312,10 @@ receive, so there's no need to keep your own `AbortController`. A
 value copied in the constructor will not update, so reloadable is
 turned on for a section explicitly.
 
-Updates come from a source with a `watch()` method. `objectSource` has
-one: a `set(key, value)` call notifies the reader. Two differences
-from the start:
+Updates come from a source with a `watch()` method. `vars()` from
+`@nestlingjs/testing` has one — the run below checks reload with it; in
+production a file source watching its file behaves the same way. Two
+differences from the start:
 
 - an invalid value at the start stops the application. An invalid
   update is dropped, the last valid snapshot remains, and the reader

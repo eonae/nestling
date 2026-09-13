@@ -1,11 +1,13 @@
 # Конфиг из файла и без перезапуска
 
-> Гайд по текущему API; сверено с кодом `bd9dce44`.
+> Гайд по текущему API; сверено с кодом `46971d4e`.
 > Целевое описание: [design/config.md](../design/config.md), разделы 2–8.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Конфиг:
 > keys-capability вместо `configs:`-владения» [2026-07-10], «Конфиг:
-> `secret()` и общие ключи» [2026-07-13] и «Конфиг: `derived`,
-> `env({ prefix })`, описания полей через конвертеры» [2026-09-06].
+> `secret()` и общие ключи» [2026-07-13], «Конфиг: `derived`,
+> `env({ prefix })`, описания полей через конвертеры» [2026-09-06] и
+> «Конфигурация: привязки на `run()`, `env()` и `dotenv()` умолчанием,
+> `bind()`, `needs` у источника» [2026-09-13].
 
 Часть значений в проде приходит не из окружения: из файла, из Vault, из
 объекта с умолчаниями для локального запуска. Один ключ, например
@@ -20,40 +22,52 @@
 
 ```typescript
 // src/main.ts
+const defaults: ConfigSource = {
+  name: 'defaults',
+  get: (key) => ({ APP_METRICS_PREFIX: 'demo' } as Record<string, string>)[key],
+};
+const runtime: ConfigSource = {
+  name: 'runtime',
+  get: (key) => ({ RUNTIME_RPS: '50' } as Record<string, string>)[key],
+};
+
 const app = makeApp({
   features: [AppFeature],
   plugins: [appCounters],
   providers: [Demo],
-  config: [
-    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
-    [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
-  ],
 }).build();
 
-await app.run();
+await app.run({
+  config: [
+    bind(defaults, { keys: appConfigKeys }),
+    bind(runtime, { keys: runtimeConfigKeys }),
+    bind(env()),
+  ],
+});
 await app.close();
 ```
 
-Поле `config` принимает список пар «источник, цель». Источник — объект с
-интерфейсом `ConfigSource`: обязательный метод `get(key)` и необязательные
-`name`, `init()`, `watch(notify)` и `close()`. Цель — `.keys` секции, глоб
-вида `'*_URL'` или массив из них. В примере источником служит
-`objectSource`, объект поверх обычной записи. Источник файла или Vault
-реализует тот же интерфейс в отдельном пакете; в ядре готовых источников
-нет.
+Опция `config` у `run()` принимает список привязок `bind(source, options?)`.
+Источник — объект с интерфейсом `ConfigSource`: обязательный метод
+`get(key)` и необязательные `name`, `init()`, `watch(notify)` и `close()`.
+`options.keys` — `.keys` секции или глоб вида `'*_URL'`, по умолчанию
+`'*'`. В примере источниками служат `defaults` и `runtime` — самодельные
+объекты поверх обычной записи. Источник файла или Vault реализует тот же
+интерфейс в отдельном пакете; в ядре готовых источников с сетью нет.
 
 Правила чтения:
 
 - порядок списка задаёт приоритет: ключ берётся из первой привязки, чья
-  цель покрывает ключ и чей источник вернул не `undefined`;
-- цель ограничивает область источника: `objectSource` из первой строки
-  привязан к ключам секции `app` и для других секций не опрашивается.
-  Цель, не покрывающая ни одного объявленного ключа, даёт предупреждение
-  на старте: так ловится опечатка в глобе;
-- `process.env` опрашивается последним и всегда; в список его не
-  добавляют. `DATABASE_URL` в примере нигде не привязан и читается из
-  окружения;
-- ключ, которого нет ни в одном источнике, читается как `undefined`, а
+  `keys` покрывает ключ и чей источник вернул не `undefined`;
+- `keys` ограничивает область источника: `defaults` привязан к ключам
+  секции `app` и для других секций не опрашивается. Область, не
+  покрывающая ни одного объявленного ключа, даёт предупреждение на
+  старте: так ловится опечатка в глобе;
+- `env()` — источник, как и любой другой: без явной привязки `bind(env())`
+  в списке `process.env` не читается вовсе. `DATABASE_URL` в примере не
+  покрыт ни `defaults`, ни `runtime`, поэтому его читает `env()`, стоящий
+  последним по приоритету;
+- ключ, которого не покрыла ни одна привязка, читается как `undefined`, а
   дальше решает схема поля: `.default()`, `.optional()` или ошибка
   валидации.
 
@@ -67,11 +81,11 @@ await app.close();
 ```typescript
 // src/container.ts
 export const makeContainer = async (
-  runtime: ConfigSource = objectSource({}, 'runtime'),
+  runtime: ConfigSource = { name: 'runtime', get: () => undefined },
 ): Promise<BuiltContainer> => {
   const config = await bootstrapConfig([
-    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
-    [runtime, runtimeConfigKeys],
+    bind(defaults, { keys: appConfigKeys }),
+    bind(runtime, { keys: runtimeConfigKeys }),
   ]);
 
   const builder = new ContainerBuilder()
@@ -114,14 +128,16 @@ export const makeContainer = async (
 свои значения под своей приставкой. Приставку задаёт источник `env`:
 
 ```typescript
-config: [[env({ prefix: 'SERVICE_1_' }), '*']],
+config: [bind(env({ prefix: 'SERVICE_1_' })), bind(env())],
 ```
 
 Источник читает `SERVICE_1_<KEY>` и отдаёт значение под именем `KEY`.
 Приоритет он получает по позиции привязки, как любой другой источник,
-поэтому `SERVICE_1_HTTP_PORT` перекрывает `HTTP_PORT`. Ключ, которого под
-приставкой нет, читается неявным `process.env` без неё: `DATABASE_URL`
-остаётся общим для всех сервисов.
+поэтому `SERVICE_1_HTTP_PORT` перекрывает `HTTP_PORT`. Привязка
+`env({ prefix })` ключ без приставки не покрывает: общим он остаётся
+только явной второй привязкой без приставки — `bind(env())` последним
+элементом списка, — и тогда `DATABASE_URL`, которого нет под
+`SERVICE_1_`, читает она.
 
 Секции про приставку не знают. `.keys` перечисляет `HTTP_PORT` и
 `HTTP_HOST`, снимок реестра называет те же имена, и глоб привязки тоже
@@ -277,9 +293,10 @@ export class RateLimiter {
 Значение, скопированное в конструкторе, не обновится, поэтому reloadable
 включается для секции явно.
 
-Обновления приходят от источника с методом `watch()`. У `objectSource`
-он есть: вызов `set(key, value)` уведомляет читалку. Два отличия от
-старта:
+Обновления приходят от источника с методом `watch()`. У `vars()` из
+`@nestlingjs/testing` он есть — прогон ниже проверяет reload им же; в
+проде так же ведёт себя файловый источник, следящий за файлом. Два
+отличия от старта:
 
 - невалидное значение на старте останавливает приложение; невалидное
   обновление отбрасывается, остаётся последний валидный снимок, а читалка

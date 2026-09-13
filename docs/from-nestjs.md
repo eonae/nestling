@@ -64,7 +64,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 | NestJS | Nestling | Чем отличается | Глава |
 |---|---|---|---|
 | `ConfigModule.forRoot()` и `ConfigService.get('X')` | `makeConfig(prefix, fields)` и инжект секции | секция типизирована схемой и проверяется на старте; регистрировать её не нужно | [7](./guide/07-config.md) |
-| `ConfigModule` с `load` и `validationSchema` | `config: [[источник, Section.keys]]` в корне | источник привязывается к ключам, а не к модулю | [рецепт](./recipes/config-sources.md) |
+| `ConfigModule` с `load` и `validationSchema` | `run({ config: [bind(источник, { keys: Section.keys })] })` | источник привязывается к ключам, а не к модулю | [рецепт](./recipes/config-sources.md) |
 | `Test.createTestingModule()` с `overrideProvider()` | `buildTest(app, { overrides })` | тест собирает то же приложение по тем же фазам; сокет не открывается | [8](./guide/08-testing.md) |
 | `supertest` против `app.getHttpServer()` | `testApp.call(Endpoint, payload)` | запрос идёт через полный пайплайн без сети; e2e на порту `0` остаётся отдельным уровнем | [8](./guide/08-testing.md), [18](./guide/18-testing-features.md) |
 | мок сервиса соседнего модуля | `stubs: [stub(Operation, impl)]` | ответ заглушки проверяется схемой операции | [18](./guide/18-testing-features.md) |

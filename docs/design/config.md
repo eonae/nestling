@@ -270,7 +270,9 @@ class RateLimiter {
 }
 
 // корень: reloadable-источник — то, что включает reload
-await makeApp({ config: [[reloadableFile('runtime.yaml'), [Runtime]]], /* ... */ }).build().run();
+await app.build(args).run({
+  config: [bind(reloadableFile('runtime.yaml'), { keys: Runtime.keys })],
+});
 ```
 
 Источник с наблюдением (`watch`) сообщает читалке о новом значении, и та

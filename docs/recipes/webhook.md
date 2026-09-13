@@ -1,6 +1,6 @@
 # Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `bd9dce44`.
+> Гайд по текущему API; сверено с кодом `46971d4e`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -223,7 +223,7 @@ it('отклоняет тело с чужой подписью', async () => {
 ```
 
 Секрет в e2e-сборке привязан источником к ключам секции
-(`e2e/helpers/create-test-app.ts`), `process.env` тест не трогает.
+(`e2e/helpers/test-app.ts`), `process.env` тест не трогает.
 
 ```bash
 yarn test:e2e

@@ -1,6 +1,6 @@
 # 7. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `bd9dce44`.
+> Гайд по текущему API; сверено с кодом `46971d4e`.
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины», «[2026-07-13] Конфиг:
@@ -158,7 +158,7 @@ curl 'localhost:3000/users'
 ```
 failed to start: ConfigValidationError: Config section 'app' is invalid:
   - API_TOKEN (field 'apiToken'): Invalid input: expected string, received undefined
-Sources consulted, in priority order: process.env
+Sources consulted, in priority order: env
 ```
 
 ```bash

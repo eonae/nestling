@@ -1,6 +1,6 @@
 # 21. Не сломать соседей при изменении операции
 
-> Гайд по текущему API; сверено с кодом `bd9dce44`.
+> Гайд по текущему API; сверено с кодом `46971d4e`.
 > Целевое описание: [design/operations.md](../design/operations.md) §1.6 и
 > §1.7. Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-31]
 > Версионирование контрактов: снапшот, вердикт по слоту,
@@ -21,25 +21,12 @@
 
 ```typescript
 // src/operations.compat.spec.ts
-/**
- * Та же декларация с секретами из объекта: `check()` собирает граф, и
- * секция читается
- */
 const checked = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
   switches: app.spec.switches,
   policies: app.spec.policies,
   transports: app.spec.transports,
-  config: [
-    [
-      objectSource(
-        { API_TOKEN: 'test-token', WEBHOOK_SECRET: 'test-hook' },
-        'test',
-      ),
-      appConfigKeys,
-    ],
-  ],
 });
 
 /** Варианты деплоя: снапшот объединяет то, что публикует каждый */
@@ -60,14 +47,21 @@ const currentSnapshot = async (): Promise<OperationSnapshot> =>
   snapshotOperations(
     await checkTopologies(checked, [...TOPOLOGIES], {
       converters: [zodConverter()],
+      // Секреты из объекта: `check()` собирает граф и читает секцию
+      // конфига, а подстановок не принимает
+      config: [
+        bind(vars({ API_TOKEN: 'test-token', WEBHOOK_SECRET: 'test-hook' }), {
+          keys: appConfigKeys,
+        }),
+      ],
     }),
   );
 ```
 
 `checked` — та же декларация приложения, что и в главе
-[19](./19-select.md): секреты привязаны источником к ключам секции, потому
-что `check()` собирает граф и читает секцию конфига, а подстановок не
-принимает. Источник описаний — отчёт `check()` каждой топологии из той же
+[19](./19-select.md): секреты привязаны опцией `config` у `checkTopologies()`,
+потому что `check()` собирает граф и читает секцию конфига, а подстановок
+не принимает. Источник описаний — отчёт `check()` каждой топологии из той же
 главы: он содержит поле `operations` с дескрипторами опубликованных
 операций. Дескриптор описывает имя, вид, формы `input` и `output` и
 список отказов с кодами и категориями. Листовые схемы переводит в JSON

@@ -1,6 +1,6 @@
 # 8. Make sure it works without starting a server
 
-> Guide to the current API; verified against `bd9dce44`.
+> Guide to the current API; verified against `46971d4e`.
 > Target description: [design/testing.md](../design/testing.md). Why: entry
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
@@ -29,10 +29,11 @@ the composition dictionary: `buildTest` accepts the declaration itself.
 import { app } from './app.js';
 
 /** The test config: an object instead of `process.env` */
-const testConfig = vars({
-  API_TOKEN: 'test-token',
-  DATABASE_URL: TEST_DATABASE_URL ?? '',
-});
+const testConfig = [
+  bind(
+    vars({ API_TOKEN: 'test-token', DATABASE_URL: TEST_DATABASE_URL ?? '' }),
+  ),
+];
 ```
 
 The test sets only what belongs to the run: overrides, the feature selection
@@ -166,11 +167,15 @@ only consumer falls out — and this is visible as a value, not a guess.
 // src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
   await using testApp = await buildTest(app, {
-    config: vars({
-      API_TOKEN: 'test-token',
-      APP_PAGE_SIZE: '1',
-      DATABASE_URL: TEST_DATABASE_URL ?? '',
-    }),
+    config: [
+      bind(
+        vars({
+          API_TOKEN: 'test-token',
+          APP_PAGE_SIZE: '1',
+          DATABASE_URL: TEST_DATABASE_URL ?? '',
+        }),
+      ),
+    ],
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
 
@@ -178,10 +183,10 @@ it('читает размер страницы из конфига', async () =>
 });
 ```
 
-`vars(record)` gives a config source from an object and replaces the whole
-source binding of the declaration: `process.env` is neither read nor
-changed, so tests are isolated and can run in parallel, and the production
-source is not initialized in the test.
+`vars(record)` gives a config source from an object. The `bind(vars({…}))`
+binding in the `config` option is the test run's only source: the
+declaration has no bindings at all. `process.env` is neither read nor
+changed, so tests are isolated and can run in parallel.
 
 ## A unit test of the handler
 
