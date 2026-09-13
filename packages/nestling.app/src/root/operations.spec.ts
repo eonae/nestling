@@ -131,7 +131,7 @@ describe('карта операций в отчёте check()', () => {
       features: [Silent],
       transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build();
 
     await app.run();

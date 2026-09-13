@@ -9,8 +9,7 @@
  * начавшему принимать запросы, нечего маршрутизировать.
  */
 
-import { defaultLogger } from '../logger/console.js';
-import type { Logger } from '../logger/interface.js';
+import { defaultLogger } from '../logger/standalone.js';
 import type { Metrics } from '../metrics/interface.js';
 import type {
   AnyEndpointDefinition,
@@ -22,6 +21,8 @@ import type {
   ResponseContext,
 } from '../pipeline/index.js';
 import { makePipeline } from '../pipeline/index.js';
+
+import type { Logger } from '@nestlingjs/logging';
 
 /**
  * Проекция декларации для транспорта: всё нужное для роутинга и парсинга,

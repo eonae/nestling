@@ -382,7 +382,7 @@ describe('build — порты', () => {
       features: [DurableFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-      logger: degradedProbe.logger,
+      logging: { logger: degradedProbe.logger },
     }).build();
 
     await degraded.run();
@@ -403,7 +403,7 @@ describe('build — порты', () => {
       features: [BillingFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-      logger: plainProbe.logger,
+      logging: { logger: plainProbe.logger },
     }).build();
 
     await plain.run();

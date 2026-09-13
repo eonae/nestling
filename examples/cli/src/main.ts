@@ -1,5 +1,4 @@
 /* eslint-disable unicorn/no-process-exit -- это и есть CLI */
-/* eslint-disable no-console -- вход печатает подсказку и отказ */
 
 import {
   CreateUser,
@@ -9,7 +8,7 @@ import {
   ListUsers,
 } from './commands/index.js';
 
-import { makeDispatch } from '@nestlingjs/app';
+import { makeConsoleLogger, makeDispatch } from '@nestlingjs/app';
 import { CliTransport } from '@nestlingjs/transport.cli';
 
 /**
@@ -21,25 +20,29 @@ import { CliTransport } from '@nestlingjs/transport.cli';
  */
 const argv = process.argv.slice(2);
 
+/**
+ * Логгер входа: подсказка и фатальная ошибка — записи, а не результат
+ * команды, поэтому уходят в `stderr`. На `stdout` остаётся то, что
+ * напечатал транспорт.
+ */
+const logger = makeConsoleLogger();
+
 const cli = new CliTransport({
   mode: argv.length > 0 ? 'argv' : 'repl',
   argv,
 });
 
-const dispatch = makeDispatch([
-  Help,
-  CreateUser,
-  ListUsers,
-  ExportUsers,
-  ImportUsers,
-]);
+const dispatch = makeDispatch(
+  [Help, CreateUser, ListUsers, ExportUsers, ImportUsers],
+  { logger },
+);
 
 // Общий сигнал остановки: взвод отменяет выполняющиеся команды
 const shutdown = new AbortController();
 
 async function main(): Promise<void> {
   if (argv.length === 0) {
-    console.log('REPL mode: type a command or "exit"');
+    logger.info('REPL mode: type a command or "exit"');
   }
 
   await cli.serve(dispatch, shutdown.signal);
@@ -47,6 +50,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error('Fatal error:', error);
+  logger.error('fatal error', { err: error });
   process.exit(1);
 });

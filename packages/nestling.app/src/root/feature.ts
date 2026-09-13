@@ -12,6 +12,7 @@
  * DI-токенами.
  */
 
+import type { LogFieldSpec } from '../logger/index.js';
 import type { AnyEndpointDefinition } from '../pipeline/index.js';
 import { handlerClassOf } from '../pipeline/index.js';
 
@@ -75,6 +76,17 @@ export type PluginOptions = BundleOptionsBase &
      * создал бы второе значение под тем же именем.
      */
     readonly dependsOn?: readonly Plugin[];
+
+    /**
+     * Поля корреляции плагина: контекстные переменные, значения которых
+     * уходят в каждую запись лога.
+     *
+     * Плагин наблюдаемости ставит своё поле сам, приложению об этом писать
+     * не нужно. Переменная без обёртки даёт поле с именем переменной;
+     * `logField(Var, name, select?)` задаёт имя и проекцию. Имя, занятое
+     * другим объявившим, роняет сборку.
+     */
+    readonly logFields?: readonly LogFieldSpec[];
   };
 
 /**
@@ -125,6 +137,9 @@ export interface Plugin {
 
   /** Плагины, без которых этот не работает */
   readonly dependsOn: readonly Plugin[];
+
+  /** Поля корреляции плагина в порядке объявления */
+  readonly logFields: readonly LogFieldSpec[];
 }
 
 /** Фича или плагин — там, где роль не важна */
@@ -149,6 +164,9 @@ export interface ResolvedBundle {
 
   /** Endpoint'ы единицы после раскрытия веток */
   readonly endpoints: readonly AnyEndpointDefinition[];
+
+  /** Поля корреляции; объявляет их только плагин */
+  readonly logFields: readonly LogFieldSpec[];
 }
 
 /**
@@ -173,6 +191,7 @@ export function resolveBundle(
     name: bundle.name,
     modules: resolveBranches(bundle.modules, values, missing),
     endpoints: resolveBranches(bundle.endpoints, values, missing),
+    logFields: bundle.role === 'plugin' ? bundle.logFields : [],
   };
 }
 
@@ -273,6 +292,14 @@ export function makeFeature(options: FeatureOptions): Feature {
 export function makePlugin(options: PluginOptions): Plugin {
   const { name, modules, endpoints } = normalize('makePlugin', options);
   const dependsOn = options.dependsOn ?? [];
+  const logFields = options.logFields ?? [];
+
+  if (!Array.isArray(logFields)) {
+    throw new TypeError(
+      `makePlugin({ name: '${name}' }): 'logFields' must be an array of ` +
+        `context variables or logField(…) declarations.`,
+    );
+  }
 
   if (!Array.isArray(dependsOn)) {
     throw new TypeError(
@@ -297,6 +324,7 @@ export function makePlugin(options: PluginOptions): Plugin {
     modules: Object.freeze(modules),
     endpoints: Object.freeze(endpoints),
     dependsOn: Object.freeze([...dependsOn]),
+    logFields: Object.freeze([...logFields]),
   });
 }
 

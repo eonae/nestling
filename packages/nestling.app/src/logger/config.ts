@@ -1,5 +1,5 @@
 /**
- * Секция конфигурации логгера ядра: уровень и формат.
+ * Секция конфигурации логгера ядра: порог записи и формат.
  *
  * Секция не reloadable: reloadable-секция без наблюдающего источника
  * предупреждает, а на голом `process.env` это каждое приложение.
@@ -10,20 +10,22 @@
 
 import { makeConfig } from '../config/index.js';
 
-import type { LogLevel } from './interface.js';
-
+import type { LogFormat, LogThreshold } from '@nestlingjs/logging';
 import { z } from 'zod';
 
-/** Формат записи в `stderr` */
-export type LogFormat = 'text' | 'json';
-
-/** Допустимые уровни; `satisfies` сторожит совпадение с типом `LogLevel` */
+/**
+ * Допустимые пороги; `satisfies` сторожит совпадение с `LogThreshold`.
+ *
+ * `silent` стоит в перечне пятым значением: это порог, который отсекает
+ * все четыре уровня, а не уровень, которым пишут.
+ */
 const LEVELS = [
   'debug',
   'info',
   'warn',
   'error',
-] as const satisfies readonly LogLevel[];
+  'silent',
+] as const satisfies readonly LogThreshold[];
 
 /** Допустимые форматы; тот же перечень, что у типа `LogFormat` */
 const FORMATS = ['text', 'json'] as const satisfies readonly LogFormat[];
@@ -52,6 +54,6 @@ export const logConfigKeys = NestlingLogConfig.keys;
 
 /** Проекция секции логгера */
 export interface LogConfig {
-  readonly level: LogLevel;
+  readonly level: LogThreshold;
   readonly format: LogFormat;
 }

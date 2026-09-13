@@ -1,15 +1,14 @@
 /**
- * `ConsoleLogger`: формы вызова, фильтр уровня, форматы, `requestId`.
+ * Штатный логгер: формы вызова, порог, форматы.
  *
  * Записи читаются перехватом `process.stderr.write`: это единственное
- * место ядра, которое пишет в поток процесса, и тест проверяет именно
- * его.
+ * место пакета, которое пишет в поток процесса, и тест проверяет именно
+ * его. Полей корреляции здесь нет — их ставит декоратор корня в
+ * `@nestlingjs/app`, и проверяются они там.
  */
 
-import { makeCell, runInScope } from '../pipeline/core/context/store.js';
-
-import { ConsoleLogger, defaultLogger } from './console.js';
-import type { LogLevel } from './interface.js';
+import { makeConsoleLogger } from './console.js';
+import type { Logger, LogLevel } from './interface.js';
 
 import { jest } from '@jest/globals';
 import { makeFail } from '@nestlingjs/operations';
@@ -47,13 +46,13 @@ function single(body: () => void): Record<string, unknown> {
   return JSON.parse(lines[0]) as Record<string, unknown>;
 }
 
-const json = (level: LogLevel = 'debug'): ConsoleLogger =>
-  new ConsoleLogger({ level, format: 'json' });
+const json = (level: LogLevel = 'debug'): Logger =>
+  makeConsoleLogger({ level, format: 'json' });
 
-const text = (level: LogLevel = 'debug'): ConsoleLogger =>
-  new ConsoleLogger({ level, format: 'text' });
+const text = (level: LogLevel = 'debug'): Logger =>
+  makeConsoleLogger({ level, format: 'text' });
 
-describe('ConsoleLogger: формы вызова', () => {
+describe('makeConsoleLogger: формы вызова', () => {
   it.each(LEVELS)('%s(message, fields)', (level) => {
     const record = single(() =>
       json()[level]('database connected', { host: 'db' }),
@@ -106,7 +105,7 @@ describe('ConsoleLogger: формы вызова', () => {
   });
 });
 
-describe('ConsoleLogger: привязки и уровень', () => {
+describe('makeConsoleLogger: привязки и порог', () => {
   it('child добавляет привязки; поля вызова кладутся поверх', () => {
     const child = json().child({ scope: 'users', region: 'eu' });
     const record = single(() => child.info('ok', { scope: 'override', n: 1 }));
@@ -133,9 +132,29 @@ describe('ConsoleLogger: привязки и уровень', () => {
     expect(capture(() => logger.warn('y'))).toHaveLength(1);
     expect(capture(() => logger.error('z'))).toHaveLength(1);
   });
+
+  it('порог silent отсекает все четыре уровня', () => {
+    const logger = makeConsoleLogger({ level: 'silent', format: 'json' });
+
+    expect(
+      capture(() => {
+        for (const level of LEVELS) {
+          logger[level]('x');
+        }
+      }),
+    ).toEqual([]);
+  });
+
+  it('дочерний логгер молчащего логгера тоже молчит', () => {
+    const child = makeConsoleLogger({ level: 'silent' }).child({
+      scope: 'users',
+    });
+
+    expect(capture(() => child.error('x'))).toEqual([]);
+  });
 });
 
-describe('ConsoleLogger: формат json', () => {
+describe('makeConsoleLogger: формат json', () => {
   it('строка разбирается и несёт time, level, scope, msg, поля и err', () => {
     const logger = json().child({ scope: 'users' });
     const record = single(() =>
@@ -195,7 +214,7 @@ describe('ConsoleLogger: формат json', () => {
   });
 });
 
-describe('ConsoleLogger: формат text', () => {
+describe('makeConsoleLogger: формат text', () => {
   const TIME = String.raw`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z`;
 
   it('строка: время, уровень, scope, сообщение, key=value', () => {
@@ -236,118 +255,13 @@ describe('ConsoleLogger: формат text', () => {
     expect(line).toContain('\n    caused by: Error: inner');
   });
 
-  it('умолчание для standalone-путей: уровень info, формат text', () => {
-    expect(capture(() => defaultLogger.debug('hidden'))).toEqual([]);
+  it('умолчания фабрики: порог info, формат text', () => {
+    const logger = makeConsoleLogger();
 
-    const [line] = capture(() => defaultLogger.info('shown'));
+    expect(capture(() => logger.debug('hidden'))).toEqual([]);
+
+    const [line] = capture(() => logger.info('shown'));
 
     expect(line).toMatch(new RegExp(`^${TIME} INFO  shown\n$`));
-  });
-});
-
-describe('ConsoleLogger: идентификатор запроса', () => {
-  // Логгер читает `requestId` из ambient-контекста напрямую: корень
-  // существует раньше графа, поэтому узла-ридера у него нет
-  it('внутри области запроса запись несёт requestId', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-    const cell = makeCell(new AbortController().signal, {
-      requestId: 'req-42',
-    });
-
-    const record = single(() => runInScope(cell, () => logger.info('select')));
-
-    expect(record).toMatchObject({ requestId: 'req-42', msg: 'select' });
-  });
-
-  it('поле вызова важнее значения из контекста', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-    const cell = makeCell(new AbortController().signal, {
-      requestId: 'req-42',
-    });
-
-    const record = single(() =>
-      runInScope(cell, () => logger.info('select', { requestId: 'mine' })),
-    );
-
-    expect(record.requestId).toBe('mine');
-  });
-
-  it('вне запроса поля нет', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-
-    expect(single(() => logger.info('started'))).not.toHaveProperty(
-      'requestId',
-    );
-  });
-
-  it('дочерний логгер читает тот же контекст', () => {
-    const child = new ConsoleLogger({ level: 'info', format: 'json' }).child({
-      scope: 'users',
-    });
-    const cell = makeCell(new AbortController().signal, { requestId: 'req-1' });
-
-    const record = single(() => runInScope(cell, () => child.info('x')));
-
-    expect(record).toMatchObject({ scope: 'users', requestId: 'req-1' });
-  });
-});
-
-describe('ConsoleLogger: идентификатор трассы', () => {
-  const TRACE = {
-    traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
-    spanId: '00f067aa0ba902b7',
-    sampled: true,
-  };
-
-  /** Ячейка запроса, прошедшего через `withTracing()` */
-  const traced = (): ReturnType<typeof makeCell> =>
-    makeCell(new AbortController().signal, { trace: TRACE });
-
-  it('внутри трассируемого запроса запись несёт traceId', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-
-    const record = single(() =>
-      runInScope(traced(), () => logger.info('select')),
-    );
-
-    expect(record).toMatchObject({ traceId: TRACE.traceId, msg: 'select' });
-  });
-
-  it('поле вызова важнее значения из контекста', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-
-    const record = single(() =>
-      runInScope(traced(), () => logger.info('select', { traceId: 'mine' })),
-    );
-
-    expect(record.traceId).toBe('mine');
-  });
-
-  it('вне запроса поля нет', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-
-    expect(single(() => logger.info('started'))).not.toHaveProperty('traceId');
-  });
-
-  it('в запросе без withTracing() поля нет', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
-    const cell = makeCell(new AbortController().signal, { requestId: 'req-1' });
-
-    const record = single(() => runInScope(cell, () => logger.info('x')));
-
-    expect(record).toMatchObject({ requestId: 'req-1' });
-    expect(record).not.toHaveProperty('traceId');
-  });
-
-  it('оба идентификатора стоят рядом', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'text' });
-    const cell = makeCell(new AbortController().signal, {
-      requestId: 'req-1',
-      trace: TRACE,
-    });
-
-    const [line] = capture(() => runInScope(cell, () => logger.info('x')));
-
-    expect(line).toContain(`requestId=req-1 traceId=${TRACE.traceId}`);
   });
 });

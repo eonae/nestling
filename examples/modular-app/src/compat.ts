@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- скрипт печатает отчёт совместимости */
 /* eslint-disable unicorn/no-process-exit -- это и есть CLI */
 /**
  * Сверка совместимости операций: то, что делал бы CI на pull request'е.
@@ -19,6 +18,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { app } from './app.js';
 import { CHECK_OPTIONS, TOPOLOGIES } from './topologies.js';
 
+import { makeConsoleLogger } from '@nestlingjs/app';
 import type { OperationSnapshot } from '@nestlingjs/testing';
 import {
   checkTopologies,
@@ -30,13 +30,16 @@ import {
 
 const BASELINE = new URL('../operations.snapshot.json', import.meta.url);
 
+/** Логгер скрипта: та же фабрика, что даёт умолчание корня */
+const logger = makeConsoleLogger();
+
 const current = snapshotOperations(
   await checkTopologies(app, [...TOPOLOGIES], CHECK_OPTIONS),
 );
 
 if (process.env.UPDATE_SNAPSHOT) {
   writeFileSync(BASELINE, serializeSnapshot(current));
-  console.log('снимок перезаписан');
+  logger.info('snapshot rewritten', { file: BASELINE.pathname });
   process.exit(0);
 }
 
@@ -46,7 +49,7 @@ const baseline = JSON.parse(
 
 const report = diffOperations(baseline, current);
 
-console.log(formatCompatibility(report));
+logger.info(formatCompatibility(report));
 
 if (report.breaking.length > 0) {
   process.exitCode = 1;

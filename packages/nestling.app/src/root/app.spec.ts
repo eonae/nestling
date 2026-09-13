@@ -689,7 +689,7 @@ describe('build — порядок фаз и shutdown', () => {
     const app = makeApp({
       features: [Orders],
       transports: [asTransport(new MockTransport())],
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build();
 
     await app.run();
@@ -716,7 +716,7 @@ describe('build — порядок фаз и shutdown', () => {
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(new MockTransport())],
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build({ features: ['orders'], includeDeps: true });
 
     await app.run();
@@ -742,7 +742,7 @@ describe('build — порядок фаз и shutdown', () => {
         valueProvider(makeToken<string>('Twin'), 'right'),
       ],
       transports: [asTransport(new MockTransport())],
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build();
 
     await app.run();
@@ -761,7 +761,7 @@ describe('build — порядок фаз и shutdown', () => {
 
     const app = makeApp({
       transports: [asTransport(new MockTransport())],
-      logger: probe.logger,
+      logging: { logger: probe.logger },
     }).build();
 
     await app.run();

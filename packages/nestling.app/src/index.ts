@@ -58,14 +58,16 @@ export type {
   HealthStatus,
 } from './health/index.js';
 
-// ./logger/index.js — 7
+// ./logger/index.js — 8
 export {
+  logConfigKeys,
+  logField,
   Logger$,
   loggerKernel,
   makeKernelLogger,
   RootLogger$,
 } from './logger/index.js';
-export type { Fields, Logger, LogLevel } from './logger/index.js';
+export type { LogField, LogFieldSpec } from './logger/index.js';
 
 // ./metrics/index.js — 3
 export { Metrics$, RootMetrics$ } from './metrics/index.js';
@@ -236,6 +238,16 @@ export {
   validateSync,
 } from '@nestlingjs/common.misc';
 export type { DomainType, SchemaIssue } from '@nestlingjs/common.misc';
+
+// @nestlingjs/logging — 6
+export { makeConsoleLogger } from '@nestlingjs/logging';
+export type {
+  ConsoleLoggerOptions,
+  Fields,
+  Logger,
+  LogLevel,
+  LogMethod,
+} from '@nestlingjs/logging';
 
 // @nestlingjs/operations — 45
 export {

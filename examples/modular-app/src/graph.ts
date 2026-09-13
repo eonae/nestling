@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- скрипт печатает путь выгруженного графа */
 /**
  * Выгрузка графа зависимостей для `@nestlingjs/viz`.
  *
@@ -26,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 import { declareApp } from './app.js';
 
+import { makeConsoleLogger } from '@nestlingjs/app';
 import { wireApp } from '@nestlingjs/app/testing';
 import { NatsDouble, natsDouble } from '@nestlingjs/transport.nats/testing';
 
@@ -58,4 +58,4 @@ writeFileSync(
 
 await wired.close();
 
-console.log(`${file}: граф сборки '${args}'`);
+makeConsoleLogger().info('graph written', { file, args });

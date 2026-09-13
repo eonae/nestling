@@ -9,10 +9,11 @@
  * ошибкой с понятным сообщением, а не молчаливым ожиданием.
  */
 
-import type { Logger } from '../logger/interface.js';
 import type { Dispatch } from '../transport/index.js';
 
 import type { IMessageBus } from './bus.js';
+
+import type { Logger } from '@nestlingjs/logging';
 
 /** Отказ вызывателя, который не попал на call-site */
 export interface PortFailureInfo {

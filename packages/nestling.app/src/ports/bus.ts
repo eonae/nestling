@@ -13,8 +13,7 @@
  * приложения.
  */
 
-import { defaultLogger } from '../logger/console.js';
-import type { Logger } from '../logger/interface.js';
+import { defaultLogger } from '../logger/standalone.js';
 import type {
   EndpointMeta,
   FormKind,
@@ -45,6 +44,7 @@ import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
 import { structuralCopy } from './wire.js';
 
 import { makeToken } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 import { Topic } from '@nestlingjs/operations';
 
 /** Метаданные доставленного сообщения, доступные обработчику */

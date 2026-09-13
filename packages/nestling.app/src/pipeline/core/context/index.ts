@@ -10,13 +10,7 @@
 
 export { contextKernel } from './kernel.js';
 export type { CtxReader } from './reader.js';
-export {
-  ambientRequestId,
-  ambientTrace,
-  ambientTraceId,
-  Ctx,
-  ContextVarUnavailableError,
-} from './reader.js';
+export { ambientValue, Ctx, ContextVarUnavailableError } from './reader.js';
 export { runInRequestScope } from './store.js';
 export type {
   AnyContextVar,

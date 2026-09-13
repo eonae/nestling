@@ -1,6 +1,6 @@
 import type { EmptyInput, TraceContext } from '../core/index.js';
 import {
-  ambientTrace,
+  ambientValue,
   formatTraceparent,
   newSpanId,
   newTraceId,
@@ -80,7 +80,9 @@ export function withTracing(): PreStepFn<EmptyInput, { trace: TraceContext }> {
  * ```
  */
 export function traceparent(): string | undefined {
-  const trace = ambientTrace();
+  const trace = ambientValue(Trace.key) as TraceContext | undefined;
 
-  return trace === undefined ? undefined : formatTraceparent(trace);
+  return typeof trace?.traceId === 'string'
+    ? formatTraceparent(trace)
+    : undefined;
 }

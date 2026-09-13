@@ -1,71 +1,71 @@
 ## 1. Пакет `@nestlingjs/logging`
 
-- [ ] 1.1 Завести `packages/nestling.logging` общим набором конфигов:
+- [x] 1.1 Завести `packages/nestling.logging` общим набором конфигов:
   `package.json` (без зависимостей, `exports`, `files`, `publishConfig`),
   `tsconfig.json`, `tsconfig.build.json`, `eslint.config.js`,
   `jest.config.js`, `LICENSE`
-- [ ] 1.2 Перенести `packages/nestling.app/src/logger/interface.ts` в
+- [x] 1.2 Перенести `packages/nestling.app/src/logger/interface.ts` в
   `packages/nestling.logging/src/interface.ts` без правок типов
-- [ ] 1.3 Перенести `console.ts` и `console.spec.ts`; класс `ConsoleLogger`
+- [x] 1.3 Перенести `console.ts` и `console.spec.ts`; класс `ConsoleLogger`
   остаётся приватным, наружу идёт `makeConsoleLogger({ level?, format? })`
   с умолчаниями `info` и `text`
-- [ ] 1.4 Добавить уровень `silent`: порог отсекает все четыре уровня, тип
+- [x] 1.4 Добавить уровень `silent`: порог отсекает все четыре уровня, тип
   `LogLevel` остаётся четырьмя значениями
-- [ ] 1.5 Барель `src/index.ts` поимённым `export`; проверить
+- [x] 1.5 Барель `src/index.ts` поимённым `export`; проверить
   `scripts/boundary/public-api-validator.mjs` и `yarn pack:check`
-- [ ] 1.6 `@nestlingjs/app`: зависимость на пакет, поимённый реэкспорт
+- [x] 1.6 `@nestlingjs/app`: зависимость на пакет, поимённый реэкспорт
   `Logger`, `Fields`, `LogLevel`, `LogMethod` и `makeConsoleLogger`
-- [ ] 1.7 `defaultLogger` standalone-путей (`makeDispatch`, `InProcessBus`)
+- [x] 1.7 `defaultLogger` standalone-путей (`makeDispatch`, `InProcessBus`)
   переводится на `makeConsoleLogger()`
-- [ ] 1.8 Секция `nestlingLog`: значение `silent` в перечне уровней,
+- [x] 1.8 Секция `nestlingLog`: значение `silent` в перечне уровней,
   `LogConfig.level` принимает порог
 
 ## 2. Поля корреляции
 
-- [ ] 2.1 `pipeline/core/context/reader.ts`: внутренняя `ambientValue(key)`
+- [x] 2.1 `pipeline/core/context/reader.ts`: внутренняя `ambientValue(key)`
   вместо `ambientRequestId` и `ambientTrace`; `ambientTraceId` удаляется
-- [ ] 2.2 `logField(variable, name, select?)` и тип объявления поля;
+- [x] 2.2 `logField(variable, name, select?)` и тип объявления поля;
   экспорт из `@nestlingjs/app`
-- [ ] 2.3 Декоратор `withLogFields(logger, plan)`: подмешивает поля на
+- [x] 2.3 Декоратор `withLogFields(logger, plan)`: подмешивает поля на
   каждой записи, `child` возвращает декорированного потомка, поле вызова
   сильнее поля корреляции
-- [ ] 2.4 Рантайм-тесты декоратора: поле внутри запроса, отсутствие полей
+- [x] 2.4 Рантайм-тесты декоратора: поле внутри запроса, отсутствие полей
   вне запроса, приоритет поля вызова, проекция, дочерний логгер
 
 ## 3. Опция корня и поля плагина
 
-- [ ] 3.1 `AppSpecCommon`: поле `logging: { logger?, fields? }`; `logger`
+- [x] 3.1 `AppSpecCommon`: поле `logging: { logger?, fields? }`; `logger`
   удаляется из типа, `APP_SPEC_FIELDS` и `NormalizedAppSpec`
-- [ ] 3.2 `App.#bootstrap`: корень создаётся из `logging.logger` или
+- [x] 3.2 `App.#bootstrap`: корень создаётся из `logging.logger` или
   `makeConsoleLogger` и оборачивается декоратором; умолчание списка полей —
   `[RequestId, logField(Trace, 'traceId', (t) => t.traceId)]`
-- [ ] 3.3 `PluginOptions` и `Plugin`: поле `logFields`; `makePlugin`
+- [x] 3.3 `PluginOptions` и `Plugin`: поле `logFields`; `makePlugin`
   проверяет форму списка
-- [ ] 3.4 Сбор полей на ASSEMBLE после раскрытия веток переключателей:
+- [x] 3.4 Сбор полей на ASSEMBLE после раскрытия веток переключателей:
   корень плюс подключённые плагины
-- [ ] 3.5 Дубль имени поля — отказ сборки с именем поля и обоими
+- [x] 3.5 Дубль имени поля — отказ сборки с именем поля и обоими
   объявившими; тест на пару «корень и плагин» и на пару плагинов
-- [ ] 3.6 Сообщение ошибки дубля провайдера под `RootLogger$` называет
+- [x] 3.6 Сообщение ошибки дубля провайдера под `RootLogger$` называет
   опцию `logging`
-- [ ] 3.7 Рантайм-тесты корня: внешний логгер получает `requestId`, поле
+- [x] 3.7 Рантайм-тесты корня: внешний логгер получает `requestId`, поле
   плагина попадает в записи, `fields: []` отключает корреляцию
 
 ## 4. Тестовый прогон
 
-- [ ] 4.1 `assembleTest` добавляет источник с `NESTLING_LOG_LEVEL=silent`
+- [x] 4.1 `assembleTest` добавляет источник с `NESTLING_LOG_LEVEL=silent`
   низшим приоритетом
-- [ ] 4.2 Тесты: прогон молчит, уровень из `config:` возвращает записи,
+- [x] 4.2 Тесты: прогон молчит, уровень из `config:` возвращает записи,
   подмена `[RootLogger$, spy.logger]` видит записи запроса
 
 ## 5. Примеры
 
-- [ ] 5.1 `examples/microservice`: `client.ts` и `openapi.ts` переходят на
+- [x] 5.1 `examples/microservice`: `client.ts` и `openapi.ts` переходят на
   `makeConsoleLogger()`, код приложения — на `Logger$`
-- [ ] 5.2 `examples/modular-app`: `publish.ts`, `graph.ts`, `compat.ts` и
+- [x] 5.2 `examples/modular-app`: `publish.ts`, `graph.ts`, `compat.ts` и
   `operations.compat.spec.ts` — тем же способом
-- [ ] 5.3 `examples/cli`: `main.ts` и `help.command.ts` оставляют на
+- [x] 5.3 `examples/cli`: `main.ts` и `help.command.ts` оставляют на
   `stdout` только результат команды, остальное пишут логгером
-- [ ] 5.4 Ни одного `eslint-disable no-console` в `examples/`
+- [x] 5.4 Ни одного `eslint-disable no-console` в `examples/`
 
 ## 6. Замер горячего пути
 

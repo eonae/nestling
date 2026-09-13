@@ -10,7 +10,6 @@
  * состав вкладов известен только когда зарегистрированы все модули.
  */
 
-import type { Logger } from '../logger/interface.js';
 import { Logger$ } from '../logger/tokens.js';
 import type { AppPhase } from '../root/phase.js';
 
@@ -28,6 +27,7 @@ import type {
   ModuleProvider,
 } from '@nestlingjs/container';
 import { factoryProvider } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 
 /** Опции kernel-модуля проб */
 export interface HealthKernelOptions {

@@ -5,8 +5,6 @@
  * DI-токен, поэтому инжектить её пользовательскому коду нечем.
  */
 
-import type { Logger } from '../logger/interface.js';
-
 import type { SectionDeclaration } from './declaration.js';
 import type { SharedKeyReader } from './errors.js';
 import { ConfigSharedKeyError, ConfigSourceError } from './errors.js';
@@ -14,6 +12,8 @@ import type { ConfigTarget } from './keys.js';
 import { describeTarget, targetCovers } from './keys.js';
 import { declaredKeys } from './registry.js';
 import type { ConfigBinding, ConfigSource } from './source.js';
+
+import type { Logger } from '@nestlingjs/logging';
 
 /**
  * Что читалка должна перепроецировать по сигналу источника.

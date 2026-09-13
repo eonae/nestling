@@ -7,6 +7,7 @@
  * бы с ним уже на первом change'е.
  */
 
+import { vars } from './config.js';
 import type { TestOverride, ValidatedOverrides } from './overrides.js';
 import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
@@ -19,6 +20,7 @@ import type {
   AnyPayload,
   App,
   BuildArgs,
+  ConfigBinding,
   ConfigInput,
   DispatchOptions,
   EndpointDefinition,
@@ -32,6 +34,7 @@ import type {
 import {
   busBindingOf,
   isApp,
+  logConfigKeys,
   makeEmptyContext,
   profileAttributes,
   toBindings,
@@ -509,6 +512,19 @@ function assertEmitting(
  * });
  * ```
  */
+/**
+ * Привязка, от которой тестовый прогон молчит.
+ *
+ * Стоит низшим приоритетом и покрывает только ключи секции `nestlingLog`:
+ * свой `NESTLING_LOG_LEVEL` теста читается раньше, а всё остальное
+ * привязка не видит. Вывод теста — отчёт раннера, а не записи сборки
+ * каждого из сотен прогонов.
+ */
+const SILENT_LOG: ConfigBinding = [
+  vars({ NESTLING_LOG_LEVEL: 'silent' }),
+  logConfigKeys,
+];
+
 export async function buildTest<
   const L extends readonly TestOverride[],
   const S extends readonly AnySwitch[] = readonly AnySwitch[],
@@ -536,11 +552,14 @@ export async function buildTest<
     providers: (options.stubs ?? []).map(([token, value]) =>
       valueProvider(token, value),
     ),
-    // Конфиг теста заменяет привязку декларации; без него декларация
-    // читает свои источники
-    ...(options.config === undefined
-      ? {}
-      : { config: toBindings(options.config) }),
+    config: [
+      // Конфиг теста заменяет привязку декларации; без него декларация
+      // читает свои источники
+      ...(options.config === undefined
+        ? app.spec.config
+        : toBindings(options.config)),
+      SILENT_LOG,
+    ],
     overrides: tokens,
     familyOverrides: families,
   });

@@ -5,7 +5,6 @@
  * `Health$`, типы отчёта и ключи секции.
  */
 
-import type { Fields, Logger } from '../logger/interface.js';
 import type { AppPhase } from '../root/phase.js';
 
 import type { HealthConfig } from './config.js';
@@ -17,6 +16,8 @@ import type {
   HealthStatus,
   LivenessReport,
 } from './interface.js';
+
+import type { Fields, Logger } from '@nestlingjs/logging';
 
 /** Вклад вместе с именем, под которым он зарегистрирован */
 export interface NamedHealthCheck {

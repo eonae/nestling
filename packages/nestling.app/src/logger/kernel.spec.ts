@@ -12,8 +12,6 @@ import {
 import { contextKernel } from '../pipeline/core/context/index.js';
 
 import { spyLogger } from './__fixtures__/spy.js';
-import { ConsoleLogger } from './console.js';
-import type { Logger } from './interface.js';
 import { loggerKernel, makeKernelLogger } from './kernel.js';
 import { Logger$, RootLogger$ } from './tokens.js';
 
@@ -26,6 +24,7 @@ import {
   makeToken,
   valueProvider,
 } from '@nestlingjs/container';
+import type { Logger } from '@nestlingjs/logging';
 
 const Service$ = makeToken<Logger>('Service');
 
@@ -49,6 +48,26 @@ const kernelBuilder = async (
   );
 };
 
+/** Перехватывает строки, ушедшие в `stderr`, на время вызова */
+function capture(body: () => void): string[] {
+  const lines: string[] = [];
+  const spy = jest
+    .spyOn(process.stderr, 'write')
+    .mockImplementation((chunk: unknown) => {
+      lines.push(String(chunk));
+
+      return true;
+    });
+
+  try {
+    body();
+  } finally {
+    spy.mockRestore();
+  }
+
+  return lines;
+}
+
 /** Выставляет переменные окружения на время теста */
 function withEnv(values: Record<string, string>): () => void {
   const previous = new Map(
@@ -69,10 +88,14 @@ function withEnv(values: Record<string, string>): () => void {
 }
 
 describe('корневой логгер вне графа', () => {
-  it('умолчание ядра — ConsoleLogger от снимка секции', async () => {
+  it('умолчание ядра — штатный логгер от снимка секции', async () => {
     const reader: ConfigReader = await bootstrapConfig();
+    const logger = makeKernelLogger(reader);
 
-    expect(makeKernelLogger(reader)).toBeInstanceOf(ConsoleLogger);
+    // Класс реализации приватен, поэтому умолчание опознаётся тем, что
+    // видно снаружи: порог `info` и строка в `stderr`
+    expect(capture(() => logger.debug('hidden'))).toEqual([]);
+    expect(capture(() => logger.info('shown'))).toHaveLength(1);
   });
 
   it('корень зарегистрирован провайдером значения и атрибутирован сборке', async () => {
@@ -81,8 +104,12 @@ describe('корневой логгер вне графа', () => {
 
     await container.init();
 
-    expect(container.get(RootLogger$)).toBeInstanceOf(ConsoleLogger);
-    expect(container.get(Logger$('nestling'))).toBeInstanceOf(ConsoleLogger);
+    const scoped = container.getOrThrow(Logger$('nestling'));
+
+    expect(
+      capture(() => container.getOrThrow(RootLogger$).info('root')),
+    ).toHaveLength(1);
+    expect(capture(() => scoped.info('scoped'))[0]).toContain('nestling');
 
     const { nodes } = await container.toJSON();
 
@@ -182,21 +209,10 @@ describe('секция nestlingLog', () => {
 
       const logger = container.getOrThrow(Logger$('nestling'));
 
-      const lines: string[] = [];
-      const write = jest
-        .spyOn(process.stderr, 'write')
-        .mockImplementation((chunk: unknown) => {
-          lines.push(String(chunk));
-
-          return true;
-        });
-
-      try {
+      const lines = capture(() => {
         logger.info('hidden');
         logger.warn('shown', { n: 1 });
-      } finally {
-        write.mockRestore();
-      }
+      });
 
       expect(lines).toHaveLength(1);
       expect(JSON.parse(lines[0])).toMatchObject({
@@ -220,7 +236,7 @@ describe('секция nestlingLog', () => {
       // Перечень приходит от валидатора: секция написана на нём, и второго
       // текста про те же значения ядро не держит
       expect(() => makeKernelLogger(reader)).toThrow(
-        /"debug"\|"info"\|"warn"\|"error"/s,
+        /"debug"\|"info"\|"warn"\|"error"\|"silent"/s,
       );
     } finally {
       restore();
@@ -231,12 +247,13 @@ describe('секция nestlingLog', () => {
     const restore = withEnv({ NESTLING_LOG_LEVEL: 'loud' });
 
     try {
-      const builder = await kernelBuilder({}, spyLogger().logger);
+      const spy = spyLogger();
+      const builder = await kernelBuilder({}, spy.logger);
       const container = builder.build();
 
       await container.init();
 
-      expect(container.get(RootLogger$)).not.toBeInstanceOf(ConsoleLogger);
+      expect(container.get(RootLogger$)).toBe(spy.logger);
     } finally {
       restore();
     }
