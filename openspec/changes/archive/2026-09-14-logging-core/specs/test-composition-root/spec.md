@@ -2,7 +2,7 @@
 
 ### Requirement: Тестовый прогон молчит по умолчанию
 
-`assembleTest` SHALL поднимать приложение с уровнем логгера `silent`:
+`buildTest` SHALL поднимать приложение с уровнем логгера `silent`:
 источник с `NESTLING_LOG_LEVEL=silent` SHALL добавляться низшим
 приоритетом. Вывод теста — отчёт раннера, а не записи сборки каждого из
 сотен прогонов.
@@ -15,16 +15,16 @@
 
 #### Scenario: Прогон без записей
 
-- **WHEN** тест поднимает `assembleTest(app)` и исполняет вызов
+- **WHEN** тест поднимает `buildTest(app)` и исполняет вызов
 - **THEN** в `stderr` не уходит ни одной записи
 
 #### Scenario: Уровень задан тестом
 
-- **WHEN** тест поднимает `assembleTest(app, { config: vars({ NESTLING_LOG_LEVEL: 'info' }) })`
+- **WHEN** тест поднимает `buildTest(app, { config: vars({ NESTLING_LOG_LEVEL: 'info' }) })`
 - **THEN** записи уровня `info` уходят в `stderr`
 
 #### Scenario: Шпион видит записи молчащего прогона
 
-- **WHEN** тест поднимает `assembleTest(app, { overrides: [[RootLogger$, spy.logger]] })`
+- **WHEN** тест поднимает `buildTest(app, { overrides: [[RootLogger$, spy.logger]] })`
   без своего уровня и исполняет вызов
 - **THEN** `spy.entries` содержит записи обработки запроса

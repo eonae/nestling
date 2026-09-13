@@ -23,17 +23,17 @@ SHALL оборачиваться декоратором полей коррел�
 
 Kernel-модуль логгера SHALL регистрировать рецепт семейства
 `root.child({ scope })` от `RootLogger$` и члены `Logger$('nestling')` и
-`Logger$('nestling:config')` явными провайдерами. Члены семейства SHALL
+`Logger$('nestling:config')` явными провайдерами. Токены семейства SHALL
 оставаться узлами графа. `Logger$.auto` SHALL давать член по имени
 класса-потребителя.
 
 Провайдер приложения под `RootLogger$` SHALL быть ошибкой дубля: корневой
 логгер задаётся опцией `logging` корня, и второго способа его объявить
 SHALL NOT существовать. Подмена `[RootLogger$, …]` в `overrides` тестового
-корня SHALL продолжать работать: она заменяет корень членов семейства с
+корня SHALL продолжать работать: она заменяет корень токенов семейства с
 фазы INIT.
 
-#### Scenario: Член семейства — дочерний логгер корня
+#### Scenario: Токен семейства — дочерний логгер корня
 
 - **WHEN** класс объявляет `@Component([Logger$('users')])`, и приложение
   собрано
@@ -140,7 +140,7 @@ NATS — уровнем `error` с оригиналом в `err`. Предупр
 
 #### Scenario: Записи сервиса через подмену корня
 
-- **WHEN** `assembleTest(app, { overrides: [[RootLogger$, spy.logger]] })`,
+- **WHEN** `buildTest(app, { overrides: [[RootLogger$, spy.logger]] })`,
   и сервис с `Logger$.auto` пишет `info('byId', { id: '1' })`
 - **THEN** `spy.entries` содержит запись с `level: 'info'`,
   `message: 'byId'` и полями `id` и `scope`
@@ -203,53 +203,15 @@ SHALL быть зарезервирован за ошибкой. `child(bindings
 
 ### Requirement: Штатный логгер — умолчание корня с секцией `nestlingLog`
 
-Kernel-модуль логгера SHALL регистрировать рецепт семейства
-`root.child({ scope })` от `RootLogger$` и члены `Logger$('nestling')` и
-`Logger$('nestling:config')` явными провайдерами. Токены семейства SHALL
-оставаться узлами графа. `Logger$.auto` SHALL давать член по имени
-класса-потребителя.
+Штатный логгер SHALL быть умолчанием корня: сборка создаёт его через
+`makeConsoleLogger`, если `logging.logger` не передан. Создание SHALL
+происходить на фазе 0 от снимка kernel-секции `nestlingLog`, без
+контейнера: корень нужен раньше, чем существует хоть один узел.
 
-Провайдер приложения под `RootLogger$` SHALL быть ошибкой дубля: корневой
-логгер задаётся опцией корня, и второго способа его объявить SHALL NOT
-существовать. Подмена `[RootLogger$, …]` в `overrides` тестового корня
-SHALL продолжать работать: она заменяет корень токенов семейства с фазы
-INIT.
-
-#### Scenario: Токен семейства — дочерний логгер корня
-
-- **WHEN** класс объявляет `@Component([Logger$('users')])`, и приложение
-  собрано
-- **THEN** он получает логгер, каждая запись которого несёт привязку
-  `scope: 'users'`
-
-#### Scenario: `.auto` даёт член по имени класса
-
-- **WHEN** класс `UsersRepository` объявляет `@Component([Logger$.auto])`
-- **THEN** он получает член `Logger$('UsersRepository')`
-
-#### Scenario: Логгер из опции корня меняет все члены
-
-- **WHEN** написано `makeApp({ …, logger: pinoAdapter })`, а сервис
-  зависит от `Logger$('users')`
-- **THEN** сервис пишет через `pinoAdapter.child({ scope: 'users' })`, а
-  записи фаз 0 и 1 уходят в тот же `pinoAdapter`
-
-#### Scenario: Провайдер под корнем не принимается
-
-- **WHEN** модуль объявляет `providers: [factoryProvider(RootLogger$, () => custom, [])]`
-- **THEN** сборка падает ошибкой дубля, называющей опцию `logger` как
-  единственный способ задать корневой логгер
-
-### Requirement: `ConsoleLogger` — умолчание ядра с секцией `nestlingLog`
-
-`ConsoleLogger` SHALL быть умолчанием корневого логгера: сборка создаёт
-его, если опция `logger` не передана. Создание SHALL происходить на фазе 0
-от снимка kernel-секции `nestlingLog`, без контейнера: корень нужен
-раньше, чем существует хоть один узел.
-
-`ConsoleLogger` SHALL читать уровень и формат из секции `nestlingLog`:
-`NESTLING_LOG_LEVEL` (`debug` | `info` | `warn` | `error`, по умолчанию
-`info`) и `NESTLING_LOG_FORMAT` (`text` | `json`, по умолчанию `text`).
+Уровень и формат SHALL приходить из секции `nestlingLog`:
+`NESTLING_LOG_LEVEL` (`debug` | `info` | `warn` | `error` | `silent`, по
+умолчанию `info`) и `NESTLING_LOG_FORMAT` (`text` | `json`, по умолчанию
+`text`). Уровень `silent` SHALL отсекать записи всех четырёх уровней.
 Запись уровня ниже заданного SHALL отбрасываться. Записи SHALL уходить в
 `process.stderr` одной строкой каждая. В формате `json` строка SHALL быть
 объектом с полями `time`, `level`, `msg`, привязками, полями вызова и
@@ -320,91 +282,3 @@ SHALL NOT читать ячейку запроса. DI-токен секции S
 
 - **WHEN** задано `NESTLING_LOG_LEVEL=loud`
 - **THEN** старт падает валидацией секции с перечнем допустимых значений
-
-### Requirement: Ядро пишет только через логгер
-
-Ядро SHALL писать только через `Logger$('nestling')` и члены
-`Logger$('nestling:<область>')`; вне `ConsoleLogger` ядро SHALL NOT
-обращаться к `console` и потокам процесса. Состав сборки на старте,
-замыкание выбора, detached-endpoint'ы, скрытые endpoint'ы OpenAPI и
-сигнал остановки SHALL писаться уровнем `info`; недолговечные операции,
-простаивающий интерком, предупреждения конфига и предупреждения
-контейнера — уровнем `warn`; незадекларированные отказы, отказы портов и
-отказы доставки шины и NATS — уровнем `error` с оригиналом в `err`.
-Предупреждения читалки конфига SHALL копиться до подключения логгера и
-уходить в него сразу после `build()`; после подключения SHALL писаться
-напрямую. Хуков вывода `onUnknownFail`, `onDeliveryFailure`,
-`onPortFailure` и `onWarn` SHALL NOT существовать.
-
-#### Scenario: Состав сборки — запись логгера
-
-- **WHEN** приложение с подменой `[RootLogger$, spy.logger]` выходит в
-  эфир
-- **THEN** среди записей есть `info` с сообщением о составе и полями
-  `features` и `transports`, а `console.log` не вызывался
-
-#### Scenario: Предупреждение конфига доходит до подмены
-
-- **WHEN** корень привязывает глоб `'*_UR'` при объявленных ключах
-  `*_URL`, а `RootLogger$` подменён `spyLogger()`
-- **THEN** среди записей есть `warn` с текстом о таргете и источнике
-
-#### Scenario: Незадекларированный отказ — запись `error`
-
-- **WHEN** хендлер endpoint'а без `errors:` возвращает
-  `Fail.notFound('nope')`, а `RootLogger$` подменён `spyLogger()`
-- **THEN** клиент получает `internal_error`, а среди записей есть `error`
-  с полями `transport`, `pattern`, `code` и оригиналом в `err`
-
-#### Scenario: Предупреждение reloadable-секции после подключения
-
-- **WHEN** источник с наблюдением отдал невалидное значение
-  reloadable-секции на фазе RUN
-- **THEN** запись `warn` уходит в логгер напрямую, а не копится
-
-#### Scenario: Остановка по сигналу
-
-- **WHEN** процессу отправлен `SIGTERM`
-- **THEN** запись `info` с полем `signal: 'SIGTERM'` уходит в логгер, а
-  `console.log` не вызывался
-
-### Requirement: Standalone-пути используют умолчание ядра
-
-`makeDispatch(endpoints, options?)` SHALL принимать `{ logger?: Logger }`
-и без него использовать `ConsoleLogger` с уровнем `info` и форматом
-`text`. `new InProcessBus(options?)` SHALL принимать `{ buffer?, logger? }`
-с тем же умолчанием. `ExecuteOptions` рантайма пайплайна SHALL нести
-`logger?` вместо `onUnknownFail`, а тип `UnknownFailInfo` SHALL NOT
-существовать.
-
-#### Scenario: `serve` без `App` не проглатывает отказ
-
-- **WHEN** `makeDispatch([Ping])` собран без логгера, и хендлер бросает
-  незадекларированный отказ
-- **THEN** в `stderr` уходит запись `error` с паттерном и оригиналом
-
-#### Scenario: Логгер передан явно
-
-- **WHEN** `makeDispatch([Ping], { logger: spy.logger })`
-- **THEN** запись о незадекларированном отказе попадает в `spy.entries`
-
-### Requirement: `spyLogger()` — записи значениями
-
-`@nestlingjs/testing` SHALL экспортировать `spyLogger()`, возвращающий
-`{ logger, entries }`, где `entries` — список записей
-`{ level, message, fields }`. `child(bindings)` такого логгера SHALL
-писать в тот же список, объединяя привязки с полями записи. Подмена
-`[RootLogger$, spy.logger]` в `overrides` SHALL перехватывать записи всех
-членов `Logger$`.
-
-#### Scenario: Записи сервиса через подмену корня
-
-- **WHEN** `buildTest(app, { overrides: [[RootLogger$, spy.logger]] })`,
-  и сервис с `Logger$.auto` пишет `info('byId', { id: '1' })`
-- **THEN** `spy.entries` содержит запись с `level: 'info'`,
-  `message: 'byId'` и полями `id` и `scope`
-
-#### Scenario: Дочерний логгер пишет в тот же список
-
-- **WHEN** вызвано `spy.logger.child({ a: 1 }).warn('x', { b: 2 })`
-- **THEN** `spy.entries` содержит запись с полями `a` и `b`
