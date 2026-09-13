@@ -3,28 +3,18 @@ import { transactional } from '../../persistence.js';
 import { ActivityHub } from '../activity.hub.js';
 import type { CreateUserInput, User } from '../user.js';
 import { EmailTaken } from '../users.errors.js';
-import { UserCreated } from '../users.events.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import { Ok } from '@nestlingjs/operations';
-import type { OutboxEmitter } from '@nestlingjs/outbox';
-import { outboxed } from '@nestlingjs/outbox';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-/**
- * `outboxed(UserCreated)` вместо `UserCreated.emitter` — одна строка в
- * списке зависимостей. Значение присваивается `Emitter<C>`, а его
- * словарь `meta` дополнен разделом записи. Меняется момент доставки:
- * запись уходит в шину после коммита, а не во время запроса.
- */
-@Handler([UsersRepository$, outboxed(UserCreated), ActivityHub])
+@Handler([UsersRepository$, ActivityHub])
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly userCreated: OutboxEmitter<typeof UserCreated>,
     private readonly activity: ActivityHub,
   ) {}
 
@@ -41,14 +31,6 @@ export class CreateUserHandler {
     }
 
     const user = await this.users.insert(data);
-
-    // Запись пользователя и запись события — одна транзакция. Упади
-    // процесс сразу после коммита, событие всё равно уйдёт. Раздел —
-    // идентификатор пользователя: его события доставляются по порядку
-    await this.userCreated.emit(
-      { id: user.id, name: user.name, email: user.email },
-      { partitionKey: user.id },
-    );
 
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);

@@ -53,8 +53,6 @@ async function reset(): Promise<void> {
     throw new Error('пул засева не открыт');
   }
 
-  await pool.query('delete from "outbox"');
-  await pool.query('delete from "inbox"');
   await pool.query('delete from "users"');
   await pool.query(
     'insert into "users" ("id", "name", "email") values ($1, $2, $3), ($4, $5, $6)',

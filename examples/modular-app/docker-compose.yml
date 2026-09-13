@@ -1,0 +1,78 @@
+# Два профиля одного приложения: `mono` — один процесс со всеми фичами,
+# `split` — по процессу на фичу. Объявления PostgreSQL и NATS общие: ни
+# один сервис инфраструктуры не описан дважды.
+#
+#   docker compose --profile mono up
+#   docker compose --profile split up
+#
+# Профиль `infra` поднимает только базу и брокер: им пользуется локальный
+# прогон `yarn start:dev`.
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: examples/modular-app/Dockerfile
+  environment: &app-env
+    DATABASE_URL: postgresql://modular:modular@postgres:5432/modular
+    NATS_SERVERS: nats://nats:4222
+    APP_MAIL: log
+    HTTP_PORT: '3100'
+  depends_on:
+    postgres:
+      condition: service_healthy
+    nats:
+      condition: service_started
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    profiles: ['infra', 'mono', 'split']
+    environment:
+      POSTGRES_USER: modular
+      POSTGRES_PASSWORD: modular
+      POSTGRES_DB: modular
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U modular -d modular']
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  nats:
+    image: nats:2-alpine
+    profiles: ['infra', 'mono', 'split']
+    # `-js` включает JetStream: без него durable-событию негде лежать
+    command: ['-js']
+    ports:
+      - '4222:4222'
+
+  # Профиль `mono`: обе фичи в одном процессе. Вызов операции соседа идёт
+  # через `dispatch` и на брокер не выходит
+  app:
+    <<: *app
+    profiles: ['mono']
+    environment:
+      <<: *app-env
+      APP_FEATURES: all
+    ports:
+      - '3100:3100'
+
+  # Профиль `split`: та же декларация, другой выбор фич. Код фич в обоих
+  # процессах один и тот же
+  users:
+    <<: *app
+    profiles: ['split']
+    environment:
+      <<: *app-env
+      APP_FEATURES: users
+    ports:
+      - '3101:3100'
+
+  notifications:
+    <<: *app
+    profiles: ['split']
+    environment:
+      <<: *app-env
+      APP_FEATURES: notifications
+    ports:
+      - '3102:3100'

@@ -6,31 +6,12 @@
 import { inMemoryUsersRepo } from '../../testing.js';
 import { ActivityHub } from '../activity.hub.js';
 import { EmailTaken } from '../users.errors.js';
-import type { UserCreated } from '../users.events.js';
 
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Emitter } from '@nestlingjs/operations';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
-
-/**
- * Фейк транзакционного эмиттера: юнит-тест собирает хендлер через `new`,
- * поэтому вместо DI-токена в конструктор идёт обычное значение.
- */
-function fakeEmitter(): Emitter<typeof UserCreated> & {
-  readonly emitted: unknown[];
-} {
-  const emitted: unknown[] = [];
-
-  return {
-    emitted,
-    emit: async (payload?: unknown) => {
-      emitted.push(payload);
-    },
-  } as Emitter<typeof UserCreated> & { readonly emitted: unknown[] };
-}
 
 /**
  * Лента активности: обычный объект, поэтому в тесте создаётся через
@@ -40,12 +21,8 @@ const hub = (): ActivityHub => new ActivityHub();
 
 describe('CreateUserHandler', () => {
   it('создаёт пользователя и отвечает статусом created', async () => {
-    const userCreated = fakeEmitter();
-    const handler = new CreateUserHandler(
-      inMemoryUsersRepo([alice]),
-      userCreated,
-      hub(),
-    );
+    const activity = hub();
+    const handler = new CreateUserHandler(inMemoryUsersRepo([alice]), activity);
 
     const result = await handler.handle({
       name: 'Carol',
@@ -57,19 +34,13 @@ describe('CreateUserHandler', () => {
       value: { id: '2', name: 'Carol' },
     });
 
-    // Событие отправлено транзакционным эмиттером: в шину оно уйдёт
-    // после коммита, а здесь важно, что хендлер его отправил
-    expect(userCreated.emitted).toEqual([
-      { id: '2', name: 'Carol', email: 'carol@example.com' },
-    ]);
+    // Событие ленты опубликовано: подписчиков у него может не быть, и
+    // `publish` их не ждёт
+    expect(activity.subscribers).toBe(0);
   });
 
   it('возвращает отказ EmailTaken для занятого email', async () => {
-    const handler = new CreateUserHandler(
-      inMemoryUsersRepo([alice]),
-      fakeEmitter(),
-      hub(),
-    );
+    const handler = new CreateUserHandler(inMemoryUsersRepo([alice]), hub());
 
     const result = await handler.handle({
       name: 'Alice II',
@@ -85,8 +56,7 @@ describe('CreateUserHandler', () => {
 
   it('с dryRun проверяет данные, не создавая запись', async () => {
     const repo = inMemoryUsersRepo([alice]);
-    const userCreated = fakeEmitter();
-    const handler = new CreateUserHandler(repo, userCreated, hub());
+    const handler = new CreateUserHandler(repo, hub());
 
     const result = await handler.handle({
       name: 'Carol',
@@ -96,6 +66,5 @@ describe('CreateUserHandler', () => {
 
     expect(result).toMatchObject({ id: 'dry-run', name: 'Carol' });
     expect(await repo.all()).toHaveLength(1);
-    expect(userCreated.emitted).toEqual([]);
   });
 });

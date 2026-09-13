@@ -5,7 +5,7 @@
  * принимает подмены, выбор фич и конфиг теста.
  *
  * Приложению нужна настоящая база: пул открывается на фазе INIT, а слой
- * транзакции и хранилище outbox'а пишут SQL. Адрес приходит переменной
+ * транзакции и хранилище пишут SQL. Адрес приходит переменной
  * `TEST_DATABASE_URL`; без неё прогон пропускается, и `yarn verify` на
  * машине без базы остаётся зелёным. База поднимается локально
  * `yarn db:up` и мигрируется `yarn db:migrate`; CI поднимает её сервисом.
@@ -23,17 +23,11 @@ import {
 import { UsersRepository$ } from './users/users.repository.js';
 import { app } from './app.js';
 import { db } from './persistence.js';
-import {
-  inbox as inboxMarks,
-  outbox as outboxRecords,
-  users,
-} from './schema.js';
+import { users } from './schema.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestlingjs/app';
-import { InboxSweeper$ } from '@nestlingjs/inbox';
-import { OutboxRelay$ } from '@nestlingjs/outbox';
 import type { TestApp } from '@nestlingjs/testing';
 import { assembleTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
 
@@ -70,44 +64,12 @@ async function seed(
     throw new Error('в графе нет соединения с базой');
   }
 
-  await connection.db.delete(outboxRecords);
-  await connection.db.delete(inboxMarks);
   await connection.db.delete(users);
 
   if (rows.length > 0) {
     await connection.db.insert(users).values([...rows]);
   }
 }
-
-/**
- * Ждёт, пока условие станет истинным.
- *
- * Доставка шины асинхронна: `publish` кладёт сообщение в тему, а
- * подписчик разбирает её отдельной задачей. Проверять его след сразу
- * после прохода relay — гонка, и слой транзакции подписчика делает её
- * заметной: открытие транзакции уходит за границу микротасков.
- */
-async function waitFor(
-  condition: () => boolean | Promise<boolean>,
-  what: string,
-  timeoutMs = 5000,
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-
-  while (!(await condition())) {
-    if (Date.now() > deadline) {
-      throw new Error(`не дождались: ${what}`);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
-
-/** Сколько раз запись с этим сообщением попала в логгер */
-const countOf = (
-  entries: readonly { message: string }[],
-  message: string,
-): number => entries.filter((entry) => entry.message === message).length;
 
 describeWithDatabase('microservice', () => {
   it('отдаёт пользователя через полный пайплайн', async () => {
@@ -180,9 +142,6 @@ describeWithDatabase('microservice', () => {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
-    // Хранилище подменено, но запись outbox'а всё равно идёт в базу:
-    // транзакционный emit пишет её той же транзакцией запроса
-    await seed(testApp);
 
     const created = await testApp.call(
       CreateUser,
@@ -197,53 +156,8 @@ describeWithDatabase('microservice', () => {
     });
   });
 
-  it('кладёт событие в outbox и доставляет его проходом relay', async () => {
-    const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
-      config: testConfig,
-      overrides: [[RootLogger$, spy.logger]],
-    });
-    await seed(testApp);
-
-    await testApp.call(
-      CreateUser,
-      { name: 'Carol', email: 'carol@example.com' },
-      { attributes: { authorization: 'Bearer test-token' } },
-    );
-
-    // Во время запроса в шину не ушло ничего: запись легла в хранилище
-    expect(spy.entries).not.toContainEqual(
-      expect.objectContaining({ message: 'welcome email sent' }),
-    );
-
-    // Тестовая сборка останавливается после WIRE, `@OnStart` не
-    // выполняется — проход по партии делает сам тест
-    const relay = testApp.get(OutboxRelay$);
-    expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
-
-    await waitFor(
-      () => countOf(spy.entries, 'welcome email sent') === 1,
-      'письмо подписчика',
-    );
-
-    expect(spy.entries).toContainEqual({
-      level: 'info',
-      message: 'welcome email sent',
-      fields: {
-        scope: 'WelcomeEmailHandler',
-        // Идентификатор выдаёт хранилище, и он перестал быть счётчиком
-        id: expect.any(String),
-        email: 'carol@example.com',
-        // Ключ идемпотентности равен идентификатору записи outbox'а
-        idempotencyKey: expect.any(String),
-      },
-    });
-  });
-
-  it('откат транзакции убирает и пользователя, и запись outbox', async () => {
-    await using testApp = await assembleTest(app, {
-      config: testConfig,
-    });
+  it('откатывает транзакцию, когда слой ответил отказом', async () => {
+    await using testApp = await assembleTest(app, { config: testConfig });
     await seed(testApp);
 
     // Bearer-токен не тот: слой `authed` отвечает отказом, слой транзакции
@@ -255,9 +169,14 @@ describeWithDatabase('microservice', () => {
     );
 
     expect(rejected.isSuccess).toBe(false);
-    expect(await testApp.get(OutboxRelay$)?.drain()).toMatchObject({
-      claimed: 0,
-    });
+
+    const connection = testApp.get(db.connection);
+
+    if (!connection) {
+      throw new Error('в графе нет соединения с базой');
+    }
+
+    expect(await connection.db.select().from(users)).toEqual([]);
   });
 
   it('пишет запись аудита через логгер ядра', async () => {
@@ -303,87 +222,5 @@ describeWithDatabase('microservice', () => {
         fields: expect.objectContaining({ requestId: 'n/a' }),
       }),
     );
-  });
-
-  it('повторная публикация записи не вызывает хендлер второй раз', async () => {
-    const spy = spyLogger();
-    await using testApp = await assembleTest(app, {
-      config: testConfig,
-      overrides: [[RootLogger$, spy.logger]],
-    });
-    await seed(testApp);
-
-    await testApp.call(
-      CreateUser,
-      { name: 'Carol', email: 'carol@example.com' },
-      { attributes: { authorization: 'Bearer test-token' } },
-    );
-
-    const relay = testApp.get(OutboxRelay$);
-    expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
-    await waitFor(
-      () => countOf(spy.entries, 'welcome email sent') === 1,
-      'первое письмо подписчика',
-    );
-
-    const connection = testApp.get(db.connection);
-
-    if (!connection) {
-      throw new Error('в графе нет соединения с базой');
-    }
-
-    // Relay упал между публикацией и отметкой: запись снова ждёт выдачи.
-    // Ключ идемпотентности у неё прежний — это её идентификатор
-    await connection.db
-      .update(outboxRecords)
-      .set({ state: 'pending', publishedAt: null });
-
-    expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
-
-    // Слой приёма узнал повтор по паре «паттерн и ключ»
-    await waitFor(
-      () => countOf(spy.entries, 'inbox skipped a duplicate') === 1,
-      'запись о повторе',
-    );
-
-    // Письмо ушло ровно один раз
-    expect(countOf(spy.entries, 'welcome email sent')).toBe(1);
-  });
-
-  it('проход уборщика удаляет отметку приёма', async () => {
-    await using testApp = await assembleTest(app, {
-      config: vars({
-        API_TOKEN: 'test-token',
-        WEBHOOK_SECRET: 'test-hook',
-        DATABASE_URL: TEST_DATABASE_URL ?? '',
-        INBOX_RETENTION_MS: '0',
-      }),
-    });
-    await seed(testApp);
-
-    await testApp.call(
-      CreateUser,
-      { name: 'Carol', email: 'carol@example.com' },
-      { attributes: { authorization: 'Bearer test-token' } },
-    );
-    await testApp.get(OutboxRelay$)?.drain();
-
-    const connection = testApp.get(db.connection);
-
-    if (!connection) {
-      throw new Error('в графе нет соединения с базой');
-    }
-
-    await waitFor(async () => {
-      const marks = await connection.db.select().from(inboxMarks);
-
-      return marks.length === 1;
-    }, 'отметка приёма');
-
-    // Тестовая сборка останавливается после WIRE, `@OnStart` не
-    // выполняется — проход делает сам тест, не дожидаясь таймера
-    const sweeper = testApp.get(InboxSweeper$);
-
-    expect(await sweeper?.sweepOnce()).toBe(1);
   });
 });

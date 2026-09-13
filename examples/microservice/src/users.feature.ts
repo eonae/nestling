@@ -12,7 +12,6 @@ import {
   UploadAvatar,
   UserWebhook,
   VerifySignature,
-  WelcomeEmail,
 } from './users/endpoints/index.js';
 import {
   CreateUserTool,
@@ -34,9 +33,9 @@ import { classProvider } from '@nestlingjs/container';
  *
  * В `providers:` перечислены сервисы и классы-юниты пайплайна.
  * Классы-хендлеры сюда не попадают: каждый endpoint регистрирует свой
- * сам. Соединение с базой и юнит слоя транзакции приходят плагинами
- * пакета `@nestlingjs/drizzle.pg`: то же соединение инжектит хранилище
- * outbox'а, а плагин не имеет права зависеть от DI-токена фичи.
+ * сам. Соединение с базой и юнит слоя транзакции приходят плагином
+ * пакета `@nestlingjs/drizzle.pg`: плагин не имеет права зависеть от
+ * DI-токена фичи.
  *
  * Инструменты агента лежат в том же списке `endpoints:`: у транспорта MCP
  * декларации такие же, как у HTTP, и состав инструментов виден там же,
@@ -63,7 +62,6 @@ export const UsersFeature = makeFeature({
     ImportUsers,
     ActivityStream,
     UserWebhook,
-    WelcomeEmail,
     GetUserTool,
     CreateUserTool,
     SearchUsersTool,

@@ -1,6 +1,6 @@
 {
-  "id": "bbc74dba-4718-49fd-955b-1f0c86a181e7",
-  "prevId": "05bfb380-08e5-4a91-9db8-a4b84a917c35",
+  "id": "cff597c2-7f5f-4da0-bf00-372d350a2618",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -215,12 +215,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "avatar_url": {
-          "name": "avatar_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},

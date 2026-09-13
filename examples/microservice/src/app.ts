@@ -1,36 +1,17 @@
 import { ops } from './ops/index.js';
-import { UserCreated } from './users/users.events.js';
 import { authed } from './auth.js';
 import { metricsPlugin, prometheusExporter } from './metrics.js';
 import { observability } from './observability.js';
-import { appInbox, db, inboxStore, outboxStore } from './persistence.js';
+import { db } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
 
-import {
-  BusTransport$,
-  everyEndpoint,
-  makeApp,
-  RequestId,
-} from '@nestlingjs/app';
+import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
 import { mcp, McpTransport$ } from '@nestlingjs/mcp';
 import type { OpenApiOptions } from '@nestlingjs/openapi';
 import { openapi } from '@nestlingjs/openapi';
-import { outbox } from '@nestlingjs/outbox';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { http, httpServer, HttpTransport$ } from '@nestlingjs/transport.http';
-
-/**
- * Транзакционный emit: событие уходит в шину после коммита.
- *
- * Плагин создаётся один раз: рецепт семейства регистрируется однажды.
- * Раздел записи плагин не назначает — его называет место вызова `emit`.
- */
-export const appOutbox = outbox({
-  transaction: db.tx,
-  store: outboxStore.token,
-  operations: [UserCreated],
-});
 
 /**
  * Адаптер метрик: он же корень, под которым ядро считает запросы, и он же
@@ -80,10 +61,6 @@ export const app = makeApp({
   plugins: [
     ops,
     db,
-    outboxStore,
-    appOutbox,
-    inboxStore,
-    appInbox,
     metricsPlugin(exporter),
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
     // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
@@ -122,10 +99,9 @@ export const app = makeApp({
       'authed',
     ),
     // Каждый endpoint, который меняет пользователей, обязан быть в
-    // транзакции: без неё и запись пользователя, и транзакционный emit
-    // падали бы на первом запросе, а не на сборке. Фильтр назван адресом:
-    // административное завершение подписки — тоже DELETE, но данных оно
-    // не пишет
+    // транзакции: без неё запись падала бы на первом запросе, а не на
+    // сборке. Фильтр назван адресом: административное завершение подписки
+    // — тоже DELETE, но данных оно не пишет
     db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) \/users/ }),
     // Хранилище читает `requestId` из контекста запроса. Политика требует,
     // чтобы пайплайн эту переменную объявлял: иначе чтение вернуло бы
@@ -134,9 +110,5 @@ export const app = makeApp({
       RequestId,
       'requestId',
     ),
-    // Каждый подписчик шины дедуплицирует доставку. Без слоя повтор
-    // относился бы к обязанностям подписчика соглашением, а здесь это
-    // проверка сборки: нарушение видно до открытия сокета
-    appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox'),
   ],
 });

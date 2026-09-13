@@ -9,4 +9,3 @@ export * from './login.endpoint.js';
 export * from './update-user.endpoint.js';
 export * from './upload-avatar.endpoint.js';
 export * from './user-webhook.endpoint.js';
-export * from './welcome-email.endpoint.js';

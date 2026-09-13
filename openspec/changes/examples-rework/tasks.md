@@ -14,16 +14,16 @@
 
 ## 2. `modular-app`
 
-- [ ] 2.1 Создать `examples/modular-app` из `app-with-http` и `split-nats`: одна декларация приложения, шина NATS с `intercom`, HTTP для проб и метрик
-- [ ] 2.2 Написать фичу `notifications`: письмо о регистрации, шаблоны, повтор при отказе почты, порт отправки с заглушкой в тестах
-- [ ] 2.3 Удалить фичу `quotas`; перевести операции и события на пару `users` ↔ `notifications`
-- [ ] 2.4 Перенести транзакционный emit (`outbox`) и приём (`inbox`) на PostgreSQL: относятся к паре фич, а не к одиночному сервису
-- [ ] 2.5 Перенести выбор фич и переключатели состава: `assemble(args)`, `includeDeps`, `load()` до сборки, `check()`
-- [ ] 2.6 Перенести снимок операций и сверку совместимости: `operations.snapshot.json`, скрипт и спека `diffOperations`
-- [ ] 2.7 Написать `docker-compose.yml` с профилями `mono` и `split`, общие PostgreSQL и NATS; `Dockerfile` приложения
-- [ ] 2.8 Перенести скрипт `visualize` (граф зависимостей для `@nestlingjs/viz`); обновить `packages/nestling.viz/README.md` и `README.ru.md`
-- [ ] 2.9 Перенести спеки топологий: `checkTopologies`, изолированный запуск фичи, `stubs` и `testApp.emit`
-- [ ] 2.10 Написать `examples/modular-app/README.md`, включая запуск обоими профилями
+- [x] 2.1 Создать `examples/modular-app` из `app-with-http` и `split-nats`: одна декларация приложения, шина NATS с `intercom`, HTTP для проб и метрик
+- [x] 2.2 Написать фичу `notifications`: письмо о регистрации, шаблоны, повтор при отказе почты, порт отправки с заглушкой в тестах
+- [x] 2.3 Удалить фичу `quotas`; перевести операции и события на пару `users` ↔ `notifications`
+- [x] 2.4 Перенести транзакционный emit (`outbox`) и приём (`inbox`) на PostgreSQL: относятся к паре фич, а не к одиночному сервису
+- [x] 2.5 Перенести выбор фич и переключатели состава: `assemble(args)`, `includeDeps`, `load()` до сборки, `check()`
+- [x] 2.6 Перенести снимок операций и сверку совместимости: `operations.snapshot.json`, скрипт и спека `diffOperations`
+- [x] 2.7 Написать `docker-compose.yml` с профилями `mono` и `split`, общие PostgreSQL и NATS; `Dockerfile` приложения
+- [x] 2.8 Перенести скрипт `visualize` (граф зависимостей для `@nestlingjs/viz`); обновить `packages/nestling.viz/README.md` и `README.ru.md`
+- [x] 2.9 Перенести спеки топологий: `checkTopologies`, изолированный запуск фичи, `stubs` и `testApp.emit`
+- [x] 2.10 Написать `examples/modular-app/README.md`, включая запуск обоими профилями
 
 ## 3. `cli`
 
