@@ -75,6 +75,7 @@ const Echo = httpEndpoint.post('/echo', {
 const Boom = httpEndpoint.post('/boom', {
   pipeline: makePipeline(),
   errors: [EmailTaken],
+  output: z.unknown(),
   handler: () => {
     throw EmailTaken({ field: 'email' });
   },
@@ -136,6 +137,7 @@ const Upload = httpEndpoint.post('/uploads', {
     files: { report: upload() },
   }),
   pipeline: makePipeline(),
+  output: z.unknown(),
   handler: async (payload: {
     fields: { title: string };
     files: { report: FilePart };
