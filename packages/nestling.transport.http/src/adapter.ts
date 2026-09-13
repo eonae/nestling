@@ -233,11 +233,7 @@ export function toFetchHandler(
  * Три отказа, и каждый называет недостающий шаг: приложение не запущено,
  * имени нет в сборке, транспорт с таким именем владеет сокетом.
  */
-function adapterOf(
-  app: BuiltApp,
-  name: string,
-  caller: string,
-): HttpAdapter {
+function adapterOf(app: BuiltApp, name: string, caller: string): HttpAdapter {
   const { transports } = app;
 
   if (transports.size === 0) {

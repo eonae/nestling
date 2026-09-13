@@ -686,7 +686,7 @@ describe('build — порядок фаз и shutdown', () => {
 
     const app = makeApp({
       transports: [asTransport(new MockTransport())],
-    }).assemble();
+    }).build();
 
     // Приложение внутри чужого процесса за его остановку не отвечает
     await app.run({ signals: false });

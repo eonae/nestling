@@ -10,7 +10,7 @@
 
 import { makeApp } from './app.js';
 
-const app = makeApp({}).assemble();
+const app = makeApp({}).build();
 
 /** Чтение — единственное, что даёт карта транспортов */
 const transport = app.transports.get('default');

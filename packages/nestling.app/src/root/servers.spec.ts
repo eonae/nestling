@@ -304,7 +304,7 @@ describe('экземпляры транспортов у собранного п
           capabilities: VALUE_ONLY,
         }),
       ],
-    }).assemble();
+    }).build();
 
     // До подъёма экземпляров нет: их создаёт INIT
     expect(app.transports.size).toBe(0);
@@ -328,7 +328,7 @@ describe('экземпляры транспортов у собранного п
           { capabilities: VALUE_ONLY },
         ),
       ],
-    }).assemble();
+    }).build();
 
     await app.run();
     await app.close();
