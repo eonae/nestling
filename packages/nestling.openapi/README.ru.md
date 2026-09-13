@@ -59,6 +59,14 @@ appOpenapi.document(app.discover(args));
 | `JsonValue` | значение JSON в документе |
 | Реэкспорт [`@nestlingjs/app`](../nestling.app/) | `SchemaDocConverter` — интерфейс конвертера схем |
 
+Ответы-отказы описываются тем, что реально пишет транспорт: документом
+RFC 9457 под медиатипом `application/problem+json`
+([design](../../docs/design/errors.md)). Член `type` описан константой
+`urn:error:<код отказа>`, `title` и `status` — константами по категории;
+два отказа на одном коде ответа сводятся в `oneOf` и различимы по `type`.
+Медиатип и построение `type` генератор берёт из экспортов
+`@nestlingjs/transport.http`, поэтому документ и ответ не расходятся.
+
 ## Границы пакета
 
 Пакет не поставляет Swagger UI, не выводит `servers` из конфигурации и не

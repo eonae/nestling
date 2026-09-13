@@ -8,8 +8,9 @@
  * группируются по категории отказа: её транспорт переводит в HTTP-код.
  *
  * Тело отказа описывается **тем, что реально пишет транспорт**:
- * `{ error, code, details? }`. Придумывать здесь RFC 9457 нельзя — документ
- * описывает то, что уже уходит по сети, а не желаемое.
+ * документом RFC 9457 под медиатипом `application/problem+json`.
+ * Медиатип и построение члена `type` приходят из экспортов транспорта —
+ * так документ описывает то, что уже уходит по сети, а не желаемое.
  */
 
 import type { ConvertContext } from './schema.js';
@@ -23,7 +24,12 @@ import type {
   RedirectStatus,
 } from '@nestlingjs/operations';
 import { BadRequest, InternalError } from '@nestlingjs/operations';
-import { httpCodeOf } from '@nestlingjs/transport.http';
+import {
+  httpCodeOf,
+  PROBLEM_MEDIA_TYPE,
+  problemTitleOf,
+  problemTypeOf,
+} from '@nestlingjs/transport.http';
 
 /** Что генератор знает об ответах endpoint'а */
 export interface ResponsesInput {
@@ -80,13 +86,13 @@ export function planResponses(
   for (const [code, schemas] of byCode) {
     // Успешный код занят успехом: отказ с тем же кодом невозможен —
     // словари статусов не пересекаются
-    responses[code] = jsonResponse(
+    responses[code] = problemResponse(
       describeFails(code, declared),
       schemas.length === 1 ? schemas[0] : { oneOf: schemas },
     );
   }
 
-  responses.default = jsonResponse(
+  responses.default = problemResponse(
     `Undeclared failure, normalized by the boundary to '${InternalError.code}'`,
     failSchema(InternalError, context),
   );
@@ -175,18 +181,22 @@ function planSuccess(
 }
 
 /**
- * Тело отказа — то, что реально пишет граница.
+ * Тело отказа — документ RFC 9457, который реально пишет граница.
  *
- * `code` описан константой: именно она отличает один отказ от другого,
- * и потребитель матчит по ней, а не по тексту.
+ * `type` описан константой: именно она отличает один отказ от другого,
+ * и потребитель матчит по ней, а не по тексту. `title` и `status`
+ * константны по той же причине, по которой их пишет транспорт: они
+ * выводятся из категории отказа.
  */
 function failSchema(
   definition: AnyFailDefinition,
   context: ConvertContext,
 ): JsonValue {
   const properties: Record<string, JsonValue> = {
-    error: { type: 'string' },
-    code: { const: definition.code },
+    type: { const: problemTypeOf(definition.code) },
+    title: { const: problemTitleOf(definition.category) },
+    status: { const: httpCodeOf(definition.category) },
+    detail: { type: 'string' },
   };
 
   const details = convertLeaf(
@@ -203,7 +213,7 @@ function failSchema(
   return {
     type: 'object',
     properties,
-    required: ['error', 'code'],
+    required: ['type', 'title', 'status', 'detail'],
   };
 }
 
@@ -221,10 +231,13 @@ function describeFails(
     : `Failure: one of ${codes.map((c) => `'${c}'`).join(', ')}`;
 }
 
-/** JSON-ответ с телом */
-function jsonResponse(description: string, schema: JsonValue): OpenApiResponse {
+/** Ответ-отказ: документ RFC 9457 под своим медиатипом */
+function problemResponse(
+  description: string,
+  schema: JsonValue,
+): OpenApiResponse {
   return {
     description,
-    content: { 'application/json': { schema } },
+    content: { [PROBLEM_MEDIA_TYPE]: { schema } },
   };
 }

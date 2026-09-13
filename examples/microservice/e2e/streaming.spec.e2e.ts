@@ -65,7 +65,7 @@ describeWithDatabase('потоки по HTTP', () => {
     expect(await response.json()).toEqual({ imported: 2, skipped: 1 });
   });
 
-  it('обрывает импорт на невалидной строке кодом bad_request', async () => {
+  it('обрывает импорт на невалидной строке типом bad_request', async () => {
     const response = await client.raw(
       'POST',
       '/users/import',
@@ -75,7 +75,9 @@ describeWithDatabase('потоки по HTTP', () => {
     );
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ code: 'bad_request' });
+    expect(await response.json()).toMatchObject({
+      type: 'urn:error:bad_request',
+    });
   });
 
   it('отдаёт событие создания по SSE', async () => {

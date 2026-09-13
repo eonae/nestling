@@ -62,6 +62,16 @@ await makeApp({
 - **Запрос и ответ** — `Cookie`, `httpCodeOf`, `HttpHandler`,
   `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`, `HttpRequest`,
   `HttpResponse`.
+- **Реэкспорт [`@nestlingjs/operations`](../nestling.operations/)** — формат
+  тела отказа ([design](../../docs/design/errors.md)).
+
+  Отказ уходит документом RFC 9457 под медиатипом
+  `application/problem+json`: код отказа — в члене `type` с префиксом
+  `urn:error:`, сообщение — в `detail`, детали — в `details`. Медиатип,
+  префикс типа, сборка документа и обратный разбор типа в код объявлены
+  в пакете операций, чтобы клиент читал документ в браузере; отсюда они
+  реэкспортированы, чтобы генератор документации и транспорт поверх
+  стороннего сервера брали формат оттуда же, откуда `httpCodeOf`.
 - **Байтовый уровень** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
   `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
   `readQuery`, `sendResponse`.

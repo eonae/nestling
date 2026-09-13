@@ -31,7 +31,12 @@ import type { StandardSchemaV1 } from '@nestlingjs/operations';
 import { body, makeRequest, query } from '@nestlingjs/operations';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { cliEndpoint } from '@nestlingjs/transport.cli';
-import { http, httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
+import {
+  http,
+  httpEndpoint,
+  HttpResponse,
+  problemTypeOf,
+} from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const info = { title: 'Test API', version: '1.0.0' };
@@ -450,14 +455,21 @@ describe('responses покрывают все ответы границы', () =
       'default',
     ]);
 
-    expect(responses['409'].content?.['application/json'].schema).toEqual({
+    expect(Object.keys(responses['409'].content ?? {})).toEqual([
+      'application/problem+json',
+    ]);
+    expect(
+      responses['409'].content?.['application/problem+json'].schema,
+    ).toEqual({
       type: 'object',
       properties: {
-        error: { type: 'string' },
-        code: { const: 'conflict:openapi_email_taken' },
+        type: { const: 'urn:error:conflict:openapi_email_taken' },
+        title: { const: 'Conflict' },
+        status: { const: 409 },
+        detail: { type: 'string' },
         details: expect.objectContaining({ type: 'object' }),
       },
-      required: ['error', 'code'],
+      required: ['type', 'title', 'status', 'detail'],
     });
   });
 
@@ -504,13 +516,17 @@ describe('responses покрывают все ответы границы', () =
     const responses = documentOf([Create]).paths['/users'].post.responses;
 
     expect(Object.keys(responses).sort()).toEqual(['200', '401', 'default']);
-    expect(responses['401'].content?.['application/json'].schema).toEqual({
+    expect(
+      responses['401'].content?.['application/problem+json'].schema,
+    ).toEqual({
       type: 'object',
       properties: {
-        error: { type: 'string' },
-        code: { const: 'unauthorized' },
+        type: { const: 'urn:error:unauthorized' },
+        title: { const: 'Unauthorized' },
+        status: { const: 401 },
+        detail: { type: 'string' },
       },
-      required: ['error', 'code'],
+      required: ['type', 'title', 'status', 'detail'],
     });
   });
 
@@ -527,12 +543,12 @@ describe('responses покрывают все ответы границы', () =
     });
 
     const schema = documentOf([Create]).paths['/users'].post.responses['401']
-      .content?.['application/json'].schema as { oneOf?: unknown[] };
+      .content?.['application/problem+json'].schema as { oneOf?: unknown[] };
 
     expect(schema.oneOf).toBeUndefined();
   });
 
-  it('два отказа на одном коде сводятся в oneOf', () => {
+  it('два отказа на одном коде сводятся в oneOf, различимый по type', () => {
     const Create = httpEndpoint.post('/users', {
       output: User,
       errors: [TooLong, TooShort],
@@ -540,9 +556,15 @@ describe('responses покрывают все ответы границы', () =
     });
 
     const schema = documentOf([Create]).paths['/users'].post.responses['400']
-      .content?.['application/json'].schema as { oneOf: unknown[] };
+      .content?.['application/problem+json'].schema as {
+      oneOf: { properties: { type: { const: string } } }[];
+    };
 
     expect(schema.oneOf).toHaveLength(2);
+    expect(schema.oneOf.map((branch) => branch.properties.type.const)).toEqual([
+      problemTypeOf(TooLong.code),
+      problemTypeOf(TooShort.code),
+    ]);
   });
 
   it('валидация и неизвестный отказ описаны всегда', () => {
@@ -556,19 +578,19 @@ describe('responses покрывают все ответы границы', () =
 
     expect(
       (
-        responses['400'].content?.['application/json'].schema as {
-          properties: { code: { const: string } };
+        responses['400'].content?.['application/problem+json'].schema as {
+          properties: { type: { const: string } };
         }
-      ).properties.code.const,
-    ).toBe('bad_request');
+      ).properties.type.const,
+    ).toBe('urn:error:bad_request');
 
     expect(
       (
-        responses.default.content?.['application/json'].schema as {
-          properties: { code: { const: string } };
+        responses.default.content?.['application/problem+json'].schema as {
+          properties: { type: { const: string } };
         }
-      ).properties.code.const,
-    ).toBe('internal_error');
+      ).properties.type.const,
+    ).toBe('urn:error:internal_error');
   });
 
   it('endpoint без выхода отвечает 204 без тела', () => {

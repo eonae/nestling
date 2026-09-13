@@ -341,34 +341,55 @@ describe('HttpTransport — error response safety', () => {
   it('unhandled error → generic 500 без деталей', async () => {
     const response = await fetch(`${baseUrl}/boom`, { method: 'POST' });
     expect(response.status).toBe(500);
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
 
     const body = await response.json();
     expect(body).toEqual({
-      error: 'Internal server error',
-      code: 'internal_error',
+      type: 'urn:error:internal_error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Internal server error',
     });
     expect(JSON.stringify(body)).not.toContain('db password');
     expect(body.stack).toBeUndefined();
   });
 
-  it('unhandled error c exposeErrorDetails → message и stack', async () => {
+  it('unhandled error c exposeErrorDetails → detail и stack', async () => {
     const response = await fetch(`${exposedUrl}/boom`, { method: 'POST' });
     expect(response.status).toBe(500);
 
     const body = await response.json();
-    expect(body.error).toBe('boom');
+    expect(body.detail).toBe('boom');
     expect(typeof body.stack).toBe('string');
   });
 
-  it('задекларированный отказ → свой статус, код и детали', async () => {
+  it('задекларированный отказ → свой статус, тип и детали', async () => {
     const response = await fetch(`${baseUrl}/fail`, { method: 'POST' });
     expect(response.status).toBe(409);
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
 
     const body = await response.json();
     expect(body).toEqual({
-      error: 'Email already taken',
-      code: 'conflict:email_taken',
+      type: 'urn:error:conflict:email_taken',
+      title: 'Conflict',
+      status: 409,
+      detail: 'Email already taken',
       details: { field: 'email' },
+    });
+  });
+
+  it('отказ без деталей → документ без члена details', async () => {
+    const response = await fetch(`${baseUrl}/rate-limited`, { method: 'POST' });
+
+    expect(await response.json()).toEqual({
+      type: 'urn:error:too_many_requests:rate_limited',
+      title: 'Too Many Requests',
+      status: 429,
+      detail: 'Too many requests',
     });
   });
 
@@ -378,8 +399,10 @@ describe('HttpTransport — error response safety', () => {
 
     const body = await response.json();
     expect(body).toEqual({
-      error: 'Internal server error',
-      code: 'internal_error',
+      type: 'urn:error:internal_error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Internal server error',
     });
     expect(JSON.stringify(body)).not.toContain('Email already taken');
   });
@@ -388,13 +411,13 @@ describe('HttpTransport — error response safety', () => {
     const limited = await fetch(`${baseUrl}/rate-limited`, { method: 'POST' });
     expect(limited.status).toBe(429);
     expect(await limited.json()).toMatchObject({
-      code: 'too_many_requests:rate_limited',
+      type: 'urn:error:too_many_requests:rate_limited',
     });
 
     const timeout = await fetch(`${baseUrl}/timeout`, { method: 'POST' });
     expect(timeout.status).toBe(504);
     expect(await timeout.json()).toMatchObject({
-      code: 'timeout:upstream_timeout',
+      type: 'urn:error:timeout:upstream_timeout',
     });
   });
 
@@ -460,11 +483,94 @@ describe('HttpTransport — error response safety', () => {
       const response = await fetch(`${url}/brand-blind`, { method: 'POST' });
 
       expect(response.status).toBe(500);
-      expect(await response.json()).toMatchObject({ code: 'internal_error' });
+      expect(await response.json()).toMatchObject({
+        type: 'urn:error:internal_error',
+      });
     } finally {
       await shutdown(hooked);
     }
   });
+});
+
+describe('HttpTransport — один формат отказа на все пути', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    transport = makeTransport({ maxBodySize: 100 });
+    routesOf(transport).push(
+      httpEndpoint.post('/declared', {
+        pipeline: makePipeline(),
+        errors: [EmailTaken],
+        handler: () => {
+          throw EmailTaken({ field: 'email' });
+        },
+      }),
+      httpEndpoint.post('/boom', {
+        pipeline: makePipeline(),
+        handler: () => {
+          throw new Error('boom');
+        },
+      }),
+      httpEndpoint.post('/json', {
+        input: z.object({ name: z.string() }),
+        handler: () => new Ok({ ok: true }),
+      }),
+    );
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    await shutdown(transport);
+  });
+
+  /**
+   * По одному запросу на каждое место сериализации: ответ пайплайна
+   * (объявленный отказ и необработанная ошибка) и ответ до пайплайна
+   * (битый JSON, превышенный лимит тела). Кадр `event: error` проверяет
+   * `streaming.integration.spec.ts`.
+   */
+  const paths: [string, RequestInit][] = [
+    ['/declared', { method: 'POST' }],
+    ['/boom', { method: 'POST' }],
+    [
+      '/json',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{"name": "Al',
+      },
+    ],
+    [
+      '/json',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'x'.repeat(500) }),
+      },
+    ],
+  ];
+
+  it.each(paths)(
+    'тело отказа %s — документ RFC 9457 без членов error и code',
+    async (path, init) => {
+      const response = await fetch(`${baseUrl}${path}`, init);
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.headers.get('content-type')).toBe(
+        'application/problem+json',
+      );
+
+      const body = await response.json();
+      expect(body).not.toHaveProperty('error');
+      expect(body).not.toHaveProperty('code');
+      expect(typeof body.type).toBe('string');
+      expect(body.type.startsWith('urn:error:')).toBe(true);
+      expect(typeof body.title).toBe('string');
+      expect(body.status).toBe(response.status);
+      expect(typeof body.detail).toBe('string');
+    },
+  );
 });
 
 const OrderNotFound = makeFail('not_found:order', {
@@ -525,8 +631,10 @@ describe('HttpTransport — категория отказа и заголовк�
     const response = await fetch(`${baseUrl}/orders/1`);
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({
-      error: 'Order not found',
-      code: 'not_found:order',
+      type: 'urn:error:not_found:order',
+      title: 'Not Found',
+      status: 404,
+      detail: 'Order not found',
     });
   });
 
@@ -534,13 +642,17 @@ describe('HttpTransport — категория отказа и заголовк�
     const tooLarge = await fetch(`${baseUrl}/too-large`, { method: 'POST' });
     expect(tooLarge.status).toBe(413);
     expect(await tooLarge.json()).toMatchObject({
-      code: 'payload_too_large',
+      type: 'urn:error:payload_too_large',
+      status: 413,
       details: { limit: 10 },
     });
 
     const slow = await fetch(`${baseUrl}/slow`, { method: 'POST' });
     expect(slow.status).toBe(504);
-    expect(await slow.json()).toMatchObject({ code: 'timeout' });
+    expect(await slow.json()).toMatchObject({
+      type: 'urn:error:timeout',
+      title: 'Gateway Timeout',
+    });
   });
 
   it('заголовки Ok пишутся в ответ после заголовков формы', async () => {
@@ -632,8 +744,13 @@ describe('HttpTransport — request validation errors', () => {
     });
     expect(response.status).toBe(400);
 
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
+
     const body = await response.json();
-    expect(body.error).toBe('Invalid JSON body');
+    expect(body.type).toBe('urn:error:bad_request');
+    expect(body.detail).toBe('Invalid JSON body');
     expect(body.stack).toBeUndefined();
   });
 
@@ -646,7 +763,7 @@ describe('HttpTransport — request validation errors', () => {
     expect(response.status).toBe(400);
 
     const body = await response.json();
-    expect(body.error).toBe('Bad request');
+    expect(body.detail).toBe('Bad request');
     expect(Array.isArray(body.details)).toBe(true);
   });
 
@@ -667,7 +784,7 @@ describe('HttpTransport — request validation errors', () => {
       expect(body.details[0]).not.toHaveProperty('expected');
       expect(body.details[0]).not.toHaveProperty('received');
       // Kernel-код проставляется на обоих путях: пайплайн и fallback
-      expect(body.code).toBe('bad_request');
+      expect(body.type).toBe('urn:error:bad_request');
     }
   });
 
@@ -680,8 +797,10 @@ describe('HttpTransport — request validation errors', () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      error: 'Internal server error',
-      code: 'internal_error',
+      type: 'urn:error:internal_error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Internal server error',
     });
   });
 
@@ -694,8 +813,10 @@ describe('HttpTransport — request validation errors', () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      error: 'Internal server error',
-      code: 'internal_error',
+      type: 'urn:error:internal_error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Internal server error',
     });
   });
 
@@ -708,8 +829,10 @@ describe('HttpTransport — request validation errors', () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      error: 'Internal server error',
-      code: 'internal_error',
+      type: 'urn:error:internal_error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Internal server error',
     });
   });
 
@@ -845,7 +968,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     expect(response.status).toBe(400);
 
     const body = await response.json();
-    expect(body.error).toBe('Bad request');
+    expect(body.detail).toBe('Bad request');
     expect(body.details).toEqual([
       { message: expect.any(String), path: ['name'] },
     ]);
@@ -914,7 +1037,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.code).toBe('bad_request');
+    expect(body.type).toBe('urn:error:bad_request');
     expect(body.details).toEqual([
       { message: expect.any(String), path: ['title'] },
     ]);
@@ -998,9 +1121,14 @@ describe('HttpTransport — тело читается только по треб
     });
 
     expect(response.status).toBe(413);
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
     expect(await response.json()).toEqual({
-      error: 'Payload too large',
-      code: 'payload_too_large',
+      type: 'urn:error:payload_too_large',
+      title: 'Payload Too Large',
+      status: 413,
+      detail: 'Payload too large',
       details: { limit: 100 },
     });
   });
@@ -1072,7 +1200,7 @@ describe('HttpTransport — body size limits', () => {
     });
     expect(response.status).toBe(413);
     const body = await response.json();
-    expect(body.error).toBe('Payload too large');
+    expect(body.detail).toBe('Payload too large');
   });
 
   it('maxBodySize: 0 → без лимита', async () => {
@@ -1097,7 +1225,7 @@ describe('HttpTransport — body size limits', () => {
       // код ядра проводит 413 через границу, не давая ей сделать 500
       expect(response.status).toBe(413);
       const body = await response.json();
-      expect(body.code).toBe('payload_too_large');
+      expect(body.type).toBe('urn:error:payload_too_large');
     }
   });
 });
@@ -1593,9 +1721,11 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     const { status, body } = await rawGet(baseUrl, '/undeclared');
 
     expect(status).toBe(500);
-    expect(JSON.parse(body)).toMatchObject({ code: 'internal_error' });
-    expect(JSON.parse(body).error).toContain('GET /undeclared');
-    expect(JSON.parse(body).error).toContain("'redirect'");
+    expect(JSON.parse(body)).toMatchObject({
+      type: 'urn:error:internal_error',
+    });
+    expect(JSON.parse(body).detail).toContain('GET /undeclared');
+    expect(JSON.parse(body).detail).toContain("'redirect'");
 
     await shutdown(transport);
   });
@@ -1619,10 +1749,12 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     const { status, body } = await rawGet(baseUrl, '/foreign');
 
     expect(status).toBe(500);
-    expect(JSON.parse(body)).toMatchObject({ code: 'internal_error' });
-    expect(JSON.parse(body).error).toContain('GET /foreign');
-    expect(JSON.parse(body).error).toContain("'http'");
-    expect(JSON.parse(body).error).toContain("'cli'");
+    expect(JSON.parse(body)).toMatchObject({
+      type: 'urn:error:internal_error',
+    });
+    expect(JSON.parse(body).detail).toContain('GET /foreign');
+    expect(JSON.parse(body).detail).toContain("'http'");
+    expect(JSON.parse(body).detail).toContain("'cli'");
 
     await shutdown(transport);
   });

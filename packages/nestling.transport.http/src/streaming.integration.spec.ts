@@ -8,6 +8,7 @@
 
 import { request } from 'node:http';
 
+import { SSE_ERROR_EVENT } from './adapter.js';
 import { httpEndpoint } from './helpers.js';
 import { HttpResponse } from './response.js';
 import { HttpServer } from './server.js';
@@ -26,6 +27,7 @@ import type {
 import {
   events,
   makeDispatch,
+  makeFail,
   makePipeline,
   multipart,
   Ok,
@@ -40,6 +42,9 @@ type Row = z.infer<typeof Row>;
 
 const Event = z.object({ id: z.string(), kind: z.string() });
 type Event = z.infer<typeof Event>;
+
+/** Объявленный отказ фикстур: его код проверяется в кадре `event: error` */
+const FeedGone = makeFail('not_found:feed', { message: 'Feed is gone' });
 
 /** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
 function spyLogger(): { logger: Logger; entries: LogEntry[] } {
@@ -219,6 +224,20 @@ function get(
     req.on('error', reject);
     req.end();
   });
+}
+
+/** Данные кадра `event: error` из тела SSE-ответа */
+function errorFrameOf(body: string): unknown {
+  const marker = 'data: ';
+  const frame = body
+    .split('\n\n')
+    .find((part) => part.startsWith(`event: ${SSE_ERROR_EVENT}`));
+
+  if (frame === undefined) {
+    throw new Error(`the response carries no '${SSE_ERROR_EVENT}' frame`);
+  }
+
+  return JSON.parse(frame.slice(frame.indexOf(marker) + marker.length));
 }
 
 /**
@@ -622,6 +641,21 @@ describe('mid-stream политика', () => {
       }),
     );
 
+    routesOf(transport).push(
+      httpEndpoint.get('/live-gone', {
+        output: events(Event),
+        errors: [FeedGone],
+        pipeline: observing((outcome) => outcomes.push(`sse:${outcome}`)),
+        handler: async () =>
+          new Ok(
+            (async function* (): AsyncIterableIterator<Event> {
+              yield { id: '1', kind: 'created' };
+              throw FeedGone();
+            })(),
+          ),
+      }),
+    );
+
     baseUrl = await listen(transport);
   });
 
@@ -639,14 +673,37 @@ describe('mid-stream политика', () => {
     expect(outcomes).toEqual(['ndjson:failed']);
   });
 
-  it('SSE: уходит кадр event: error с кодом, затем закрытие', async () => {
+  it('SSE: уходит кадр event: error с документом, затем закрытие', async () => {
     outcomes.length = 0;
 
     const response = await get(baseUrl, '/live-broken');
 
     expect(response.body).toContain('data: {"id":"1","kind":"created"}');
     expect(response.body).toContain('event: error');
-    expect(response.body).toContain('"code":"internal_error"');
+    expect(errorFrameOf(response.body)).toEqual({
+      type: 'urn:error:internal_error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Internal server error',
+    });
+
+    await until(() => outcomes.length > 0);
+    expect(outcomes).toEqual(['sse:failed']);
+  });
+
+  it('SSE: документ кадра несёт статус отказа, а не статус потока', async () => {
+    outcomes.length = 0;
+
+    const response = await get(baseUrl, '/live-gone');
+
+    // Статус ответа уже отправлен и равен 200: документ описывает отказ
+    expect(response.status).toBe(200);
+    expect(errorFrameOf(response.body)).toEqual({
+      type: 'urn:error:not_found:feed',
+      title: 'Not Found',
+      status: 404,
+      detail: 'Feed is gone',
+    });
 
     await until(() => outcomes.length > 0);
     expect(outcomes).toEqual(['sse:failed']);
@@ -738,7 +795,7 @@ describe('приём потокового входа и multipart', () => {
     );
 
     expect(response.status).toBe(400);
-    expect(JSON.parse(response.body).code).toBe('bad_request');
+    expect(JSON.parse(response.body).type).toBe('urn:error:bad_request');
   });
 
   it('.limit входной цепочки даёт 413 с кодом', async () => {
@@ -749,7 +806,7 @@ describe('приём потокового входа и multipart', () => {
     );
 
     expect(response.status).toBe(413);
-    expect(JSON.parse(response.body).code).toBe('payload_too_large');
+    expect(JSON.parse(response.body).type).toBe('urn:error:payload_too_large');
   });
 
   it('multipart отдаёт файл под именем поля, path-параметр — в fields', async () => {
@@ -802,7 +859,7 @@ describe('приём потокового входа и multipart', () => {
     const response = await post('/avatars/42', body, contentType);
 
     expect(response.status).toBe(400);
-    expect(JSON.parse(response.body).error).toMatch(
+    expect(JSON.parse(response.body).detail).toMatch(
       /expects one of image\/png/,
     );
   });
@@ -821,7 +878,7 @@ describe('приём потокового входа и multipart', () => {
     const response = await post('/avatars/42', body, contentType);
 
     expect(response.status).toBe(400);
-    expect(JSON.parse(response.body).error).toMatch(
+    expect(JSON.parse(response.body).detail).toMatch(
       /Unexpected file field 'cover'/,
     );
   });

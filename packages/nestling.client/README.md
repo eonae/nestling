@@ -58,6 +58,14 @@ operation without an `http:` section, an operation of the `event` kind,
 a streaming or `multipart` io shape, a non-JSON body, a non-absolute
 `baseUrl`.
 
+The client reads a failure from an RFC 9457 document
+([design](../../docs/en/design/errors.md)): the failure code comes from
+the `type` member with the `urn:error:` prefix dropped, the message from
+`detail`, the details from `details` checked against the schema of the
+definition. A type without that prefix, a missing type and a code not
+declared in the operation's `errors:` all give `InternalError` with the
+response body in `cause`.
+
 The `trace` option sets the `traceparent` header — a function that
 returns a W3C trace-context string or `undefined`. A ready reader is
 exported by `@nestlingjs/app` under the name `traceparent`; the client

@@ -108,7 +108,13 @@ describe('команды через execute', () => {
 
   it('отказ сервиса доходит до командной строки своим кодом', async () => {
     fakeService(
-      { code: 'conflict:email_taken', details: { email: alice.email } },
+      {
+        type: 'urn:error:conflict:email_taken',
+        title: 'Conflict',
+        status: 409,
+        detail: 'Email already taken',
+        details: { email: alice.email },
+      },
       409,
     );
 

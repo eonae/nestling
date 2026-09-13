@@ -65,6 +65,18 @@ await makeApp({
 - **Request and response** — `Cookie`, `httpCodeOf`, `HttpHandler`,
   `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`, `HttpRequest`,
   `HttpResponse`.
+- **Re-export of [`@nestlingjs/operations`](../nestling.operations/)** — the
+  failure body format ([design](../../docs/en/design/errors.md)).
+
+  A failure travels as an RFC 9457 document under the
+  `application/problem+json` media type: the failure code sits in the
+  `type` member with the `urn:error:` prefix, the message in `detail`,
+  the details in `details`. The media type, the type prefix, building the
+  document and parsing the type back into a code are declared in the
+  operations package, so that the client reads the document in a browser;
+  they are re-exported from here so that the documentation generator and a
+  transport on top of a foreign server take the format from the same place
+  as `httpCodeOf`.
 - **Byte level** — `assemblePayload`, `bindingNeedsBody`, `parseJson`,
   `parseMultipartForm`, `parseNdjson`, `parseRaw`, `PayloadTooLargeError`,
   `readQuery`, `sendResponse`.

@@ -38,6 +38,25 @@ export {
 // ./adapter.js — 2
 export { httpCodeOf, sendResponse } from './adapter.js';
 
+// @nestlingjs/operations — 7
+/**
+ * Формат тела отказа: документ RFC 9457 и средства его сборки.
+ *
+ * Объявлен в `@nestlingjs/operations`, чтобы типизированный клиент читал
+ * документ, не завися от серверного пакета. Здесь имена реэкспортированы,
+ * чтобы генератор документации и транспорт поверх стороннего
+ * HTTP-сервера брали формат оттуда же, откуда таблицу статусов.
+ */
+export {
+  failCodeOf,
+  PROBLEM_MEDIA_TYPE,
+  PROBLEM_TYPE_PREFIX,
+  problemOf,
+  problemTitleOf,
+  problemTypeOf,
+} from '@nestlingjs/operations';
+export type { ProblemDocument } from '@nestlingjs/operations';
+
 // ./errors.js — 1
 /**
  * Превышение лимита тела запроса.

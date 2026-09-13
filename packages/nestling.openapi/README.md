@@ -61,6 +61,16 @@ appOpenapi.document(app.discover(args));
 | `JsonValue` | a JSON value in the document |
 | Re-export of [`@nestlingjs/app`](../nestling.app/) | `SchemaDocConverter` — the schema converter interface |
 
+Failure responses are described by what the transport actually writes: an
+RFC 9457 document under the `application/problem+json` media type
+([design](../../docs/en/design/errors.md)). The `type` member is described
+by the constant `urn:error:<failure code>`, `title` and `status` by
+constants derived from the category; two failures on one response code
+fold into `oneOf` and stay distinguishable by `type`. The generator takes
+the media type and the way `type` is built from the exports of
+`@nestlingjs/transport.http`, so the document and the response never
+drift apart.
+
 ## Package boundaries
 
 The package does not ship Swagger UI, does not derive `servers` from

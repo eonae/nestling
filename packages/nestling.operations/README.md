@@ -83,6 +83,12 @@ it, and the caller `CreateUser.caller` is injected by a DI token.
   `ComputeHttpBindingOptions`, `HttpBinding`, `HttpMethod`, `isBindMark`,
   `isHttpBinding`, `METHODS_WITHOUT_BODY`, `PathParams`, `query`,
   `readPathParams`, `RedirectStatus`, `SseConfig`.
+- **The HTTP failure body** ([design](../../docs/en/design/errors.md)) —
+  `ErrorDetailsLike`, `failCodeOf`, `PROBLEM_MEDIA_TYPE`,
+  `PROBLEM_TYPE_PREFIX`, `problemOf`, `problemTitleOf`, `problemTypeOf`,
+  `ProblemDocument`. The RFC 9457 document the HTTP boundary answers a
+  failure with; declared here so that the client reads it without
+  depending on the server package.
 - **Schemas** ([design](../../docs/en/design/schemas.md)) —
   `assertConverters`, `jsonSchema`, `jsonSchemaOf`, `leafJsonSchema`,
   `LeafJsonSchema`, `pickConverter`, `SchemaDocConverter`,

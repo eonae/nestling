@@ -36,15 +36,21 @@ export type {
   PortToken,
 } from './families.js';
 
-// ./http/index.js — 19
+// ./http/index.js — 26
 export {
   assertHttpPath,
   body,
   buildHttpBinding,
   computeHttpBinding,
+  failCodeOf,
   isBindMark,
   isHttpBinding,
   METHODS_WITHOUT_BODY,
+  PROBLEM_MEDIA_TYPE,
+  PROBLEM_TYPE_PREFIX,
+  problemOf,
+  problemTitleOf,
+  problemTypeOf,
   query,
   readPathParams,
 } from './http/index.js';
@@ -54,9 +60,11 @@ export type {
   BindPlace,
   BindPlacement,
   ComputeHttpBindingOptions,
+  ErrorDetailsLike,
   HttpBinding,
   HttpMethod,
   PathParams,
+  ProblemDocument,
   RedirectStatus,
   SseConfig,
 } from './http/index.js';
