@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkRemovedNames } from '../scripts/freshness.mjs';
+import { checkRemovedNames, listsNames } from '../scripts/freshness.mjs';
 import { SKILL_DIR } from '../scripts/snippets.mjs';
 
 import { describe, expect, it } from 'vitest';
@@ -44,6 +44,21 @@ describe('версия скилла', () => {
     expect(intro).toContain('@nestlingjs/app');
     expect(intro).toContain('package.json');
     expect(intro).toContain('npx @nestlingjs/agent-skill');
+  });
+});
+
+describe('левая ячейка строки переименования', () => {
+  it('перечень имён читается именами', () => {
+    expect(listsNames('`testUnit`, `TestUnitOptions`')).toBe(true);
+    expect(listsNames("`assemble('users')`, `assemble(['users'])`")).toBe(true);
+    expect(listsNames('`AssembleArgs`')).toBe(true);
+    expect(listsNames('`@opentelemetry/api` и `sdk-metrics`')).toBe(true);
+  });
+
+  it('проза с вызовом именем не читается', () => {
+    expect(listsNames('отказ под `argv()` броском')).toBe(false);
+    expect(listsNames('`nats` в зависимостях')).toBe(false);
+    expect(listsNames('`bus.remote` у экземпляра')).toBe(false);
   });
 });
 

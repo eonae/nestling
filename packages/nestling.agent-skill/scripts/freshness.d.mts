@@ -37,3 +37,6 @@ export declare function removedNames(): {
   names: RemovedName[];
   skipped: SkippedCell[];
 };
+
+/** Ячейка перечисляет имена, а не описывает поведение */
+export declare function listsNames(cell: string): boolean;

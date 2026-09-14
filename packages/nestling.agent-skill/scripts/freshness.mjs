@@ -104,7 +104,22 @@ export function removedNames() {
     const replacements = rows.map(({ to }) => to).join(' ');
 
     for (const { from, to, row } of rows) {
-      for (const cell of codeSpans(from)) {
+      const spans = codeSpans(from);
+
+      if (spans.length === 0) {
+        continue;
+      }
+
+      if (!listsNames(from)) {
+        skipped.push({
+          release,
+          cell: from,
+          reason: 'ячейка описывает поведение, а не перечисляет имена',
+        });
+        continue;
+      }
+
+      for (const cell of spans) {
         const name = identifierOf(cell);
 
         if (name === null) {
@@ -177,6 +192,21 @@ function renameRows(text) {
 /** Содержимое всех парных обратных кавычек ячейки */
 function codeSpans(cell) {
   return [...cell.matchAll(/`([^`]+)`/g)].map(([, span]) => span);
+}
+
+/** Остаток ячейки без вставок кода: только разделители перечня */
+const SEPARATORS = /^[\s,]*(и[\s,]*)*$/u;
+
+/**
+ * Ячейка перечисляет имена, а не описывает поведение.
+ *
+ * Между вставками кода стоят запятая, союз и пробелы — значит ячейка
+ * собрана из имён: `testUnit`, `TestUnitOptions`. Слово вокруг вставки
+ * делает ячейку прозой, и такая строка говорит о смене поведения, а не об
+ * удалении имени: «отказ под `argv()` броском» оставляет `argv` живым.
+ */
+export function listsNames(cell) {
+  return SEPARATORS.test(cell.replaceAll(/`[^`]+`/g, ''));
 }
 
 /**
