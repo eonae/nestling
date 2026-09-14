@@ -6,8 +6,6 @@
  * в имени метрики в тесте так же невыразима, как в коде.
  */
 
-import { spyLogger } from './logger.js';
-
 import type {
   AnyMember,
   AnyMetricsGroup,
@@ -141,7 +139,6 @@ export function metricsFor<G extends AnyMetricsGroup>(
 ): GroupMetrics<G> {
   const store = new MetricsStoreClass(
     makeCatalog([{ group, owner: 'unit test' }]),
-    spyLogger().logger,
   );
 
   return { metrics: makeWriter(group, store), read: new TestMetrics(store) };

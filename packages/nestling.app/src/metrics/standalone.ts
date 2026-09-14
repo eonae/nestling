@@ -10,8 +10,6 @@
  * standalone-пути нет, и предвычислять нечего.
  */
 
-import { defaultLogger } from '../logger/standalone.js';
-
 import { makeCatalog } from './catalog.js';
 import type { KernelMetricsWriter } from './kernel-group.js';
 import { KernelMetrics } from './kernel-group.js';
@@ -31,6 +29,5 @@ export const defaultMetrics = (): KernelMetricsWriter =>
     KernelMetrics,
     new MetricsStore(
       makeCatalog([{ group: KernelMetrics, owner: 'standalone runtime' }]),
-      defaultLogger,
     ),
   ));

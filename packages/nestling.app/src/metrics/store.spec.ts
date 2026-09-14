@@ -1,13 +1,10 @@
 /**
- * Store: нули до записи, ряды открытых атрибутов, снимок и поток записей.
+ * Store: нули до записи, ряды открытых атрибутов и снимок.
  */
-
-import { spyLogger } from '../logger/__fixtures__/spy.js';
 
 import { makeCatalog } from './catalog.js';
 import { counter, histogram, makeMetrics, open } from './declaration.js';
 import { findSeries, findSeriesOne } from './lookup.js';
-import type { MetricSink, MetricsSnapshot } from './sink.js';
 import { MetricsStore } from './store.js';
 import { makeWriter } from './writer.js';
 
@@ -31,40 +28,10 @@ const duration = Orders.members['checkout.duration'];
 const storeOf = () => {
   const store = new MetricsStore(
     makeCatalog([{ group: Orders, owner: "feature 'orders'" }]),
-    spyLogger().logger,
   );
 
   return { store, metrics: makeWriter(Orders, store) };
 };
-
-/** Записи, полученные подписчиком */
-interface Received {
-  readonly start: MetricsSnapshot[];
-  readonly counters: [string, number][];
-  readonly histograms: [string, number][];
-}
-
-const sinkOf = (received: Received, fail = false): MetricSink => ({
-  start: (snapshot) => {
-    received.start.push(snapshot);
-  },
-  counter: (name, value) => {
-    if (fail) {
-      throw new Error('sink is broken');
-    }
-
-    received.counters.push([name, value]);
-  },
-  histogram: (name, value) => {
-    received.histograms.push([name, value]);
-  },
-});
-
-const emptyReceived = (): Received => ({
-  start: [],
-  counters: [],
-  histograms: [],
-});
 
 describe('store — ряды до первой записи', () => {
   it('ряды объявленных атрибутов есть со значением ноль', () => {
@@ -183,71 +150,6 @@ describe('store — запись', () => {
     expect(
       findSeriesOne(store.snapshot(), created, { tier: 'free' }),
     ).toMatchObject({ value: 2 });
-  });
-});
-
-describe('store — поток записей', () => {
-  it('подписчик получает стартовое состояние и записи потоком', () => {
-    const { store, metrics } = storeOf();
-    const received = emptyReceived();
-
-    metrics.created.add(5, { tier: 'paid' });
-    store.tap(sinkOf(received));
-
-    metrics.created.add({ tier: 'free' });
-    metrics['checkout.duration'].record(7);
-
-    expect(
-      findSeriesOne(received.start[0] as MetricsSnapshot, created, {
-        tier: 'paid',
-      }),
-    ).toMatchObject({ value: 5 });
-    expect(received.counters).toEqual([['orders.created', 1]]);
-    expect(received.histograms).toEqual([['orders.checkout.duration', 7]]);
-  });
-
-  it('отписка прекращает поток', () => {
-    const { store, metrics } = storeOf();
-    const received = emptyReceived();
-
-    const stop = store.tap(sinkOf(received));
-    stop();
-    metrics.created.add({ tier: 'free' });
-
-    expect(received.counters).toEqual([]);
-  });
-
-  it('сбойный подписчик не ломает запись', () => {
-    const store = new MetricsStore(
-      makeCatalog([{ group: Orders, owner: "feature 'orders'" }]),
-      spyLogger().logger,
-    );
-    const metrics = makeWriter(Orders, store);
-
-    store.tap(sinkOf(emptyReceived(), true));
-
-    expect(() => metrics.created.add({ tier: 'free' })).not.toThrow();
-    expect(
-      findSeriesOne(store.snapshot(), created, { tier: 'free' }),
-    ).toMatchObject({ value: 1 });
-  });
-
-  it('исключение подписчика уходит в логгер ядра', () => {
-    const spy = spyLogger();
-    const store = new MetricsStore(
-      makeCatalog([{ group: Orders, owner: "feature 'orders'" }]),
-      spy.logger,
-    );
-
-    store.tap(sinkOf(emptyReceived(), true));
-    makeWriter(Orders, store).created.add({ tier: 'free' });
-
-    expect(spy.entries).toContainEqual(
-      expect.objectContaining({
-        level: 'error',
-        message: 'metrics sink threw and was isolated',
-      }),
-    );
   });
 });
 

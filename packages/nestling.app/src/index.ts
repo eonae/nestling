@@ -70,7 +70,7 @@ export {
 } from './logger/index.js';
 export type { LogField, LogFieldSpec } from './logger/index.js';
 
-// ./metrics/index.js — 36
+// ./metrics/index.js — 35
 export {
   counter,
   histogram,
@@ -105,7 +105,6 @@ export type {
   MetricsGroup,
   MetricsMembers,
   MetricsOf,
-  MetricSink,
   MetricsSnapshot,
   MetricsWriter,
   NoAttributes,

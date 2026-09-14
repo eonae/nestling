@@ -105,8 +105,8 @@ await app.build().run();
   `HistogramDeclaration`, `HistogramOptions`, `HistogramSeries`,
   `HistogramWriter`, `Member`, `MembersOf`, `MetricAttributes`,
   `MetricDeclaration`, `MetricOptions`, `MetricSeries`, `MetricsCatalog`,
-  `MetricsGroup`, `MetricsMembers`, `MetricsOf`, `MetricSink`,
-  `MetricsSnapshot`, `MetricsWriter`, `NoAttributes`, `Open`.
+  `MetricsGroup`, `MetricsMembers`, `MetricsOf`, `MetricsSnapshot`,
+  `MetricsWriter`, `NoAttributes`, `Open`.
 - **Re-export of neighbours** — [`@nestlingjs/operations`](../nestling.operations/)
   (45 names), [`@nestlingjs/logging`](../nestling.logging/) (6) and
   [`@nestlingjs/common.misc`](../common.misc/) (8); the lists are in their README.

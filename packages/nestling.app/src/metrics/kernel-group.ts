@@ -13,7 +13,7 @@
 import type { SeriesResolutions } from './catalog.js';
 import type { AttributesOf, MetricsOf } from './declaration.js';
 import { counter, histogram, makeMetrics, open } from './declaration.js';
-import type { MetricAttributes } from './sink.js';
+import type { MetricAttributes } from './snapshot.js';
 
 /** Исходы обработки запроса — те же, что видит `.finally`-шаг */
 const REQUEST_OUTCOMES = [

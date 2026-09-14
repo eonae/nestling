@@ -11,7 +11,7 @@ import type {
   MetricAttributes,
   MetricSeries,
   MetricsSnapshot,
-} from './sink.js';
+} from './snapshot.js';
 
 /** Атрибуты ряда содержат все заданные значения */
 const matches = (series: MetricSeries, attributes: MetricAttributes): boolean =>

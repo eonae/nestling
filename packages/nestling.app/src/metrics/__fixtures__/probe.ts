@@ -5,7 +5,6 @@
  * создаются руками — так же, как их создаёт фаза BUILD.
  */
 
-import { spyLogger } from '../../logger/__fixtures__/spy.js';
 import type { MetricsContribution, SeriesResolutions } from '../catalog.js';
 import { makeCatalog } from '../catalog.js';
 import type { AnyMember, AnyMetricsGroup, MetricsOf } from '../declaration.js';
@@ -16,7 +15,7 @@ import type {
 } from '../kernel-group.js';
 import { KernelMetrics, kernelSeries } from '../kernel-group.js';
 import { findSeries, findSeriesOne } from '../lookup.js';
-import type { MetricAttributes, MetricSeries } from '../sink.js';
+import type { MetricAttributes, MetricSeries } from '../snapshot.js';
 import { MetricsStore } from '../store.js';
 import { makeWriter } from '../writer.js';
 
@@ -76,10 +75,7 @@ export function probeMetrics(options: ProbeOptions = {}): MetricsProbe {
     options.operations ?? [],
   );
 
-  const store = new MetricsStore(
-    makeCatalog(contributions, resolutions),
-    spyLogger().logger,
-  );
+  const store = new MetricsStore(makeCatalog(contributions, resolutions));
 
   return {
     store,

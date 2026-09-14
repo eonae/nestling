@@ -60,8 +60,7 @@ export type {
   HistogramSeries,
   MetricAttributes,
   MetricSeries,
-  MetricSink,
   MetricsSnapshot,
-} from './sink.js';
+} from './snapshot.js';
 export { MetricsStore, MetricsStore$ } from './store.js';
 export { makeWriter } from './writer.js';

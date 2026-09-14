@@ -123,21 +123,20 @@ kernel-модулем, а не выбором приложения.
 - **WHEN** приложению нужно сослаться на метрику ядра в тесте или алерте
 - **THEN** оно адресует её членом группы ядра, а не строкой
 
-### Requirement: `MetricSink` — форма получателя записей
+### Requirement: Снимок — форма чтения накопленного
 
-`@nestlingjs/app` SHALL экспортировать интерфейс `MetricSink` с методами
-`counter(name, value, attributes)` и `histogram(name, value, attributes)` и
+`@nestlingjs/app` SHALL экспортировать тип снимка (`MetricsSnapshot`,
+`MetricSeries`, `CounterSeries`, `HistogramSeries`, `HistogramBucket`) и
 тип `MetricAttributes = Record<string, string | number | boolean>`.
 
-`MetricSink` SHALL быть выходом store (`tap(sink)`), а не входом, который
-реализует приложение. Приложение SHALL NOT задавать реализацию записи
-опцией корня.
+Снимок SHALL быть выходом store, а не входом, который реализует
+приложение: интерфейса записи в поверхности пакета SHALL NOT быть, и
+приложение SHALL NOT задавать реализацию записи опцией корня.
 
-#### Scenario: Получатель подписывается на записи
+#### Scenario: Получатель читает снимок
 
-- **WHEN** сателлит реализует `MetricSink` и вызывает
-  `store.tap(sink)`
-- **THEN** он получает стартовое состояние и последующие записи
+- **WHEN** сателлит отправляет метрики наружу
+- **THEN** он берёт `store.snapshot()` и собирает точки из его рядов
 
 ### Requirement: Тест читает снимок метрик
 
@@ -164,8 +163,8 @@ kernel-модулем, а не выбором приложения.
 
 **Reason**: Прикладная запись по строковому имени убрана: метрика
 объявляется значением, и писателя раздаёт группа (capability
-`metric-declarations`). Форма с двумя методами сохранена как `MetricSink` —
-выход store, на который подписываются получатели.
+`metric-declarations`). Второй формы записи не осталось: накопленное
+держит ядро, а получатель читает снимок.
 
 **Migration**: Записи `metrics.counter('orders.created', 1, attrs)`
 переписываются на `metrics.created.add(1, attrs)` после объявления группы

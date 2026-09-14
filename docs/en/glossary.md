@@ -307,9 +307,8 @@ there too.
   the attributes of each. It is collected at the BUILD phase from the
   contributions of the selected composition and is ready before INIT.
 - **Metrics store** (`store метрик`, `MetricsStore$`) — the graph node
-  that holds what is accumulated. Two outputs: `snapshot()` is the state
-  of the series at the moment of the call, `tap(sink)` is the stream of
-  entries with the starting state.
+  that holds what is accumulated. There is one output: `snapshot()` is the
+  state of the series at the moment of the call.
 - **Exposition** (`экспозиция`) — the text a format package
   (`@nestlingjs/prometheus`) serves to the metrics collector from the
   snapshot of the store.

@@ -65,5 +65,5 @@ boundaries come from the declaration of the metric, so the package
 computes nothing.
 
 The package has no dependency on OpenTelemetry: this is one exposition
-format, not a telemetry model. A push export is built on
-`MetricsStore$.tap(sink)` and lives in its own package.
+format, not a telemetry model. A push export reads the same snapshot on a
+timer and lives in its own package.

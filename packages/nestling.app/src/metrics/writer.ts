@@ -9,7 +9,7 @@
 import type { CatalogMetric } from './catalog.js';
 import { seriesIndex } from './catalog.js';
 import type { AnyMetricsGroup, MetricsOf } from './declaration.js';
-import type { MetricAttributes } from './sink.js';
+import type { MetricAttributes } from './snapshot.js';
 import type { MetricsStore } from './store.js';
 
 /** Атрибуты без записи: у метрики, которая их не объявляла */

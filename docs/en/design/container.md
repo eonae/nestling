@@ -469,10 +469,10 @@ export const OrdersMetrics = makeMetrics('orders', {
   metric name fail the build, and the text names both.
 - **`MetricsStore$`** is a graph node that is always there. It holds the
   values of the series and the catalog; an application provider under it
-  is a duplicate error. Two outputs: `snapshot()` returns the state of
-  the series at the moment of the call, `tap(sink)` returns the stream of
-  entries with the starting state and the unsubscribe function. An
-  exception of the subscriber is isolated and goes to the kernel logger.
+  is a duplicate error. There is one output: `snapshot()` returns the
+  state of the series at the moment of the call. A receiver that sends
+  the numbers out takes the state on a timer: both the exposition and the
+  OTLP push accept accumulated values, not increments.
 - **A series is addressed by an index** computed at build time: writing a
   declared series builds no string key. The series of open attributes
   live in a dictionary. A histogram holds the count of observations, the
@@ -493,11 +493,7 @@ export const OrdersMetrics = makeMetrics('orders', {
   price of writing a declared series is an increment by an index.
 - **The kernel does not know the export format.** The exposition comes
   from a plugin that reads `MetricsStore$` — `@nestlingjs/prometheus`,
-  for one; a push export is built on `tap(sink)`.
-- **`MetricSink`** is the shape of the receiver of entries:
-  `start(snapshot)`, `counter(name, value, attributes)` and
-  `histogram(name, value, attributes)`. It is an output of the store, not
-  an input the application implements.
+  for one; a push export builds its points from the same snapshot.
 
 ## The kernel and user code
 

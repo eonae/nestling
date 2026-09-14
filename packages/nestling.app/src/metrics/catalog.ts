@@ -9,7 +9,7 @@
 
 import type { AnyMetricsGroup, MetricDeclaration } from './declaration.js';
 import { metricName, open } from './declaration.js';
-import type { MetricAttributes } from './sink.js';
+import type { MetricAttributes } from './snapshot.js';
 
 /**
  * Вклад в каталог: группа и тот, кто её подключил.

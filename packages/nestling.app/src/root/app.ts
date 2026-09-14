@@ -1156,7 +1156,7 @@ export class BuiltApp {
     // обязан упасть ошибкой, называющей владельца узла, а не общей ошибкой
     // дубля
     this.#registerRootLogger(builder, root);
-    this.#registerMetricsStore(builder, new MetricsStore(catalog, logger));
+    this.#registerMetricsStore(builder, new MetricsStore(catalog));
 
     const container = builder.build();
 

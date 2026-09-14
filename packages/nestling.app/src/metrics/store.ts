@@ -2,9 +2,8 @@
  * Store метрик: накопленное держит ядро.
  *
  * Store есть у любого приложения и накапливает записи независимо от того,
- * читает ли их кто-нибудь. У него два выхода: `snapshot()` отдаёт
- * состояние рядов на момент вызова, `tap(sink)` — поток записей со
- * стартовым состоянием. Формата экспорта store не знает.
+ * читает ли их кто-нибудь. Выход один: `snapshot()` отдаёт состояние
+ * рядов на момент вызова. Формата экспорта store не знает.
  */
 
 import type { CatalogMetric, MetricsCatalog } from './catalog.js';
@@ -13,12 +12,10 @@ import type {
   HistogramBucket,
   MetricAttributes,
   MetricSeries,
-  MetricSink,
   MetricsSnapshot,
-} from './sink.js';
+} from './snapshot.js';
 
 import { makeToken } from '@nestlingjs/container';
-import type { Logger } from '@nestlingjs/logging';
 
 /** Агрегат гистограммы одного ряда: наблюдения по корзинам декларации */
 interface HistogramCell {
@@ -131,23 +128,15 @@ export class MetricsStore {
   /** Ряды открытых атрибутов: метрика — её ряды по ключу */
   readonly #open = new Map<CatalogMetric, Map<string, OpenSeries>>();
 
-  /** Подписчики потока записей */
-  readonly #sinks = new Set<MetricSink>();
-
-  /** Логгер ядра: в него уходит изолированное исключение подписчика */
-  readonly #logger: Logger;
-
   /**
    * @param catalog - Каталог метрик сборки
-   * @param logger - Логгер ядра для изолированных исключений подписчиков
    */
-  constructor(catalog: MetricsCatalog, logger: Logger) {
+  constructor(catalog: MetricsCatalog) {
     this.catalog = catalog;
     this.#counters = new Float64Array(catalog.counters);
     this.#histograms = Array.from<HistogramCell | undefined>({
       length: catalog.histograms,
     });
-    this.#logger = logger;
   }
 
   /**
@@ -185,24 +174,6 @@ export class MetricsStore {
   }
 
   /**
-   * Подписывает получателя на записи.
-   *
-   * Подписчик сразу получает снимок стартовым состоянием: записи фаз INIT
-   * и START сделаны раньше, чем он успел подписаться, и терять их нельзя.
-   *
-   * @param sink - Получатель записей
-   * @returns Функция отписки
-   */
-  tap(sink: MetricSink): () => void {
-    this.#isolate(() => sink.start(this.snapshot()));
-    this.#sinks.add(sink);
-
-    return () => {
-      this.#sinks.delete(sink);
-    };
-  }
-
-  /**
    * Прибавляет к счётчику.
    *
    * @param metric - Метрика каталога
@@ -223,8 +194,6 @@ export class MetricsStore {
     } else {
       this.#counters[index] = (this.#counters[index] as number) + value;
     }
-
-    this.#publish((sink) => sink.counter(metric.name, value, attributes));
   }
 
   /**
@@ -254,8 +223,6 @@ export class MetricsStore {
 
     const bucket = bucketOf(boundaries, value);
     cell.buckets[bucket] = (cell.buckets[bucket] as number) + 1;
-
-    this.#publish((sink) => sink.histogram(metric.name, value, attributes));
   }
 
   /** Ряд открытых атрибутов: заводится первой записью */
@@ -282,34 +249,6 @@ export class MetricsStore {
     }
 
     return series;
-  }
-
-  /** Рассылает запись подписчикам; сбойный подписчик не ломает запись */
-  #publish(deliver: (sink: MetricSink) => void): void {
-    if (this.#sinks.size === 0) {
-      return;
-    }
-
-    for (const sink of this.#sinks) {
-      this.#isolate(() => deliver(sink));
-    }
-  }
-
-  /**
-   * Изолирует исключение подписчика.
-   *
-   * Ровно как у `.finally`-шагов: наблюдатель не имеет права уронить
-   * обработку запроса. Исключение при этом не пропадает — оно уходит в
-   * логгер ядра.
-   */
-  #isolate(deliver: () => void): void {
-    try {
-      deliver();
-    } catch (error) {
-      this.#logger.error('metrics sink threw and was isolated', {
-        err: error,
-      });
-    }
   }
 }
 

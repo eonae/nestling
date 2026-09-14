@@ -93,5 +93,5 @@ database is written against the same interfaces.
 
 Metrics are accumulated by the kernel, and the exposition format is kept
 apart from it: the format package reads the snapshot of the store. An
-export over another protocol subscribes to the stream of entries
-(`MetricsStore$.tap`) and starts no second accumulation.
+export over another protocol reads the same snapshot on a timer and
+starts no second accumulation.

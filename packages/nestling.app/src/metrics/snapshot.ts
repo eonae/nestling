@@ -1,8 +1,9 @@
 /**
- * Получатель записей store: атрибуты ряда и два метода записи.
+ * Снимок store: ряды со значениями и каталожными полями метрик.
  *
- * `MetricSink` — выход, а не вход. Приложение его не реализует: накопленное
- * держит ядро, а подписывается на записи тот, кто отправляет их наружу.
+ * Снимок — единственный выход накопленного наружу. Приложение не
+ * реализует запись и не перехватывает её: числа держит ядро, а тот, кто
+ * отправляет их наружу, читает состояние на момент вызова.
  */
 
 /**
@@ -12,50 +13,6 @@
  * известен сборке, и от трафика он не растёт.
  */
 export type MetricAttributes = Record<string, string | number | boolean>;
-
-/**
- * Получатель записей store.
- *
- * Записи идут потоком, а накопленное до подписки приходит снимком —
- * поэтому у получателя три метода, а не два: без `start` push-получатель
- * терял бы всё, что записано фазами INIT и START.
- *
- * @example
- * ```typescript
- * const stop = store.tap({
- *   start: (snapshot) => exporter.seed(snapshot),
- *   counter: (name, value, attributes) => exporter.add(name, value, attributes),
- *   histogram: (name, value, attributes) =>
- *     exporter.observe(name, value, attributes),
- * });
- * ```
- */
-export interface MetricSink {
-  /**
-   * Стартовое состояние: снимок всех рядов на момент подписки.
-   *
-   * @param snapshot - Ряды со значениями и описанием метрик
-   */
-  start(snapshot: MetricsSnapshot): void;
-
-  /**
-   * Запись счётчика.
-   *
-   * @param name - Полное имя метрики
-   * @param value - Прибавка
-   * @param attributes - Атрибуты ряда
-   */
-  counter(name: string, value: number, attributes: MetricAttributes): void;
-
-  /**
-   * Наблюдение гистограммы.
-   *
-   * @param name - Полное имя метрики
-   * @param value - Наблюдённое значение
-   * @param attributes - Атрибуты ряда
-   */
-  histogram(name: string, value: number, attributes: MetricAttributes): void;
-}
 
 /** Одна корзина гистограммы: граница и число наблюдений не больше неё */
 export interface HistogramBucket {

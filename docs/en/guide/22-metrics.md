@@ -169,7 +169,6 @@ values of the series and the catalog they were created from:
 interface MetricsStore {
   readonly catalog: MetricsCatalog;
   snapshot(): MetricsSnapshot;
-  tap(sink: MetricSink): () => void;
 }
 ```
 
@@ -179,11 +178,9 @@ histogram aggregate, plus the description and the unit from the
 declaration. The snapshot is a copy: entries made after the call do not
 change it.
 
-`tap(sink)` subscribes a receiver to the stream of entries and hands it
-the current snapshot as the starting state — otherwise the entries of the
-INIT and START phases would be lost. It returns the unsubscribe function.
-An exception of the subscriber is isolated and goes to the kernel logger:
-a failing exporter does not break request handling.
+There is one output. A receiver that sends the numbers out over its own
+protocol takes the state on a timer: both the Prometheus exposition and
+the OTLP push accept accumulated values, not increments.
 
 There is nothing to configure in the store, and it has no root option:
 an export plugin is a consumer, not a switch.
