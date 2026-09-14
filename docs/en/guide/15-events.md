@@ -1,6 +1,6 @@
 # 15. Tell the neighbours what happened
 
-> Guide to the current API; verified against `e2500af3`.
+> Guide to the current API; verified against `bd9dce44`.
 > Target description: [design/operations.md](../design/operations.md), the
 > "Three kinds" and "Call profile" sections. Why: entries
 > [ideas.md](../../decisions/ideas.md)
