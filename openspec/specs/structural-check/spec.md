@@ -30,10 +30,10 @@
 объявленных транспортов и проверку объявленных политик (capability
 `build-policies`).
 
-Аргумент `args` SHALL принимать те же формы, что `build(args?)`,
-включая объектную форму со значениями переключателей (capability
-`composition-switches`); без аргумента SHALL проверяться сборка со всеми
-фичами и умолчаниями переключателей. Словарь `options` SHALL быть
+Аргумент `args` SHALL принимать те же две формы, что `build(args?)`:
+объект со значениями переключателей (capability `composition-switches`) и
+маркер `argv(process.argv)` (capability `build-argument`); без аргумента
+SHALL проверяться сборка со всеми фичами и умолчаниями переключателей. Словарь `options` SHALL быть
 необязательным и SHALL нести конвертеры схем (`converters`, capability
 `standard-schema-validation`).
 
@@ -56,7 +56,8 @@
 выполняться.
 
 `check()` SHALL бросать те же ошибки, что бросил бы `run()` на этих фазах, —
-включая нарушения политик и ошибки значений переключателей.
+включая нарушения политик, ошибки значений переключателей и отказы
+разбора командной строки.
 
 На успехе SHALL возвращаться отчёт о составе: выбранные фичи, значения
 переключателей (`switches`), endpoint'ы по транспортам, требуемые
@@ -87,7 +88,7 @@ SHALL быть значениями (capability `contract-compatibility`); пр�
 
 #### Scenario: Проверка без источников
 
-- **WHEN** `await app.check('orders', { config: [bind(vars({ ORDERS_MAX_ITEMS: '10' }))] })`
+- **WHEN** `await app.check({ features: 'orders' }, { config: [bind(vars({ ORDERS_MAX_ITEMS: '10' }))] })`
 - **THEN** `defaultSources` не поднимаются, значения приходят из
   переданного источника, и проверка обходится без ввода-вывода
 
@@ -99,8 +100,15 @@ SHALL быть значениями (capability `contract-compatibility`); пр�
 
 #### Scenario: Проверка выбранной топологии
 
-- **WHEN** `await app.check('orders')`
+- **WHEN** `await app.check({ features: 'orders' })`
 - **THEN** проверена сборка только фичи `orders`, отчёт называет её одну
+
+#### Scenario: Проверка топологии из командной строки
+
+- **WHEN** `await app.check(argv(process.argv))` при запуске
+  `node check.js --features orders`
+- **THEN** проверена та же топология, что у объектной формы с тем же
+  выбором
 
 #### Scenario: Битая топология падает
 
@@ -169,10 +177,11 @@ SHALL быть значениями (capability `contract-compatibility`); пр�
 `@nestlingjs/testing` SHALL экспортировать
 `checkTopologies(app, topologies, options?)`, принимающую декларацию
 `makeApp` и прогоняющую `app.check(args, options)` по каждой топологии
-из списка. Элемент списка SHALL быть аргументом сборки в любой из его
-форм, включая объектную со значениями переключателей: топология
-описывается выбором фич и ветками вместе (capability
-`composition-switches`). Функция SHALL собирать **все** отказы и сообщать
+из списка. Элемент списка SHALL быть объектной формой аргумента сборки:
+топология описывается выбором фич и ветками вместе (capability
+`composition-switches`). Маркер `argv` элементом списка SHALL NOT
+приниматься: матрица перечисляет топологии в коде, а не берёт их из
+командной строки. Функция SHALL собирать **все** отказы и сообщать
 их одним сообщением, называя топологию для каждого.
 
 Словарь `options` SHALL прокидываться в `check()` каждой топологии без
@@ -180,7 +189,7 @@ SHALL быть значениями (capability `contract-compatibility`); пр�
 
 Поскольку прогон идёт через `check()`, объявленные в декларации политики
 SHALL проверяться в каждой топологии матрицы: инвариант, который держится
-при `'all'`, но ломается на подмножестве фич, SHALL обнаруживаться в CI.
+при всех фичах, но ломается на подмножестве, SHALL обнаруживаться в CI.
 
 Отчёты матрицы SHALL быть пригодны для сведения в снапшот операций
 (`snapshotOperations`, capability `contract-compatibility`) без
@@ -188,7 +197,7 @@ SHALL проверяться в каждой топологии матрицы: 
 
 #### Scenario: Один тест на все варианты деплоя
 
-- **WHEN** `await checkTopologies(app, ['all', 'users', 'logging'])`
+- **WHEN** `await checkTopologies(app, [{ features: 'all' }, { features: 'users' }, { features: 'logging' }])`
 - **THEN** каждая топология собрана и проверена без деплоя и без сокетов
 
 #### Scenario: Матрица перебирает ветки переключателей
@@ -210,7 +219,7 @@ SHALL проверяться в каждой топологии матрицы: 
 
 #### Scenario: Конвертеры доезжают до каждой топологии
 
-- **WHEN** `checkTopologies(app, ['all', 'users'], { converters: [zodConverter()] })`
+- **WHEN** `checkTopologies(app, [{ features: 'all' }, { features: 'users' }], { converters: [zodConverter()] })`
 - **THEN** дескрипторы операций в отчёте каждой топологии несут JSON Schema
   листьев, а не пометку непрозрачности
 
