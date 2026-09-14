@@ -26,10 +26,10 @@ import { db } from './persistence.js';
 import { users } from './schema.js';
 import { inMemoryUsersRepo } from './testing.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { bind, RootLogger$ } from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };

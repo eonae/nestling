@@ -57,10 +57,10 @@ under this condition, so without it the import fails to resolve with
 `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
 ```javascript
-// jest.config.js
+// vitest.config.js
 export default {
-  testEnvironmentOptions: {
-    customExportConditions: ['testing', 'node', 'node-addons'],
+  resolve: {
+    conditions: ['testing', 'node', 'node-addons', 'import', 'default'],
   },
 };
 ```

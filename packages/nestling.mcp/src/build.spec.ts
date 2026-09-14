@@ -11,11 +11,11 @@
 import { mcpTool } from './tool.js';
 import { mcp } from './transport.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { makeApp, makeFeature, Ok, stream } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { http } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /**

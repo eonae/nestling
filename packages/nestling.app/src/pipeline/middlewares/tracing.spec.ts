@@ -16,8 +16,8 @@ import { everyEndpoint } from '../metadata/policy.js';
 
 import { withTracing } from './tracing.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 const PARENT_TRACE = '4bf92f3577b34da6a3ce929d0e0e4736';
 const PARENT_SPAN = '00f067aa0ba902b7';

@@ -21,9 +21,9 @@ import { done, isDone } from './done.js';
 import type { AnyPipeline, Pipeline } from './pipeline.js';
 import { compose, declaresDone, makePipeline } from './pipeline.js';
 
-import { jest } from '@jest/globals';
 import type { AnyInput, AnyPayload, EmptyInput } from '@nestlingjs/operations';
 import { makeFail, Ok } from '@nestlingjs/operations';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const Rejected = makeFail('bad_request:early_rejected', {
@@ -75,9 +75,9 @@ async function run(
 
 describe('досрочный успех: исполнение', () => {
   it('завершает endpoint успехом из середины слоя', async () => {
-    const third = jest.fn();
-    const handler = jest.fn(() => new Ok({ never: true }));
-    const okStep = jest.fn((): void => {});
+    const third = vi.fn((): void => {});
+    const handler = vi.fn(() => new Ok({ never: true }));
+    const okStep = vi.fn((): void => {});
     const outcomes: Outcome[] = [];
 
     const pipeline = makePipeline()
@@ -171,7 +171,7 @@ describe('досрочный успех: исполнение', () => {
   });
 
   it('отказ того же шага идёт прежним путём', async () => {
-    const handler = jest.fn(() => new Ok(undefined));
+    const handler = vi.fn(() => new Ok(undefined));
 
     const response = await run(
       makePipeline().pre(() => Rejected(), { errors: [Rejected], done: true }),

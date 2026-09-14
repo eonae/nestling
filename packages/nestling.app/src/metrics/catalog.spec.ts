@@ -7,7 +7,7 @@ import { makeCatalog, seriesIndex, seriesKey } from './catalog.js';
 import { counter, histogram, makeMetrics, open } from './declaration.js';
 import { KernelMetrics, kernelSeries } from './kernel-group.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 const Orders = makeMetrics('orders', {
   created: counter({

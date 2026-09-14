@@ -10,8 +10,8 @@ import { Ok } from '../core/index.js';
 
 import { makeEndpoint } from './endpoint.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const HttpTransport$ = makeToken('transport:http');

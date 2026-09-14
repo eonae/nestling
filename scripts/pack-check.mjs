@@ -109,7 +109,7 @@ for (const { name } of packages) {
     (entry) =>
       entry.startsWith('package/src/') ||
       entry.startsWith('package/type-tests/') ||
-      /^package\/(tsconfig.*\.json|eslint\.config\.js|jest\.config\.js)$/.test(entry),
+      /^package\/(tsconfig.*\.json|eslint\.config\.js|vitest\.config\.js)$/.test(entry),
   );
 
   if (testCode.length > 0) {

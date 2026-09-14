@@ -1,5 +1,7 @@
 import { Topic } from './topic.js';
 
+import { describe, expect, it } from 'vitest';
+
 /** Отдаёт управление циклу событий: даёт подписке дойти до `await next()` */
 const tick = (): Promise<void> =>
   new Promise((resolve) => setImmediate(resolve));

@@ -12,7 +12,6 @@ import { PgConnection } from './connection.js';
 import type { TxLayerInput } from './plugin.js';
 import { makeDrizzlePg } from './plugin.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type {
   EndpointMeta,
   Output,
@@ -22,6 +21,7 @@ import type {
 import { makeEmptyContext } from '@nestlingjs/app';
 import { Ok } from '@nestlingjs/operations';
 import { sql } from 'drizzle-orm';
+import { describe, expect, it } from 'vitest';
 
 const db = makeDrizzlePg({ schema });
 

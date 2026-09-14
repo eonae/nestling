@@ -21,7 +21,7 @@
     "visualize": "yarn run graph && node ../../packages/nestling.viz/dist/cli.js di-metadata.json",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+    "test": "run -T vitest run"
   },
   "dependencies": {
     "@nestlingjs/app": "workspace:*",

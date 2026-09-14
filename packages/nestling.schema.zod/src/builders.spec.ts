@@ -6,8 +6,8 @@
 import { flag, int } from './builders.js';
 import { zodConverter } from './converter.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { leafJsonSchema } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 
 describe('int', () => {
   it('принимает границу и умолчание цепочкой', () => {

@@ -8,6 +8,7 @@ import {
 import type { Infer, Schema, StandardSchemaV1 } from './types.js';
 import { validateSync } from './validate.js';
 
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 type Equal<A, B> =

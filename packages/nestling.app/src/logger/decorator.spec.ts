@@ -12,8 +12,8 @@ import type { LogFieldsPlan } from './decorator.js';
 import { withLogFields } from './decorator.js';
 import { collectLogFields, logField } from './fields.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Logger } from '@nestlingjs/logging';
+import { describe, expect, it } from 'vitest';
 
 const TRACE = {
   traceId: '4bf92f3577b34da6a3ce929d0e0e4736',

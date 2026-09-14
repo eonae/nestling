@@ -25,6 +25,7 @@ import {
   stream,
   upload,
 } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -32,7 +32,6 @@ import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import {
   Component,
   factoryProvider,
@@ -41,6 +40,7 @@ import {
   valueProvider,
 } from '@nestlingjs/container';
 import { makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const ChargeCard = makeRequest({

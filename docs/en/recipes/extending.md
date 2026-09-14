@@ -265,8 +265,8 @@ does not resolve at the Node level. The runner turns the condition on
 itself:
 
 ```javascript
-// jest
-testEnvironmentOptions: { customExportConditions: ['testing', 'node', 'node-addons'] }
+// vitest
+resolve: { conditions: ['testing', 'node', 'node-addons', 'import', 'default'] }
 ```
 
 A package that imports such a subpath needs `customConditions:

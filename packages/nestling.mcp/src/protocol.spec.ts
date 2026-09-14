@@ -12,8 +12,8 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS,
 } from './protocol.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { SUPPORTED_PROTOCOL_VERSIONS as SDK_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
+import { describe, expect, it } from 'vitest';
 
 describe('версии протокола', () => {
   it('каждая объявленная версия входит в список SDK', () => {

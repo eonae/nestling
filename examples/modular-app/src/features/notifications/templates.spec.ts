@@ -5,7 +5,7 @@
 
 import { welcome } from './templates.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 describe('welcome', () => {
   it('обращается к пользователю по имени', () => {

@@ -18,8 +18,8 @@ import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Component, Resource } from '@nestlingjs/container';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {

@@ -12,8 +12,8 @@ import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Component, makeModule } from '@nestlingjs/container';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /** Ловит узел проб из графа: снаружи собранное приложение его не отдаёт */
 let captured: Health | undefined;

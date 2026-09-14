@@ -13,7 +13,6 @@ import { httpBindingOf, query } from './binding.js';
 import { httpEndpoint } from './helpers.js';
 import { HttpTransport$ } from './token.js';
 
-import { describe, expect, it } from '@jest/globals';
 import {
   BadRequest,
   handlerClassOf,
@@ -22,6 +21,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { makeFail, makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({

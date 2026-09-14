@@ -11,7 +11,6 @@ import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import type { Otel } from './options.js';
 import { otel } from './otel.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
 import type { MetricsOf, MetricsStore } from '@nestlingjs/app';
 import {
   counter,
@@ -26,6 +25,7 @@ import {
 import { Component, Handler } from '@nestlingjs/container';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest } from '@nestlingjs/testing';
+import { describe, expect, it, vi } from 'vitest';
 
 const OrdersMetrics = makeMetrics('orders', {
   created: counter({ help: 'Created orders' }),
@@ -139,7 +139,7 @@ describe('отправка метрик по таймеру', () => {
     const testApp = await buildTest(
       appWith(otel({ service: 'orders', traces })),
     );
-    const snapshot = jest.spyOn(storeOf(testApp), 'snapshot');
+    const snapshot = vi.spyOn(storeOf(testApp), 'snapshot');
 
     await testApp.call(CreateOrder);
     await wait(70);

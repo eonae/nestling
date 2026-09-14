@@ -5,6 +5,8 @@ import { makeToken } from '../common.js';
 import { makeModule } from '../modules/index.js';
 import { classProvider, Component } from '../providers/index.js';
 
+import { describe, expect, it } from 'vitest';
+
 describe('DIGraph', () => {
   interface IServiceA {}
   interface IServiceB {}

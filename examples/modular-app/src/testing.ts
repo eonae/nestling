@@ -14,11 +14,11 @@
  * `examples/microservice`, а миграции у них разные.
  */
 
-import { describe } from '@jest/globals';
 import type { Binding } from '@nestlingjs/app';
 import { bind } from '@nestlingjs/app';
 import { vars } from '@nestlingjs/testing';
 import { serverKeys } from '@nestlingjs/transport.http';
+import { describe } from 'vitest';
 
 /** Адрес базы; без него набор пропускается */
 export const TEST_DATABASE_URL = process.env.MODULAR_TEST_DATABASE_URL;

@@ -10,7 +10,6 @@
 import { makeOpenapi, OpenApiDocument$ } from './module.js';
 import type { OpenApiDocument } from './types.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type {
   AnyInput,
   Dispatch,
@@ -41,6 +40,7 @@ import {
 import type { StandardSchemaV1 } from '@nestlingjs/operations';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */

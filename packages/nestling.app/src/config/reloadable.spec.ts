@@ -16,6 +16,7 @@ import { lookupSection } from './registry.js';
 import { makeConfig } from './section.js';
 import { bind } from './source.js';
 
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Runtime = makeConfig.reloadable('runtime', {

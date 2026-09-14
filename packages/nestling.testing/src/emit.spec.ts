@@ -8,9 +8,9 @@
 import { buildTest } from './app.js';
 import { stub } from './stub.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { implement, makeApp, makeFeature, makePipeline } from '@nestlingjs/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const PlaceOrder = makeCommand({

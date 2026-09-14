@@ -12,8 +12,8 @@ import type { DatabaseConfigValues } from './config.js';
 import { openConnection, PgConnection } from './connection.js';
 import { PgConnectionFailedError } from './errors.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { spyLogger } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 /** Соединение поверх подстановки */
 const connectionOf = (pool: FakePool, statementTimeoutMs = 0) =>

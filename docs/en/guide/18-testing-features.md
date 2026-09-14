@@ -82,7 +82,7 @@ also allowed: it takes priority over the owner.
 `impl` gets a payload typed by the operation's `input` schema and
 returns a value typed by `output`. A fake that does not fit the
 operation does not compile. A stub has no spy of its own: an ordinary
-function or `jest.fn()` fits as `impl`. The list of stubbed operations
+function or `vi.fn()` fits as `impl`. The list of stubbed operations
 is available as `testApp.stubbed`: the names in alphabetical order.
 
 A stub cannot part ways with the operation at runtime either. The input

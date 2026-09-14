@@ -9,7 +9,7 @@
 `testApp.baseUrl(name?)` отдаёт его адрес.
 
 > 🚧 Активная разработка, API может меняться. Раннера, матчеров и
-> snapshot-механики пакет не вводит: jest остаётся jest'ом.
+> snapshot-механики пакет не вводит: их даёт раннер проекта.
 > Дизайн: [`docs/design/testing.md`](../../docs/design/testing.md).
 > Гайд: [глава 8. Убедиться, что работает, без запуска сервера](../../docs/guide/08-testing.md),
 > [глава 22. Считать запросы и вызовы](../../docs/guide/22-metrics.md).
@@ -26,10 +26,10 @@ npm install --save-dev @nestlingjs/testing
 между тестовым и боевым кодом структурная, а не по договорённости.
 
 ```javascript
-// jest.config.js
+// vitest.config.js
 export default {
-  testEnvironmentOptions: {
-    customExportConditions: ['testing', 'node', 'node-addons'],
+  resolve: {
+    conditions: ['testing', 'node', 'node-addons', 'import', 'default'],
   },
 };
 ```

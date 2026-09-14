@@ -30,6 +30,7 @@ import {
   makePipeline,
 } from '@nestlingjs/app';
 import { classProvider, Component, makeModule } from '@nestlingjs/container';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /** Ответ пробы: код и тело — разобранное, если оно JSON */
 interface Probe {

@@ -21,8 +21,8 @@ import { Discovery$ } from './discovery.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
 import { factoryProvider, makeToken } from '@nestlingjs/container';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>

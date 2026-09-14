@@ -1,18 +1,18 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`class role type diagnostics component-extra-dependency 1`] = `
+exports[`class role type diagnostics > component-extra-dependency 1`] = `
 "packages/nestling.container/type-tests/fixtures/component-extra-dependency.ts(16,2): error TS1238: Unable to resolve signature of class decorator when called as an expression.
   Argument of type 'typeof UserService' is not assignable to parameter of type 'typeof UserService & DependencyLengthError<1, 2>'.
     Type 'typeof UserService' is missing the following properties from type 'DependencyLengthError<1, 2>': __error, expected, actual"
 `;
 
-exports[`class role type diagnostics component-with-handle 1`] = `
+exports[`class role type diagnostics > component-with-handle 1`] = `
 "packages/nestling.container/type-tests/fixtures/component-with-handle.ts(12,2): error TS1238: Unable to resolve signature of class decorator when called as an expression.
   Argument of type 'typeof CreateUserHandler' is not assignable to parameter of type 'typeof CreateUserHandler & RoleShapeError<"A class with a handle method is a handler, not a component", "@Handler">'.
     Type 'typeof CreateUserHandler' is missing the following properties from type 'RoleShapeError<"A class with a handle method is a handler, not a component", "@Handler">': __error, use"
 `;
 
-exports[`class role type diagnostics component-wrong-order 1`] = `
+exports[`class role type diagnostics > component-wrong-order 1`] = `
 "packages/nestling.container/type-tests/fixtures/component-wrong-order.ts(19,2): error TS1238: Unable to resolve signature of class decorator when called as an expression.
   Argument of type 'typeof UserService' is not assignable to parameter of type 'new (args_0: ILogger, args_1: Database) => any'.
     Types of construct signatures are incompatible.

@@ -14,8 +14,8 @@ import {
 import { TestTransport$, VALUE_ONLY } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Resource } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 describe('серверы по ссылке `server` — регистрация', () => {
   it('транспорт заводит свой сервер: два узла на одно объявление', async () => {

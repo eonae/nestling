@@ -15,7 +15,7 @@ import type { Output, OutputSync } from './output.js';
 import type { AnyFail } from './result.js';
 import { Fail, isFail, Ok } from './result.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const OrderNotFound = makeFail('not_found:order', {

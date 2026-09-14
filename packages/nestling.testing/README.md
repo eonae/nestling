@@ -11,7 +11,8 @@ through `4 START` and `5 RUN` — the socket opens, and
 `testApp.baseUrl(name?)` returns its address.
 
 > 🚧 Active development, the API may change. The package introduces no
-> runner, no matchers and no snapshot mechanics: jest stays jest.
+> runner, no matchers and no snapshot mechanics: the project's runner
+> provides them.
 > Design: [`docs/en/design/testing.md`](../../docs/en/design/testing.md).
 > Guide: [chapter 8. Make sure it works without starting a server](../../docs/en/guide/08-testing.md),
 > [chapter 22. Count requests and calls](../../docs/en/guide/22-metrics.md).
@@ -29,10 +30,10 @@ condition, so without it the import fails to resolve with
 the production code is structural, not a matter of convention.
 
 ```javascript
-// jest.config.js
+// vitest.config.js
 export default {
-  testEnvironmentOptions: {
-    customExportConditions: ['testing', 'node', 'node-addons'],
+  resolve: {
+    conditions: ['testing', 'node', 'node-addons', 'import', 'default'],
   },
 };
 ```

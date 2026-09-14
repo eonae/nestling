@@ -27,6 +27,7 @@ import { compose, makePipeline } from './pipeline.js';
 
 import { makeToken } from '@nestlingjs/container';
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 
 // ============================================================================
 // Mock типы для тестов

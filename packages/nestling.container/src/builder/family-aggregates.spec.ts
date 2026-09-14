@@ -12,6 +12,8 @@ import {
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { describe, expect, it } from 'vitest';
+
 interface HealthCheck {
   name: string;
 }

@@ -3,6 +3,8 @@ import { Component, valueProvider } from '../providers/index.js';
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { describe, expect, it } from 'vitest';
+
 interface ILogger {
   scope: string;
 }

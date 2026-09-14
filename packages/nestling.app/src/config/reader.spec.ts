@@ -10,7 +10,7 @@ import { registerSection, resetConfigRegistry } from './registry.js';
 import type { ConfigSource } from './source.js';
 import { bind, env } from './source.js';
 
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const schema = {
   '~standard': { version: 1, vendor: 'test', validate: () => ({ value: 1 }) },
@@ -88,7 +88,7 @@ describe('разрешение ключа', () => {
   });
 
   it('источник не опрашивается для ключей вне его области', async () => {
-    const get = jest.fn(() => 'x');
+    const get = vi.fn(() => 'x');
     const scoped: ConfigSource = { name: 'scoped', get };
 
     const reader = new ConfigReader([
@@ -141,7 +141,7 @@ describe('жизненный цикл источников', () => {
   });
 
   it('close() закрывает каждый источник, объявивший его', async () => {
-    const close = jest.fn((): void => undefined);
+    const close = vi.fn((): void => undefined);
     const withClose: ConfigSource = { ...silent('a'), close };
     const withoutClose = silent('b');
 
@@ -157,7 +157,7 @@ describe('снимок фазы 0', () => {
   it('init() читает объявленные ключи, чтение источник не трогает', async () => {
     registerSection(declaration('orders', ['ORDERS_MAX_ITEMS']));
 
-    const get = jest.fn(() => '10');
+    const get = vi.fn(() => '10');
     const source: ConfigSource = { name: 'snapshot', get };
 
     const reader = new ConfigReader([bind(source)]);
@@ -185,7 +185,7 @@ describe('снимок фазы 0', () => {
   });
 
   it('ключ вне реестра читается по промаху и запоминается', async () => {
-    const get = jest.fn(() => 'localhost:50051');
+    const get = vi.fn(() => 'localhost:50051');
     const source: ConfigSource = { name: 'globs', get };
 
     const reader = new ConfigReader([bind(source)]);
@@ -219,7 +219,7 @@ describe('снимок фазы 0', () => {
   });
 
   it('init() источника вызывается один раз: повторы — дело источника', async () => {
-    const init = jest.fn(async () => {
+    const init = vi.fn(async () => {
       await Promise.reject(new Error('temporarily unavailable'));
     });
     const flaky: ConfigSource = { ...silent('flaky'), init };
@@ -357,7 +357,7 @@ describe('предупреждения', () => {
 describe('objectSource', () => {
   it('отдаёт значения и уведомляет наблюдателей на set/assign', () => {
     const source = objectSource({ A: '1' });
-    const notified = jest.fn();
+    const notified = vi.fn();
     source.watch?.(notified);
 
     expect(source.get('A')).toBe('1');

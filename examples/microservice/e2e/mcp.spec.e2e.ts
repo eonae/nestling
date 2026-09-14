@@ -15,7 +15,7 @@ import {
   E2E_TOKEN,
 } from './helpers/test-app.js';
 
-import { afterAll, beforeAll, expect, it } from '@jest/globals';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 
 let context: TestAppContext;
 let sessionId: string;

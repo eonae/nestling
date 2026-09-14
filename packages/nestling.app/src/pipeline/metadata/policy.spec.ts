@@ -13,8 +13,8 @@ import { makeEndpoint } from './endpoint.js';
 import type { PolicySubject } from './policy.js';
 import { everyEndpoint } from './policy.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 const HttpTransport$ = makeToken('transport:http');
 const CliTransport$ = makeToken('transport:cli');

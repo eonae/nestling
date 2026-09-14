@@ -11,10 +11,10 @@ import { makeOutboxEmitter, outboxed } from './emitter.js';
 import { OutboxTransactionMissingError } from './errors.js';
 import { InMemoryOutboxStore } from './memory-store.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { CtxReader } from '@nestlingjs/app';
 import { isFail } from '@nestlingjs/app';
 import { makeCommand, makeEvent } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const UserCreated = makeEvent({

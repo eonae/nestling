@@ -14,7 +14,6 @@ import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import type { Otel } from './options.js';
 import { otel } from './otel.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { MetricsOf, MetricsStore } from '@nestlingjs/app';
 import {
   compose,
@@ -35,6 +34,7 @@ import { serialize } from '@nestlingjs/prometheus';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest } from '@nestlingjs/testing';
 import type { HistogramMetricData } from '@opentelemetry/sdk-metrics';
+import { describe, expect, it } from 'vitest';
 
 const OrdersMetrics = makeMetrics('orders', {
   created: counter({ help: 'Created orders' }),

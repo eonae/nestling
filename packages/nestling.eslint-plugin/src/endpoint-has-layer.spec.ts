@@ -9,6 +9,14 @@
 import { endpointHasLayer } from './endpoint-has-layer.js';
 
 import { RuleTester } from 'eslint';
+import { describe, it } from 'vitest';
+
+// `RuleTester` объявляет кейсы через `describe`/`it`, и берёт он их отсюда:
+// глобалов у прогона нет, а без этой пары кейсы исполнились бы мимо раннера
+// и файл сошёл бы за пустой
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
 const ruleTester = new RuleTester({
   languageOptions: { ecmaVersion: 2022, sourceType: 'module' },

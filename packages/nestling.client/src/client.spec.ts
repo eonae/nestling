@@ -8,7 +8,6 @@
 
 import { makeClient } from './client.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyFail } from '@nestlingjs/operations';
 import {
   events,
@@ -21,6 +20,7 @@ import {
   query,
   upload,
 } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });

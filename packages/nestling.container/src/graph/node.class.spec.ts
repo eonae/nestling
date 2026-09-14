@@ -3,6 +3,8 @@ import { valueProvider } from '../providers/index.js';
 
 import { DINode } from './node.class.js';
 
+import { describe, expect, it } from 'vitest';
+
 describe('DINode', () => {
   const TokenA = makeToken<number>('TokenA');
   const TokenB = makeToken<number>('TokenB');

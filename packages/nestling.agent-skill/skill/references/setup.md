@@ -78,6 +78,7 @@ turn the condition on.
 | Runner | How |
 |---|---|
 | `node:test` | `node --import tsx --test --conditions=testing` |
+| vitest | `resolve: { conditions: ['testing', 'node', 'node-addons', 'import', 'default'] }` |
 | jest | `testEnvironmentOptions: { customExportConditions: ['testing', 'node', 'node-addons'] }` |
 
 Without it the first import of `@nestlingjs/testing` throws

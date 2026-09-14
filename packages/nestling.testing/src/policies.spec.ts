@@ -12,7 +12,6 @@ import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { buildTest } from './app.js';
 import { checkTopologies } from './topologies.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ITransport } from '@nestlingjs/app';
 import {
   compose,
@@ -25,6 +24,7 @@ import {
 } from '@nestlingjs/app';
 import { Component } from '@nestlingjs/container';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>

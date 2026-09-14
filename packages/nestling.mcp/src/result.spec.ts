@@ -7,8 +7,8 @@
 
 import { toCallToolResult } from './result.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ResponseContext } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 
 /** Успешный исход пайплайна */
 const ok = (value: unknown): ResponseContext => ({

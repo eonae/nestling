@@ -13,6 +13,7 @@ import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import { isMidStreamFailure, makePipeline } from './pipeline.js';
 
 import { events, Ok, stream, Topic } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -22,8 +22,8 @@ import { describeConfig, lookupSection } from './registry.js';
 import { makeConfig } from './section.js';
 import { bind } from './source.js';
 
-import { jest } from '@jest/globals';
 import type { SchemaDocConverter } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const PgConfig = makeConfig(
@@ -126,7 +126,7 @@ describe('объявление вычисляемого поля', () => {
 
 describe('момент вычисления', () => {
   it('невалидное поле отменяет вычисление', async () => {
-    const compute = jest.fn((token: string) => token.toUpperCase());
+    const compute = vi.fn((token: string) => token.toUpperCase());
 
     makeConfig('required', { token: z.string() }, (derived) => ({
       upper: derived(['token'], compute),
@@ -243,7 +243,7 @@ interface FragileValues {
 }
 
 describe('пересчёт при перезагрузке', () => {
-  const compute = jest.fn((rps: number) => rps * 60);
+  const compute = vi.fn((rps: number) => rps * 60);
 
   makeConfig.reloadable(
     'hot',

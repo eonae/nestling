@@ -6,8 +6,8 @@
 import { zodConverter } from './converter.js';
 import { withZodDefault } from './default.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { SchemaDocConverter } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 
 /** Конвертер чужого вендора: наружу от него нужен только `vendor` */
 const valibotish: SchemaDocConverter = {

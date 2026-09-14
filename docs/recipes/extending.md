@@ -251,8 +251,8 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 включает условие сам:
 
 ```javascript
-// jest
-testEnvironmentOptions: { customExportConditions: ['testing', 'node', 'node-addons'] }
+// vitest
+resolve: { conditions: ['testing', 'node', 'node-addons', 'import', 'default'] }
 ```
 
 Пакету, который импортирует такой subpath, нужно `customConditions:

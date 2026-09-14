@@ -9,7 +9,6 @@
 import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import { pointsOf } from './points.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { MetricsOf, MetricsSnapshot, MetricsStore } from '@nestlingjs/app';
 import {
   counter,
@@ -32,6 +31,7 @@ import type {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { DataPointType } from '@opentelemetry/sdk-metrics';
+import { describe, expect, it } from 'vitest';
 
 const OrdersMetrics = makeMetrics('orders', {
   created: counter({

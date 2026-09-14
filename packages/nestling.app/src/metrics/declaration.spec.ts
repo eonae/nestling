@@ -4,7 +4,7 @@
 
 import { counter, histogram, makeMetrics, open } from './declaration.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 describe('makeMetrics — имена', () => {
   it('имя складывается из префикса и ключа', () => {

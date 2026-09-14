@@ -9,6 +9,7 @@ import { implement } from './implement.js';
 import { collectImplementations } from './topology.js';
 
 import { makeEvent, makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const ChargeCard = makeRequest({

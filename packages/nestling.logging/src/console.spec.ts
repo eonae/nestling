@@ -11,8 +11,8 @@ import { makeConsoleLogger } from './console.js';
 import { formatLine, serializeError } from './format.js';
 import type { Logger, LogLevel } from './interface.js';
 
-import { jest } from '@jest/globals';
 import { makeFail } from '@nestlingjs/operations';
+import { describe, expect, it, vi } from 'vitest';
 
 const UserNotFound = makeFail('not_found:user', { message: 'User not found' });
 
@@ -21,7 +21,7 @@ const LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];
 /** Перехватывает строки, ушедшие в `stderr`, на время вызова */
 function capture(body: () => void): string[] {
   const lines: string[] = [];
-  const spy = jest
+  const spy = vi
     .spyOn(process.stderr, 'write')
     .mockImplementation((chunk: unknown) => {
       lines.push(String(chunk));

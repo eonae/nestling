@@ -21,8 +21,8 @@
     "openapi": "run -T tsx src/openapi.ts",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
-    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
+    "test": "run -T vitest run",
+    "test:e2e": "run -T vitest run --config vitest.e2e.config.js",
     "test:all": "yarn run test && yarn run test:e2e"
   },
   "dependencies": {

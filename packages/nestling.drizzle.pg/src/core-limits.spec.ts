@@ -18,11 +18,11 @@ import { PgConnection } from './connection.js';
 import type { TxLayerInput } from './plugin.js';
 import { makeDrizzlePg } from './plugin.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Output, Raw } from '@nestlingjs/app';
 import { makeEmptyContext } from '@nestlingjs/app';
 import { resourceProvider } from '@nestlingjs/container';
 import { Ok } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 
 const db = makeDrizzlePg({ schema });
 

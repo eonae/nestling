@@ -11,16 +11,9 @@ import { Readable, Writable } from 'node:stream';
 
 import { CreateUser, Help, ListUsers } from './commands/index.js';
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
 import { makeDispatch } from '@nestlingjs/app';
 import { CliTransport, parseArgv } from '@nestlingjs/transport.cli';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 
@@ -41,16 +34,16 @@ const collecting = (chunks: string[]): Writable =>
 function fakeService(body: unknown, status = 200): { calls: Request[] } {
   const calls: Request[] = [];
 
-  jest
-    .spyOn(globalThis, 'fetch')
-    .mockImplementation(async (input: any, init: any) => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(
+    async (input: any, init: any) => {
       calls.push(new Request(String(input), init));
 
       return new Response(JSON.stringify(body), {
         status,
         headers: { 'content-type': 'application/json' },
       });
-    });
+    },
+  );
 
   return { calls };
 }
@@ -72,7 +65,7 @@ describe('команды через execute', () => {
 
   afterEach(async () => {
     await cli.close();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('отдаёт справку потоком строк: печатает её транспорт', async () => {
@@ -168,7 +161,7 @@ describe('create-user: недостающее спрашивается', () => {
       expect(calls[0].method).toBe('POST');
     } finally {
       await cli.close();
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     }
   });
 
@@ -195,7 +188,7 @@ describe('create-user: недостающее спрашивается', () => {
       expect(printed.join('')).not.toContain('Имя пользователя');
     } finally {
       await cli.close();
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     }
   });
 

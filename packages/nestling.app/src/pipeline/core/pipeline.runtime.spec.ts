@@ -24,7 +24,6 @@ import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
-import { jest } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
 import type {
   AnyFailDefinition,
@@ -42,6 +41,7 @@ import {
   Timeout,
   TRANSPORT_RESPONSE,
 } from '@nestlingjs/operations';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -1185,7 +1185,7 @@ describe('Pipeline v2 — проверка операции отказов', () 
 
   it('без логгера запись уходит в умолчание ядра (stderr), ответ не меняется', async () => {
     const lines: string[] = [];
-    const write = jest
+    const write = vi
       .spyOn(process.stderr, 'write')
       .mockImplementation((chunk: unknown) => {
         lines.push(String(chunk));

@@ -13,8 +13,8 @@
 import type { PgSchema } from '../src/index.js';
 import { PgConnection } from '../src/index.js';
 
-import { describe } from '@jest/globals';
 import pg from 'pg';
+import { describe } from 'vitest';
 
 /** Адрес базы; без него тесты этого каталога пропускаются */
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;

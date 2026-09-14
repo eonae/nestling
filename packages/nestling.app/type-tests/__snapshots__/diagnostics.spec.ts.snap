@@ -1,11 +1,11 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`pipeline type diagnostics compose-arity3-inner 1`] = `
+exports[`pipeline type diagnostics > compose-arity3-inner 1`] = `
 "packages/nestling.app/type-tests/fixtures/compose-arity3-inner.ts(20,47): error TS2345: Argument of type 'PipelineBuilder<{ tenantId: string; }, { tenantId: string; }, never, never>' is not assignable to parameter of type '{ __error: "Layer requires context that outer layers do not provide"; missing: { tenantId: string; }; }'.
   Type 'PipelineBuilder<{ tenantId: string; }, { tenantId: string; }, never, never>' is missing the following properties from type '{ __error: "Layer requires context that outer layers do not provide"; missing: { tenantId: string; }; }': __error, missing"
 `;
 
-exports[`pipeline type diagnostics compose-fails-union 1`] = `
+exports[`pipeline type diagnostics > compose-fails-union 1`] = `
 "packages/nestling.app/type-tests/fixtures/compose-fails-union.ts(31,28): error TS2769: No overload matches this call.
   Overload 1 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, EmptyInput, never, [], Fail<"unauthorized", undefined> | Fail<...>, never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>, "ok"> | DeclaredOutput<ZodObject<{ id: ZodString; }, $strip>, NoInfer<Fail<...> | Fail<...>>, never>'.
@@ -19,24 +19,24 @@ exports[`pipeline type diagnostics compose-fails-union 1`] = `
       Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, EmptyInput, NoInfer<Fail<"unauthorized", undefined> | Fail<...>>, never>; }'."
 `;
 
-exports[`pipeline type diagnostics compose-missing-field 1`] = `
+exports[`pipeline type diagnostics > compose-missing-field 1`] = `
 "packages/nestling.app/type-tests/fixtures/compose-missing-field.ts(15,40): error TS2345: Argument of type 'PipelineBuilder<{ identity: User; requestId: string; }, { identity: User; requestId: string; }, never, never>' is not assignable to parameter of type '{ __error: "Layer requires context that outer layers do not provide"; missing: { identity: User; }; }'.
   Type 'PipelineBuilder<{ identity: User; requestId: string; }, { identity: User; requestId: string; }, never, never>' is missing the following properties from type '{ __error: "Layer requires context that outer layers do not provide"; missing: { identity: User; }; }': __error, missing"
 `;
 
-exports[`pipeline type diagnostics compose-wrong-order 1`] = `
+exports[`pipeline type diagnostics > compose-wrong-order 1`] = `
 "packages/nestling.app/type-tests/fixtures/compose-wrong-order.ts(23,45): error TS2345: Argument of type 'PipelineBuilder<{ requestId: string; }, { requestId: string; } & { identity: User; }, never, never>' is not assignable to parameter of type '{ __error: "Layer requires context that outer layers do not provide"; missing: { requestId: string; }; }'.
   Type 'PipelineBuilder<{ requestId: string; }, { requestId: string; } & { identity: User; }, never, never>' is missing the following properties from type '{ __error: "Layer requires context that outer layers do not provide"; missing: { requestId: string; }; }': __error, missing"
 `;
 
-exports[`pipeline type diagnostics compose-wrong-type 1`] = `
+exports[`pipeline type diagnostics > compose-wrong-type 1`] = `
 "packages/nestling.app/type-tests/fixtures/compose-wrong-type.ts(15,40): error TS2345: Argument of type 'PipelineBuilder<{ requestId: number; }, { requestId: number; }, never, never>' is not assignable to parameter of type '{ __error: "Layer requires context that outer layers do not provide"; missing: { requestId: number; }; }'.
   Type 'PipelineBuilder<{ requestId: number; }, { requestId: number; }, never, never>' is missing the following properties from type '{ __error: "Layer requires context that outer layers do not provide"; missing: { requestId: number; }; }': __error, missing"
 `;
 
-exports[`pipeline type diagnostics discover-endpoints-not-exported 1`] = `"packages/nestling.app/type-tests/fixtures/discover-endpoints-not-exported.ts(9,10): error TS2724: '"@nestlingjs/app"' has no exported member named 'discoverEndpoints'. Did you mean 'DiscoveredEndpoint'?"`;
+exports[`pipeline type diagnostics > discover-endpoints-not-exported 1`] = `"packages/nestling.app/type-tests/fixtures/discover-endpoints-not-exported.ts(9,10): error TS2724: '"@nestlingjs/app"' has no exported member named 'discoverEndpoints'. Did you mean 'DiscoveredEndpoint'?"`;
 
-exports[`pipeline type diagnostics endpoint-missing-rawbody 1`] = `
+exports[`pipeline type diagnostics > endpoint-missing-rawbody 1`] = `
 "packages/nestling.app/type-tests/fixtures/endpoint-missing-rawbody.ts(13,40): error TS2769: No overload matches this call.
   Overload 2 of 2, '(path: "/hooks/stripe", declaration: HttpEndpointDictionary<"/hooks/stripe", AnyPayload, undefined, { rawBody: Uint8Array<ArrayBufferLike>; }, never, undefined, { ...; }, [], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'PipelineBuilder<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never, never>' is not assignable to type 'Pipeline<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never, never> & { ...; }'.
@@ -46,7 +46,7 @@ exports[`pipeline type diagnostics endpoint-missing-rawbody 1`] = `
       Type '() => Promise<Ok<{ received: boolean; }, "ok">>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<AnyPayload, undefined, { rawBody: Uint8Array<ArrayBufferLike>; }, AnyFail, never>; }'."
 `;
 
-exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
+exports[`pipeline type diagnostics > endpoint-undeclared-fail 1`] = `
 "packages/nestling.app/type-tests/fixtures/endpoint-undeclared-fail.ts(25,28): error TS2769: No overload matches this call.
   Overload 1 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>, "ok"> | DeclaredOutput<ZodObject<{ id: ZodString; }, $strip>, Fail<...>, never>'.
@@ -60,14 +60,14 @@ exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
       Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"conflict:order_limit_reached", undefined>, never>; }'."
 `;
 
-exports[`pipeline type diagnostics output-chain-type-changing 1`] = `
+exports[`pipeline type diagnostics > output-chain-type-changing 1`] = `
 "packages/nestling.app/type-tests/fixtures/output-chain-type-changing.ts(16,3): error TS2769: No overload matches this call.
   Overload 1 of 2, '(path: "/rows", declaration: HttpEndpointDictionary<"/rows", AnyPayload, StreamForm<{ id: string; }, { id: string; }[], "stream">, EmptyInput, never, undefined, EmptyInput, [], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' is not assignable to type 'StreamForm<{ id: string; }, { id: string; }[], "stream"> & { __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'.
       Property '__error' is missing in type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' but required in type '{ __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'."
 `;
 
-exports[`pipeline type diagnostics output-multipart-form 1`] = `
+exports[`pipeline type diagnostics > output-multipart-form 1`] = `
 "packages/nestling.app/type-tests/fixtures/output-multipart-form.ts(12,41): error TS2769: No overload matches this call.
   Overload 2 of 2, '(path: "/reports", declaration: HttpEndpointDictionary<"/reports", AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, EmptyInput, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' is not assignable to type 'MultipartForm<undefined, { report: UploadSpec<false>; }> & { __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
@@ -77,15 +77,15 @@ exports[`pipeline type diagnostics output-multipart-form 1`] = `
       Type '() => Promise<Ok<undefined, "ok">>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, EmptyInput, AnyFail, never>; }'."
 `;
 
-exports[`pipeline type diagnostics pre-after-response 1`] = `"packages/nestling.app/type-tests/fixtures/pre-after-response.ts(14,4): error TS2339: Property 'pre' does not exist on type 'PhasedPipeline<EmptyInput, EmptyInput, never, never>'."`;
+exports[`pipeline type diagnostics > pre-after-response 1`] = `"packages/nestling.app/type-tests/fixtures/pre-after-response.ts(14,4): error TS2339: Property 'pre' does not exist on type 'PhasedPipeline<EmptyInput, EmptyInput, never, never>'."`;
 
-exports[`pipeline type diagnostics pre-overrides-field 1`] = `"packages/nestling.app/type-tests/fixtures/pre-overrides-field.ts(12,8): error TS2345: Argument of type 'PreStepFn<AnyInput, { userId: number; }>' is not assignable to parameter of type '{ __error: "Pre-step overrides fields that are already in the input"; conflicting: { userId: [string, number]; }; }'."`;
+exports[`pipeline type diagnostics > pre-overrides-field 1`] = `"packages/nestling.app/type-tests/fixtures/pre-overrides-field.ts(12,8): error TS2345: Argument of type 'PreStepFn<AnyInput, { userId: number; }>' is not assignable to parameter of type '{ __error: "Pre-step overrides fields that are already in the input"; conflicting: { userId: [string, number]; }; }'."`;
 
-exports[`pipeline type diagnostics pre-requires-missing 1`] = `"packages/nestling.app/type-tests/fixtures/pre-requires-missing.ts(11,3): error TS2345: Argument of type 'PreStepFn<{ identity: User; }, { permissions: string[]; }>' is not assignable to parameter of type '{ __error: "Pre-step requires context that the accumulated input does not provide"; missing: { identity: User; }; }'."`;
+exports[`pipeline type diagnostics > pre-requires-missing 1`] = `"packages/nestling.app/type-tests/fixtures/pre-requires-missing.ts(11,3): error TS2345: Argument of type 'PreStepFn<{ identity: User; }, { permissions: string[]; }>' is not assignable to parameter of type '{ __error: "Pre-step requires context that the accumulated input does not provide"; missing: { identity: User; }; }'."`;
 
-exports[`pipeline type diagnostics pre-return-undeclared-fail 1`] = `"packages/nestling.app/type-tests/fixtures/pre-return-undeclared-fail.ts(16,42): error TS2345: Argument of type '() => Fail<"forbidden", undefined>' is not assignable to parameter of type '{ __error: "Pre-step returns a fail that is not declared in errors of this .pre"; undeclared: Fail<"forbidden", undefined>; }'."`;
+exports[`pipeline type diagnostics > pre-return-undeclared-fail 1`] = `"packages/nestling.app/type-tests/fixtures/pre-return-undeclared-fail.ts(16,42): error TS2345: Argument of type '() => Fail<"forbidden", undefined>' is not assignable to parameter of type '{ __error: "Pre-step returns a fail that is not declared in errors of this .pre"; undeclared: Fail<"forbidden", undefined>; }'."`;
 
-exports[`pipeline type diagnostics unresolved-class-step 1`] = `
+exports[`pipeline type diagnostics > unresolved-class-step 1`] = `
 "packages/nestling.app/type-tests/fixtures/unresolved-class-step.ts(20,31): error TS2769: No overload matches this call.
   Overload 1 of 2, '(path: "/health", declaration: HttpEndpointDictionary<"/health", AnyPayload, undefined, EmptyInput & { traceId: string; }, typeof WithTracing, undefined, EmptyInput, [], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'Promise<Ok<{ status: string; }, "ok">>' is not assignable to type 'AnyHttpResult<undefined, never>'.

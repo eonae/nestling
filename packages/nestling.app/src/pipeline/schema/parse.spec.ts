@@ -2,6 +2,7 @@ import { parseMetadata, parsePayload } from './parse.js';
 import type { InputSources } from './types.js';
 
 import { SchemaValidationError } from '@nestlingjs/common.misc';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 describe('parsePayload', () => {

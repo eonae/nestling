@@ -9,7 +9,6 @@ import { body, httpBindingOf, query } from './binding.js';
 import { httpEndpoint } from './helpers.js';
 import { HttpTransport$ } from './token.js';
 
-import { describe, expect, it } from '@jest/globals';
 import {
   isEndpointDefinition,
   makePipeline,
@@ -18,6 +17,7 @@ import {
   stream,
   transportNameOf,
 } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 type Equal<A, B> =

@@ -5,7 +5,6 @@
 
 import { makePrometheus } from './plugin.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type {
   AnyEndpointDefinition,
   MetricsOf,
@@ -26,6 +25,7 @@ import { makeOpenapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { buildTest } from '@nestlingjs/testing';
 import { http, httpEndpoint } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const OrdersMetrics = makeMetrics('orders', {

@@ -19,7 +19,6 @@ import {
   TIMEOUT_HEADER,
 } from './wire.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
 import {
   BusTransport$,
@@ -30,6 +29,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const QuotaExceeded = makeFail('conflict:quota_exceeded', {

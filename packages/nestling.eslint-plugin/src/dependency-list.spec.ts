@@ -11,6 +11,14 @@ import { dependencyList } from './dependency-list.js';
 
 import { RuleTester } from 'eslint';
 import tseslint from 'typescript-eslint';
+import { describe, it } from 'vitest';
+
+// `RuleTester` объявляет кейсы через `describe`/`it`, и берёт он их отсюда:
+// глобалов у прогона нет, а без этой пары кейсы исполнились бы мимо раннера
+// и файл сошёл бы за пустой
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
 const ruleTester = new RuleTester({
   languageOptions: {

@@ -23,7 +23,6 @@ import type { InMemoryOutboxStore } from './memory-store.js';
 import { makeOutbox } from './plugin.js';
 import { OutboxRelay$ } from './relay.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { App, Output } from '@nestlingjs/app';
 import {
   bind,
@@ -36,6 +35,7 @@ import {
 import { Ok } from '@nestlingjs/operations';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, vars } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 /** Подписчики события; наполняется прямым эмиттером и relay */
 const delivered: { id: string; idempotencyKey?: string }[] = [];

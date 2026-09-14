@@ -10,9 +10,9 @@
 import { checkSnippets } from '../scripts/snippets.mjs';
 import { app } from '../snippets/app.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { bind, RootLogger$ } from '@nestlingjs/app';
 import { buildTest, spyLogger, vars } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 describe('сниппеты скилла', () => {
   it('блоки кода совпадают с файлами snippets/ в обе стороны', () => {

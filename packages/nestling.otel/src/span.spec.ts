@@ -9,7 +9,6 @@ import { CollectedSpans } from './__fixtures__/exporters.js';
 import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import { otel } from './otel.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { TraceContext } from '@nestlingjs/app';
 import {
   compose,
@@ -22,6 +21,7 @@ import {
   withTracing,
 } from '@nestlingjs/app';
 import { buildTest } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 /** Трасса запроса, какой её увидел хендлер */
 let seen: TraceContext | undefined;

@@ -10,7 +10,7 @@ import { TestTransaction } from './__fixtures__/transaction.js';
 import { InMemoryOutboxStore } from './memory-store.js';
 import type { OutboxRecord } from './types.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 let sequence = 0;
 

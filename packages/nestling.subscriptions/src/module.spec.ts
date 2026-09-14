@@ -17,7 +17,6 @@ import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { SubscriptionEvent } from './types.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Output } from '@nestlingjs/app';
 import {
   compose,
@@ -32,6 +31,7 @@ import {
 import { Handler } from '@nestlingjs/container';
 import { events, Ok } from '@nestlingjs/operations';
 import { buildTest } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Tick = z.object({ n: z.number() });

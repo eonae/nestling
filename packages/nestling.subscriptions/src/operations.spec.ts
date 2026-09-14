@@ -12,9 +12,9 @@ import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { SubscriptionEvent } from './types.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import type { Emitter } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 
 /** Синхронная валидация формы-листа: `Promise` в ядре считается ошибкой */
 function check(

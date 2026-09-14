@@ -12,7 +12,6 @@ import { otel } from './otel.js';
 import type { OtelSpan } from './span.js';
 import { Span } from './span.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { CtxReader } from '@nestlingjs/app';
 import {
   compose,
@@ -27,6 +26,7 @@ import {
 } from '@nestlingjs/app';
 import { Component, Handler } from '@nestlingjs/container';
 import { buildTest } from '@nestlingjs/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 const traces = new CollectedSpans();
 

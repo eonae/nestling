@@ -9,10 +9,10 @@
 import { buildToolDefinitions } from './definitions.js';
 import { mcpTool } from './tool.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ExecutableDeclaration } from '@nestlingjs/app';
 import { makeDispatch, Ok } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const converters = [zodConverter()];

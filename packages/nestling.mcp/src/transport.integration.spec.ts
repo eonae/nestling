@@ -18,11 +18,11 @@ import {
 import { mcpTool } from './tool.js';
 import { McpTransport } from './transport.js';
 
-import { afterEach, describe, expect, it } from '@jest/globals';
 import type { ExecutableDeclaration } from '@nestlingjs/app';
 import { makeDispatch, Ok } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { HttpServer } from '@nestlingjs/transport.http';
+import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Echo = mcpTool('echo', {

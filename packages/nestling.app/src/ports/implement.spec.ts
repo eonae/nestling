@@ -16,6 +16,7 @@ import { busBindingOf, BusTransport$ } from './transport.js';
 
 import { makeToken } from '@nestlingjs/container';
 import { makeEvent, makeFail, makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Ledger = makeToken<{ charge: (amount: number) => string }>('Ledger');

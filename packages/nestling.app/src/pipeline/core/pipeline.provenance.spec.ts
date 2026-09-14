@@ -19,6 +19,7 @@ import { compose, derivesFrom, makePipeline } from './pipeline.js';
 
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 import { Ok } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 function makeCtx(): ExtendableContext<EmptyInput> {

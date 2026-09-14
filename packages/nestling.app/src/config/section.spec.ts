@@ -12,6 +12,7 @@ import { bind } from './source.js';
 
 import type { InjectionToken } from '@nestlingjs/container';
 import { tokenId } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Тип-утверждение: ложный `Equal<…>` не проходит компиляцию. */

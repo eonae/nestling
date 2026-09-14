@@ -11,11 +11,11 @@
 
 import { traced, traces } from './base.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature, Ok } from '@nestlingjs/app';
 import { buildTest } from '@nestlingjs/testing';
 import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import type { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /** Участки прогона: без адреса коллектора экспортёр копит их в памяти */
 const memory = traces as InMemorySpanExporter;

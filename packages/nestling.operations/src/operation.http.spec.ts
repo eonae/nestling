@@ -8,7 +8,7 @@ import { events, multipart, stream, upload } from './io/index.js';
 import { makeFail } from './make-fail.js';
 import { makeCommand, makeEvent, makeRequest } from './operation.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const User = z.object({

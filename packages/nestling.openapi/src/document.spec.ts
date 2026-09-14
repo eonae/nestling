@@ -11,7 +11,6 @@
 import { buildDocument } from './document.js';
 import type { DocumentedEndpoint, OpenApiDocument } from './types.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import {
   events,
@@ -39,6 +38,7 @@ import {
   HttpResponse,
   problemTypeOf,
 } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const info = { title: 'Test API', version: '1.0.0' };

@@ -6,9 +6,9 @@
 import { serverKeys } from './config.js';
 import { HttpServer, HttpServer$, server } from './server.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { bind, bootstrapConfig, configKernel, env } from '@nestlingjs/app';
 import { ContainerBuilder } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 /** Строит контейнер с kernel-модулем конфига и объявленными серверами */
 async function build(...declarations: ReturnType<typeof server>[]) {

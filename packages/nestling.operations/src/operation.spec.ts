@@ -3,6 +3,7 @@ import { EmitterFamily, PortFamily } from './families.js';
 import { makeFail } from './make-fail.js';
 import { errorsOf, makeCommand, makeEvent, makeRequest } from './operation.js';
 
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const CardDeclined = makeFail('payment_required:card_declined', {

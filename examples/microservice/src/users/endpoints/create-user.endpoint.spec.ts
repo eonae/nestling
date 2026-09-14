@@ -10,8 +10,8 @@ import { UsersMetrics } from '../users.metrics.js';
 
 import { CreateUserHandler } from './create-user.endpoint.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { metricsFor } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 

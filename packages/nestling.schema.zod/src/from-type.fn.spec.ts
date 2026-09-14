@@ -1,5 +1,6 @@
 import { fromType } from './from-type.fn.js';
 
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 describe('fromType().makeModel', () => {

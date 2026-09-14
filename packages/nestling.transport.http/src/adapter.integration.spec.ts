@@ -18,7 +18,6 @@ import { httpEndpoint } from './helpers.js';
 import type { HttpServer } from './server.js';
 import { http } from './transport.js';
 
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import type { BuiltApp, ConfigSource, FilePart } from '@nestlingjs/app';
 import {
   bind,
@@ -33,6 +32,7 @@ import {
   stream,
   upload,
 } from '@nestlingjs/app';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -6,7 +6,6 @@ import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { testBundle } from './bundle.js';
 import { unwrap } from './unwrap.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ITransport } from '@nestlingjs/app';
 import { makeFeature, Ok, transportValue } from '@nestlingjs/app';
 import { Component, Handler, makeToken } from '@nestlingjs/container';
@@ -17,6 +16,7 @@ import {
   HttpServer$,
   HttpTransport$,
 } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>

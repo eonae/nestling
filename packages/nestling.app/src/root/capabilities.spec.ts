@@ -23,7 +23,7 @@ import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Tick = z.object({ at: z.string() });

@@ -17,7 +17,6 @@ import { spyLogger } from './__fixtures__/spy.js';
 import { loggerKernel, makeKernelLogger } from './kernel.js';
 import { Logger$, RootLogger$ } from './tokens.js';
 
-import { jest } from '@jest/globals';
 import type { ContainerBuilderOptions } from '@nestlingjs/container';
 import {
   Component,
@@ -27,6 +26,7 @@ import {
   valueProvider,
 } from '@nestlingjs/container';
 import type { Logger } from '@nestlingjs/logging';
+import { describe, expect, it, vi } from 'vitest';
 
 const Service$ = makeToken<Logger>('Service');
 
@@ -53,7 +53,7 @@ const kernelBuilder = async (
 /** Перехватывает строки, ушедшие в `stderr`, на время вызова */
 function capture(body: () => void): string[] {
   const lines: string[] = [];
-  const spy = jest
+  const spy = vi
     .spyOn(process.stderr, 'write')
     .mockImplementation((chunk: unknown) => {
       lines.push(String(chunk));

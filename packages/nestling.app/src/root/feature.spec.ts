@@ -13,8 +13,8 @@ import {
   resolveSelection,
 } from './feature.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeModule } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 const moduleNamed = (name: string) => makeModule({ name });
 
