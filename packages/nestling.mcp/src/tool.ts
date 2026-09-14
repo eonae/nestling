@@ -104,8 +104,8 @@ export function mcpBindingOf(bearer: McpBindingBearer): McpBinding {
   const { description, annotations } = carried as McpBinding;
 
   return {
-    ...(typeof description === 'string' ? { description } : {}),
-    ...(annotations === undefined ? {} : { annotations }),
+    ...(typeof description === 'string' && { description }),
+    ...(annotations !== undefined && { annotations }),
   };
 }
 
@@ -293,8 +293,8 @@ function bindingOf(
 
   return {
     binding: {
-      ...(description === undefined ? {} : { description }),
-      ...(annotations === undefined ? {} : { annotations }),
+      ...(description !== undefined && { description }),
+      ...(annotations !== undefined && { annotations }),
     } satisfies McpBinding,
   };
 }

@@ -411,10 +411,10 @@ export function upload(
 ): UploadSpec<true>;
 export function upload(options: UploadOptions = {}): UploadSpec {
   const spec: UploadSpec = {
-    ...(options.maxSize === undefined ? {} : { maxSize: options.maxSize }),
-    ...(options.mime === undefined
-      ? {}
-      : { mime: Object.freeze([...options.mime]) }),
+    ...(options.maxSize !== undefined && { maxSize: options.maxSize }),
+    ...(options.mime !== undefined && {
+      mime: Object.freeze([...options.mime]),
+    }),
     multiple: options.multiple ?? false,
   };
 
@@ -473,7 +473,7 @@ export function multipart<
 
   const form = {
     kind: 'multipart' as const,
-    ...(fields === undefined ? {} : { fields }),
+    ...(fields !== undefined && { fields }),
     files: Object.freeze({ ...files }),
   };
 

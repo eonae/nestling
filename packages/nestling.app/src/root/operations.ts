@@ -104,12 +104,12 @@ export function mapOperations(
 
     return {
       name,
-      ...(kind === undefined ? {} : { kind }),
+      ...(kind !== undefined && { kind }),
       implemented: here,
       called: called.has(name),
-      ...(here || !called.has(name) || intercom === undefined
-        ? {}
-        : { via: intercom }),
+      ...(!(here || !called.has(name) || intercom === undefined) && {
+        via: intercom,
+      }),
     };
   });
 }

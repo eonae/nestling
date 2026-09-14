@@ -39,9 +39,7 @@ export function normalizeIssues(
 ): readonly SchemaIssue[] {
   return issues.map((issue) => ({
     message: issue.message,
-    ...(issue.path === undefined
-      ? {}
-      : { path: issue.path.map(normalizeSegment) }),
+    ...(issue.path !== undefined && { path: issue.path.map(normalizeSegment) }),
   }));
 }
 

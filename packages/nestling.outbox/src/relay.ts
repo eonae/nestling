@@ -230,7 +230,7 @@ export class OutboxRelay {
     await this.#options.bus.publish(record.subject, record.payload, {
       idempotencyKey: record.id,
       durable: record.durable,
-      ...(record.context === undefined ? {} : { context: record.context }),
+      ...(record.context !== undefined && { context: record.context }),
     });
   }
 
@@ -258,9 +258,9 @@ export class OutboxRelay {
         this.#options.published.emit({
           id: record.id,
           subject: record.subject,
-          ...(record.partitionKey === undefined
-            ? {}
-            : { partitionKey: record.partitionKey }),
+          ...(record.partitionKey !== undefined && {
+            partitionKey: record.partitionKey,
+          }),
           attempts: record.attempts,
           createdAt: record.createdAt,
           publishedAt: at,
@@ -280,9 +280,9 @@ export class OutboxRelay {
         this.#options.stuck.emit({
           id: record.id,
           subject: record.subject,
-          ...(record.partitionKey === undefined
-            ? {}
-            : { partitionKey: record.partitionKey }),
+          ...(record.partitionKey !== undefined && {
+            partitionKey: record.partitionKey,
+          }),
           attempts: record.attempts + 1,
           createdAt: record.createdAt,
           stuckAt: at,

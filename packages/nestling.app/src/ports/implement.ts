@@ -291,13 +291,11 @@ export function implement(
     binding: makeBusBinding({
       subject: operation.name,
       kind: operation.kind,
-      ...(typeof subscriber === 'string' ? { subscriber } : {}),
+      ...(typeof subscriber === 'string' && { subscriber }),
       // Долговечность берётся из операции и только из него: у реализации
       // нет способа её объявить, потому что издатель в другом процессе о
       // такой декларации не узнал бы и опубликовал бы мимо потока
-      ...(operation.durable === undefined
-        ? {}
-        : { durable: operation.durable }),
+      ...(operation.durable !== undefined && { durable: operation.durable }),
     }),
   });
 }

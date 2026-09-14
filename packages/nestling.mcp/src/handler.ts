@@ -129,8 +129,8 @@ function clientInfoOf(params: Record<string, unknown> | undefined): {
   const { name, version } = info as { name?: unknown; version?: unknown };
 
   return {
-    ...(typeof name === 'string' ? { name } : {}),
-    ...(typeof version === 'string' ? { version } : {}),
+    ...(typeof name === 'string' && { name }),
+    ...(typeof version === 'string' && { version }),
   };
 }
 

@@ -48,7 +48,7 @@ const subject = (pattern: string, pipeline?: unknown): PolicySubject => ({
     transport: HttpTransport$,
     pattern,
     handler: async () => new Ok({ ok: true }),
-    ...(pipeline === undefined ? {} : { pipeline }),
+    ...(pipeline !== undefined && { pipeline }),
   }),
   moduleName: 'module:test',
 });

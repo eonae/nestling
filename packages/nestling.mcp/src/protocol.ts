@@ -220,8 +220,8 @@ export function parseMessage(body: string): ParsedMessage {
     message: {
       jsonrpc: '2.0',
       method: message.method,
-      ...(id === null ? {} : { id }),
-      ...(params === undefined ? {} : { params }),
+      ...(id !== null && { id }),
+      ...(params !== undefined && { params }),
     },
   };
 }

@@ -491,7 +491,7 @@ export class InProcessBus implements IMessageBus, ITransport {
     const envelope = {
       subject,
       deadline: deadlineFromTimeout(options.timeoutMs),
-      ...(context === undefined ? {} : { context }),
+      ...(context !== undefined && { context }),
     };
 
     let response: Awaited<ReturnType<BusHandler>>;
@@ -634,9 +634,7 @@ export class InProcessBus implements IMessageBus, ITransport {
           // расходует бюджет так же, как передача по сети
           deadline: deadlineFromTimeout(envelope.timeoutMs),
           idempotencyKey: envelope.idempotencyKey,
-          ...(envelope.context === undefined
-            ? {}
-            : { context: envelope.context }),
+          ...(envelope.context !== undefined && { context: envelope.context }),
         });
       } catch (error) {
         this.#report(hub.subject, error);

@@ -126,12 +126,10 @@ export function parseHttpSection(
   return {
     method: record.method,
     path: record.path as string,
-    ...(record.bind === undefined
-      ? {}
-      : { bind: record.bind as Readonly<Record<string, unknown>> }),
-    ...(record.rawBody === undefined
-      ? {}
-      : { rawBody: record.rawBody as boolean }),
-    ...(record.sse === undefined ? {} : { sse: record.sse as SseConfig }),
+    ...(record.bind !== undefined && {
+      bind: record.bind as Readonly<Record<string, unknown>>,
+    }),
+    ...(record.rawBody !== undefined && { rawBody: record.rawBody as boolean }),
+    ...(record.sse !== undefined && { sse: record.sse as SseConfig }),
   };
 }

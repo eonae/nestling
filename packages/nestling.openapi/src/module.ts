@@ -158,8 +158,8 @@ export function makeOpenapi<P extends AnyInput = AnyInput, PN = never>(
   }
 
   const document = httpEndpoint.get(path ?? '/openapi.json', {
-    ...(pipeline === undefined ? {} : { pipeline }),
-    ...(detached === undefined ? {} : { detached }),
+    ...(pipeline !== undefined && { pipeline }),
+    ...(detached !== undefined && { detached }),
     // Тело ответа — сам документ; схема пропускает его как есть: он
     // собран этим же процессом, и проверять в нём нечего
     output: documentSchema,

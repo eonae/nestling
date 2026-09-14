@@ -281,14 +281,12 @@ async function invoke(
         ...headers,
         // Заголовок ставится только когда тело есть: `Content-Type` у
         // запроса без тела — ложь о содержимом
-        ...(request.body === undefined
-          ? {}
-          : { 'content-type': 'application/json' }),
+        ...(request.body !== undefined && {
+          'content-type': 'application/json',
+        }),
       },
-      ...(request.body === undefined ? {} : { body: request.body }),
-      ...(composeSignal(meta) === undefined
-        ? {}
-        : { signal: composeSignal(meta) }),
+      ...(request.body !== undefined && { body: request.body }),
+      ...(composeSignal(meta) !== undefined && { signal: composeSignal(meta) }),
     });
   } catch (error) {
     return unknownFailure(

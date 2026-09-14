@@ -280,7 +280,7 @@ export function makeFail(
   const props = {
     code,
     category: categoryOf(code),
-    ...(schema ? { schema } : {}),
+    ...(schema !== undefined && { schema }),
     is: (value: unknown): boolean => {
       if (isFail(value)) {
         return value.code === code;

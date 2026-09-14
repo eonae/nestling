@@ -77,9 +77,9 @@ export function collectImplementations(
         implementations: [
           {
             pattern: endpoint.pattern,
-            ...(binding.subscriber === undefined
-              ? {}
-              : { subscriber: binding.subscriber }),
+            ...(binding.subscriber !== undefined && {
+              subscriber: binding.subscriber,
+            }),
             moduleName,
           },
         ],
@@ -115,9 +115,9 @@ export function collectImplementations(
 
     (entry.implementations as OperationImplementation[]).push({
       pattern: endpoint.pattern,
-      ...(binding.subscriber === undefined
-        ? {}
-        : { subscriber: binding.subscriber }),
+      ...(binding.subscriber !== undefined && {
+        subscriber: binding.subscriber,
+      }),
       moduleName,
     });
   }

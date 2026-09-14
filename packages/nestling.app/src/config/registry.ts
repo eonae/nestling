@@ -275,13 +275,11 @@ export const describeConfig = (
             field: field.name,
             exact: field.exact,
             secret: isSecretKey(field.key),
-            ...(converters
-              ? {
-                  schema: leafJsonSchema(converters, field.schema, {
-                    io: 'input',
-                  }),
-                }
-              : {}),
+            ...(converters !== undefined && {
+              schema: leafJsonSchema(converters, field.schema, {
+                io: 'input',
+              }),
+            }),
           }),
         ),
         derived: section.derived.map((field) =>

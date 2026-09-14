@@ -218,9 +218,10 @@ async function prepare(options: BuildOptions): Promise<{
           moduleName: 'module:test',
         })),
       ),
-      ...(options.rootBus === undefined
-        ? {}
-        : { rootSuppliesBus: true, remote: true }),
+      ...(options.rootBus !== undefined && {
+        rootSuppliesBus: true,
+        remote: true,
+      }),
       // Политику корень читает из снимка фазы 0 — до графа, как и всё
       // остальное, что решает биндинг
       dispatch: readDispatchPolicy(reader),
@@ -258,7 +259,7 @@ async function build(options: BuildOptions): Promise<Built> {
     return {
       container,
       metrics,
-      ...(bus === null ? {} : { bus }),
+      ...(bus !== null && { bus }),
       close: async () => bus?.close(),
     };
   }
@@ -281,7 +282,7 @@ async function build(options: BuildOptions): Promise<Built> {
   return {
     container,
     metrics,
-    ...(bus === null ? {} : { bus }),
+    ...(bus !== null && { bus }),
     close: async () => bus?.close(),
   };
 }

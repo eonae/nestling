@@ -294,7 +294,7 @@ function contextOf(outcome: McpOutcome): ResponseContext {
         value: {
           error: fail.message,
           code: fail.code,
-          ...(fail.details === undefined ? {} : { details: fail.details }),
+          ...(fail.details !== undefined && { details: fail.details }),
         },
       };
     }

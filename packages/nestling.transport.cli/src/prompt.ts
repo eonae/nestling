@@ -145,10 +145,10 @@ function readQuestion(
 
   const common = {
     field,
-    ...(typeof node.description === 'string'
-      ? { description: node.description }
-      : {}),
-    ...(node.default === undefined ? {} : { fallback: String(node.default) }),
+    ...(typeof node.description === 'string' && {
+      description: node.description,
+    }),
+    ...(node.default !== undefined && { fallback: String(node.default) }),
   };
 
   const choices = readChoices(node.enum);

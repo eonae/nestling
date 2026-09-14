@@ -428,7 +428,7 @@ export function resourceProvider<T, TDeps extends readonly InjectionToken[]>(
     deps: definition.deps,
     acquire: definition.acquire,
     release: definition.release,
-    ...(definition.health === undefined ? {} : { health: definition.health }),
+    ...(definition.health !== undefined && { health: definition.health }),
   };
 }
 

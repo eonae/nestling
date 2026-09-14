@@ -189,8 +189,8 @@ export function makeOutboxEmitter(
         payload: input,
         durable: operation.durable === true,
         createdAt: Date.now(),
-        ...(partition === undefined ? {} : { partitionKey: partition }),
-        ...(propagated === undefined ? {} : { context: propagated }),
+        ...(partition !== undefined && { partitionKey: partition }),
+        ...(propagated !== undefined && { context: propagated }),
       };
 
       await store.append(tx, [record]);

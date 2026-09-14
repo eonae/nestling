@@ -64,12 +64,12 @@
 
 ## 4. Включение в конфиге репозитория
 
-- [ ] 4.1 `.config/eslint.config.js`: `@nestlingjs/conditional-spread`
+- [x] 4.1 `.config/eslint.config.js`: `@nestlingjs/conditional-spread`
   уровнем `error` в блоке рядом с `import-through-barrel` и
   `dependency-list`; комментарий объясняет, почему уровень не `warn`
-- [ ] 4.2 Прогнать `yarn nx run-many -t lint:fix` по всем пакетам и
+- [x] 4.2 Прогнать `yarn nx run-many -t lint:fix` по всем пакетам и
   примерам; убедиться, что автофикс не тронул спреды в массивах
-- [ ] 4.3 Разобрать руками остаток — места с небулевым итогом. Каждое
+- [x] 4.3 Разобрать руками остаток — места с небулевым итогом. Каждое
   читается отдельно: `!== undefined` там, где автор имел в виду «значение
   задано», тернарник остаётся там, где он имел в виду «значение истинно»
 - [ ] 4.4 `.config/eslint.config.js`: `@nestlingjs/no-process-globals`

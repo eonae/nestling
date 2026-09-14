@@ -225,7 +225,7 @@ export function parseCommandLine(
   return {
     help: false,
     parsed: {
-      ...(features === undefined ? {} : { features }),
+      ...(features !== undefined && { features }),
       includeDeps,
       given,
     },

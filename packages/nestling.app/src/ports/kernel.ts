@@ -445,8 +445,8 @@ export function bindPorts(
   }
 
   runtime.bind({
-    ...(dispatch === undefined ? {} : { dispatch }),
-    ...(bus === null ? {} : { bus }),
+    ...(dispatch !== undefined && { dispatch }),
+    ...(bus !== null && { bus }),
   });
 }
 

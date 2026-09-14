@@ -198,6 +198,6 @@ export function buildRequest(
   return {
     url,
     method: binding.method,
-    ...(body === undefined ? {} : { body }),
+    ...(body !== undefined && { body }),
   };
 }

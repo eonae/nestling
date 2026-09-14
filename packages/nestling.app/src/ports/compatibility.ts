@@ -183,9 +183,7 @@ class Changes {
         operation,
         ...counts,
         // Подсказка появляется ровно там, где есть что ломать
-        ...(counts.breaking > 0
-          ? { suggestedName: suggestBump(operation) }
-          : {}),
+        ...(counts.breaking > 0 && { suggestedName: suggestBump(operation) }),
       }));
   }
 }

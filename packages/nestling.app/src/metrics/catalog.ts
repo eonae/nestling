@@ -271,11 +271,11 @@ export function makeCatalog(
       const metric: CatalogMetric = {
         name,
         kind: declaration.kind,
-        ...(declaration.help === undefined ? {} : { help: declaration.help }),
-        ...(declaration.unit === undefined ? {} : { unit: declaration.unit }),
-        ...(declaration.kind === 'histogram'
-          ? { buckets: declaration.buckets }
-          : {}),
+        ...(declaration.help !== undefined && { help: declaration.help }),
+        ...(declaration.unit !== undefined && { unit: declaration.unit }),
+        ...(declaration.kind === 'histogram' && {
+          buckets: declaration.buckets,
+        }),
         attributes: names,
         series,
         base,

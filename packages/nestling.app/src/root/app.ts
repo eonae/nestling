@@ -792,9 +792,7 @@ export class BuiltApp {
         pattern: endpoint.pattern,
         transport: transportNameOf(endpoint.transport),
         module: moduleName,
-        ...(endpoint.detached === undefined
-          ? {}
-          : { detached: endpoint.detached }),
+        ...(endpoint.detached !== undefined && { detached: endpoint.detached }),
       })),
       transports: this.#transportOrder(discovery).map((token) =>
         transportNameOf(token),

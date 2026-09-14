@@ -88,10 +88,10 @@ function makeCtx(
     errors,
     // Выход объявлен: рантайм-тесты проверяют ответ со значением, а
     // декларация без `output` объявляет исход `no_content`
-    ...(outcomes.output === NO_OUTPUT
-      ? {}
-      : { output: (outcomes.output ?? z.unknown()) as EndpointMeta['output'] }),
-    ...(outcomes.status === undefined ? {} : { status: outcomes.status }),
+    ...(outcomes.output !== NO_OUTPUT && {
+      output: (outcomes.output ?? z.unknown()) as EndpointMeta['output'],
+    }),
+    ...(outcomes.status !== undefined && { status: outcomes.status }),
   };
 
   return makeEmptyContext(raw, endpoint, signal);
@@ -131,8 +131,8 @@ async function run(
   return executable.executeWithHandler(
     handler,
     makeCtx(opts.signal, opts.errors, {
-      ...(opts.output === undefined ? {} : { output: opts.output }),
-      ...(opts.status === undefined ? {} : { status: opts.status }),
+      ...(opts.output !== undefined && { output: opts.output }),
+      ...(opts.status !== undefined && { status: opts.status }),
     }) as ExtendableContext<AnyInput>,
     { logger: silent, ...opts.options },
   );

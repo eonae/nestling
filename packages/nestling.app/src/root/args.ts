@@ -164,9 +164,9 @@ export function parseArgs(
   }
 
   return {
-    ...(args.features === undefined
-      ? {}
-      : { features: args.features as string | readonly string[] }),
+    ...(args.features !== undefined && {
+      features: args.features as string | readonly string[],
+    }),
     includeDeps: args.includeDeps === true,
     given,
   };

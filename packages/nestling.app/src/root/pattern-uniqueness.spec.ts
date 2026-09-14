@@ -36,7 +36,7 @@ const ping = (method: string, path: string, on?: string) =>
   testEndpoint({
     method,
     path,
-    ...(on === undefined ? {} : { on }),
+    ...(on !== undefined && { on }),
     output: z.object({ pong: z.boolean() }),
     handler: async () => new Ok({ pong: true }),
   });

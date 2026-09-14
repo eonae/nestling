@@ -54,7 +54,7 @@ export function withTracing(): PreStepFn<EmptyInput, { trace: TraceContext }> {
     return {
       traceId: parent?.traceId ?? newTraceId(),
       spanId: newSpanId(),
-      ...(parent === undefined ? {} : { parentSpanId: parent.spanId }),
+      ...(parent !== undefined && { parentSpanId: parent.spanId }),
       sampled: parent?.sampled ?? true,
     };
   });

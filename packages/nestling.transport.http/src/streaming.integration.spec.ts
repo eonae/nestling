@@ -117,7 +117,7 @@ function makeTransport(
   const server = new HttpServer({
     port: 0,
     host: '127.0.0.1',
-    ...(closeTimeout === undefined ? {} : { closeTimeout }),
+    ...(closeTimeout !== undefined && { closeTimeout }),
   });
 
   const transport = new HttpTransport(server, transportOptions);

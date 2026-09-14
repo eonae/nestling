@@ -78,10 +78,10 @@ const toClaimed = (row: OutboxRow): ClaimedRecord => ({
   subject: row.subject,
   payload: fromJson(row.payload),
   durable: row.durable,
-  ...(row.partition_key === null ? {} : { partitionKey: row.partition_key }),
-  ...(row.context === null || row.context === undefined
-    ? {}
-    : { context: fromJson(row.context) as Record<string, unknown> }),
+  ...(row.partition_key !== null && { partitionKey: row.partition_key }),
+  ...(!(row.context === null || row.context === undefined) && {
+    context: fromJson(row.context) as Record<string, unknown>,
+  }),
   createdAt: Number(row.created_ms),
   attempts: Number(row.attempts),
 });

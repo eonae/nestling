@@ -231,8 +231,8 @@ function describeLeaf(
 function describeFile(spec: UploadSpec): FileFieldDescriptor {
   return {
     multiple: spec.multiple,
-    ...(spec.maxSize === undefined ? {} : { maxSize: spec.maxSize }),
-    ...(spec.mime === undefined ? {} : { mime: [...spec.mime].sort() }),
+    ...(spec.maxSize !== undefined && { maxSize: spec.maxSize }),
+    ...(spec.mime !== undefined && { mime: [...spec.mime].sort() }),
   };
 }
 

@@ -26,8 +26,8 @@ import {
 export function serviceResource(options: OtelOptions): Resource {
   return resourceFromAttributes({
     [ATTR_SERVICE_NAME]: options.service,
-    ...(options.version === undefined
-      ? {}
-      : { [ATTR_SERVICE_VERSION]: options.version }),
+    ...(options.version !== undefined && {
+      [ATTR_SERVICE_VERSION]: options.version,
+    }),
   });
 }

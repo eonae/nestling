@@ -103,7 +103,7 @@ export function logField<T>(
   return Object.freeze({
     variable,
     name,
-    ...(select ? { select } : {}),
+    ...(select !== undefined && { select }),
   });
 }
 
@@ -180,9 +180,9 @@ function normalize(owner: string, spec: LogFieldSpec): ResolvedLogField {
     return {
       key: spec.variable.key,
       name: spec.name,
-      ...(spec.select
-        ? { select: spec.select as (v: unknown) => unknown }
-        : {}),
+      ...(spec.select !== undefined && {
+        select: spec.select as (v: unknown) => unknown,
+      }),
     };
   }
 

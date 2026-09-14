@@ -103,12 +103,10 @@ export function profileAttributes(meta: {
   return {
     ...meta.context,
     subject: meta.subject,
-    ...(meta.deadline === undefined
-      ? {}
-      : { [DEADLINE_ATTRIBUTE]: meta.deadline }),
-    ...(meta.idempotencyKey === undefined
-      ? {}
-      : { [IDEMPOTENCY_KEY_ATTRIBUTE]: meta.idempotencyKey }),
+    ...(meta.deadline !== undefined && { [DEADLINE_ATTRIBUTE]: meta.deadline }),
+    ...(meta.idempotencyKey !== undefined && {
+      [IDEMPOTENCY_KEY_ATTRIBUTE]: meta.idempotencyKey,
+    }),
   };
 }
 

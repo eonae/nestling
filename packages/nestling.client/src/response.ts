@@ -213,7 +213,7 @@ export function readFailure(
       : definition.code;
 
   return new Fail(definition.code, message, {
-    ...(details === undefined ? {} : { details }),
+    ...(details !== undefined && { details }),
   });
 }
 

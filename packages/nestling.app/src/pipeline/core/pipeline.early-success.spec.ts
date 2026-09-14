@@ -48,7 +48,7 @@ function makeCtx(
     transport: 'test',
     pattern: 'TEST /',
     errors: [Rejected],
-    ...(schema === undefined ? {} : { input: schema }),
+    ...(schema !== undefined && { input: schema }),
   };
 
   return makeEmptyContext(raw, endpoint);

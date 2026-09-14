@@ -290,8 +290,8 @@ export function counter<const A extends AttributesSpec = NoAttributes>(
 
   return Object.freeze({
     kind: 'counter' as const,
-    ...(help === undefined ? {} : { help }),
-    ...(unit === undefined ? {} : { unit }),
+    ...(help !== undefined && { help }),
+    ...(unit !== undefined && { unit }),
     attributes: Object.freeze({ ...attributes }) as A,
   });
 }
@@ -318,8 +318,8 @@ export function histogram<const A extends AttributesSpec = NoAttributes>(
 
   return Object.freeze({
     kind: 'histogram' as const,
-    ...(help === undefined ? {} : { help }),
-    ...(unit === undefined ? {} : { unit }),
+    ...(help !== undefined && { help }),
+    ...(unit !== undefined && { unit }),
     attributes: Object.freeze({ ...attributes }) as A,
     buckets: Object.freeze([...(buckets ?? [])]),
   });

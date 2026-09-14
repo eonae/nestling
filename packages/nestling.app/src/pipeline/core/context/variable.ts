@@ -479,7 +479,7 @@ function makeDeclarator<T>(reserved: boolean): ContextVarDeclarator<T> {
 
     const variable: ContextVar<T, K> = makeVar<T, K>(key, provide, {
       propagated,
-      ...(propagate ? { propagate: true } : {}),
+      ...(propagate === true && { propagate: true }),
     });
 
     if (propagate) {
