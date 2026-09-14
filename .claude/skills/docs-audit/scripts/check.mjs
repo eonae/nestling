@@ -97,8 +97,10 @@ for (const f of mdFiles(join(EN, 'design')).filter((f) => f !== 'README.md')) {
 
 const GUIDE = join(DOCS, 'guide');
 const RECIPES = join(DOCS, 'recipes');
+const EN_RELEASES = join(EN, 'releases');
 const guideFiles = mdFiles(GUIDE).filter((f) => f !== 'README.md');
 const recipeFiles = mdFiles(RECIPES).filter((f) => f !== 'README.md');
+const enReleaseFiles = mdFiles(EN_RELEASES).filter((f) => f !== 'README.md');
 
 /** Форма плашки на каждом языке: русская «сверено с кодом», английская «verified against» */
 const PLATE = {
@@ -221,8 +223,17 @@ const readmePath = join(DOCS, 'README.md');
 const readme = readFileSync(readmePath, 'utf8');
 const guideTocPath = join(GUIDE, 'README.md');
 const recipesTocPath = join(RECIPES, 'README.md');
+const enReleasesTocPath = join(EN_RELEASES, 'README.md');
 
-/** Проверяет полноту оглавления папки жанра в обе стороны */
+/** Проверяет, что карта docs/README.md ведёт на оглавление папки */
+function checkRootLink(folder) {
+  if (!new RegExp(`\\]\\(\\./${folder}/README\\.md\\)`).test(readme)) {
+    add('ERROR', 'readme-table', readmePath,
+      `docs/README.md не ссылается на ./${folder}/README.md`);
+  }
+}
+
+/** Проверяет полноту оглавления папки в обе стороны */
 function checkToc(dir, tocPath, files, label) {
   if (!existsSync(tocPath)) {
     add('ERROR', 'guide-toc', dir, `нет оглавления ${relative(ROOT, tocPath)}`);
@@ -242,14 +253,19 @@ function checkToc(dir, tocPath, files, label) {
       add('ERROR', 'guide-toc', tocPath, `ссылка на несуществующий ${label}/${f}`);
     }
   }
-  if (!new RegExp(`\\]\\(\\./${label.split('/')[1]}/README\\.md\\)`).test(readme)) {
-    add('ERROR', 'readme-table', readmePath,
-      `docs/README.md не ссылается на ./${label.split('/')[1]}/README.md`);
-  }
 }
 
 checkToc(GUIDE, guideTocPath, guideFiles, 'docs/guide');
 checkToc(RECIPES, recipesTocPath, recipeFiles, 'docs/recipes');
+
+// Оглавление docs/releases/README.md сверяет с папкой инвариант
+// `site-source`: папка названа источником сайта в sections.mjs, и там
+// проверка идёт в обе стороны. Второго сообщения о том же не заводится.
+// Зеркало docs/en/releases источником не названо, и его оглавление
+// сверяется здесь.
+checkToc(EN_RELEASES, enReleasesTocPath, enReleaseFiles, 'docs/en/releases');
+
+for (const folder of ['guide', 'recipes', 'releases']) checkRootLink(folder);
 
 // Нумерация глав пути сквозная и без пропусков: номер задаёт порядок
 // чтения, и пропуск означает, что глава потерялась при переименовании.
