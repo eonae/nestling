@@ -24,7 +24,8 @@
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs",
     "docs:build": "node scripts/site/build.mjs",
     "docs:dev": "node scripts/site/build.mjs --watch",
-    "pack:check": "node scripts/pack-check.mjs"
+    "pack:check": "node scripts/pack-check.mjs",
+    "test:live": "node scripts/test-live.mjs"
   },
   "devDependencies": {
     "@eslint/compat": "~1.1.1",

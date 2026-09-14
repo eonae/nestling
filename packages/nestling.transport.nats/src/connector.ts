@@ -9,7 +9,13 @@
  * `NatsLike` — явный перечень глаголов, на которые опирается транспорт, а
  * не структурный слепок клиента: что именно от брокера нужно, должно
  * читаться списком, а не выясняться грепом.
+ *
+ * Перечень и клиент сходятся в `adapt`: она собирает `NatsLike` полем за
+ * полем, поэтому разошедшуюся сигнатуру показывает тайпчек, а не прогон
+ * против брокера.
  */
+
+import type * as natsClient from 'nats';
 
 /** Заголовки сообщения: конверт глаголов шины едет здесь */
 export interface NatsHeadersLike {
@@ -55,8 +61,18 @@ export interface NatsPubAckLike {
   readonly duplicate: boolean;
 }
 
-/** Сообщение потока: то же плюс подтверждения обработки */
-export interface NatsJsMsgLike extends NatsMsgLike {
+/**
+ * Сообщение потока: доставка плюс подтверждения обработки.
+ *
+ * Ответа вызывающему здесь нет — у сообщения потока нет и адреса ответа:
+ * `respond` принадлежит core-доставке, и глагол, которого транспорт на
+ * этом пути не зовёт, в перечень не входит.
+ */
+export interface NatsJsMsgLike {
+  readonly subject: string;
+  readonly data: Uint8Array;
+  readonly headers?: NatsHeadersLike;
+
   /** Номер попытки доставки, начиная с 1 */
   readonly redeliveryCount: number;
 
@@ -188,6 +204,165 @@ export interface NatsConnectOptions {
 export type NatsConnector = (options: NatsConnectOptions) => Promise<NatsLike>;
 
 /**
+ * То, что адаптеру нужно от модуля клиента помимо соединения.
+ *
+ * `headers` — конструктор набора заголовков: у соединения такого метода
+ * нет. `AckPolicy` — перечисление политик подтверждения: за границу оно не
+ * выходит, там политика названа строкой.
+ */
+type NatsClientStatics = Pick<typeof natsClient, 'AckPolicy' | 'headers'>;
+
+/** Сообщение потока: подтверждения плюс номер попытки из `info` */
+const adaptJsMsg = (msg: natsClient.JsMsg): NatsJsMsgLike => ({
+  subject: msg.subject,
+  data: msg.data,
+  headers: msg.headers,
+  redeliveryCount: msg.info.redeliveryCount,
+  ack: () => msg.ack(),
+  nak: () => msg.nak(),
+  term: () => msg.term(),
+});
+
+/** Поток сообщений потребителя — тем же генератором, но уже границей */
+async function* adaptJsMsgs(
+  source: AsyncIterable<natsClient.JsMsg>,
+): AsyncGenerator<NatsJsMsgLike> {
+  for await (const msg of source) {
+    yield adaptJsMsg(msg);
+  }
+}
+
+/**
+ * Собирает `NatsLike` из соединения клиента.
+ *
+ * Каждое поле присваивается явно — в этом весь смысл: расхождение в любой
+ * сигнатуре становится ошибкой тайпчека, а не отказом в проде.
+ *
+ * @param connection - Открытое соединение клиента
+ * @param client - Конструктор заголовков и перечисление политик
+ */
+function adapt(
+  connection: natsClient.NatsConnection,
+  { AckPolicy, headers }: NatsClientStatics,
+): NatsLike {
+  /**
+   * Переливает заголовки границы в набор клиента.
+   *
+   * Внутрь граница пропускает набор клиента как есть — `MsgHdrs` шире
+   * `NatsHeadersLike`. Обратно клиент принимает только свой тип целиком,
+   * и перелив стоит дешевле приведения, которого компилятор не проверит:
+   * в конверте вызова заголовков единицы.
+   */
+  const toMsgHdrs = (
+    source?: NatsHeadersLike,
+  ): natsClient.MsgHdrs | undefined => {
+    if (!source) {
+      return undefined;
+    }
+
+    const target = headers();
+
+    for (const key of source.keys()) {
+      target.set(key, source.get(key));
+    }
+
+    return target;
+  };
+
+  const jetstream = (): NatsJetStreamLike => {
+    const js = connection.jetstream();
+
+    return {
+      publish: async (subject, data, options) => {
+        const hdrs = toMsgHdrs(options?.headers);
+
+        return js.publish(subject, data, {
+          ...(hdrs === undefined ? {} : { headers: hdrs }),
+          ...(options?.timeout === undefined
+            ? {}
+            : { timeout: options.timeout }),
+        });
+      },
+
+      /*
+       * Адрес здесь не нужен: фильтр по subject'у лежит в определении
+       * потребителя, а потребитель уже создан управляющим API. Граница
+       * называет адрес, потому что им она пользуется у двойника
+       */
+      subscribe: async (_subject, { stream, durable }) => {
+        const consumer = await js.consumers.get(stream, durable);
+
+        return adaptJsMsgs(await consumer.consume());
+      },
+    };
+  };
+
+  return {
+    publish: (subject, data, options) => {
+      const hdrs = toMsgHdrs(options?.headers);
+
+      connection.publish(
+        subject,
+        data,
+        hdrs === undefined ? undefined : { headers: hdrs },
+      );
+    },
+
+    request: (subject, data, { timeout, headers: envelope }) => {
+      const hdrs = toMsgHdrs(envelope);
+
+      return connection.request(subject, data, {
+        timeout,
+        ...(hdrs === undefined ? {} : { headers: hdrs }),
+      });
+    },
+
+    subscribe: (subject, options) => connection.subscribe(subject, options),
+
+    jetstream,
+
+    jetstreamManager: async () => {
+      const jsm = await connection.jetstreamManager();
+
+      return {
+        streams: {
+          add: async (config) => {
+            const { config: created } = await jsm.streams.add(config);
+
+            return created;
+          },
+          info: (name) => jsm.streams.info(name),
+        },
+        consumers: {
+          add: async (stream, config) => {
+            const { config: created } = await jsm.consumers.add(stream, {
+              ...config,
+              ack_policy: AckPolicy.Explicit,
+            });
+
+            // Перечисление клиента за границу не выходит: политика
+            // подтверждения там названа строкой, и другой у потребителя
+            // транспорта быть не может
+            return {
+              durable_name: created.durable_name ?? config.durable_name,
+              ack_policy: 'explicit',
+              ...(created.filter_subject === undefined
+                ? {}
+                : { filter_subject: created.filter_subject }),
+              max_deliver: created.max_deliver,
+            };
+          },
+        },
+      };
+    },
+
+    drain: () => connection.drain(),
+    closed: () => connection.closed(),
+    headers: () => headers(),
+  };
+}
+
+/**
  * Умолчательный коннектор поверх клиента `nats`.
  *
  * Импорт динамический, потому что пакет обязан оставаться пригодным для
@@ -195,9 +370,9 @@ export type NatsConnector = (options: NatsConnectOptions) => Promise<NatsLike>;
  * не грузит вовсе.
  */
 export const defaultConnector: NatsConnector = async ({ servers }) => {
-  const { connect } = await import('nats');
+  const { AckPolicy, connect, headers } = await import('nats');
 
-  return (await connect({
-    servers: [...servers],
-  })) as unknown as NatsLike;
+  const connection = await connect({ servers: [...servers] });
+
+  return adapt(connection, { AckPolicy, headers });
 };
