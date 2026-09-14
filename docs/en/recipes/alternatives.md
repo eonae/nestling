@@ -1,6 +1,6 @@
 # Alternative shapes
 
-> Guide to the current API; verified against `9d9a2e03`.
+> Guide to the current API; verified against `9410b106`.
 > Each form is shown in one place in the example.
 
 The chapters of the guide use one notation for each task. The
