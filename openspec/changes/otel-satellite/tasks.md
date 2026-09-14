@@ -10,73 +10,73 @@
 
 ## 1. Каркас пакета
 
-- [ ] 1.1 `packages/nestling.otel`: манифест по образцу `nestling.prometheus`
+- [x] 1.1 `packages/nestling.otel`: манифест по образцу `nestling.prometheus`
   (`exports`, `files`, скрипты, блок `nx`), `LICENSE`, `tsconfig.json`,
   `tsconfig.build.json`, `eslint.config.js`, `jest.config.js`
-- [ ] 1.2 Зависимости: `@opentelemetry/api`, `sdk-trace-base`,
+- [x] 1.2 Зависимости: `@opentelemetry/api`, `sdk-trace-base`,
   `sdk-metrics`, `resources`, `semantic-conventions`; внутренние `app` и
   `container`. Ни `transport.http`, ни `exporter-prometheus`: своего
   endpoint'а у пакета нет. В `devDependencies` — `testing`,
   `exporter-trace-otlp-http` и `exporter-metrics-otlp-http` для спек
-- [ ] 1.3 `yarn install`, пакет виден соседям, пустой `yarn build` и
+- [x] 1.3 `yarn install`, пакет виден соседям, пустой `yarn build` и
   `yarn typecheck` зелёные
-- [ ] 1.4 `src/index.ts` — барель поимённым экспортом; `src/boundary.spec.ts`
+- [x] 1.4 `src/index.ts` — барель поимённым экспортом; `src/boundary.spec.ts`
   по образцу `nestling.prometheus`
 
 ## 2. Метрики по OTLP поверх store
 
-- [ ] 2.1 `src/options.ts`: `OtelOptions` и `Otel` — типы и JSDoc
-- [ ] 2.2 `src/resource.ts`: атрибуты ресурса `service.name` и
+- [x] 2.1 `src/options.ts`: `OtelOptions` и `Otel` — типы и JSDoc
+- [x] 2.2 `src/resource.ts`: атрибуты ресурса `service.name` и
   `service.version`, общие для трасс и метрик
-- [ ] 2.3 `src/points.ts`: перевод `MetricsSnapshot` в `ResourceMetrics` —
+- [x] 2.3 `src/points.ts`: перевод `MetricsSnapshot` в `ResourceMetrics` —
   счётчик суммой, гистограмма `count`, `sum` и корзинами ряда; `help` и
   `unit` из ряда; привязка кумулятивная
-- [ ] 2.4 `src/push.ts`: `@Resource` с зависимостью от `MetricsStore$` —
+- [x] 2.4 `src/push.ts`: `@Resource` с зависимостью от `MetricsStore$` —
   таймер на `intervalMs`, `snapshot()` и отправка `PushMetricExporter`;
   без опции `metrics` ресурс не подписывается и таймера не заводит
-- [ ] 2.5 `src/points.spec.ts`: корзины точки совпадают с объявленными
+- [x] 2.5 `src/points.spec.ts`: корзины точки совпадают с объявленными
   границами; `unit` и `help` доходят; ряды видны до первой записи
-- [ ] 2.6 `src/push.spec.ts`: интервал отправляет снимок; инструментов SDK
+- [x] 2.6 `src/push.spec.ts`: интервал отправляет снимок; инструментов SDK
   не создаётся; без `metrics` вызовов экспортёра нет
 
 ## 3. Участки трассы
 
-- [ ] 3.1 `src/span.ts`: переменная `Span`, тип `OtelSpan` с `setAttribute` и
+- [x] 3.1 `src/span.ts`: переменная `Span`, тип `OtelSpan` с `setAttribute` и
   `addEvent`; метода закрытия наружу нет
-- [ ] 3.2 `src/readable.ts`: сборка значения формы `ReadableSpan` из
+- [x] 3.2 `src/readable.ts`: сборка значения формы `ReadableSpan` из
   `TraceContext`, метаданных endpoint'а и часов слоя; отображение исхода в
   статус по таблице D3 дизайна
-- [ ] 3.3 `src/layer.ts`: слой `makePipeline<{ trace: TraceContext }>()` с
+- [x] 3.3 `src/layer.ts`: слой `makePipeline<{ trace: TraceContext }>()` с
   pre-шагом `Span.provide(…)` и `.finally`-шагом отправки; без опции `traces`
   слой работает и не отправляет ничего
-- [ ] 3.4 `src/otel.ts`: вход `otel(options)`, связывающий слой, плагин,
+- [x] 3.4 `src/otel.ts`: вход `otel(options)`, связывающий слой, плагин,
   экспортёров и ресурс одним значением
-- [ ] 3.5 `src/span.type-test.ts`: композиция слоя без `withTracing()` не
+- [x] 3.5 `src/span.type-test.ts`: композиция слоя без `withTracing()` не
   компилируется, с ним — компилируется
-- [ ] 3.6 `src/span.spec.ts`: идентификаторы участка равны значениям `Trace`,
+- [x] 3.6 `src/span.spec.ts`: идентификаторы участка равны значениям `Trace`,
   родитель равен `parentSpanId`, имя — шаблон маршрута, адрес запроса в имя
   не попадает
-- [ ] 3.7 `src/span.outcome.spec.ts`: четыре исхода дают статусы по таблице,
+- [x] 3.7 `src/span.outcome.spec.ts`: четыре исхода дают статусы по таблице,
   `disconnected` не красится в `ERROR`
-- [ ] 3.8 `src/span.stream.spec.ts`: у потокового ответа участок уходит после
+- [x] 3.8 `src/span.stream.spec.ts`: у потокового ответа участок уходит после
   закрытия итератора, длительность покрывает доставку
-- [ ] 3.9 `src/span.policy.spec.ts`: `everyEndpoint().hasVar(Span)` отклоняет
+- [x] 3.9 `src/span.policy.spec.ts`: `everyEndpoint().hasVar(Span)` отклоняет
   сборку без слоя с паттерном и модулем в сообщении; `detached` снимает
   проверку
-- [ ] 3.10 `src/span.enrich.spec.ts`: `Ctx(Span)` даёт дописать атрибут; вне
+- [x] 3.10 `src/span.enrich.spec.ts`: `Ctx(Span)` даёт дописать атрибут; вне
   запроса читалка возвращает `undefined`
 
 ## 4. Остановка и два процесса
 
-- [ ] 4.1 `src/shutdown.spec.ts`: освобождение ресурса снимает таймер,
+- [x] 4.1 `src/shutdown.spec.ts`: освобождение ресурса снимает таймер,
   отправляет последний снимок и закрывает экспортёров; отказ отправки уходит
   в логгер и не срывает остановку
-- [ ] 4.2 `src/app.integration.spec.ts`: приложение с сателлитом — запрос
+- [x] 4.2 `src/app.integration.spec.ts`: приложение с сателлитом — запрос
   проходит, подставной `SpanExporter` получает участок, подставной
   `PushMetricExporter` получает точки
-- [ ] 4.3 Там же: две картины совпадают — корзины точки OTLP равны корзинам
+- [x] 4.3 Там же: две картины совпадают — корзины точки OTLP равны корзинам
   строк `@nestlingjs/prometheus` на одном и том же store
-- [ ] 4.4 Там же: два приложения с трассой по сети — участки несут один
+- [x] 4.4 Там же: два приложения с трассой по сети — участки несут один
   `traceId`, родитель второго равен `spanId` первого
 - [ ] 4.5 Открытый вопрос 1 дизайна: чем доказывается совместимость
   экспорта; решение записать в `design.md`
