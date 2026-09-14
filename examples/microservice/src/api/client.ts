@@ -8,6 +8,8 @@
  * `API_TOKEN=secret yarn workspace @examples/microservice client`
  */
 
+/* eslint-disable @nestlingjs/no-process-globals -- клиент сервиса вне контейнера: адрес и токен приходят окружением напрямую */
+
 import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 
 import { CreateUser, GetUser } from './operations.js';

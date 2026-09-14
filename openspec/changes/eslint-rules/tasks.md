@@ -72,33 +72,33 @@
 - [x] 4.3 Разобрать руками остаток — места с небулевым итогом. Каждое
   читается отдельно: `!== undefined` там, где автор имел в виду «значение
   задано», тернарник остаётся там, где он имел в виду «значение истинно»
-- [ ] 4.4 `.config/eslint.config.js`: `@nestlingjs/no-process-globals`
+- [x] 4.4 `.config/eslint.config.js`: `@nestlingjs/no-process-globals`
   уровнем `error` блоком `files: ['src/**/*.ts']` с `ignores` на
   `*.spec.ts`, `*.test.ts`, `*.type-test.ts` и `__fixtures__/**` — той же
   формой, что блок `runtime-message-language`
 
 ## 5. Разбор чтений глобалей процесса
 
-- [ ] 5.1 `examples/microservice`: поле версии сборки объявлено в
+- [x] 5.1 `examples/microservice`: поле версии сборки объявлено в
   `AppConfig` через `from('BUILD_VERSION', …)` с умолчанием `dev`;
   `ops/build-info.endpoint.ts` переписан на хендлер-класс с
   `@Handler([AppConfig])` по образцу `list-users.endpoint.ts`; спека
   примера прогнана
-- [ ] 5.2 Директива `eslint-disable` с причиной «источник и есть шов с
+- [x] 5.2 Директива `eslint-disable` с причиной «источник и есть шов с
   окружением» — `packages/nestling.app/src/config/source.ts`
-- [ ] 5.3 Директивы с причиной «транспорт и есть шов с процессом» —
+- [x] 5.3 Директивы с причиной «транспорт и есть шов с процессом» —
   `packages/nestling.transport.cli/src/transport.ts` (умолчание `argv` и
   чтение `CI`)
-- [ ] 5.4 Директива с причиной «команда `npx`, а не приложение Nestling» —
+- [x] 5.4 Директива с причиной «команда `npx`, а не приложение Nestling» —
   `packages/nestling.agent-skill/src/cli.ts`
-- [ ] 5.5 Директивы в примерах с причиной по месту: точки входа без
+- [x] 5.5 Директивы в примерах с причиной по месту: точки входа без
   `build()` (`examples/cli/src/main.ts`,
   `examples/modular-app/src/publish.ts`), клиенты вне контейнера
   (`examples/cli/src/api.ts`, `examples/microservice/src/api/client.ts`),
   сателлиты телеметрии (`examples/microservice/src/observability.ts`,
   `examples/modular-app/src/base.ts`), скрипты и оснастка
   (`examples/modular-app/src/graph.ts`, `compat.ts`, `testing.ts`)
-- [ ] 5.6 `yarn nx run-many -t lint` — ноль ошибок обоих правил; ни одной
+- [x] 5.6 `yarn nx run-many -t lint` — ноль ошибок обоих правил; ни одной
   директивы без причины
 
 ## 6. Документация

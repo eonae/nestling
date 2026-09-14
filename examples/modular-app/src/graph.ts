@@ -48,6 +48,7 @@ const wired = await wireApp(
       bind(
         vars({
           DATABASE_URL:
+            // eslint-disable-next-line @nestlingjs/no-process-globals -- скрипт печати графа: адрес базы подставляется прямо в тестовый источник
             process.env.DATABASE_URL ??
             'postgresql://modular:modular@localhost:5433/modular',
         }),

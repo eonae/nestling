@@ -37,6 +37,7 @@ const current = snapshotOperations(
   await checkTopologies(app, [...TOPOLOGIES], CHECK_OPTIONS),
 );
 
+// eslint-disable-next-line @nestlingjs/no-process-globals -- скрипт сверки снапшота, а не приложение
 if (process.env.UPDATE_SNAPSHOT) {
   writeFileSync(BASELINE, serializeSnapshot(current));
   logger.info('snapshot rewritten', { file: BASELINE.pathname });
