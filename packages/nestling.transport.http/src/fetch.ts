@@ -27,8 +27,15 @@ function deferred<T>(): { promise: Promise<T>; settle: (value: T) => void } {
 }
 
 /** Приводит кадр к байтам: строку кодирует, байты отдаёт как есть */
-function toBytes(chunk: string | Buffer | Uint8Array): Uint8Array {
-  return typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+function toBytes(chunk: string | Buffer | Uint8Array): Uint8Array<ArrayBuffer> {
+  if (typeof chunk === 'string') {
+    return Buffer.from(chunk);
+  }
+
+  // `BodyInit` принимает представление только над обычным `ArrayBuffer`,
+  // а тип чанка говорит про `ArrayBufferLike` — то есть допускает и
+  // разделяемый буфер. Сюда такой не приходит: чанки идут из потока Node
+  return chunk as Uint8Array<ArrayBuffer>;
 }
 
 /**
@@ -39,6 +46,13 @@ function toBytes(chunk: string | Buffer | Uint8Array): Uint8Array {
  * `node:stream`, потому что разбор `multipart` отдаёт его busboy; запрос
  * без тела даёт пустой поток, и форма `value` не читает его вовсе.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export interface FetchSource {
+  /** Чтение тела: источник сам себе асинхронный итератор */
+  [Symbol.asyncIterator](): AsyncIterator<Buffer>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class FetchSource implements HttpSource {
   readonly method: string;
 
@@ -59,8 +73,19 @@ export class FetchSource implements HttpSource {
       : Readable.from([]);
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<Buffer> {
-    return this.#body[Symbol.asyncIterator]() as AsyncIterator<Buffer>;
+  /**
+   * Реализация чтения тела; сигнатура — в интерфейсе `FetchSource` выше.
+   *
+   * На прототипе, а не методом класса: метод с ключом-символом пофайловый
+   * эмиттер деклараций выпускает дважды, и собранный `.d.ts` получается
+   * с повтором члена
+   */
+  static {
+    FetchSource.prototype[Symbol.asyncIterator] = function (
+      this: FetchSource,
+    ): AsyncIterator<Buffer> {
+      return this.#body[Symbol.asyncIterator]() as AsyncIterator<Buffer>;
+    };
   }
 
   pipe<T extends NodeJS.WritableStream>(destination: T): T {

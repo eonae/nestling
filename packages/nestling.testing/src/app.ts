@@ -171,6 +171,13 @@ export interface TestBuildOptions<
  * пока не вызван {@link TestApp.run} — он доводит приложение до RUN тем же
  * тестовым прогоном, без обработчиков сигналов и без строки состава.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export interface TestApp {
+  /** `await using app = await buildTest({ … })` */
+  [Symbol.asyncDispose](): Promise<void>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class TestApp {
   readonly #wired: WiredApp;
 
@@ -411,9 +418,19 @@ export class TestApp {
     await this.#wired.close();
   }
 
-  /** `await using app = await buildTest({ … })` */
-  async [Symbol.asyncDispose](): Promise<void> {
-    await this.close();
+  /**
+   * Реализация `await using`; сигнатура — в интерфейсе `TestApp` выше.
+   *
+   * На прототипе, а не методом класса: метод с ключом-символом пофайловый
+   * эмиттер деклараций выпускает дважды, и собранный `.d.ts` получается
+   * с повтором члена
+   */
+  static {
+    TestApp.prototype[Symbol.asyncDispose] = async function (
+      this: TestApp,
+    ): Promise<void> {
+      await this.close();
+    };
   }
 
   /**

@@ -11,7 +11,7 @@ exports[`pipeline type diagnostics > compose-fails-union 1`] = `
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>, "ok"> | DeclaredOutput<ZodObject<{ id: ZodString; }, $strip>, NoInfer<Fail<...> | Fail<...>>, never>'.
       Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'DeclaredOutput<ZodObject<{ id: ZodString; }, $strip>, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>, never>'.
         Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'OutputSync<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>, "ok">'.
-          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>'.
+          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | { id: string; } | NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>'.
             Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined>'.
               Type '"payment_required:card_declined"' is not assignable to type '"timeout"'.
   Overload 2 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, EmptyInput, never, [], Fail<"unauthorized", undefined> | Fail<...>, never> & { ...; }): EndpointDefinition<...>', gave the following error.
@@ -52,7 +52,7 @@ exports[`pipeline type diagnostics > endpoint-undeclared-fail 1`] = `
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>, "ok"> | DeclaredOutput<ZodObject<{ id: ZodString; }, $strip>, Fail<...>, never>'.
       Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'DeclaredOutput<ZodObject<{ id: ZodString; }, $strip>, Fail<"conflict:order_limit_reached", undefined>, never>'.
         Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>, "ok">'.
-          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | Fail<"conflict:order_limit_reached", undefined>'.
+          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | { id: string; } | Fail<"conflict:order_limit_reached", undefined>'.
             Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined>'.
               Type '"payment_required:card_declined"' is not assignable to type '"timeout"'.
   Overload 2 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.
@@ -91,7 +91,7 @@ exports[`pipeline type diagnostics > unresolved-class-step 1`] = `
     Type 'Promise<Ok<{ status: string; }, "ok">>' is not assignable to type 'AnyHttpResult<undefined, never>'.
       Type 'Promise<Ok<{ status: string; }, "ok">>' is not assignable to type 'Promise<HttpDeclaredResult<undefined, AnyFail, never>>'.
         Type 'Ok<{ status: string; }, "ok">' is not assignable to type 'HttpDeclaredResult<undefined, AnyFail, never>'.
-          Type 'Ok<{ status: string; }, "ok">' is not assignable to type 'Ok<null, "no_content"> | Ok<void, "no_content">'.
+          Type 'Ok<{ status: string; }, "ok">' is not assignable to type 'Ok<null, "no_content"> | Ok<void, "no_content"> | HttpResponse<void, "no_content">'.
             Type 'Ok<{ status: string; }, "ok">' is not assignable to type 'Ok<null, "no_content">'.
               Type '{ status: string; }' is not assignable to type 'null'.
   Overload 2 of 2, '(path: "/health", declaration: HttpEndpointDictionary<"/health", AnyPayload, undefined, EmptyInput & { traceId: string; }, typeof WithTracing, undefined, EmptyInput, [], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.
