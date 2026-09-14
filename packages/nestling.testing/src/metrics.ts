@@ -18,13 +18,13 @@ import type {
   MetricsSnapshot,
   MetricsStore,
 } from '@nestlingjs/app';
+import { MetricsStore as MetricsStoreClass } from '@nestlingjs/app';
 import {
   findSeries,
   findSeriesOne,
   makeCatalog,
   makeWriter,
-  MetricsStore as MetricsStoreClass,
-} from '@nestlingjs/app';
+} from '@nestlingjs/app/testing';
 
 /**
  * Метрики тестового приложения: снимок store и адресация ряда.

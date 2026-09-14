@@ -284,14 +284,35 @@ there too.
 - **W3C trace-context** — the format for carrying the trace over HTTP: the
   `traceparent` header of the shape `00-<traceId>-<spanId>-<flags>`. Over
   the bus the trace travels as an envelope field, not a string.
-- **Metric** (`метрика`) — a number that the application or the kernel
-  writes by name with attributes. There are two kinds: a counter
-  (`counter`) and a histogram (`histogram`). The implementation is set by
-  the `makeApp({ metrics })` option; without it, the record goes nowhere.
+- **Metric** (`метрика`) — a declared number that the application or the
+  kernel writes. There are two kinds: a counter (`counter`) and a
+  histogram (`histogram`). The name adds up from the prefix of the group
+  and the key of the entry; there is no string name at the point of
+  writing.
+- **Metrics group** (`группа метрик`) — a value created by
+  `makeMetrics(prefix, members)`. It declares the composition of metrics
+  and serves as a DI token: the graph hands out the writer by it. It is
+  contributed with the `metrics:` field of a feature, a module, a plugin
+  or the root.
 - **Metric attributes** (`атрибуты метрики`) — «name: scalar» pairs at the
-  moment of the record. The kernel takes them only from declarations
-  (`pattern`, `operation`, `transport`, `outcome`), so the row count at
-  the exporter does not grow with traffic.
+  moment of the record. Every attribute is declared: by a list of values
+  or by the `open` mark. The values come from declarations (`pattern`,
+  `operation`, `transport`, `outcome`), so the series count does not grow
+  with traffic.
+- **Series** (`ряд`) — one metric with particular attribute values; it
+  has its own accumulated value. The series of declared lists are created
+  by the build, the series of open attributes by the first entry.
+- **Metrics catalog** (`каталог метрик`) — the composition of metrics of a
+  build: the name, the kind, the description, the unit, the buckets and
+  the attributes of each. It is collected at the BUILD phase from the
+  contributions of the selected composition and is ready before INIT.
+- **Metrics store** (`store метрик`, `MetricsStore$`) — the graph node
+  that holds what is accumulated. Two outputs: `snapshot()` is the state
+  of the series at the moment of the call, `tap(sink)` is the stream of
+  entries with the starting state.
+- **Exposition** (`экспозиция`) — the text a format package
+  (`@nestlingjs/prometheus`) serves to the metrics collector from the
+  snapshot of the store.
 
 ## Failures (`@nestlingjs/operations`)
 

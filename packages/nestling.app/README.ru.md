@@ -91,16 +91,28 @@ await app.build().run();
   `IListener`, `ITransport`, `makeDispatch`, `makeServerDeclaration`,
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
   `TransportDeclaration`, `transportValue`.
-- **Наблюдаемость и пробы** ([design](../../docs/design/container.md)) — `Health`,
-  `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`, `HealthStatus`,
-  `LivenessReport`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
-  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`, `Metrics`,
-  `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
-- **Реэкспорт соседей** — [`@nestlingjs/operations`](../nestling.operations/) (45
-  имён), [`@nestlingjs/logging`](../nestling.logging/) (6 имён) и
+- **Наблюдаемость и пробы** ([design](../../docs/design/container.md)) —
+  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
+  `HealthStatus`, `LivenessReport`, `logConfigKeys`, `logField`, `LogField`,
+  `LogFieldSpec`, `Logger$`, `loggerKernel`, `makeKernelLogger`,
+  `registerHealth`, `RootLogger$`.
+- **Метрики** ([design](../../docs/design/container.md)) — `counter`,
+  `histogram`, `makeMetrics`, `open`, `KernelMetrics`, `MetricsStore`,
+  `MetricsStore$`; типы `AnyMember`, `AnyMetricsGroup`, `AttributesOf`,
+  `AttributeSpec`, `AttributesSpec`, `CatalogMetric`, `CounterDeclaration`,
+  `CounterSeries`, `CounterWriter`, `HistogramBucket`,
+  `HistogramDeclaration`, `HistogramOptions`, `HistogramSeries`,
+  `HistogramWriter`, `Member`, `MembersOf`, `MetricAttributes`,
+  `MetricDeclaration`, `MetricOptions`, `MetricSeries`, `MetricsCatalog`,
+  `MetricsGroup`, `MetricsMembers`, `MetricsOf`, `MetricSink`,
+  `MetricsSnapshot`, `MetricsWriter`, `NoAttributes`, `Open`.
+- **Реэкспорт соседей** — [`@nestlingjs/operations`](../nestling.operations/)
+  (45 имён), [`@nestlingjs/logging`](../nestling.logging/) (6 имён) и
   [`@nestlingjs/common.misc`](../common.misc/) (8 имён); перечни в их README.
 - **Подпуть `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
-  `WiredEndpoint`, `WireOptions`.
+  `WiredEndpoint`, `WireOptions`; сборка каталога и чтение снимка для
+  теста: `findSeries`, `findSeriesOne`, `makeCatalog`, `makeWriter`,
+  `MetricsContribution`.
 
 ## Границы пакета
 

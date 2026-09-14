@@ -1,11 +1,11 @@
 # 22. Считать запросы и вызовы между процессами
 
-> Гайд по текущему API; сверено с кодом `8dfc73b4`.
+> Гайд по текущему API; сверено с кодом `6dc1ec67`.
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Метрики ядра», [design/pipeline.md](../design/pipeline.md) §2 и
 > [design/operations.md](../design/operations.md) §2.3. Почему так:
-> запись [ideas.md](../decisions/ideas.md) «Разбор обзоров d/10 и d/13»
-> [2026-09-12], пункт 2.
+> запись [ideas.md](../decisions/ideas.md) «Метрика — декларация»
+> [2026-09-14].
 
 Два процесса из [главы 20](./20-split.md) работают, и записи логгера
 связаны трассой. По логу видно, что произошло с одним запросом, но не
@@ -13,64 +13,116 @@
 запросов, длительность обработки и то же самое по вызовам операций между
 процессами.
 
-## Интерфейс метрик
+## Метрика объявляется значением
 
-`Metrics` — интерфейс, через который пишут и ядро, и приложение. Методов
-два:
+Группа метрик — значение, созданное `makeMetrics`. Префикс группы и ключ
+записи складываются в имя метрики: `orders.created`,
+`orders.checkout.duration`. Других имён не бывает.
 
 ```typescript
-type MetricAttributes = Record<string, string | number | boolean>;
+// src/features/orders/orders.metrics.ts
+import { counter, histogram, makeMetrics, open } from '@nestlingjs/app';
 
-interface Metrics {
-  counter(name: string, value?: number, attributes?: MetricAttributes): void;
-  histogram(name: string, value: number, attributes?: MetricAttributes): void;
+export const OrdersMetrics = makeMetrics('orders', {
+  created: counter({
+    help: 'Созданные заказы',
+    attributes: { tier: ['free', 'paid'], source: open },
+  }),
+
+  'checkout.duration': histogram({
+    help: 'Время оформления',
+    unit: 'ms',
+    buckets: [5, 25, 100, 500, 1000],
+  }),
+});
+```
+
+Конструкторов два, по одному на вид. У счётчика корзин нет, у гистограммы
+нет прибавки по умолчанию — расхождение проверяет компилятор в точке
+объявления, а не условие в рантайме.
+
+Ключ пишется так, как должен читаться в имени: `'checkout.duration'` —
+обычный ключ объекта в кавычках. Преобразования `camelCase` в точки нет.
+
+## Атрибут объявлен перечнем или пометкой `open`
+
+Каждый атрибут метрики объявлен, и умолчания у объявления нет. Перечень
+значений даёт два следствия: значение вне перечня не компилируется, и
+ряды метрики известны как произведение перечней — ещё до первого запроса.
+
+`open` объявляет атрибут, значения которого известны только в рантайме:
+ряд заводится по факту первой записи, и нулей у него нет. Пометка — это
+место, где автор метрики подписывается под тем, что количеством рядов
+управляет он.
+
+## Писателя раздаёт граф
+
+Группа служит и объявлением, и DI-токеном: `@Component([OrdersMetrics])`
+даёт писателя, у которого метрика выбирается полем.
+
+```typescript
+// src/features/orders/orders.service.ts
+import type { MetricsOf } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
+
+import { OrdersMetrics } from './orders.metrics.js';
+
+@Component([OrdersMetrics])
+export class OrdersService {
+  constructor(private readonly metrics: MetricsOf<typeof OrdersMetrics>) {}
+
+  create(): void {
+    this.metrics.created.add({ tier: 'paid', source: 'web' });
+    this.metrics['checkout.duration'].record(42);
+  }
 }
 ```
 
-`counter` увеличивает счётчик, `counter` без значения — на единицу.
-`histogram` добавляет наблюдение: длительность, размер тела, число
-элементов. Оба метода синхронны и возвращают `void`: запись метрики не
-имеет права задерживать запрос.
+У счётчика метод `add(value?, attributes?)`, у гистограммы —
+`record(value, attributes?)`. `add` без значения прибавляет единицу.
+Объявленные атрибуты обязательны: без них ряд не определён. Оба метода
+синхронны и возвращают `void` — запись метрики не имеет права задерживать
+запрос.
 
-Объекта-инструмента у интерфейса нет. Ядро называет метрику именем, а
-как их хранить, решает реализация.
+Незадекларированная запись при этом невыразима: строкового имени в точке
+записи не существует, лишний ключ атрибута и значение вне перечня не
+компилируются.
 
-## Реализация приходит опцией корня
+Следствие, которое стоит знать заранее: код вне графа метрику написать не
+может. Свободная функция получает писателя параметром от того, кто
+объявил зависимость.
 
-Пока реализация не задана, записи никуда не уходят: под корневым
-DI-токеном `RootMetrics$` стоит пустая реализация. Сервис пишет метрику и
-собирается без всякой настройки — как логгер, который пишет в `stderr`,
-пока не подключили библиотеку.
+## Группа подключается вкладом `metrics:`
 
-Реализацию задаёт опция `metrics` корня:
+Поле `metrics:` есть у фичи, модуля, плагина и корня — рядом с
+`endpoints:` и `providers:`:
 
 ```typescript
-// src/app.ts
-export function declareApp(options: DeclareOptions = {}): App {
-  const exporter = prometheusExporter();
-
-  return makeApp({
-    features: [UsersFeature, NotificationsFeature],
-    plugins: [metricsPlugin(exporter)],
-    transports: [nats({ ...options.nats, name: 'events' }), http()],
-    intercom: 'events',
-    metrics: exporter,
-  });
-}
+// src/features/orders/orders.feature.ts
+export const OrdersFeature = makeFeature({
+  name: 'orders',
+  metrics: [OrdersMetrics],
+  providers: [OrdersService],
+  endpoints: [CreateOrder],
+});
 ```
 
-Значение готовое, как у опции `logger`. Второго способа задать корень
-нет: провайдер под `RootMetrics$` в `providers:` — ошибка сборки, и её
-текст называет опцию `metrics`.
+Группа, запрошенная в зависимостях, но не подключённая вкладом, — отказ
+сборки, и его текст называет поле `metrics:`. Группы невыбранной фичи и
+невыбранной ветки переключателя в сборку не попадают — тем же
+механизмом, который убирает их провайдеры.
 
-Опция включает и инструментовку ядра. Без неё рантайм не снимает время и
-не вызывает методы записи вовсе, поэтому приложение, которому метрики не
-нужны, за них не платит.
+Из вкладов выбранного состава фаза BUILD собирает каталог: имя, вид,
+описание, единицу, корзины и атрибуты каждой метрики. Каталог готов до
+фазы INIT, поэтому список метрик процесса известен до того, как открылся
+сокет. Две группы с одним полным именем метрики роняют сборку — текст
+отказа называет обе.
 
 ## Четыре метрики, которые считает ядро
 
-Ядро считает обработку запроса и вызов порта само, без единого шага в
-пайплайне:
+Ядро объявляет свои метрики той же группой — `KernelMetrics` с префиксом
+`nestling` — и считает обработку запроса и вызов порта само, без единого
+шага в пайплайне:
 
 | Метрика | Вид | Атрибуты |
 |---|---|---|
@@ -82,145 +134,112 @@ export function declareApp(options: DeclareOptions = {}): App {
 `outcome` принимает те же четыре значения, что видит `.finally`-шаг:
 `completed`, `disconnected`, `aborted`, `failed`. `pattern` — шаблон
 маршрута из декларации, а не адрес запроса: у `GET /users/:id` атрибут
-один на все идентификаторы. Так количество рядов у экспортёра остаётся
-конечным и не растёт от трафика.
+один на все идентификаторы.
+
+Значения `transport`, `pattern` и `operation` приходят из деклараций
+сборки, поэтому ряды метрик ядра заведены до первого запроса. Экспозиция
+свежеподнятого процесса показывает нули по каждому endpoint'у и каждому
+исходу — и дашборд с нулём ошибок отличим от дашборда без данных.
 
 `binding` принимает `local` и `remote` и отвечает на вопрос, ушёл вызов
 на брокер или остался в процессе. Вызов операции, реализованной здесь же,
 идёт через `dispatch` и поэтому даёт две группы записей: свою с
 `binding: 'local'` и запись `nestling.requests` у endpoint'а реализации.
-Считая запросы, атрибут `binding` их разделяет.
 
 У endpoint'а с потоковым выходом длительность измеряет доставку целиком:
 ответная фаза потока откладывается до закрытия итератора, и запись
 следует за ней.
 
-## Записи приложения
+Инструментовка включена всегда, флага у неё нет: запись объявленного ряда
+— прибавка по индексу, вычисленному на сборке.
 
-Сервису метрики приходят как обычная зависимость — токеном семейства
-`Metrics$`:
+## Накопленное держит ядро
+
+`MetricsStore$` — узел графа, который есть у любого приложения. Он хранит
+значения рядов и каталог, по которому они заведены:
 
 ```typescript
-@Component([Metrics$.auto])
-export class OrdersService {
-  constructor(private readonly metrics: Metrics) {}
-
-  create(): void {
-    this.metrics.counter('orders.created');
-  }
+interface MetricsStore {
+  readonly catalog: MetricsCatalog;
+  snapshot(): MetricsSnapshot;
+  tap(sink: MetricSink): () => void;
 }
 ```
 
-`Metrics$.auto` даёт член по имени класса, и к каждой записи добавляется
-атрибут `scope: 'OrdersService'`. Нужно другое имя области —
-`Metrics$('orders')`.
+`snapshot()` отдаёт состояние всех рядов на момент вызова: имя метрики,
+атрибуты ряда, значение счётчика или агрегат гистограммы, плюс описание и
+единицу из объявления. Снимок — копия: записи, прошедшие после вызова,
+его не меняют.
 
-## Адаптер и endpoint `/metrics`
+`tap(sink)` подписывает получателя на поток записей и отдаёт ему
+стартовым состоянием текущий снимок — иначе записи фаз INIT и START
+терялись бы. Возвращает функцию отписки. Исключение подписчика
+изолируется и уходит в логгер ядра: сбойный экспортёр не роняет
+обработку запроса.
 
-Куда уходят числа, ядро не знает: формата экспорта у него нет. Адаптер
-пишет приложение — им и проверяется, что публичной границы ядра
-хватает.
+Настраивать в store нечего, и опции корня у него нет: плагин экспорта —
+потребитель, а не выключатель.
 
-```typescript
-// src/metrics.ts
-export interface MetricsExporter extends Metrics {
-  render(): string;
-}
+## Экспозиция приходит пакетом
 
-export function prometheusExporter(): MetricsExporter {
-  const counters = new Map<string, number>();
-  const histograms = new Map<string, { count: number; sum: number }>();
-
-  return {
-    counter: (name, value = 1, attributes = {}) => {
-      const key = keyOf(name, attributes);
-
-      counters.set(key, (counters.get(key) ?? 0) + value);
-    },
-    // histogram и render — там же
-  };
-}
-```
-
-Адаптер уходит в два места сразу: опцией `metrics` он становится корнем,
-а провайдером плагина — узлом графа, который читает endpoint `/metrics`.
+Формата экспорта ядро не знает. Текст для сборщика Prometheus даёт
+отдельный пакет:
 
 ```typescript
-// src/metrics.ts (фрагмент)
-export function metricsPlugin(exporter: MetricsExporter): Plugin {
-  @Handler([MetricsExporter$])
-  class MetricsHandler {
-    constructor(private readonly exporter: MetricsExporter) {}
+// src/app.ts
+import { prometheus } from '@nestlingjs/prometheus';
 
-    async handle() {
-      return new Ok(this.exporter.render());
-    }
-  }
-
-  return makePlugin({
-    name: 'metrics',
-    providers: [valueProvider(MetricsExporter$, exporter)],
-    endpoints: [
-      httpEndpoint.get('/metrics', {
-        output: 'text',
-        detached: 'metrics scrape: not part of the application API',
-        handler: MetricsHandler,
-      }),
-    ],
-  });
-}
+export const app = makeApp({
+  features: [OrdersFeature],
+  plugins: [prometheus()],
+  transports: [http({ server: api })],
+});
 ```
 
-Плагин, а не фича: метрики нужны в каждом процессе развёртывания, и
-выбор фич их не касается. `detached` выводит endpoint из-под политик
-сборки: метрики снимает сборщик, а не клиент API.
+Плагин читает `MetricsStore$` и отдаёт экспозицию по `GET /metrics`;
+адрес меняется опцией `prometheus({ path: '/internal/metrics' })`. Своего
+сервера пакет не поднимает — экспозиция живёт на сокете приложения.
+Endpoint помечен `detached` и скрыт из документа API: метрики снимает
+сборщик, а не клиент.
 
-Гистограмма выражена парой `_count` и `_sum`: корзин ядро не задаёт.
-Настоящему экспортёру корзины нужны, и он заведёт их у себя — интерфейс
-ядра этому не мешает.
+Гистограмма выводится корзинами `_bucket`, суммой `_sum` и счётчиком
+`_count`. Границы корзин приходят из объявления метрики, поэтому считать
+их экспортёру не нужно.
 
 ## Проверка
 
-```typescript
-// src/metrics.spec.ts
-it('обработка операции попадает в экспорт счётчиком и длительностью', async () => {
-  const exporter = prometheusExporter();
-  const plugin = metricsPlugin(exporter);
-
-  const observed = makeApp({
-    features: [UsersFeature, NotificationsFeature],
-    plugins: [plugin],
-    transports: [http()],
-    metrics: exporter,
-  });
-
-  await using testApp = await buildTest(observed, { args: 'all' });
-
-  await testApp.emit(RegisterUser, { email: 'alice@example.com' });
-
-  const text = exporter.render();
-
-  expect(text).toContain('nestling_requests{');
-  expect(text).toMatch(/nestling_port_calls\{[^}]*binding="local"/);
-});
-```
-
-Тесту, которому нужны записи, а не текст, `@nestlingjs/testing` даёт
-`spyMetrics()`:
+Тест читает снимок тестового приложения, а ряд адресует членом группы:
 
 ```typescript
-const spy = spyMetrics();
-await using testApp = await buildTest(app, {
-  overrides: [[RootMetrics$, spy.metrics]],
-});
+// src/features/orders/orders.spec.ts
+await using testApp = await buildTest(app);
 
-await testApp.call(GetUser, { id: '1' });
+await testApp.call(CreateOrder, { sku: 'x' });
 
-expect(spy.records).toContainEqual(
-  expect.objectContaining({ name: 'nestling.requests' }),
-);
+expect(
+  testApp.metrics.counter(OrdersMetrics.members.created, { tier: 'paid' }),
+).toBe(1);
+
+expect(
+  testApp.metrics.counter(KernelMetrics.members.requests, {
+    outcome: 'completed',
+  }),
+).toBe(1);
 ```
 
-Подмена корня делает две вещи сразу: перехватывает записи всех членов
-`Metrics$` и включает инструментовку ядра, потому что под корнем
-оказывается не пустая реализация.
+`counter(...)` суммирует подходящие ряды, `histogram(...)` отдаёт агрегат
+одного ряда, `snapshot()` — весь снимок. Подмена корня не нужна: записи
+приложения и записи ядра лежат в одном store.
+
+Юнит-тест класса без контейнера получает писателя от `metricsFor`:
+
+```typescript
+const orders = metricsFor(OrdersMetrics);
+const service = new OrdersService(orders.metrics);
+
+service.create();
+
+expect(
+  orders.read.counter(OrdersMetrics.members.created, { tier: 'paid' }),
+).toBe(1);
+```

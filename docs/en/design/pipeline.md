@@ -121,9 +121,11 @@ endpoint with no pipeline gets it too. For a streaming output, the
 record follows the delayed `.finally` and therefore measures the whole
 delivery, not only the work of the handler.
 
-An application that has not set a metrics implementation through the
-`makeApp({ metrics })` option does not pay for this record: the runtime
-does not measure time and does not call the recording methods.
+The record has no condition: the runtime takes the writer of the kernel
+metrics from the `ExecuteOptions.metrics` option, and without it writes
+to a standalone store — the same way a record without `logger` goes to
+the kernel logger. The series of these metrics are created at build time,
+so the record is an increment by an index.
 
 The builder tracks the order of methods: after the first `.ok`,
 `.catch` or `.finally`, the `.pre` method is unavailable in the types.

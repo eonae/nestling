@@ -70,16 +70,12 @@ export {
 } from './logger/index.js';
 export type { LogField, LogFieldSpec } from './logger/index.js';
 
-// ./metrics/index.js — 45
+// ./metrics/index.js — 36
 export {
   counter,
-  findSeries,
-  findSeriesOne,
   histogram,
   KernelMetrics,
-  makeCatalog,
   makeMetrics,
-  makeWriter,
   MetricsStore,
   MetricsStore$,
   open,
@@ -106,7 +102,6 @@ export type {
   MetricOptions,
   MetricSeries,
   MetricsCatalog,
-  MetricsContribution,
   MetricsGroup,
   MetricsMembers,
   MetricsOf,

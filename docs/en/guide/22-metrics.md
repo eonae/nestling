@@ -1,11 +1,11 @@
 # 22. Count requests and calls between processes
 
-> Guide to the current API; verified against `8dfc73b4`.
+> Guide to the current API; verified against `6dc1ec67`.
 > Target description: [design/container.md](../design/container.md), the
 > "Kernel metrics" section, [design/pipeline.md](../design/pipeline.md) §2
 > and [design/operations.md](../design/operations.md) §2.3. Why: entry
-> [ideas.md](../../decisions/ideas.md) `Разбор обзоров d/10 и d/13`
-> [2026-09-12], point 2.
+> [ideas.md](../../decisions/ideas.md) `Метрика — декларация`
+> [2026-09-14].
 
 The two processes from [chapter 20](./20-split.md) work, and the log
 records are linked by the trace. The log shows what happened to one
@@ -13,64 +13,120 @@ request, but not how many there were and how long they took. Numbers are
 needed: a counter of requests, the duration of processing and the same
 for the calls of operations between processes.
 
-## The metrics interface
+## A metric is declared as a value
 
-`Metrics` is the interface through which both the kernel and the
-application write. There are two methods:
+A metrics group is a value created by `makeMetrics`. The prefix of the
+group and the key of the entry add up to the metric name:
+`orders.created`, `orders.checkout.duration`. There are no other names.
 
 ```typescript
-type MetricAttributes = Record<string, string | number | boolean>;
+// src/features/orders/orders.metrics.ts
+import { counter, histogram, makeMetrics, open } from '@nestlingjs/app';
 
-interface Metrics {
-  counter(name: string, value?: number, attributes?: MetricAttributes): void;
-  histogram(name: string, value: number, attributes?: MetricAttributes): void;
+export const OrdersMetrics = makeMetrics('orders', {
+  created: counter({
+    help: 'Created orders',
+    attributes: { tier: ['free', 'paid'], source: open },
+  }),
+
+  'checkout.duration': histogram({
+    help: 'Checkout duration',
+    unit: 'ms',
+    buckets: [5, 25, 100, 500, 1000],
+  }),
+});
+```
+
+There are two constructors, one per kind. A counter has no buckets, a
+histogram has no default increment — the compiler checks the difference
+at the point of declaration, not a condition at runtime.
+
+The key is written the way it should read in the name:
+`'checkout.duration'` is an ordinary object key in quotes. There is no
+`camelCase`-to-dots conversion.
+
+## An attribute is declared by a list of values or by `open`
+
+Every attribute of a metric is declared, and the declaration has no
+default. A list of values gives two consequences: a value outside the
+list does not compile, and the series of the metric are known as the
+product of the lists — before the first request.
+
+`open` declares an attribute whose values are known only at runtime: the
+series is created by the first entry, and it has no zeros. The mark is
+the place where the author of the metric signs for keeping the number of
+series under control.
+
+## The graph hands out the writer
+
+The group serves both as the declaration and as a DI token:
+`@Component([OrdersMetrics])` gives a writer where a metric is picked as
+a field.
+
+```typescript
+// src/features/orders/orders.service.ts
+import type { MetricsOf } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
+
+import { OrdersMetrics } from './orders.metrics.js';
+
+@Component([OrdersMetrics])
+export class OrdersService {
+  constructor(private readonly metrics: MetricsOf<typeof OrdersMetrics>) {}
+
+  create(): void {
+    this.metrics.created.add({ tier: 'paid', source: 'web' });
+    this.metrics['checkout.duration'].record(42);
+  }
 }
 ```
 
-`counter` increases the counter, and `counter` without a value increases
-it by one. `histogram` adds an observation: a duration, a body size, a
-count of elements. Both methods are synchronous and return `void`:
-writing a metric has no right to delay the request.
+A counter has the method `add(value?, attributes?)`, a histogram has
+`record(value, attributes?)`. `add` without a value adds one. Declared
+attributes are required: without them the series is not defined. Both
+methods are synchronous and return `void` — writing a metric has no right
+to delay the request.
 
-The interface has no instrument object. The kernel names a metric, and
-the implementation decides how to store it.
+An undeclared entry is not expressible: there is no string name at the
+point of writing, and neither an extra attribute key nor a value outside
+the list compiles.
 
-## The implementation arrives as a root option
+One consequence to know upfront: code outside the graph cannot write a
+metric. A free function takes the writer as a parameter from whoever
+declared the dependency.
 
-While the implementation is not set, the records go nowhere: an empty
-implementation stands under the root DI token `RootMetrics$`. A service
-writes a metric and builds without any configuration — like a logger
-that writes to `stderr` until a library is connected.
+## A group is contributed with `metrics:`
 
-The `metrics` option of the root sets the implementation:
+The field `metrics:` belongs to a feature, a module, a plugin and the
+root — next to `endpoints:` and `providers:`:
 
 ```typescript
-// src/app.ts
-export function declareApp(options: DeclareOptions = {}): App {
-  const exporter = prometheusExporter();
-
-  return makeApp({
-    features: [UsersFeature, NotificationsFeature],
-    plugins: [metricsPlugin(exporter)],
-    transports: [nats({ ...options.nats, name: 'events' }), http()],
-    intercom: 'events',
-    metrics: exporter,
-  });
-}
+// src/features/orders/orders.feature.ts
+export const OrdersFeature = makeFeature({
+  name: 'orders',
+  metrics: [OrdersMetrics],
+  providers: [OrdersService],
+  endpoints: [CreateOrder],
+});
 ```
 
-The value is ready-made, like the `logger` option. There is no second way
-to set the root: a provider under `RootMetrics$` in `providers:` is an
-build error, and its text names the `metrics` option.
+A group requested as a dependency but not contributed is a build
+failure, and its text names the `metrics:` field. The groups of an
+unselected feature and of an unselected switch branch do not reach the
+build — by the same mechanism that removes their providers.
 
-The option also turns on the instrumentation of the kernel. Without it,
-the runtime does not measure time and does not call the write methods at
-all, so an application that does not need metrics does not pay for them.
+From the contributions of the selected composition the BUILD phase
+collects the catalog: the name, the kind, the description, the unit, the
+buckets and the attributes of every metric. The catalog is ready before
+the INIT phase, so the list of metrics of the process is known before the
+socket opens. Two groups with one full metric name fail the build — the
+text of the failure names both.
 
-## Four metrics that the kernel counts
+## The four metrics the kernel counts
 
-The kernel counts the processing of a request and the call of a port
-itself, without a single step in the pipeline:
+The kernel declares its own metrics with the same group — `KernelMetrics`
+with the prefix `nestling` — and counts request handling and port
+invocation itself, without a single step in the pipeline:
 
 | Metric | Kind | Attributes |
 |---|---|---|
@@ -79,151 +135,123 @@ itself, without a single step in the pipeline:
 | `nestling.port.calls` | counter | `operation`, `kind`, `binding`, `outcome` |
 | `nestling.port.duration` | histogram, ms | `operation`, `kind`, `binding`, `outcome` |
 
-`outcome` takes the same four values that a `.finally` step sees:
+`outcome` takes the same four values a `.finally` step sees:
 `completed`, `disconnected`, `aborted`, `failed`. `pattern` is the route
 template from the declaration, not the address of the request: for
-`GET /users/:id` the attribute is one for every identifier. This way the
-row count at the exporter stays finite and does not grow with traffic.
+`GET /users/:id` the attribute is one for all identifiers.
 
-`binding` takes `local` and `remote` and answers whether the call went
-out to the broker or stayed in the process. A call to an operation
-implemented right here goes through `dispatch` and so gives two groups of
-records: its own with `binding: 'local'` and the `nestling.requests`
-record of the implementation's endpoint. Counting requests, the
-`binding` attribute separates them.
+The values of `transport`, `pattern` and `operation` come from the
+declarations of the build, so the series of the kernel metrics are
+created before the first request. The exposition of a freshly started
+process shows zeros for every endpoint and every outcome — and a
+dashboard with zero errors is distinguishable from a dashboard with no
+data.
 
-For an endpoint with a streaming output, the duration measures the
-delivery as a whole: the response phase of the stream is deferred until
-the iterator closes, and the record follows it.
+`binding` takes `local` and `remote` and answers whether the call went to
+the broker or stayed in the process. A call of an operation implemented
+here goes through `dispatch` and therefore gives two groups of entries:
+its own with `binding: 'local'` and the `nestling.requests` entry of the
+endpoint of the implementation.
 
-## Records of the application
+For an endpoint with a streaming output the duration measures the whole
+delivery: the response phase of a stream is deferred until the iterator
+closes, and the entry follows it.
 
-Metrics reach a service as an ordinary dependency — as a member of the
-`Metrics$` family:
+The instrumentation is always on and has no flag: writing a declared
+series is an increment by an index computed at build time.
+
+## The kernel holds what is accumulated
+
+`MetricsStore$` is a graph node that every application has. It holds the
+values of the series and the catalog they were created from:
 
 ```typescript
-@Component([Metrics$.auto])
-export class OrdersService {
-  constructor(private readonly metrics: Metrics) {}
-
-  create(): void {
-    this.metrics.counter('orders.created');
-  }
+interface MetricsStore {
+  readonly catalog: MetricsCatalog;
+  snapshot(): MetricsSnapshot;
+  tap(sink: MetricSink): () => void;
 }
 ```
 
-`Metrics$.auto` gives a member by the name of the class, and the
-attribute `scope: 'OrdersService'` is added to every record. A different
-scope name needs `Metrics$('orders')`.
+`snapshot()` returns the state of all series at the moment of the call:
+the metric name, the attributes of the series, the counter value or the
+histogram aggregate, plus the description and the unit from the
+declaration. The snapshot is a copy: entries made after the call do not
+change it.
 
-## The adapter and the `/metrics` endpoint
+`tap(sink)` subscribes a receiver to the stream of entries and hands it
+the current snapshot as the starting state — otherwise the entries of the
+INIT and START phases would be lost. It returns the unsubscribe function.
+An exception of the subscriber is isolated and goes to the kernel logger:
+a failing exporter does not break request handling.
 
-The kernel does not know where the numbers go: it has no export format.
-The application writes the adapter itself — it is what checks that the
-public boundary of the kernel is enough.
+There is nothing to configure in the store, and it has no root option:
+an export plugin is a consumer, not a switch.
 
-```typescript
-// src/metrics.ts
-export interface MetricsExporter extends Metrics {
-  render(): string;
-}
+## The exposition arrives as a package
 
-export function prometheusExporter(): MetricsExporter {
-  const counters = new Map<string, number>();
-  const histograms = new Map<string, { count: number; sum: number }>();
-
-  return {
-    counter: (name, value = 1, attributes = {}) => {
-      const key = keyOf(name, attributes);
-
-      counters.set(key, (counters.get(key) ?? 0) + value);
-    },
-    // histogram and render are in the same place
-  };
-}
-```
-
-The adapter goes to two places at once: as the `metrics` option it
-becomes the root, and as a provider of the plugin it becomes the node of
-the graph that the `/metrics` endpoint reads.
+The kernel knows no export format. The text for the Prometheus scraper
+comes from a separate package:
 
 ```typescript
-// src/metrics.ts (fragment)
-export function metricsPlugin(exporter: MetricsExporter): Plugin {
-  @Handler([MetricsExporter$])
-  class MetricsHandler {
-    constructor(private readonly exporter: MetricsExporter) {}
+// src/app.ts
+import { prometheus } from '@nestlingjs/prometheus';
 
-    async handle() {
-      return new Ok(this.exporter.render());
-    }
-  }
-
-  return makePlugin({
-    name: 'metrics',
-    providers: [valueProvider(MetricsExporter$, exporter)],
-    endpoints: [
-      httpEndpoint.get('/metrics', {
-        output: 'text',
-        detached: 'metrics scrape: not part of the application API',
-        handler: MetricsHandler,
-      }),
-    ],
-  });
-}
-```
-
-A plugin, not a feature: metrics are needed in every process of the
-deployment, and the feature selection does not concern them. `detached`
-takes the endpoint out from under the build policies: the metrics are
-scraped by the collector, not by an API client.
-
-The histogram is expressed by the pair `_count` and `_sum`: the kernel
-does not set buckets. A real exporter needs buckets, and it sets them up
-on its own — the interface of the kernel does not stand in the way.
-
-## Checking
-
-```typescript
-// src/metrics.spec.ts
-it('обработка операции попадает в экспорт счётчиком и длительностью', async () => {
-  const exporter = prometheusExporter();
-  const plugin = metricsPlugin(exporter);
-
-  const observed = makeApp({
-    features: [UsersFeature, NotificationsFeature],
-    plugins: [plugin],
-    transports: [http()],
-    metrics: exporter,
-  });
-
-  await using testApp = await buildTest(observed, { args: 'all' });
-
-  await testApp.emit(RegisterUser, { email: 'alice@example.com' });
-
-  const text = exporter.render();
-
-  expect(text).toContain('nestling_requests{');
-  expect(text).toMatch(/nestling_port_calls\{[^}]*binding="local"/);
+export const app = makeApp({
+  features: [OrdersFeature],
+  plugins: [prometheus()],
+  transports: [http({ server: api })],
 });
 ```
 
-For a test that needs the records, not the text, `@nestlingjs/testing`
-gives `spyMetrics()`:
+The plugin reads `MetricsStore$` and serves the exposition at
+`GET /metrics`; the address is changed by the option
+`prometheus({ path: '/internal/metrics' })`. The package starts no server
+of its own — the exposition lives on the socket of the application. The
+endpoint is marked `detached` and hidden from the API document: metrics
+are scraped by the collector, not by a client.
+
+A histogram is written as `_bucket` series, a `_sum` and a `_count`. The
+bucket boundaries come from the declaration of the metric, so the
+exporter does not compute them.
+
+## The check
+
+The test reads the snapshot of the test application and addresses a
+series by a member of the group:
 
 ```typescript
-const spy = spyMetrics();
-await using testApp = await buildTest(app, {
-  overrides: [[RootMetrics$, spy.metrics]],
-});
+// src/features/orders/orders.spec.ts
+await using testApp = await buildTest(app);
 
-await testApp.call(GetUser, { id: '1' });
+await testApp.call(CreateOrder, { sku: 'x' });
 
-expect(spy.records).toContainEqual(
-  expect.objectContaining({ name: 'nestling.requests' }),
-);
+expect(
+  testApp.metrics.counter(OrdersMetrics.members.created, { tier: 'paid' }),
+).toBe(1);
+
+expect(
+  testApp.metrics.counter(KernelMetrics.members.requests, {
+    outcome: 'completed',
+  }),
+).toBe(1);
 ```
 
-Substituting the root does two things at once: it intercepts the records
-of every member of `Metrics$` and turns on the instrumentation of the
-kernel, because an empty implementation no longer stands under the root.
+`counter(...)` sums the matching series, `histogram(...)` returns the
+aggregate of one series, `snapshot()` returns the whole snapshot. No root
+substitution is needed: the entries of the application and the entries of
+the kernel are in one store.
+
+A unit test of a class without the container takes the writer from
+`metricsFor`:
+
+```typescript
+const orders = metricsFor(OrdersMetrics);
+const service = new OrdersService(orders.metrics);
+
+service.create();
+
+expect(
+  orders.read.counter(OrdersMetrics.members.created, { tier: 'paid' }),
+).toBe(1);
+```

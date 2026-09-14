@@ -434,51 +434,70 @@ interface Logger {
 
 ## The kernel metrics
 
-`Metrics` is the metrics interface both the kernel and the application
-work with.
+A metric is a declaration-value, not a string at the point of writing.
+`makeMetrics(prefix, members)` declares a group, and `counter` and
+`histogram` declare the kinds.
 
 ```typescript
-type MetricAttributes = Record<string, string | number | boolean>;
-
-interface Metrics {
-  counter(name: string, value?: number, attributes?: MetricAttributes): void;
-  histogram(name: string, value: number, attributes?: MetricAttributes): void;
-}
+export const OrdersMetrics = makeMetrics('orders', {
+  created: counter({
+    help: 'Created orders',
+    attributes: { tier: ['free', 'paid'], source: open },
+  }),
+});
 ```
 
-The shape repeats the shape of the logger, so the application recognizes
-it by an already familiar form.
-
-- Both methods write a value and return `void`. There is no instrument
-  object: the kernel names a metric, and caching the instruments stays
-  the implementation's job. `counter` with no value increments the
-  counter by one. There is no `gauge` method in V1.
-- `RootMetrics$` is the DI token of the root. Its value is set by the
-  `makeApp({ metrics })` option; without it, an empty implementation
-  whose methods do nothing stands under the DI token. The node is always
-  in the graph, so a feature that writes a metric builds without an
-  installed satellite. An application provider under `RootMetrics$` is a
-  duplicate error, the same as for the logger.
-- `Metrics$(scope)` and `Metrics$.auto` are family members. A member adds
-  the `scope` attribute to every record; the interface has no `child`
-  method, the family recipe makes the wrapper.
-- The kernel counts four metrics: `nestling.requests` and
+- **The name** of a metric is `<prefix>.<key>`; the key is not
+  transformed. The key is written the way it should read in the name.
+- **An attribute** is declared by a list of values or by the `open` mark;
+  the declaration has no default. A list gives series known at build time
+  and rejects a value outside it by types. `open` means the values are
+  known only at runtime: the series is created by the first entry.
+- **A group is a DI token.** `@Component([OrdersMetrics])` gives a writer
+  (`MetricsOf<typeof OrdersMetrics>`) where a metric is picked as a
+  field: `metrics.created.add(1, { tier })`. A counter has the method
+  `add(value?, attributes?)`, a histogram has
+  `record(value, attributes?)`; both are synchronous and return `void`.
+  There is no `gauge` kind in V1.
+- **Groups are contributed** with `metrics:` — by a feature, a module, a
+  plugin and the root. A group requested as a dependency but not
+  contributed is a build failure that names the field.
+- **The catalog** is collected at the BUILD phase from the contributions
+  of the selected composition and is ready before INIT. It carries for
+  every metric the full name, the kind, `help`, `unit`, the bucket
+  boundaries and the declared attributes. Two groups sharing a full
+  metric name fail the build, and the text names both.
+- **`MetricsStore$`** is a graph node that is always there. It holds the
+  values of the series and the catalog; an application provider under it
+  is a duplicate error. Two outputs: `snapshot()` returns the state of
+  the series at the moment of the call, `tap(sink)` returns the stream of
+  entries with the starting state and the unsubscribe function. An
+  exception of the subscriber is isolated and goes to the kernel logger.
+- **A series is addressed by an index** computed at build time: writing a
+  declared series builds no string key. The series of open attributes
+  live in a dictionary. A histogram holds the count of observations, the
+  sum and the buckets by the boundaries from the declaration.
+- **The kernel declares its own four metrics** with the same group —
+  `KernelMetrics` with the prefix `nestling`: `nestling.requests` and
   `nestling.request.duration` for handling a request
   ([pipeline.md §2](./pipeline.md)), `nestling.port.calls` and
   `nestling.port.duration` for calling a port
   ([operations.md](./operations.md)). Duration is measured in
   milliseconds, the same as `timeoutMs` and `deadline`.
-- Attributes come from declarations, not from the request: `pattern` is
-  the route pattern of the endpoint, `operation` is the name of the
-  operation. The number of rows at the exporter is therefore finite and
-  does not grow with traffic.
-- Kernel instrumentation is enabled together with a real implementation.
-  Without the `metrics` option, the runtime does not measure time and
-  does not call the recording methods; there is no enabling flag in the
-  interface.
-- The kernel does not know the export format. The application or a
-  satellite writes the `/metrics` endpoint and the export to a collector
-  on top of this interface.
+- **Attributes come from declarations, not from the request**: `pattern`
+  is the route pattern of the endpoint, `operation` is the name of the
+  operation. The values of `transport`, `pattern` and `operation` are
+  computed by the build, so the series of the kernel metrics are created
+  before the first request and the exposition shows zeros for them.
+- **The instrumentation is always on**, with no flag and no option: the
+  price of writing a declared series is an increment by an index.
+- **The kernel does not know the export format.** The exposition comes
+  from a plugin that reads `MetricsStore$` — `@nestlingjs/prometheus`,
+  for one; a push export is built on `tap(sink)`.
+- **`MetricSink`** is the shape of the receiver of entries:
+  `start(snapshot)`, `counter(name, value, attributes)` and
+  `histogram(name, value, attributes)`. It is an output of the store, not
+  an input the application implements.
 
 ## The kernel and user code
 

@@ -337,6 +337,11 @@ implementation goes through `dispatch` and therefore produces both
 groups of records: its own and the record of the implementation's
 endpoint.
 
+The caller wrapper is always installed: the record goes to the kernel
+store that every application has, and there is no "metrics configured"
+condition. The series for reachable operations are created at build
+time, so the snapshot shows zeros before the first call.
+
 ### 2.4. Rules
 
 A port is never transactional, even in one process: the call runs in
