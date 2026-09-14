@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP транспортом Nestling: инструмент агента — endpoint, схемы переводят те же конвертеры, что у OpenAPI",
   "keywords": [
     "nestling",

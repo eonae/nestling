@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/prometheus",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Экспозиция метрик Nestling в формате Prometheus: endpoint /metrics читает store ядра",
   "keywords": [
     "nestling",

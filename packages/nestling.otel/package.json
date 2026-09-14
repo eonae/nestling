@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/otel",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Экспорт телеметрии Nestling по OpenTelemetry: участки трассы слоем пайплайна и push метрик поверх store ядра",
   "keywords": [
     "nestling",

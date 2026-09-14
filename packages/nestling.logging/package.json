@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/logging",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Интерфейс логгера Nestling и штатная реализация: четыре уровня, три формы вызова, дочерний логгер с привязками, вывод в stderr текстом или JSON",
   "keywords": [
     "nestling",
