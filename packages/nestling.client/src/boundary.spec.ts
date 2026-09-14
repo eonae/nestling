@@ -14,6 +14,8 @@ import {
   formatViolations,
 } from '../../../scripts/boundary/package-boundary.js';
 
+import { describe, expect, it } from 'vitest';
+
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('@nestlingjs/client: граница пакета', () => {

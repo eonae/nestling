@@ -10,8 +10,8 @@ import { join } from 'node:path';
 
 import { SKILL_DIR, SNIPPETS_DIR } from '../scripts/snippets.mjs';
 
-import { describe, expect, it } from '@jest/globals';
 import nestlingPlugin from '@nestlingjs/eslint-plugin';
+import { describe, expect, it } from 'vitest';
 
 /** Файлы `references/`, которые обязан содержать скилл */
 const REFERENCES = [

@@ -11,7 +11,7 @@ import { ConfigReader } from './reader.js';
 import { makeConfig } from './section.js';
 import { bind } from './source.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 makeConfig('blank', {

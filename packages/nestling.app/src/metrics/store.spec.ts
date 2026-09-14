@@ -8,7 +8,7 @@ import { findSeries, findSeriesOne } from './lookup.js';
 import { MetricsStore } from './store.js';
 import { makeWriter } from './writer.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 const Orders = makeMetrics('orders', {
   created: counter({

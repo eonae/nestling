@@ -9,6 +9,7 @@
 
 import * as app from '@nestlingjs/app';
 import * as commonMisc from '@nestlingjs/common.misc';
+import { describe, expect, it } from 'vitest';
 
 /** Значения, переехавшие из схемного слоя пайплайна в `@nestlingjs/common.misc`. */
 const MOVED_VALUES = [

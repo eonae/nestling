@@ -16,7 +16,7 @@ import {
   problemTypeOf,
 } from './problem.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 describe('problemOf: документ из деталей отказа', () => {
   it('раскладывает отказ по членам документа', () => {

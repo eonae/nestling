@@ -22,8 +22,8 @@ import { argv, isArgv } from './argv.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
 import { makeSwitch, makeToken, valueProvider } from '@nestlingjs/container';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const Mail = makeSwitch('mail', ['log', 'smtp'], { default: 'log' });
@@ -180,7 +180,7 @@ describe('отказ разбора — до фазы 0', () => {
 describe('`--help` печатает схему и завершает процесс', () => {
   it('схема уходит в stdout, процесс завершается кодом 0, состав не считается', () => {
     const printed: string[] = [];
-    const write = jest
+    const write = vi
       .spyOn(process.stdout, 'write')
       .mockImplementation((chunk: unknown) => {
         printed.push(String(chunk));
@@ -190,7 +190,7 @@ describe('`--help` печатает схему и завершает проце�
 
     // Выход прерывает разбор броском: продолжать после `process.exit` в
     // тесте нечему, а в бою следующей строки уже не будет
-    const exit = jest.spyOn(process, 'exit').mockImplementation((() => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new Error('exited');
     }) as never);
 

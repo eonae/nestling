@@ -15,9 +15,9 @@ import {
   transportNameOf,
 } from './endpoint.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
 import type { Token } from '@nestlingjs/container';
 import { makeToken } from '@nestlingjs/container';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 /** DI-токен транспорта фикстур: декларация ссылается на транспорт значением */
@@ -127,7 +127,7 @@ describe('makeEndpoint — формы handler', () => {
   });
 
   it('инстанс класса-хендлера создаётся один раз на несколько запросов', async () => {
-    const resolver = jest.fn(() => new GetUserHandler(new UserService()));
+    const resolver = vi.fn(() => new GetUserHandler(new UserService()));
 
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
@@ -236,7 +236,7 @@ describe('makeEndpoint — resolve', () => {
   });
 
   it('повторный resolve не создаёт инстанс второй раз', async () => {
-    const resolver = jest.fn(() => new GetUserHandler(new UserService()));
+    const resolver = vi.fn(() => new GetUserHandler(new UserService()));
 
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,

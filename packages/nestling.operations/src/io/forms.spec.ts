@@ -20,6 +20,7 @@ import {
 } from './forms.js';
 import type { FilePart, InferInput, InferOutput } from './io.js';
 
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const LogChunk = z.object({ level: z.string(), text: z.string() });

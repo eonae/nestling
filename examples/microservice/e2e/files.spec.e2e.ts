@@ -6,7 +6,7 @@ import {
   type TestAppContext,
 } from './helpers/test-app.js';
 
-import { afterAll, beforeAll, beforeEach, expect, it } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 
 /** Первые байты PNG: транспорт проверяет MIME, а не содержимое */
 const png = (): FormData => {

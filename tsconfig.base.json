@@ -17,10 +17,10 @@
     // `es2022.full`: перечислив `lib` явно, приходится назвать и их
     "lib": ["es2022", "dom", "dom.iterable", "esnext.disposable"],
     // Список глобальных типов задан явно: иначе состав зависит от того, что
-    // оказалось в `node_modules/@types`, и спеки одного пакета видят
-    // `describe`, а другого — нет. Типы, которые импортируют по имени
-    // (`@types/three`, `@types/busboy`), от этого списка не зависят
-    "types": ["node", "jest"],
+    // оказалось в `node_modules/@types`. Значения раннера сюда не входят —
+    // спека импортирует их из `vitest` по именам. Типы, которые импортируют
+    // по имени (`@types/three`, `@types/busboy`), от этого списка не зависят
+    "types": ["node"],
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

@@ -9,7 +9,6 @@
 import { sink, source } from './__fixtures__/streams.js';
 import { cliEndpoint, CliTransport } from './index.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type {
   Fields,
   Logger,
@@ -26,6 +25,7 @@ import {
   stream,
   upload,
 } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -5,6 +5,8 @@ import {
   TRANSPORT_RESPONSE,
 } from './transport-response.js';
 
+import { describe, expect, it } from 'vitest';
+
 /** Конверт транспорта: так его собирает пакет транспорта */
 const envelope: TransportResponse<{ id: number }, 'created'> = {
   [TRANSPORT_RESPONSE]: true,

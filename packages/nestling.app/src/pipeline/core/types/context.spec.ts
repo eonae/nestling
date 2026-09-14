@@ -8,7 +8,7 @@ import type { EndpointMeta } from './context.js';
 import { makeEmptyContext } from './context.js';
 import type { Raw } from './raw.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 const raw: Raw = {
   transport: 'http',

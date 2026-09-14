@@ -18,9 +18,9 @@ import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline.js';
 import { makePipeline } from './pipeline.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 import { Fail, Ok, stream } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const PATTERN = 'GET /users/:id';

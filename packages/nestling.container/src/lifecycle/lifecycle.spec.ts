@@ -4,6 +4,8 @@ import { Component } from '../providers/index.js';
 
 import { getLifecycleHooks, OnStart } from './lifecycle.js';
 
+import { describe, expect, it } from 'vitest';
+
 describe('метаданные хуков жизненного цикла', () => {
   it('собирает хуки @OnStart', () => {
     @Component()

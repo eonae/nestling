@@ -11,7 +11,7 @@
 
 import type { InboxClaim, InboxMark, InboxStore } from '../types.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /** Реализация под проверкой и то, чем тест открывает транзакцию */
 export interface InboxStoreHarness {

@@ -1,5 +1,7 @@
 import { isModule, makeModule } from './modules.js';
 
+import { describe, expect, it } from 'vitest';
+
 describe('функции модулей', () => {
   it('создаёт модуль через makeModule', () => {
     const moduleConfig = makeModule({

@@ -18,8 +18,8 @@ import { makeApp } from './app.js';
 import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Component, makeSwitch, makeToken } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Docs = makeSwitch('docs', { default: 'on' });

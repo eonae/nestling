@@ -22,7 +22,6 @@ import { makeApp } from './app.js';
 import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import {
   Component,
   Handler,
@@ -31,6 +30,7 @@ import {
   makeToken,
 } from '@nestlingjs/container';
 import { makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport = new MockTransport()) =>

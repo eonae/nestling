@@ -9,10 +9,10 @@
 import { sink, source } from './__fixtures__/streams.js';
 import { cliEndpoint, CliTransport } from './index.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeDispatch, makePipeline, Ok, stream } from '@nestlingjs/app';
 import type { StandardSchemaV1 } from '@nestlingjs/operations';
 import { zodConverter } from '@nestlingjs/schema.zod';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Deploy = z.object({

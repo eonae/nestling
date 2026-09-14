@@ -12,7 +12,6 @@ import { readFileSync } from 'node:fs';
 import { app } from './app.js';
 import { CHECK_OPTIONS, TOPOLOGIES } from './topologies.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeConsoleLogger } from '@nestlingjs/app';
 import type { OperationSnapshot } from '@nestlingjs/testing';
 import {
@@ -22,6 +21,7 @@ import {
   serializeSnapshot,
   snapshotOperations,
 } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 const BASELINE_PATH = new URL('../operations.snapshot.json', import.meta.url);
 

@@ -11,7 +11,6 @@ import { buildTest } from './app.js';
 import { testBundle } from './bundle.js';
 import { stub } from './stub.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Emitter, Port } from '@nestlingjs/app';
 import {
   implement,
@@ -24,6 +23,7 @@ import {
 import { Component, makeToken } from '@nestlingjs/container';
 import type { EmitMeta, PortMeta } from '@nestlingjs/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Квота исчерпана — задекларированный отказ операции */

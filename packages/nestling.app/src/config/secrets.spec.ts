@@ -26,6 +26,7 @@ import { bind } from './source.js';
 
 import type { BuiltContainer } from '@nestlingjs/container';
 import { Component, ContainerBuilder } from '@nestlingjs/container';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Сообщение вендора, по которому видно утечку значения. */

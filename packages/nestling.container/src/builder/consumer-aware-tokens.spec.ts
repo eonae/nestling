@@ -9,6 +9,8 @@ import {
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { describe, expect, it } from 'vitest';
+
 interface ILoggerService {
   scope: string;
 }

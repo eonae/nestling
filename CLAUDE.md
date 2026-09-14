@@ -63,7 +63,7 @@ Nestling — TypeScript-фреймворк («меньше, современне
 | `tsconfig.json` | Проект пакета: редактор и ESLint. Покрывает весь TypeScript пакета — `src`, спеки, `e2e`, `type-tests`. `noEmit` |
 | `tsconfig.build.json` | Сборка: эмитит `src` в `dist` без тестового кода. Только у пакетов, которые собирает tsc |
 | `eslint.config.js` | `createEslintConfig(import.meta.url)` из `.config/eslint.config.js` |
-| `jest.config.js` | `createJestConfig(import.meta.url)` из `jest.config.base.js` |
+| `vitest.config.js` | `createVitestConfig(import.meta.url)` из `vitest.config.base.js` |
 
 Общие compilerOptions живут в `tsconfig.base.json` — там же список `types`.
 Пакетный `tsconfig.json` добавляет только то, что верно про этот пакет:

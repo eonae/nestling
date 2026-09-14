@@ -22,9 +22,9 @@ import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 import { normalizeSpec } from './plan.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Handler, makeSwitch } from '@nestlingjs/container';
 import { makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Docs = makeSwitch('docs', { default: 'on' });

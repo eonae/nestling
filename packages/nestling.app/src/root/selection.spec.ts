@@ -18,9 +18,9 @@ import type { Feature, ResolvedBundle } from './feature.js';
 import { makeFeature, resolveBundle } from './feature.js';
 import { closeOverCalls } from './selection.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Component, Handler } from '@nestlingjs/container';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const ClaimQuota = makeRequest({

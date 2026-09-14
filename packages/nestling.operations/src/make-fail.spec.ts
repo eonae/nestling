@@ -20,7 +20,7 @@ import {
 import { isFailDefinition, makeFail } from './make-fail.js';
 import { Fail } from './result.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const OrderNotFound = makeFail('not_found:order', {

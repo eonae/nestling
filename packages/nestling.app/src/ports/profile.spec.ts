@@ -52,6 +52,7 @@ import { BusTransport$ } from './transport.js';
 import { ContainerBuilder, makeToken } from '@nestlingjs/container';
 import type { Emitter, Port } from '@nestlingjs/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const sleep = (ms: number): Promise<void> =>

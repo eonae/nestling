@@ -12,7 +12,6 @@
 
 import { makeClient } from './client.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Fail, Ok } from '@nestlingjs/operations';
 import {
   makeCommand,
@@ -20,6 +19,7 @@ import {
   makeRequest,
   outputs,
 } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });

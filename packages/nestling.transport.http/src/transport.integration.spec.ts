@@ -46,6 +46,7 @@ import {
 } from '@nestlingjs/app';
 import type { Schema } from '@nestlingjs/common.misc';
 import { TRANSPORT_RESPONSE } from '@nestlingjs/operations';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Серверы тестовых транспортов: сокет держит сервер, а не транспорт */

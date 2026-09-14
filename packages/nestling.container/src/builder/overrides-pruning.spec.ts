@@ -13,6 +13,8 @@ import {
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { describe, expect, it } from 'vitest';
+
 /**
  * Подстановка узлов и прунинг со стороны контейнера: замена узла значением,
  * удаление осиротевшего поддерева и перечень недостающих зависимостей.

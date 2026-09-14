@@ -6,6 +6,7 @@ import { makeSwitch } from './make-switch.js';
 import { branchCandidates, resolveBranches, switchesUsed } from './resolve.js';
 
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { describe, expect, it } from 'vitest';
 
 describe('makeSwitch', () => {
   it('объявляет двухпозиционный переключатель без умолчания', () => {

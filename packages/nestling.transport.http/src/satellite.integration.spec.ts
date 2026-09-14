@@ -42,6 +42,7 @@ import {
   makeEmptyContext,
   Ok,
 } from '@nestlingjs/app';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /**

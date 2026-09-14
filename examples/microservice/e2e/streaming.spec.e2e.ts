@@ -7,7 +7,7 @@ import {
   type TestAppContext,
 } from './helpers/test-app.js';
 
-import { afterAll, beforeAll, beforeEach, expect, it } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 
 describeWithDatabase('потоки по HTTP', () => {
   let context: TestAppContext;

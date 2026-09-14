@@ -27,11 +27,9 @@ import {
 import { deadlineIn } from './profile.js';
 import { PortRuntime } from './runtime.js';
 
-// Только `jest`: остальные глобали инъектируются раннером, а объект
-// `jest` в ESM-режиме — нет
-import { jest } from '@jest/globals';
 import type { Emitter, Port } from '@nestlingjs/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const CardDeclined = makeFail('payment_required:card_declined', {
@@ -273,7 +271,7 @@ describe.each([
   });
 
   it('бюджет, исчерпанный к вызову, не трогает ни исполнителя, ни шину', async () => {
-    const request = jest.spyOn(harnessed.bus, 'request');
+    const request = vi.spyOn(harnessed.bus, 'request');
     const before = seenSignal;
 
     const result = await port.call(
@@ -325,7 +323,7 @@ describe.each([
   });
 
   it('вызов без бюджета таймера не заводит', async () => {
-    const timers = jest.spyOn(globalThis, 'setTimeout');
+    const timers = vi.spyOn(globalThis, 'setTimeout');
 
     await port.call({ amount: 1 });
 

@@ -6,6 +6,8 @@ import {
   targetCovers,
 } from './keys.js';
 
+import { describe, expect, it } from 'vitest';
+
 describe('деривация имени ключа', () => {
   it.each([
     ['maxItems', 'MAX_ITEMS'],

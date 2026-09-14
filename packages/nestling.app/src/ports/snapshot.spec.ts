@@ -5,6 +5,8 @@
 import type { OperationDescriptor } from './describe.js';
 import { serializeSnapshot, snapshotOperations } from './snapshot.js';
 
+import { describe, expect, it } from 'vitest';
+
 /** Дескриптор-фикстура: структурная часть без листьев */
 const descriptor = (
   name: string,

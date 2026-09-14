@@ -61,7 +61,7 @@ SHALL жить в `@nestlingjs/app` как conditional subpath `./testing`, а �
 ### Requirement: Репозиторий включает условие в тест-раннере
 
 Конфигурация тестов репозитория SHALL включать условие `"testing"` для
-резолва (`customExportConditions` в jest), SHALL корректно резолвить
+резолва (`resolve.conditions` в vitest), SHALL корректно резолвить
 subpath'ы workspace-пакетов на исходники и SHALL поддерживать `await using`
 в тестах.
 
@@ -90,10 +90,12 @@ README пакета, тестовая поверхность которого о
 - **WHEN** читатель README `@nestlingjs/testing` заводит тесты в своём
   проекте
 - **THEN** README называет условие `"testing"` и способ его включить —
-  `--conditions=testing` для Node и `customExportConditions` для jest
+  `resolve.conditions` для vitest, `--conditions=testing` для Node и
+  `customExportConditions` для jest
 
 #### Scenario: Глава гайда про тесты
 
 - **WHEN** читатель дошёл до главы гайда про тесты
 - **THEN** глава называет условие `"testing"` и то, что без него импорт
   тестовой поверхности не резолвится
+

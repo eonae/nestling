@@ -12,7 +12,6 @@ import { McpTransport$ } from './token.js';
 import { mcpTool } from './tool.js';
 import { mcp } from './transport.js';
 
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Binding, BuiltApp, ConfigSource } from '@nestlingjs/app';
@@ -27,6 +26,7 @@ import {
   server,
   serverKeys,
 } from '@nestlingjs/transport.http';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const EmailTaken = makeFail('conflict:email_taken', {

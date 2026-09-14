@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import { bind, defaultSources, dotenv, env } from './source.js';
 
-import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('bind()', () => {
   it('умолчания: keys — "*", optional — false, timeout — 10000', () => {

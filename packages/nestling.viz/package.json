@@ -42,7 +42,7 @@
     "preview": "run -T vite preview",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+    "test": "run -T vitest run"
   },
   "dependencies": {
     "3d-force-graph": "^1.71.0",

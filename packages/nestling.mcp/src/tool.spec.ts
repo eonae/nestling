@@ -9,9 +9,9 @@
 import { McpTransport$ } from './token.js';
 import { mcpBindingOf, mcpTool } from './tool.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { Ok } from '@nestlingjs/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const CreateUser = makeRequest({

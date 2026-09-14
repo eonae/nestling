@@ -17,9 +17,9 @@ import { httpEndpoint } from './helpers.js';
 import { HttpTransport$ } from './token.js';
 import { http, HTTP_CAPABILITIES } from './transport.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ConfigSource } from '@nestlingjs/app';
 import { bind, makeApp, makeFeature, makePipeline, Ok } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Endpoint-заглушка: одна и та же декларация обслуживается обеими формами */

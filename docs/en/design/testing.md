@@ -181,7 +181,7 @@ The call profile is honoured: an exhausted `meta.deadline` gives
 carries `idempotencyKey`. The type on the calling side matches
 production (`Port<C>`/`Emitter<C>`, the result is `PortResult<C>`); an
 incompatible fake is a compilation error. A stub has no spy of its
-own: `impl` is an ordinary function, so `jest.fn()` works in this
+own: `impl` is an ordinary function, so `vi.fn()` works in this
 role.
 
 ### The request context: `contextValue`

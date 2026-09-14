@@ -19,12 +19,12 @@ import { inbox, outbox, users } from './schema.js';
 import { describeWithDatabase, testConfig, waitFor } from './testing.js';
 import { CHECK_OPTIONS, TOPOLOGIES } from './topologies.js';
 
-import { expect, it } from '@jest/globals';
 import { makeApp } from '@nestlingjs/app';
 import { OutboxRelay$ } from '@nestlingjs/outbox';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, checkTopologies, stub } from '@nestlingjs/testing';
 import { http } from '@nestlingjs/transport.http';
+import { expect, it } from 'vitest';
 
 /**
  * Декларация для изоляции: те же фичи и плагины, но без шины.

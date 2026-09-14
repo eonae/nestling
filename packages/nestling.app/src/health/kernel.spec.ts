@@ -28,6 +28,7 @@ import {
   resourceProvider,
   valueProvider,
 } from '@nestlingjs/container';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 /** Вклад-заглушка: считает вызовы и отдаёт заданный исход */
 class StubCheck implements HealthCheck {

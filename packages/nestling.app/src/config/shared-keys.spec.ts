@@ -15,6 +15,7 @@ import { bind } from './source.js';
 
 import type { BuiltContainer } from '@nestlingjs/container';
 import { Component, ContainerBuilder } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Два законных взгляда на один ключ: число и строка. */

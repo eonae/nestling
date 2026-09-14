@@ -22,7 +22,6 @@ import type { InMemoryInboxStore } from './memory-store.js';
 import { makeInbox } from './plugin.js';
 import { InboxSweeper$ } from './sweeper.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App, Policy } from '@nestlingjs/app';
 import {
   bind,
@@ -33,6 +32,7 @@ import {
 } from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, vars } from '@nestlingjs/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /** Плагин приёма: один экземпляр на все сборки этого файла */
 const inbox = makeInbox({ transaction: Tx, store: InboxStore$ });

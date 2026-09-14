@@ -23,6 +23,8 @@ import { makeSwitch } from '../switches/index.js';
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { describe, expect, it } from 'vitest';
+
 /** Соединение, которое умеет отвечать на вопрос о своём состоянии */
 interface Connection {
   release(): void;

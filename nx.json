@@ -31,7 +31,7 @@
     "test": [
       "sources",
       "tsconfigs",
-      "{projectRoot}/jest.config.*",
+      "{projectRoot}/vitest.config.*",
       "{projectRoot}/package.json"
     ],
     "type-budget": [

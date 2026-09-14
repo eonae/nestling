@@ -24,13 +24,13 @@ import type { Raw } from './types/raw.js';
 import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline.js';
 import { compose, declaredFailsOf, makePipeline } from './pipeline.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type {
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
 } from '@nestlingjs/operations';
 import { BadRequest, Fail, makeFail, Ok } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Unauthorized = makeFail('unauthorized', { message: 'No token' });

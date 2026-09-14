@@ -11,7 +11,6 @@ import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import { otel } from './otel.js';
 import { Span } from './span.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import {
   compose,
@@ -25,6 +24,7 @@ import {
   withTracing,
 } from '@nestlingjs/app';
 import { buildTest } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 const telemetry = otel({ service: 'users', traces: new CollectedSpans() });
 

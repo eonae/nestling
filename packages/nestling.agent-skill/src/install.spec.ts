@@ -7,7 +7,7 @@ import { join } from 'node:path';
 
 import { installSkill, SKILL_PATH } from './index.js';
 
-import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let project: string;
 

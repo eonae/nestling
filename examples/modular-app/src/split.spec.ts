@@ -15,12 +15,12 @@ import {
   waitFor,
 } from './testing.js';
 
-import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
 import type { BuiltApp } from '@nestlingjs/app';
 import { spyLogger } from '@nestlingjs/testing';
 import { NatsBus } from '@nestlingjs/transport.nats';
 import { NatsDouble, natsDouble } from '@nestlingjs/transport.nats/testing';
 import { Pool } from 'pg';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 /** Пул уборки: тесты работают с приложением снаружи */
 let pool: Pool | undefined;
@@ -90,7 +90,7 @@ async function captureLog(
   body: () => Promise<void>,
 ): Promise<Record<string, unknown>[]> {
   const lines: string[] = [];
-  const spy = jest
+  const spy = vi
     .spyOn(process.stderr, 'write')
     .mockImplementation((chunk: unknown) => {
       lines.push(String(chunk));

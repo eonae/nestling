@@ -10,7 +10,6 @@ import { spyLogger } from './logger.js';
 import { familyOverride } from './overrides.js';
 import { unwrap, UnwrapFailedError } from './unwrap.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
 import type { Config, FilePart, ITransport, Logger } from '@nestlingjs/app';
 import {
   bind,
@@ -44,6 +43,7 @@ import {
   HttpTransport$,
   serverKeys,
 } from '@nestlingjs/transport.http';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
@@ -100,7 +100,7 @@ describe('buildTest — приложение собрано, но запросы
 
   it('не трогает процесс: ни обработчиков сигналов, ни stdout', async () => {
     const before = process.listenerCount('SIGTERM');
-    const log = jest
+    const log = vi
       .spyOn(console, 'log')
       .mockImplementation((): void => undefined);
 
@@ -740,7 +740,7 @@ describe('buildTest — логгер ядра', () => {
 /** Перехватывает строки, ушедшие в `stderr`, на время вызова */
 const captureStderr = async (body: () => Promise<void>): Promise<string[]> => {
   const lines: string[] = [];
-  const spy = jest
+  const spy = vi
     .spyOn(process.stderr, 'write')
     .mockImplementation((chunk: unknown) => {
       lines.push(String(chunk));

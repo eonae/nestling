@@ -10,6 +10,8 @@ import {
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { beforeEach, describe, expect, it } from 'vitest';
+
 /** Канал остановки для фазы START: в этих тестах его никто не взводит */
 const idleSignal = (): AbortSignal => new AbortController().signal;
 

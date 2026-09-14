@@ -30,7 +30,6 @@ import { makeApp } from './app.js';
 import { makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import {
   factoryProvider,
   makeSwitch,
@@ -38,6 +37,7 @@ import {
   valueProvider,
 } from '@nestlingjs/container';
 import type { Fields, Logger } from '@nestlingjs/logging';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Объявляет готовый инстанс транспорта экземпляром по умолчанию */

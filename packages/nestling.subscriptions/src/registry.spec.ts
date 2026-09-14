@@ -9,10 +9,10 @@ import { SubscriptionKilledError } from './errors.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { CloseReason, SubscriptionEvent } from './types.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Outcome } from '@nestlingjs/app';
 import { contextVar } from '@nestlingjs/app';
 import { collect, events } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Item = z.object({ id: z.string() });

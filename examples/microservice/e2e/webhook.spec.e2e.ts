@@ -9,7 +9,7 @@ import {
   type TestAppContext,
 } from './helpers/test-app.js';
 
-import { afterAll, beforeAll, beforeEach, expect, it } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 
 /** Подпись тела тем же алгоритмом, что проверяет `VerifySignature` */
 const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =>

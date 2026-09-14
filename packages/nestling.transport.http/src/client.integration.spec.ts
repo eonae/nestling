@@ -15,12 +15,12 @@ import { httpEndpoint } from './helpers.js';
 import { HttpServer } from './server.js';
 import { HttpTransport } from './transport.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ExecutableDeclaration } from '@nestlingjs/app';
 import { Fail, makeDispatch, Ok } from '@nestlingjs/app';
 import { makeClient } from '@nestlingjs/client';
 import type { HttpBinding } from '@nestlingjs/operations';
 import { makeFail, makeRequest } from '@nestlingjs/operations';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------

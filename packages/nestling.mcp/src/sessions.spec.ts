@@ -6,7 +6,7 @@ import { DEFAULT_SESSION_IDLE_MS, DEFAULT_SESSION_LIMIT } from './options.js';
 import type { McpSessionLimits } from './sessions.js';
 import { McpSessionLimitError, McpSessions } from './sessions.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 
 const sessionsOf = (overrides: Partial<McpSessionLimits> = {}) =>
   new McpSessions({
@@ -50,35 +50,35 @@ describe('McpSessions', () => {
   });
 
   it('закрывает сессию, молчавшую дольше срока бездействия', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     try {
       const sessions = sessionsOf({ sessionIdleMs: 1000 });
       const session = sessions.open('2025-06-18', {});
 
-      jest.advanceTimersByTime(999);
+      vi.advanceTimersByTime(999);
       expect(sessions.get(session.id)).toBeDefined();
 
-      jest.advanceTimersByTime(1001);
+      vi.advanceTimersByTime(1001);
       expect(sessions.get(session.id)).toBeUndefined();
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 
   it('продлевает сессию каждым обращением', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     try {
       const sessions = sessionsOf({ sessionIdleMs: 1000 });
       const session = sessions.open('2025-06-18', {});
 
       for (let i = 0; i < 5; i += 1) {
-        jest.advanceTimersByTime(900);
+        vi.advanceTimersByTime(900);
         expect(sessions.get(session.id)).toBeDefined();
       }
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 

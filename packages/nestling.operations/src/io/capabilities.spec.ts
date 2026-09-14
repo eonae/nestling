@@ -14,6 +14,7 @@ import { assertFormsSupported } from './capabilities.js';
 import { events, multipart, none, outputs, stream, upload } from './forms.js';
 
 import { makeToken } from '@nestlingjs/container/tokens';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -10,9 +10,9 @@ import type { PgConnection } from '../src/index.js';
 
 import { describeWithDatabase, openTestConnection } from './support.js';
 
-import { afterAll, beforeAll, beforeEach, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
 import { pgTable, text } from 'drizzle-orm/pg-core';
+import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 
 const people = pgTable('e2e_people', {
   id: text('id').primaryKey(),

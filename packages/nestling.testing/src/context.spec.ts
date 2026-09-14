@@ -12,7 +12,6 @@ import { buildTest } from './app.js';
 import { contextValue } from './context.js';
 import { unwrap } from './unwrap.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { CtxReader } from '@nestlingjs/app';
 import {
   Ctx,
@@ -25,6 +24,7 @@ import {
 } from '@nestlingjs/app';
 import { Component, Handler } from '@nestlingjs/container';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: SpyTransport) =>

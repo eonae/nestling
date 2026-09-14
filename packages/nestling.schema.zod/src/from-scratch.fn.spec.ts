@@ -1,5 +1,6 @@
 import { fromScratch } from './from-scratch.fn.js';
 
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 describe('makeModel', () => {

@@ -10,7 +10,6 @@ import { CollectedSpans } from './__fixtures__/exporters.js';
 import { run } from './__fixtures__/run.js';
 import { otel } from './otel.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
 import {
   compose,
   makePipeline,
@@ -18,6 +17,7 @@ import {
   stream,
   withTracing,
 } from '@nestlingjs/app';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 const traces = new CollectedSpans();
 

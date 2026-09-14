@@ -9,7 +9,6 @@
 import type { HttpRequest } from './request.js';
 import { httpAccessLog, withClientIp, withHeader } from './steps.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type {
   EndpointMeta,
   ExtendableContext,
@@ -19,12 +18,13 @@ import type {
   ResponseContext,
 } from '@nestlingjs/app';
 import { makeEmptyContext, makePipeline, Ok } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const http: HttpRequest = {
   method: 'GET',
   url: '/users?limit=10',
-  headers: { 'x-tenant': 'acme', 'user-agent': 'jest' },
+  headers: { 'x-tenant': 'acme', 'user-agent': 'vitest' },
   ip: '10.0.0.7',
 };
 

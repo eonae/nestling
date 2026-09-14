@@ -9,6 +9,8 @@ import {
   resetConfigRegistry,
 } from './registry.js';
 
+import { beforeEach, describe, expect, it } from 'vitest';
+
 const declaration = (
   prefix: string,
   fields: readonly (

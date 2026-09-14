@@ -308,7 +308,7 @@ the `output` schema. This way calls go through a path close to the
 network one, before a broker even appears. A test for both policies is
 written next to the rest of the application's tests.
 
-The test brings up both processes in one jest process on top of the
+The test brings up both processes in one runner process on top of the
 `NatsDouble` broker double, and no network is needed:
 
 ```typescript

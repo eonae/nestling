@@ -18,10 +18,10 @@ import { JsonRpcErrorCode, LATEST_PROTOCOL_VERSION } from './protocol.js';
 import { McpSessions } from './sessions.js';
 import { mcpTool } from './tool.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyFail } from '@nestlingjs/app';
 import { Fail, makeDispatch, makeFail, Ok } from '@nestlingjs/app';
 import { zodConverter } from '@nestlingjs/schema.zod';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const EmailTaken = makeFail('conflict:email_taken', {

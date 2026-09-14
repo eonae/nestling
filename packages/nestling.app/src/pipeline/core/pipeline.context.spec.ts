@@ -18,9 +18,9 @@ import type { Raw } from './types/raw.js';
 import type { AnyPipeline, Pipeline } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyInput, AnyOutput, EmptyInput } from '@nestlingjs/operations';
 import { events, Ok, stream } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Схема-лист потоковых форм: предмет теста — scope, а не валидация */

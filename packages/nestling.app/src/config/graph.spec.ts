@@ -15,6 +15,7 @@ import { bind } from './source.js';
 
 import type { BuiltContainer } from '@nestlingjs/container';
 import { Component, ContainerBuilder, makeToken } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const OrdersConfig = makeConfig('orders', {

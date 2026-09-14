@@ -2,12 +2,12 @@ import { appConfigKeys } from '../../src/app.config.js';
 import { app } from '../../src/app.js';
 import { db } from '../../src/persistence.js';
 
-import { describe } from '@jest/globals';
 import { bind } from '@nestlingjs/app';
 import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, vars } from '@nestlingjs/testing';
 import { serverKeys } from '@nestlingjs/transport.http';
 import { Pool } from 'pg';
+import { describe } from 'vitest';
 
 /** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';

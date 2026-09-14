@@ -17,6 +17,7 @@ import {
 } from './schema-doc.js';
 
 import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({

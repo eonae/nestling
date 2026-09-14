@@ -8,8 +8,8 @@
 import type { CommandLineSpec } from './command-line.js';
 import { helpText, parseCommandLine } from './command-line.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeSwitch } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 const Storage = makeSwitch('storage', ['s3', 'local']);
 const Mail = makeSwitch('mail', ['log', 'smtp'], { default: 'log' });

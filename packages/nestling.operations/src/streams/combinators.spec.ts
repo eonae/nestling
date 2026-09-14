@@ -9,6 +9,8 @@ import {
 } from './combinators.js';
 import { StreamGapTimeoutError, StreamLimitError } from './errors.js';
 
+import { describe, expect, it } from 'vitest';
+
 async function* from<T>(items: readonly T[]): AsyncIterableIterator<T> {
   for (const item of items) {
     yield item;

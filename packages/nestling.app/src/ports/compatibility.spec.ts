@@ -12,6 +12,8 @@ import type { JsonValue, OperationDescriptor } from './describe.js';
 import * as ports from './index.js';
 import type { OperationSnapshot } from './snapshot.js';
 
+import { describe, expect, it } from 'vitest';
+
 /** Операция-фикстура: value-формы с JSON Schema обоих слотов */
 const operation = (
   name: string,

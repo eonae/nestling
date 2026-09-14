@@ -16,9 +16,9 @@ import {
 } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeEndpoint } from '@nestlingjs/app';
 import { Ok } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Input = z.object({

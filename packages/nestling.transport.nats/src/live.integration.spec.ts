@@ -17,7 +17,6 @@
 
 import { NatsBus } from './transport.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Logger } from '@nestlingjs/app';
 import {
   implement,
@@ -27,6 +26,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const servers = process.env.NATS_TEST_SERVERS;

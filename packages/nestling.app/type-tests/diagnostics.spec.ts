@@ -12,6 +12,8 @@
 
 import { compileFixtures, fixtureNames } from './support/compile.js';
 
+import { describe, expect, it } from 'vitest';
+
 // Одна программа компилятора на весь каталог (design D7): компиляция
 // идёт в теле describe, вне таймаута отдельного теста.
 const diagnostics = compileFixtures();

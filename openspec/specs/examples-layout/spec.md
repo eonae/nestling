@@ -22,9 +22,9 @@ SHALL лежать в каталоге `examples/` на верхнем уров�
 `packages/*` и `examples/*`.
 
 Глубина вложенности примера SHALL совпадать с глубиной пакета — два
-уровня от корня. Относительные пути в `tsconfig.json`, `jest.config.js`,
+уровня от корня. Относительные пути в `tsconfig.json`, `vitest.config.js`,
 `eslint.config.js` и `esbuild.config.js` примера SHALL оставаться теми же,
-что у пакета: `../../tsconfig.base.json`, `../../jest.config.base.js`,
+что у пакета: `../../tsconfig.base.json`, `../../vitest.config.base.js`,
 `../../.config/eslint.config.js`.
 
 #### Scenario: Каталог примера

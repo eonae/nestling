@@ -16,7 +16,7 @@ import {
   propagatedKeys,
 } from './variable.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 const TenantId = contextVar<string>()('tenantId', { propagate: true });
 const RequestId = contextVar<string>()('requestId');

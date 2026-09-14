@@ -26,10 +26,10 @@ import type { Bundle, ResolvedBundle } from './feature.js';
 import { makeFeature, makePlugin, resolveBundle } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { InjectionToken } from '@nestlingjs/container';
 import { Component, Handler, makeToken } from '@nestlingjs/container';
 import { makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const asTransport = () =>

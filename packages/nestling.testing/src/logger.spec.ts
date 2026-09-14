@@ -1,7 +1,7 @@
 import { spyLogger } from './logger.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeFail } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 
 const UserNotFound = makeFail('not_found:user', { message: 'User not found' });
 

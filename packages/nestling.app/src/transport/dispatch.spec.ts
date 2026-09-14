@@ -26,8 +26,8 @@ import {
 
 import { makeDispatch } from './dispatch.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
 import { ContainerBuilder, makeToken } from '@nestlingjs/container';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const TestTransport$ = makeToken('transport:test');
@@ -203,7 +203,7 @@ describe('makeDispatch', () => {
 
     const dispatch = makeDispatch([Nope]);
     const lines: string[] = [];
-    const write = jest
+    const write = vi
       .spyOn(process.stderr, 'write')
       .mockImplementation((chunk: unknown) => {
         lines.push(String(chunk));

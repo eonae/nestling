@@ -16,6 +16,8 @@ import {
 
 import { ContainerBuilder } from './container.builder.js';
 
+import { beforeEach, describe, expect, it } from 'vitest';
+
 describe('ресурсы', () => {
   let calls: string[];
 

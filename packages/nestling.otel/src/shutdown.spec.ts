@@ -15,7 +15,6 @@ import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import type { Otel } from './options.js';
 import { otel } from './otel.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { MetricsOf } from '@nestlingjs/app';
 import {
   counter,
@@ -30,6 +29,7 @@ import {
 import { Component, Handler } from '@nestlingjs/container';
 import type { LogEntry } from '@nestlingjs/testing';
 import { buildTest, spyLogger } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 const OrdersMetrics = makeMetrics('orders', {
   created: counter({ help: 'Created orders' }),

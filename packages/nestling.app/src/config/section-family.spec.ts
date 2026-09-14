@@ -8,13 +8,13 @@ import { bootstrapConfig, configKernel } from './kernel.js';
 import { makeConfig } from './section.js';
 import { bind } from './source.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { InjectionToken } from '@nestlingjs/container';
 import {
   ContainerBuilder,
   factoryProvider,
   makeToken,
 } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const ListenerConfig = makeConfig.family('listener', {

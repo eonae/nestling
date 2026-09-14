@@ -8,10 +8,10 @@
 
 import { buildTest } from './app.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestlingjs/app';
 import { wireApp } from '@nestlingjs/app/testing';
 import { BuiltContainer, Resource } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 
 describe('условие "testing" в тест-раннере', () => {
   it('резолвит @nestlingjs/app/testing на исходники', async () => {

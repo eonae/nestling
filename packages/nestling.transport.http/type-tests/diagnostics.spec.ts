@@ -20,6 +20,8 @@ import {
   validNames,
 } from './support/compile.js';
 
+import { describe, expect, it } from 'vitest';
+
 // Одна программа компилятора на оба каталога (design D7): компиляция
 // идёт в теле describe, вне таймаута отдельного теста.
 const { fixtures, valid } = compileFixtures();

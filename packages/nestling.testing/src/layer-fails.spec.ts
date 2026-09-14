@@ -9,7 +9,6 @@
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { buildTest } from './app.js';
 
-import { describe, expect, it } from '@jest/globals';
 import {
   makeApp,
   makeFail,
@@ -19,6 +18,7 @@ import {
   transportValue,
 } from '@nestlingjs/app';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Unauthorized = makeFail('unauthorized', { message: 'No token' });

@@ -10,8 +10,8 @@
  * адреса базы в окружении.
  */
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { OutboxRecord, OutboxStore } from '@nestlingjs/outbox';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /** Реализация под проверкой и то, чем тест кладёт в неё записи */
 export interface StoreHarness {

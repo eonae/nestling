@@ -12,6 +12,8 @@ import {
   valueProvider,
 } from './variants.js';
 
+import { describe, expect, it } from 'vitest';
+
 interface ILoggerService {
   scope: string;
 }

@@ -21,10 +21,10 @@ import { makeCell, runInScope } from './store.js';
 import { contextVar, declaredVarOf, isContextVar } from './variable.js';
 import { RequestId, Signal, Trace } from './well-known.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Token } from '@nestlingjs/container';
 import { makeToken, makeTokenFamily } from '@nestlingjs/container';
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 
 /** Проверка типов: `Expect<Equal<A, B>>` */
 type Equal<X, Y> =

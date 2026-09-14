@@ -55,10 +55,10 @@ START, поэтому сокет не открывается и порт не з
 без него импорт падает на резолве с `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
 ```javascript
-// jest.config.js
+// vitest.config.js
 export default {
-  testEnvironmentOptions: {
-    customExportConditions: ['testing', 'node', 'node-addons'],
+  resolve: {
+    conditions: ['testing', 'node', 'node-addons', 'import', 'default'],
   },
 };
 ```

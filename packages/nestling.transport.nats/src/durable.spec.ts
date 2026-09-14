@@ -12,7 +12,6 @@ import { NatsDouble as Broker, natsDouble } from './testing/double.js';
 import type { NatsTransportOptions } from './transport.js';
 import { NatsBus } from './transport.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
 import {
   implement,
@@ -21,6 +20,7 @@ import {
   makePipeline,
 } from '@nestlingjs/app';
 import { makeCommand, makeEvent } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Rejected = makeFail('conflict:order_rejected', {

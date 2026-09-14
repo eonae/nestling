@@ -12,6 +12,7 @@ import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 
 import { makeCommand, makeRequest } from '@nestlingjs/operations';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Даёт насосам доставки провернуться */

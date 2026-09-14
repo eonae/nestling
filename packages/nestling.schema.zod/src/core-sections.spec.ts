@@ -9,8 +9,8 @@
 
 import { zodConverter } from './converter.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { describeConfig } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 
 /** Описание одного ключа в снимке со штатным конвертером */
 const keyOf = (name: string) =>

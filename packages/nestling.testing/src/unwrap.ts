@@ -8,7 +8,7 @@ import type { ResponseContext } from '@nestlingjs/app';
 /**
  * Ошибка `unwrap`: отказ там, где тест ждал успеха.
  *
- * Несёт и `status`, и `code`, и детали: сообщение jest'а должно объяснять
+ * Несёт и `status`, и `code`, и детали: сообщение раннера должно объяснять
  * провал целиком, без второго запуска под отладчиком.
  */
 export class UnwrapFailedError extends Error {

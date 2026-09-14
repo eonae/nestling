@@ -16,6 +16,8 @@ import {
   formatViolations,
 } from '../../../scripts/boundary/package-boundary.js';
 
+import { describe, expect, it } from 'vitest';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const packageDir = resolve(here, '..');
 const repoRoot = resolve(here, '../../..');

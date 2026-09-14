@@ -4,8 +4,8 @@
 
 import { serialize } from './serialize.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { MetricsSnapshot } from '@nestlingjs/app';
+import { describe, expect, it } from 'vitest';
 
 const snapshot: MetricsSnapshot = [
   {

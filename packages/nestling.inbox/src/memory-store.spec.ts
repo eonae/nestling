@@ -11,7 +11,7 @@ import { describeInboxStore } from './__fixtures__/store-suite.js';
 import { TestTransaction } from './__fixtures__/transaction.js';
 import { InMemoryInboxStore } from './memory-store.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 describeInboxStore('InboxStore: реализация в памяти', (): InboxStoreHarness => {
   const store = new InMemoryInboxStore();

@@ -14,10 +14,10 @@ import { PgConnection } from './connection.js';
 import { PgDuplicateConnectionError } from './errors.js';
 import { makeDrizzlePg } from './plugin.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App } from '@nestlingjs/app';
 import { bind, makeApp, makeFeature } from '@nestlingjs/app';
 import { buildTest, vars } from '@nestlingjs/testing';
+import { describe, expect, it } from 'vitest';
 
 /** Пул соединения по умолчанию: журнал команд читают тесты */
 const pool = new FakePool();

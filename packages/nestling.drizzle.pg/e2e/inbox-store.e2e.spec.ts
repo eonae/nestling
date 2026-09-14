@@ -20,8 +20,8 @@ import type { PgConnection } from '../src/index.js';
 
 import { describeWithDatabase, openTestConnection } from './support.js';
 
-import { afterAll, beforeAll, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 
 /** Имя таблицы теста: своё, чтобы не спорить с примером */
 const TABLE = 'e2e_inbox';

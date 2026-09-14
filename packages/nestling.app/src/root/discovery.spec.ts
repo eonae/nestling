@@ -13,8 +13,8 @@ import { discoverEndpoints } from './discovery.js';
 import type { Bundle, ResolvedBundle } from './feature.js';
 import { makeFeature, makePlugin, resolveBundle } from './feature.js';
 
-import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** DI-токены транспортов фикстур: ссылка декларации — значение, а не строка */

@@ -7,13 +7,14 @@ installed and nothing is printed. Names live in the README of
 [`@nestlingjs/testing`](https://www.npmjs.com/package/@nestlingjs/testing).
 
 The runner must enable the `testing` resolve condition, or the import fails
-with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Jest takes it as a field, `node --test`
-as the flag `--conditions=testing`; both are in `references/setup.md`.
+with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Vitest and jest take it as a field,
+`node --test` as the flag `--conditions=testing`; all three are in
+`references/setup.md`.
 
 ```
-// jest.config.js
-testEnvironmentOptions: {
-  customExportConditions: ['testing', 'node', 'node-addons'],
+// vitest.config.js
+resolve: {
+  conditions: ['testing', 'node', 'node-addons', 'import', 'default'],
 }
 ```
 

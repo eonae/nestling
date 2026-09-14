@@ -11,12 +11,12 @@ import { declareApp } from './app.js';
 import { RegisterUser } from './operations.js';
 import { describeWithDatabase, testConfig } from './testing.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { KernelMetrics, makeApp, makeFeature } from '@nestlingjs/app';
 import { makePrometheus } from '@nestlingjs/prometheus';
 import { buildTest } from '@nestlingjs/testing';
 import { http } from '@nestlingjs/transport.http';
+import { describe, expect, it } from 'vitest';
 
 /** Текст экспозиции по endpoint'у плагина */
 const scrape = async (

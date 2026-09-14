@@ -8,7 +8,6 @@ import { HttpServer, HttpServer$, server } from './server.js';
 import { HttpTransport$ } from './token.js';
 import { http, HttpTransport } from './transport.js';
 
-import { describe, expect, it } from '@jest/globals';
 import type { ExecutableDeclaration } from '@nestlingjs/app';
 import {
   bootstrapConfig,
@@ -18,6 +17,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { ContainerBuilder } from '@nestlingjs/container';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 /** Строит контейнер с kernel-модулем конфига, транспортом и его сервером */

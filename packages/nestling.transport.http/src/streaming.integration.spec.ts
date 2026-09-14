@@ -35,6 +35,7 @@ import {
   upload,
 } from '@nestlingjs/app';
 import { Topic } from '@nestlingjs/operations';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

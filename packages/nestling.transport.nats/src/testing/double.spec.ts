@@ -16,7 +16,7 @@ import {
   subjectMatches,
 } from './double.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

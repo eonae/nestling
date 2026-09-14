@@ -13,7 +13,7 @@ import { makeToken } from '../tokens.js';
 import { Component, Handler, Resource } from './role.decorators.js';
 import { readRoleMeta } from './role.metadata.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 interface ILogger {
   log(message: string): void;

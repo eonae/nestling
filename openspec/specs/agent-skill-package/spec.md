@@ -21,7 +21,7 @@
 `scripts/packages.mjs` без отдельной правки.
 
 Пакет SHALL быть собран по общему набору конфигов репозитория: `tsconfig.json`,
-`tsconfig.build.json`, `eslint.config.js`, `jest.config.js`, — и SHALL иметь
+`tsconfig.build.json`, `eslint.config.js`, `vitest.config.js`, — и SHALL иметь
 скрипты `clear`, `typecheck`, `build`, `lint`, `test`.
 
 Тарбол SHALL содержать каталоги `dist` и `skill` и SHALL NOT содержать

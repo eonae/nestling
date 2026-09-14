@@ -43,6 +43,7 @@ import {
   makeRequest,
   PortFamily,
 } from '@nestlingjs/operations';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 const NotReady = makeFail('conflict:not_ready', { message: 'not ready' });
