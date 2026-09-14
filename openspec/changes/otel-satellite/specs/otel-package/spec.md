@@ -1,151 +1,149 @@
 ## ADDED Requirements
 
-### Requirement: `@nestlingjs/otel` — один вход, три части
+### Requirement: `@nestlingjs/otel` — один вход, две части
 
 Репозиторий SHALL содержать пакет `@nestlingjs/otel`, экспортирующий функцию
 `otel(options: OtelOptions): Otel`.
 
-Значение `Otel` SHALL нести ровно три поля:
+Значение `Otel` SHALL нести два поля:
 
 | Поле | Тип | Куда идёт |
 | --- | --- | --- |
-| `metrics` | `Metrics` | опция `makeApp({ metrics })` |
 | `spans` | слой пайплайна | композиция слоя наблюдаемости приложения |
 | `plugin` | `Plugin` | список `plugins:` корня |
 
 `OtelOptions` SHALL нести поля `service: string`, `version?: string`,
-`path?: string`, `traces?: SpanExporter` и `readers?: readonly MetricReader[]`.
-Умолчание `path` SHALL быть `/metrics`.
+`traces?: SpanExporter`, `metrics?: PushMetricExporter` и
+`intervalMs?: number`. Умолчание `intervalMs` SHALL быть `60000`.
 
-Три части SHALL смотреть в один провайдер метрик и один экспортёр участков:
-второго вызова `otel(…)` для их связывания SHALL NOT требоваться.
-
-Отдельных фабрик под корень, слой и плагин SHALL NOT существовать: сшивать их
-руками — обязанность, которую пакет и снимает.
+Реализации корня метрик, опции корня и endpoint'а экспозиции у пакета SHALL
+NOT быть: накопленное держит `MetricsStore$` ядра, а формат экспозиции
+Prometheus живёт в `@nestlingjs/prometheus`. Сателлит SHALL быть читателем
+store, а не его заменой.
 
 #### Scenario: Приложение подключает сателлит целиком
 
-- **WHEN** написано `const telemetry = otel({ service: 'users' })`, значение
-  `telemetry.metrics` передано опцией `metrics`, `telemetry.plugin` — в
-  `plugins:`, а `telemetry.spans` композирован в слой
-- **THEN** приложение собирается, записи ядра уходят в провайдер метрик, а
-  endpoint экспозиции отдаёт те же числа
+- **WHEN** написано
+  `const telemetry = otel({ service: 'users', traces: spanExporter, metrics: metricExporter })`,
+  `telemetry.plugin` передан в `plugins:`, а `telemetry.spans` композирован
+  в слой
+- **THEN** приложение собирается, участки уходят экспортёру трасс, а метрики
+  ядра и приложения — экспортёру метрик
 
-#### Scenario: Метрики без трасс
+#### Scenario: Трассы без метрик
 
-- **WHEN** приложение подключило `metrics` и `plugin`, но слой участков в
-  пайплайны не композировало
-- **THEN** метрики работают, участки никуда не уходят, сборка проходит
+- **WHEN** сателлит создан без опции `metrics`
+- **THEN** участки уходят, подписки на store не возникает, и ни одного
+  вызова экспортёра метрик нет
 
-### Requirement: Корень метрик — настоящая реализация поверх OTel SDK
+#### Scenario: Экспозиция подключается отдельным пакетом
 
-Поле `metrics` SHALL быть реализацией интерфейса `Metrics` поверх
-`MeterProvider` из `@opentelemetry/sdk-metrics`.
+- **WHEN** приложению нужны и push по OTLP, и экспозиция для сборщика
+- **THEN** в `plugins:` стоят оба плагина — `telemetry.plugin` и
+  `prometheus()`, — и они читают один и тот же store
 
-`counter(name, value, attributes)` SHALL писать в инструмент `Counter` с тем же
-именем, `histogram(name, value, attributes)` — в `Histogram`. Инструменты SHALL
-кэшироваться по имени: повторная запись SHALL NOT создавать второй инструмент.
+### Requirement: Метрики уходят по OTLP снимком store
 
-Атрибуты записи SHALL уходить атрибутами точки измерения без переименования:
-имена ядра (`transport`, `pattern`, `outcome`, `operation`, `kind`, `binding`,
-`scope`) SHALL сохраняться.
+Плагин сателлита SHALL объявлять ресурс, зависящий от `MetricsStore$`. Ресурс
+SHALL читать `snapshot()` раз в `intervalMs` и отправлять результат
+экспортёру из опции `metrics`.
 
-Ресурс провайдера SHALL нести `service.name` из опции `service` и
+Снимок SHALL переводиться в `ResourceMetrics` значением — той же формы,
+которую `PushMetricExporter` получает от SDK. Инструментов SDK сателлит SHALL
+NOT заводить: агрегат уже посчитан store, и второй агрегатор дал бы две
+несовпадающие правды об одном ряде.
+
+Ресурс `ResourceMetrics` SHALL нести `service.name` из опции `service` и
 `service.version` из опции `version`, если она задана.
 
-Точки в именах метрик ядра (`nestling.requests`) SHALL передаваться в SDK как
-есть: перевод в форму экспозиции — дело формата, а не корня.
+Временна́я привязка точек SHALL быть кумулятивной: store копит от старта
+процесса, и дельту SHALL считать бэкенд.
 
-#### Scenario: Счётчик ядра попадает в провайдер
+#### Scenario: Счётчик ядра доходит до экспортёра
 
-- **WHEN** приложение с `telemetry.metrics` обработало `GET /users`
-- **THEN** провайдер метрик несёт точку инструмента `nestling.requests` с
-  атрибутами `transport`, `pattern` и `outcome`
+- **WHEN** приложение обработало `GET /users` и прошёл интервал отправки
+- **THEN** экспортёр получил точку метрики `nestling.requests` с атрибутами
+  `transport`, `pattern` и `outcome`
 
-#### Scenario: Второй записи хватает одного инструмента
+#### Scenario: Ряды видны до первой записи
 
-- **WHEN** `counter('orders.created')` вызван дважды
-- **THEN** создан один инструмент, и его значение равно двум
+- **WHEN** приложение поднято и не обработало ни одного запроса
+- **THEN** первая отправка уже несёт объявленные ряды со значением ноль:
+  состав снимка задаёт каталог, а не трафик
 
-#### Scenario: Область токена семейства становится атрибутом
+#### Scenario: Второго агрегата нет
 
-- **WHEN** класс с `Metrics$.auto` пишет `counter('created')`
-- **THEN** точка несёт атрибут `scope` с именем класса
+- **WHEN** сервис записал наблюдение гистограммы
+- **THEN** сателлит не создаёт инструмента SDK, а берёт посчитанный store
+  агрегат следующим снимком
 
-### Requirement: Плагин отдаёт экспозицию на сокете приложения
+### Requirement: Описание и корзины берутся из объявления метрики
 
-Поле `plugin` SHALL объявлять HTTP-endpoint по адресу из опции `path` с
-`output: 'text'` и пометкой `detached`, текст которой называет снятие метрик
-сборщиком.
+Точка метрики SHALL нести `help` и `unit` из ряда снимка, а гистограмма —
+корзины по границам объявления с кумулятивным счётчиком, `count` и `sum`.
 
-Ответ SHALL быть форматом экспозиции Prometheus: чтение SHALL собирать
-накопленное `MetricReader`-ом и сериализовать его
-`PrometheusSerializer`-ом из `@opentelemetry/exporter-prometheus`.
+Своих границ сателлит SHALL NOT назначать и перекладывать наблюдения в другие
+корзины SHALL NOT: границы объявлены декларацией метрики, и экспозиция
+`@nestlingjs/prometheus` показывает те же.
 
-Своего HTTP-сервера пакет SHALL NOT поднимать: `PrometheusExporter` SHALL
-создаваться с `preventServerStart`. Второго сокета в приложении SHALL NOT
-появляться.
+#### Scenario: Корзины совпадают с объявленными
 
-Endpoint экспозиции SHALL NOT попадать в документ OpenAPI и SHALL NOT
-проверяться политиками сборки — это следует из `detached`.
+- **WHEN** метрика объявлена `histogram({ buckets: [1, 5, 25] })` и снята
+  двумя экспортёрами
+- **THEN** и точка OTLP, и строки экспозиции несут одни и те же три границы
+  с одинаковыми счётчиками
 
-#### Scenario: Экспозиция на сокете приложения
+#### Scenario: Единица измерения попадает в точку
 
-- **WHEN** приложение поднято и запрошен `GET /metrics`
-- **THEN** ответ — текст формата Prometheus со строками `nestling_requests`, и
-  второго открытого порта в процессе нет
+- **WHEN** метрика объявлена `unit: 'ms'`
+- **THEN** точка OTLP несёт ту же единицу
 
-#### Scenario: Свой адрес экспозиции
+### Requirement: Последний снимок уходит на остановке
 
-- **WHEN** сателлит создан как `otel({ service: 'users', path: '/internal/metrics' })`
-- **THEN** экспозиция отвечает по `/internal/metrics`, а по `/metrics` —
-  `404`
+Освобождение ресурса SHALL снимать таймер, отправлять последний снимок и
+вызывать `shutdown()` у экспортёров метрик и участков.
 
-#### Scenario: Экспозиции нет в документе
+Зависимость ресурса от `MetricsStore$` SHALL обеспечивать порядок: в реверсе
+освобождения сателлит закрывается раньше store, поэтому снимок на остановке
+ему доступен.
 
-- **WHEN** построен документ OpenAPI приложения с плагином сателлита
-- **THEN** адреса экспозиции в документе нет
-
-### Requirement: Накопленное сбрасывается на остановке
-
-Плагин SHALL объявлять ресурс, чьё освобождение SHALL вызывать `forceFlush()`
-и `shutdown()` у провайдера метрик и у экспортёра участков, если он задан.
-
-Ресурс SHALL приходить вместе с плагином: отдельного объявления в приложении
-SHALL NOT требоваться.
-
-Ошибка сброса SHALL NOT срывать остановку приложения: она SHALL уходить в
+Ошибка отправки SHALL NOT срывать остановку приложения: она SHALL уходить в
 логгер и SHALL NOT всплывать из фазы остановки.
 
-#### Scenario: Последний интервал не теряется
+#### Scenario: Записи последнего интервала не теряются
 
-- **WHEN** приложение с OTLP-пушем остановлено между отправками
-- **THEN** накопленные записи уходят экспортёру до завершения процесса
+- **WHEN** приложение остановлено между отправками
+- **THEN** экспортёр получает снимок с записями, сделанными после прошлой
+  отправки
 
 #### Scenario: Коллектор недоступен на остановке
 
-- **WHEN** сброс на остановке отказал
+- **WHEN** отправка на остановке отказала
 - **THEN** приложение останавливается, а причина уходит записью логгера
 
 ### Requirement: Границы пакета названы зависимостями
 
 Манифест пакета SHALL объявлять зависимости `@opentelemetry/api`,
-`@opentelemetry/sdk-metrics`, `@opentelemetry/exporter-prometheus`,
-`@opentelemetry/sdk-trace-base`, `@opentelemetry/resources`,
-`@opentelemetry/semantic-conventions` и внутренние `@nestlingjs/app`,
-`@nestlingjs/container`, `@nestlingjs/transport.http`.
+`@opentelemetry/sdk-trace-base`, `@opentelemetry/sdk-metrics`,
+`@opentelemetry/resources`, `@opentelemetry/semantic-conventions` и
+внутренние `@nestlingjs/app` и `@nestlingjs/container`.
 
-Обёрток над экспортёрами SDK пакет SHALL NOT экспортировать: экспортёр
-участков и читалки метрик приходят опциями готовыми значениями.
+Зависимости от `@nestlingjs/transport.http` SHALL NOT быть: своего endpoint'а
+пакет не объявляет. Зависимости от `@opentelemetry/exporter-prometheus` SHALL
+NOT быть: формат экспозиции живёт в `@nestlingjs/prometheus` и OpenTelemetry
+не требует.
+
+Обёрток над экспортёрами SDK пакет SHALL NOT экспортировать: экспортёры
+трасс и метрик приходят опциями готовыми значениями.
 
 Тест границы пакета SHALL перечислять фактические импорты `dist`, как у
 остальных пакетов (capability `packages-layout`).
 
-#### Scenario: Приложение выбирает экспортёр само
+#### Scenario: Приложение выбирает экспортёры само
 
 - **WHEN** приложению нужен OTLP по HTTP
-- **THEN** оно импортирует `OTLPTraceExporter` из
-  `@opentelemetry/exporter-trace-otlp-http` и передаёт его опцией `traces`
+- **THEN** оно импортирует `OTLPTraceExporter` и `OTLPMetricExporter` из
+  пакетов SDK и передаёт их опциями `traces` и `metrics`
 
 #### Scenario: Манифест совпадает с импортами
 
