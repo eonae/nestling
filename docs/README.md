@@ -173,6 +173,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
 | [`@nestlingjs/prometheus`](../packages/nestling.prometheus/) | Экспозиция метрик в формате Prometheus: endpoint `/metrics` читает снимок store ядра |
+| [`@nestlingjs/otel`](../packages/nestling.otel/) | Экспорт телеметрии по OpenTelemetry: слой участков трассы и push метрик по OTLP поверх store ядра |
 | [`@nestlingjs/logging.pino`](../packages/nestling.logging.pino/) | pino под интерфейсом `Logger`: redaction и сериализаторы библиотеки при формате строки, общем со штатным логгером |
 | [`@nestlingjs/schema.zod`](../packages/nestling.schema.zod/) | Всё, что фреймворк делает с zod: конвертер схем в JSON Schema, билдеры полей секций и модели со сверкой с TypeScript-типом |
 | [`@nestlingjs/drizzle.pg`](../packages/nestling.drizzle.pg/) | PostgreSQL на drizzle-orm: соединение, транзакция запроса и адаптеры хранилищ outbox'а и приёма |

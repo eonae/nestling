@@ -110,4 +110,5 @@ Nest.
 | [19. Запускать только часть фич](./19-select.md) | `build(args)`, `argv(process.argv)`, `includeDeps`, переключатели состава, `check()` |
 | [20. Разнести фичи по процессам](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
 | [21. Не сломать соседей при изменении операции](./21-compatibility.md) | версия в имени, снапшот операций, `diffOperations` |
-| [22. Считать запросы и вызовы между процессами](./22-metrics.md) | `Metrics`, опция `metrics`, `Metrics$.auto`, метрики ядра, адаптер и `/metrics` |
+| [22. Считать запросы и вызовы между процессами](./22-metrics.md) | `makeMetrics`, вклад `metrics:`, `MetricsStore$`, метрики ядра, экспозиция пакетом |
+| [23. Увидеть, где запрос провёл время](./23-tracing.md) | `otel()`, слой участков, `hasVar(Span)`, `Ctx(Span)`, дерево в Jaeger |
