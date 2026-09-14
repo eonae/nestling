@@ -1,6 +1,6 @@
 # 1. Поднять сервис, который отвечает на запрос
 
-> Гайд по текущему API; сверено с кодом `a2535b50`.
+> Гайд по текущему API; сверено с кодом `8dfc73b4`.
 > Целевое описание: [design/composition.md](../design/composition.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-09-02] Модель композиции: фича,
