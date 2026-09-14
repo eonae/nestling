@@ -109,9 +109,18 @@ export function makePush(
       await this.#sending;
 
       await Promise.all([
-        options.metrics?.shutdown(),
-        options.traces?.shutdown(),
+        this.#close(options.metrics),
+        this.#close(options.traces),
       ]);
+    }
+
+    /** Закрывает экспортёра; его отказ уходит в логгер и остановку не срывает */
+    async #close(exporter?: { shutdown(): Promise<void> }): Promise<void> {
+      try {
+        await exporter?.shutdown();
+      } catch (error) {
+        this.logger.warn(error as Error);
+      }
     }
 
     /** Ставит отправку в очередь: две отправки не идут одновременно */
@@ -127,22 +136,30 @@ export function makePush(
         return;
       }
 
-      const points = pointsOf(
-        this.store.snapshot(),
-        target,
-        this.#started,
-        now(),
-      );
+      try {
+        const points = pointsOf(
+          this.store.snapshot(),
+          target,
+          this.#started,
+          now(),
+        );
 
-      return new Promise<void>((resolve) => {
-        exporter.export(points, ({ code, error }) => {
-          if (code !== EXPORT_SUCCESS) {
-            this.logger.warn(error ?? new Error('OTLP metrics export failed'));
-          }
+        await new Promise<void>((resolve) => {
+          exporter.export(points, ({ code, error }) => {
+            if (code !== EXPORT_SUCCESS) {
+              this.logger.warn(
+                error ?? new Error('OTLP metrics export failed'),
+              );
+            }
 
-          resolve();
+            resolve();
+          });
         });
-      });
+      } catch (error) {
+        // Брошенная экспортёром ошибка не должна ни ронять таймер, ни
+        // срывать остановку: очередь отправок живёт до конца процесса
+        this.logger.warn(error as Error);
+      }
     }
   }
 
