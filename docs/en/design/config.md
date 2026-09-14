@@ -50,7 +50,7 @@ export class OrdersService {
   decides from there — `default` gives the default, a required field
   gives a failure. The rule lives in one place in the kernel and acts the
   same on both reading paths: the projection of a section from the graph
-  and the primary read of phase 0 (`load`). The field schemas need to
+  and the primary read of phase 0 (`bootstrapConfig`). The field schemas need to
   know nothing about it — neither ours nor the user's. The rule does not
   change the order of the lookup: the value is taken from the first
   binding that covers the key, and an empty string does not send the
