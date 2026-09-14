@@ -106,10 +106,7 @@
 - [x] 7.6 `yarn docs:audit` — 0 ERROR
 - [x] 7.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
   обновлённой датой в плашке «сверено с кодом»
-- [ ] 7.8 Строка 92 `roadmap.md` обновлена, оглавление `ideas.md`
-  пересобрано (`node .claude/skills/docs-audit/scripts/ideas-toc.mjs`) —
-  оглавление пересобрано, строка roadmap ждёт `/opsx:archive`: её текст
-  ссылается на каталог архива и на спеки `openspec/specs/`, которых до
-  архивации нет
+- [x] 7.8 Строка 92 `roadmap.md` обновлена, оглавление `ideas.md`
+  пересобрано (`node .claude/skills/docs-audit/scripts/ideas-toc.mjs`)
 - [x] 7.9 Коммиты осмысленные, `main` не тронут: слияние делает Merger
   после `/opsx:archive`
