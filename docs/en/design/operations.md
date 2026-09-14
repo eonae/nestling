@@ -295,12 +295,18 @@ handler: {
 ```
 
 A port is bound to a local client (an implementation in the same
-process) or a remote client (through the bus) at the composition root;
-the request calls the already-picked constant. Binding has three
-inputs: the topology (which features are selected into this process),
-the nature of the bus (does it deliver outside the process), and the
-dispatch policy (§3). A caller is a member of a DI token family, so a
-graph node appears only for operations that someone injects.
+process) or a remote client (through the bus) in the BUILD phase, where
+a family member becomes a provider; the request calls the
+already-picked constant. Binding has three inputs: the topology (which
+features are selected into this process), the nature of the bus (does
+it deliver outside the process), and the dispatch policy (§3). All
+three are data of that phase: discovery computes the topology, the
+transport declares the nature of the bus
+([transports.md](./transports.md), §1), and the root reads the policy
+from the phase 0 snapshot. There are no instances on BUILD, and none of
+the three inputs comes from the graph. A caller is a member of a DI
+token family, so a graph node appears only for operations that someone
+injects.
 
 The nature of the bus affects binding this way. On a remote bus, a
 `request`/`command` with no implementation in this process binds
@@ -471,12 +477,15 @@ the bus transport) give one instance. There is exactly one bus in an
 application; a broker is not added to the in-process bus, it replaces
 it.
 
-The bus declares two capabilities as values: `remote` (does it deliver
-outside the process, the input of binding, §2) and `durable` (can it
-deliver durably, §1). Both are false for `InProcessBus`. An application
+A bus instance declares one capability as a value: `durable` (can it
+deliver durably, §1). It is false for `InProcessBus`. An application
 with `durable` operations on such a bus starts, but prints a line at
 start with the list of operations served without durability, the same
 way as the list of `detached` endpoints.
+
+Whether the bus delivers outside the process is declared by the
+**transport**, not by its instance: that is an input of binding (§2),
+and the BUILD phase reads it.
 
 The dispatch policy is chosen at build:
 
@@ -492,6 +501,12 @@ configuration section (`NESTLING_PORTS_DISPATCH`, `local-first` by
 default). It is read by the ordinary configuration mechanism; there is
 no `dispatch:` field in `makeApp`. Changing the policy is changing the
 configuration; the calling code does not change.
+
+The root takes the value of the policy from the phase 0 snapshot and
+passes it to the ports layer instead of injecting it as a graph node:
+the path of a caller is picked before the first instance appears. The
+section, the key and the sources stay ordinary
+([config.md](./config.md)).
 
 ## 4. The call profile
 

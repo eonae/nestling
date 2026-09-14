@@ -192,7 +192,11 @@ graph stands next to the stubs:
 
 `checkTopologies` builds each topology with no overrides and returns
 a report with the `operations` field. The test compares
-`testApp.stubbed` with the union of the published operations.
+`testApp.stubbed` with the union of the published operations. A stub
+lifts the reachability check inside its own test only: the matrix has no
+substitutions, so an operation nobody answers in a topology fails that
+topology's build — which is exactly what the "mock it, then check the
+topology" rule is for.
 
 ## Overriding in an app test: context, graph, topologies
 

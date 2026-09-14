@@ -29,14 +29,11 @@ const asTransport = (transport: MockTransport) =>
   });
 
 /** Шина, доставляющая за пределы процесса: вход remote-биндинга */
-class RemoteBus extends InProcessBus {
-  override readonly remote: boolean = true;
-}
-
 const asBus = () =>
-  transportValue(BusTransport$, new RemoteBus(), {
+  transportValue(BusTransport$, new InProcessBus(), {
     name: 'events',
     bus: true,
+    remote: true,
     capabilities: VALUE_ONLY,
   });
 

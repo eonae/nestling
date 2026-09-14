@@ -141,6 +141,50 @@ describe('checkTopologies', () => {
     expect((error as Error).message).toContain('TopologyLogger');
   });
 
+  it('называет топологию без фичи-владельца среди несобравшихся', async () => {
+    const Charge = makeRequest({
+      name: 'topology.billing.charge',
+      output: z.object({ ok: z.boolean() }),
+    });
+    const Caller = makeToken<{ port: unknown }>('TopologyCaller');
+
+    const BillingFeature = makeFeature({
+      name: 'billing',
+      endpoints: [
+        implement(Charge, { handler: async () => new Ok({ ok: true }) }),
+      ],
+    });
+
+    const OrdersFeature = makeFeature({
+      name: 'orders',
+      providers: [
+        {
+          provide: Caller,
+          useFactory: (port: unknown) => ({ port }),
+          deps: [Charge.caller],
+        },
+      ],
+    });
+
+    const app = makeApp({
+      features: [OrdersFeature, BillingFeature],
+      transports: [asHttpTransport(new SpyTransport())],
+    });
+
+    // Топология «потребитель без владельца» заведомо не поднимется, и
+    // матрица обязана это показать: смок мимо неё больше не проходит
+    const error = await checkTopologies(app, [
+      { features: 'all' },
+      { features: 'orders' },
+    ]).catch((error_: Error) => error_);
+
+    expect((error as Error).message).toContain(
+      '1 of 2 topologies did not build',
+    );
+    expect((error as Error).message).toContain('args: {"features":"orders"}');
+    expect((error as Error).message).toContain('topology.billing.charge');
+  });
+
   it('прокидывает config в каждую топологию, обходясь без источников', async () => {
     const TopologyConfig = makeConfig('topology', {
       pageSize: z.coerce.number(),

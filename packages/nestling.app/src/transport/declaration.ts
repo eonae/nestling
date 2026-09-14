@@ -98,6 +98,16 @@ export interface BusDeclaration<Name extends string = string>
   extends TransportDeclaration<Name> {
   /** Транспорт переносит объявленные операции */
   readonly bus: true;
+
+  /**
+   * Доставляет ли шина сообщения за пределы процесса.
+   *
+   * Данное объявления, а не экземпляра: по нему фаза BUILD выбирает путь
+   * вызывателя и отвергает недостижимую операцию, а экземпляров на этой
+   * фазе нет. Поле обязательное — собственное объявление шины без него не
+   * компилируется.
+   */
+  readonly remote: boolean;
 }
 
 /**
@@ -149,7 +159,7 @@ export const DEFAULT_INSTANCE = 'default';
  * @param token - DI-токен экземпляра
  * @param instance - Готовый транспорт
  * @param options - Способности транспорта, имя экземпляра и признак
- * переносчика операций
+ * переносчика операций; у переносчика ещё и природа шины
  * @returns Объявление экземпляра
  */
 export function transportValue<const Name extends string = 'default'>(
@@ -159,6 +169,7 @@ export function transportValue<const Name extends string = 'default'>(
     readonly name?: Name;
     readonly capabilities: TransportCapabilities;
     readonly bus: true;
+    readonly remote: boolean;
   },
 ): BusDeclaration<Name>;
 export function transportValue<const Name extends string = 'default'>(
@@ -177,6 +188,7 @@ export function transportValue(
     readonly name?: string;
     readonly capabilities: TransportCapabilities;
     readonly bus?: boolean;
+    readonly remote?: boolean;
   },
 ): TransportDeclaration {
   const declaration: Omit<TransportDeclaration, 'kind'> = {
@@ -187,6 +199,8 @@ export function transportValue(
   };
 
   return makeTransportDeclaration(
-    options.bus ? { ...declaration, bus: true as const } : declaration,
+    options.bus
+      ? { ...declaration, bus: true as const, remote: options.remote === true }
+      : declaration,
   );
 }

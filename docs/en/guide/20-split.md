@@ -67,7 +67,8 @@ with no assigned role stops the build, and only transports that
 carry operations can take the intercom role: `http()` in `intercom:`
 does not compile. With no carrier role, a call to an operation whose
 owner is not selected stops the build, as in chapter
-[19](./19-select.md).
+[19](./19-select.md). It stops it in the BUILD phase, so `check()` and
+the topology matrix see the same failure — before the process starts.
 
 The process's role is set by the feature selection that `main.ts`
 passes with the `argv(process.argv)` marker, as in chapter

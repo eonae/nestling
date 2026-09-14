@@ -553,7 +553,7 @@ describe('NatsBus — отказы доставки и фазы', () => {
     ).rejects.toMatchObject({ code: '503' });
   });
 
-  it('объявляет способности значением: value-формы, remote, durable', async () => {
+  it('объявляет способности значением: value-формы и долговечность', async () => {
     const bus = new NatsBus({
       connect: natsDouble(new Broker()),
       logger: spyLogger().logger,
@@ -561,11 +561,16 @@ describe('NatsBus — отказы доставки и фазы', () => {
 
     expect([...BUS_CAPABILITIES.input]).toEqual(['value']);
     expect([...BUS_CAPABILITIES.output]).toEqual(['value']);
-    expect(bus.remote).toBe(true);
     expect(bus.durable).toBe(true);
   });
 
   it('фабрика регистрирует транспорт под DI-токеном шины', () => {
     expect(nats().token).toBe(BusTransport$);
+  });
+
+  it('объявляет шину доставляющей наружу — признаком объявления', () => {
+    // Признак принадлежит объявлению, а не экземпляру: читает его фаза
+    // BUILD, где экземпляра шины ещё нет
+    expect(nats().remote).toBe(true);
   });
 });

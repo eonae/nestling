@@ -252,7 +252,14 @@ export interface NormalizedAppSpec {
    * раскрытия веток состав списка неизвестен.
    */
   readonly transports: readonly Branchable<TransportDeclaration>[];
-  readonly intercom?: TransportDeclaration;
+  /**
+   * Объявление транспорта в роли интеркома.
+   *
+   * Тип сужен до `BusDeclaration`: роль берёт только переносчик операций,
+   * и корень читает из объявления природу шины — вход биндинга
+   * вызывателей.
+   */
+  readonly intercom?: BusDeclaration;
   readonly policies: readonly Policy[];
 
   /** Логирование корня; без опции — штатный логгер и умолчание полей */
@@ -314,6 +321,11 @@ export interface BuildPlan {
   readonly config?: readonly Binding[];
 }
 
+/** Транспорт переносит объявленные операции — значит может стать интеркомом */
+const carriesOperations = (
+  declaration: TransportDeclaration,
+): declaration is BusDeclaration => 'bus' in declaration;
+
 /**
  * Находит объявление транспорта, назначенного в роль интеркома.
  *
@@ -323,9 +335,9 @@ export interface BuildPlan {
 function resolveIntercom(
   transports: readonly TransportDeclaration[],
   intercom: string | undefined,
-): TransportDeclaration | undefined {
+): BusDeclaration | undefined {
   if (intercom === undefined) {
-    const unassigned = transports.find((declaration) => 'bus' in declaration);
+    const unassigned = transports.find(carriesOperations);
 
     if (unassigned) {
       throw new Error(
@@ -351,7 +363,7 @@ function resolveIntercom(
     );
   }
 
-  if (!('bus' in declaration)) {
+  if (!carriesOperations(declaration)) {
     throw new Error(
       `Transport '${intercom}' cannot take the intercom role: it does not ` +
         `carry declared operations. Assign a bus transport (for example ` +

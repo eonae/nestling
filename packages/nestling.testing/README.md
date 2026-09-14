@@ -80,6 +80,12 @@ wrapper over the core: an object instead of `process.env`, with
 declaration's bindings entirely — the declaration has none — so a test
 is isolated from both `process.env` and any defaults.
 
+`checkTopologies` sees unreachable calls: an operation nobody implements in
+the selected topology, with no intercom assigned, fails the build in phase
+`1 BUILD` — and the matrix names that topology among the ones that did not
+build. A stubbed name (`stubs:`) does not reach the check at all: an
+explicit provider comes before the caller recipe.
+
 The `transports` list in the options is not accepted: the composition,
 transports included, comes from the `makeApp` declaration. Without
 `testApp.run()` no sockets open; after it, `testApp.baseUrl(name?)`
