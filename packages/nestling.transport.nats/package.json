@@ -54,14 +54,15 @@
   "dependencies": {
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
-    "@nestlingjs/operations": "workspace:*",
-    "zod": "^4.0.0"
+    "@nestlingjs/operations": "workspace:*"
   },
   "peerDependencies": {
-    "nats": "^2.29.3"
+    "nats": "^2.29.3",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "nats": "^2.29.3",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
   }
 }

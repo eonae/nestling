@@ -18,11 +18,12 @@ NDJSON для `stream(T)`, SSE для `events(T)`. Тот же набор endpoi
 ## Установка
 
 ```bash
-npm install @nestlingjs/transport.http
+npm install @nestlingjs/transport.http zod
 ```
 
-Пакет `zod` в зависимостях нужен только конфиг-секции сервера (`HTTP_PORT`,
-`HTTP_HOST`).
+`zod` нужен транспорту только для схемы своей секции конфигурации
+(`HTTP_PORT`, `HTTP_HOST`), но ставится рядом: копия валидатора у
+транспорта и у приложения одна.
 
 ## Минимальный пример
 

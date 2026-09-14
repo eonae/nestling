@@ -12,8 +12,11 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/subscriptions
+npm install @nestlingjs/subscriptions zod
 ```
+
+Рядом ставится `zod`: схемы своих объявлений пакет пишет им, и копия
+валидатора у него и у приложения одна.
 
 ## Минимальный пример
 

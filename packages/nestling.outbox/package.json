@@ -50,11 +50,14 @@
     "@nestlingjs/common.misc": "workspace:*",
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
-    "@nestlingjs/schema.zod": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*"
+  },
+  "peerDependencies": {
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nestlingjs/testing": "workspace:*",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
   }
 }

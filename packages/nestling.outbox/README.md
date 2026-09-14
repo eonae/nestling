@@ -14,8 +14,12 @@ neither creates it, nor commits it, nor rolls it back.
 ## Install
 
 ```bash
-npm install @nestlingjs/outbox
+npm install @nestlingjs/outbox zod
 ```
+
+`zod` installs next to it: the package writes the schemas of its own
+declarations in it, and one copy of the validator serves the package and the
+application.
 
 The package does not choose the storage: the `OutboxStore` adapter comes
 from outside. For PostgreSQL it is given by `@nestlingjs/drizzle.pg/outbox`,

@@ -13,6 +13,13 @@
 одной командой и останавливается по `SIGTERM`, не обрывая запросы, которые
 уже обрабатываются. Целиком он умещается в один файл.
 
+```bash
+npm install @nestlingjs/app @nestlingjs/transport.http zod
+```
+
+`zod` стоит рядом с пакетами фреймворка, а не внутри них: версию
+валидатора выбирает приложение, и копия у него и у фреймворка одна.
+
 ```typescript
 // src/main.ts
 import { makeApp } from '@nestlingjs/app';

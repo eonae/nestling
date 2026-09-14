@@ -12,11 +12,13 @@ entity next to the transports.
 ## Install
 
 ```bash
-npm install @nestlingjs/transport.nats nats
+npm install @nestlingjs/transport.nats nats zod
 ```
 
 `nats` is a peer dependency: the client of the version used by the
-broker is installed.
+broker is installed. `zod` comes from the application too: the transport
+writes the schema of its own section in it, and one copy of the validator
+serves the transport and the application.
 
 ## Minimal example
 

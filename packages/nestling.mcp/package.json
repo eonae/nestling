@@ -52,14 +52,17 @@
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "@nestlingjs/schema.zod": "workspace:*",
-    "@nestlingjs/transport.http": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*"
+  },
+  "peerDependencies": {
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@nestlingjs/openapi": "workspace:*",
     "@nestlingjs/testing": "workspace:*",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
   },
   "nx": {
     "targets": {

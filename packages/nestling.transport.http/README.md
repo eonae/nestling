@@ -20,11 +20,12 @@ request handler out.
 ## Install
 
 ```bash
-npm install @nestlingjs/transport.http
+npm install @nestlingjs/transport.http zod
 ```
 
-The `zod` package in the dependencies is needed only for the server's
-configuration section (`HTTP_PORT`, `HTTP_HOST`).
+The transport needs `zod` only for the schema of its own configuration
+section (`HTTP_PORT`, `HTTP_HOST`), yet it installs next to it: one copy of
+the validator serves the transport and the application.
 
 ## Minimal example
 

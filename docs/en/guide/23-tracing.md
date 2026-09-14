@@ -24,8 +24,17 @@ Jaeger.
 
 ## The satellite hands out a layer and a plugin
 
-Telemetry export lives in the package `@nestlingjs/otel`. There is one
-entry point:
+Telemetry export lives in the package `@nestlingjs/otel`. The application
+installs the SDK packages next to it: it creates the exporter itself, and
+one copy of the SDK has to serve both it and the satellite.
+
+```bash
+npm install @nestlingjs/otel @opentelemetry/api \
+  @opentelemetry/sdk-trace-base @opentelemetry/sdk-metrics \
+  @opentelemetry/exporter-trace-otlp-http
+```
+
+There is one entry point:
 
 ```typescript
 // src/observability.ts

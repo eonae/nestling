@@ -8,8 +8,8 @@ the container, finds the endpoints by walking the features and the
 plugins, takes the application through the lifecycle phases and stops it
 on `SIGTERM` and `SIGINT`.
 
-> 🚧 Active development, the API may change. The package includes no
-> schema validator: any [Standard Schema](https://standardschema.dev) fits.
+> 🚧 Active development, the API may change. The core does not choose a
+> validator for the application's schemas: any [Standard Schema](https://standardschema.dev) fits.
 > Design: [`docs/en/design/composition.md`](../../docs/en/design/composition.md),
 > [`docs/en/design/pipeline.md`](../../docs/en/design/pipeline.md),
 > [`docs/en/design/container.md`](../../docs/en/design/container.md).
@@ -20,12 +20,12 @@ on `SIGTERM` and `SIGINT`.
 ## Install
 
 ```bash
-npm install @nestlingjs/app @nestlingjs/container @nestlingjs/operations
+npm install @nestlingjs/app @nestlingjs/container @nestlingjs/operations zod
 ```
 
-The three core packages install together. The transport is chosen
-separately: `@nestlingjs/transport.http`, `@nestlingjs/transport.cli`,
-`@nestlingjs/transport.nats`.
+The three core packages and `zod` install together: one copy of the validator
+serves the core and the application. The transport is chosen separately:
+`@nestlingjs/transport.http`, `@nestlingjs/transport.cli`, `@nestlingjs/transport.nats`.
 
 ## Minimal example
 

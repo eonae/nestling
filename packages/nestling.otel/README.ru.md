@@ -15,8 +15,16 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/otel @opentelemetry/exporter-trace-otlp-http
+npm install @nestlingjs/otel @opentelemetry/api \
+  @opentelemetry/sdk-trace-base @opentelemetry/sdk-metrics \
+  @opentelemetry/exporter-trace-otlp-http
 ```
+
+`@opentelemetry/api`, `@opentelemetry/sdk-trace-base` и
+`@opentelemetry/sdk-metrics` — peer-зависимости: экспортёр трасс и экспортёр
+метрик приложение создаёт своей копией SDK и передаёт опциями `traces` и
+`metrics`, поэтому копия SDK у него и у пакета одна. Экспортёр выбирается
+отдельно; в примере ниже это OTLP по HTTP.
 
 ## Минимальный пример
 

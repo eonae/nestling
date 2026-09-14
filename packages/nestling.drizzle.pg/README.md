@@ -14,12 +14,12 @@ precondition policy.
 ## Install
 
 ```bash
-npm install @nestlingjs/drizzle.pg drizzle-orm pg
+npm install @nestlingjs/drizzle.pg drizzle-orm pg zod
 ```
 
-`drizzle-orm` and `pg` are peer dependencies: the application chooses the
-driver version, and there must be no two copies of the driver in the
-process. The storage adapters live in the `./outbox` and `./inbox`
+`drizzle-orm`, `pg` and `zod` are peer dependencies: the application chooses
+the version of the driver and the version of the validator, and there must
+be no second copy of either in the process. The storage adapters live in the `./outbox` and `./inbox`
 subpaths, and `@nestlingjs/outbox` and `@nestlingjs/inbox` are optional
 peer dependencies for them: an application without them installs the
 package and knows nothing about the storages.

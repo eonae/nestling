@@ -104,26 +104,33 @@ const manifest = JSON.parse(
   readFileSync(resolve(srcDir, '..', 'package.json'), 'utf8'),
 ) as {
   dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 };
 
 describe('@nestlingjs/drizzle.pg: состав зависимостей', () => {
-  it('драйвер приходит peer-зависимостью, а не своей', () => {
-    // Валидатор в списке своих — не послабление: схемы своей секции пакет
-    // пишет сам, и выбор валидатора для них — решение фреймворка. Границу
-    // приложения держат публичные типы, а не состав зависимостей
+  it('своими зависимостями остаются только пакеты репозитория', () => {
+    // Версию внутреннего пакета выбирает репозиторий, а версию библиотеки —
+    // приложение: вид объявления задаёт тот, кто выбирает версию
+    // (capability `packages-layout`)
     expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual([
       '@nestlingjs/app',
       '@nestlingjs/common.misc',
       '@nestlingjs/container',
       '@nestlingjs/schema.zod',
-      'zod',
     ]);
-    expect(Object.keys(manifest.peerDependencies ?? {})).toContain(
-      'drizzle-orm',
-    );
-    expect(Object.keys(manifest.peerDependencies ?? {})).toContain('pg');
+  });
+
+  it('драйвер и валидатор приходят peer-зависимостями', () => {
+    // Схемы своей секции пакет пишет сам и пишет их на вендоре фреймворка,
+    // но копия вендора у него и у приложения одна: схемы встречаются в
+    // одном конвертере
+    for (const name of ['drizzle-orm', 'pg', 'zod']) {
+      expect(Object.keys(manifest.peerDependencies ?? {})).toContain(name);
+      expect(Object.keys(manifest.dependencies ?? {})).not.toContain(name);
+      expect(Object.keys(manifest.devDependencies ?? {})).toContain(name);
+    }
   });
 
   it('сателлиты — необязательные peer-зависимости', () => {

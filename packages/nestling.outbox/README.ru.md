@@ -13,8 +13,11 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/outbox
+npm install @nestlingjs/outbox zod
 ```
+
+Рядом ставится `zod`: схемы своих объявлений пакет пишет им, и копия
+валидатора у него и у приложения одна.
 
 Хранилище пакет не выбирает: адаптер `OutboxStore` приходит извне.
 Для PostgreSQL его отдаёт `@nestlingjs/drizzle.pg/outbox`, для тестов
