@@ -100,7 +100,16 @@ yarn test:live
 `docs/releases/README.md` и `docs/en/releases/README.md`. Заметка пишется
 до подъёма версии: сайт документации собирается по тегу, и тег должен
 нести её. Что в заметке и откуда она берётся — раздел
-«releases/» файла [docs/README.md](./docs/README.md).
+«releases/» файла [docs/README.md](./docs/README.md) и скилл
+`/release-notes`.
+
+Плашка заметки называет обе границы диапазона тегами, и своего тега в
+момент письма ещё нет. Перед подъёмом версии диапазон сверяется, а
+механику заметки проверяет скрипт:
+
+```bash
+node .claude/skills/release-notes/scripts/check.mjs
+```
 
 ### 3. Поднять версию
 
