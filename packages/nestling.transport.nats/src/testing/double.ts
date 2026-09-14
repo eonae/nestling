@@ -211,10 +211,6 @@ class JsMsgDouble implements NatsJsMsgLike {
     private readonly settle: (verdict: 'ack' | 'nak' | 'term') => void,
   ) {}
 
-  respond(): boolean {
-    return false;
-  }
-
   ack(): void {
     this.settle('ack');
   }
