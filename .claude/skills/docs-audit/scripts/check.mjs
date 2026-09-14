@@ -16,6 +16,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import { collectPackageExports } from './package-exports.mjs';
+import { deletedNames } from './tag-names.mjs';
 import {
   LANGUAGES,
   PACKAGES_OUTLINE,
@@ -993,6 +994,163 @@ if (existsSync(glossaryRu) && existsSync(glossaryEn)) {
       add('ERROR', 'lang-glossary', glossaryEn,
         `термин «${term}» назван в docs/glossary.md, а здесь его нет`);
     }
+  }
+}
+
+// ── 13. Удалённое публичное имя не стоит в живом тексте ─────────────────────
+// Множество удалённых имён даёт tag-names.mjs разностью барелей: имена всех
+// тегов выпуска минус имена рабочего дерева. Живой текст — публикуемое минус
+// docs/releases/ плюс скилл для агента: заметка о выпуске называет старое имя
+// по назначению, а decisions/ и history/ сюда не входят вовсе.
+
+const { names: deletedSet } = deletedNames(ROOT);
+
+/** Файлы перехода с NestJS: в левой колонке таблицы стоят имена чужого фреймворка */
+const NEST_TABLES = new Set([
+  'docs/from-nestjs.md',
+  'docs/en/from-nestjs.md',
+  'packages/nestling.agent-skill/skill/references/from-nest.md',
+]);
+
+/** Фрагмент инлайн-кода: ограды из обратных кавычек любой длины */
+const INLINE_CODE = /(`+)((?:(?!\1).)+)\1/g;
+const IMPORT_FROM_OWN =
+  /(?:import|export)\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]@nestlingjs\/[^'"]+['"]/g;
+
+/** Сегменты имён сегодняшних пакетов: `@nestlingjs/transport.http` → transport, http */
+const packageSegments = new Set(
+  packageDirs.flatMap((dir) =>
+    JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).name.split(/[@/.]/).filter(Boolean),
+  ),
+);
+
+/** Файлы скилла для агента: на сайт он не выходит, но учит сегодняшнему API */
+function skillFiles(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return skillFiles(path);
+    return entry.name.endsWith('.md') ? [path] : [];
+  });
+}
+
+/**
+ * Формы использования в коде: вызов, дженерик, спецификатор импорта своего пакета.
+ *
+ * Имя, перед которым стоит `.`, `/` или буква, пропускается: `makeOpenapi`,
+ * `openapi.json` и `@nestlingjs/outbox` — длинное имя, путь и адрес пакета.
+ *
+ * @returns {Array<{ name: string, index: number }>}
+ */
+function usesInCode(text) {
+  const hits = [];
+
+  for (const m of text.matchAll(/[A-Za-z_$][A-Za-z0-9_$]*/g)) {
+    if (!deletedSet.has(m[0])) continue;
+    const before = text[m.index - 1];
+    if (before && /[A-Za-z0-9_$./@-]/.test(before)) continue;
+    const after = text[m.index + m[0].length];
+    if (after === '(' || after === '<') hits.push({ name: m[0], index: m.index });
+  }
+
+  for (const m of text.matchAll(IMPORT_FROM_OWN)) {
+    for (const raw of m[1].split(',')) {
+      const name = raw.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+      if (deletedSet.has(name)) hits.push({ name, index: m.index + m[0].indexOf(name) });
+    }
+  }
+
+  return hits;
+}
+
+/**
+ * Формы использования в прозе: только внутри фрагмента инлайн-кода.
+ *
+ * Фрагмент, целиком равный имени, засчитывается: `load` без скобок в design-доке
+ * остаётся обещанием API. Исключение одно — имя, оставшееся сегментом имени
+ * сегодняшнего пакета (`outbox`, `inbox`, `openapi`, `subscriptions`): там слово
+ * живо именем секции, а идентификатора больше нет.
+ *
+ * Вызов и дженерик засчитываются с начала фрагмента: фрагмент прозы — это
+ * короткая форма API (`httpServer({ … })`), а имя посреди длинного фрагмента
+ * приходит цитатой. Сообщение компилятора, которое цитирует справочник
+ * диагностик, называет внутренние типы, и учить им оно не может.
+ */
+function usesInProse(line) {
+  const names = [];
+
+  for (const m of line.matchAll(INLINE_CODE)) {
+    let fragment = m[2].trim();
+    if (fragment.startsWith('`') && fragment.endsWith('`')) fragment = fragment.slice(1, -1).trim();
+
+    if (deletedSet.has(fragment)) {
+      if (!packageSegments.has(fragment)) names.push(fragment);
+      continue;
+    }
+    for (const hit of usesInCode(fragment)) {
+      if (hit.index === 0) names.push(hit.name);
+    }
+  }
+
+  return names;
+}
+
+const countLines = (text, index) => text.slice(0, index).split('\n').length - 1;
+
+function scanDeletedNames(file) {
+  const rel = slashed(file);
+  const nestTable = NEST_TABLES.has(rel);
+  const lines = readFileSync(file, 'utf8').split('\n');
+  const hits = new Map();
+  let inFence = false;
+  let block = null;
+
+  const flushBlock = () => {
+    if (!block) return;
+    const text = block.lines.join('\n');
+    for (const { name, index } of usesInCode(text)) {
+      hits.set(`${block.start + countLines(text, index)} ${name}`, {
+        line: block.start + countLines(text, index),
+        name,
+      });
+    }
+    block = null;
+  };
+
+  lines.forEach((raw, i) => {
+    if (/^\s*(```|~~~)/.test(raw)) {
+      if (inFence) flushBlock();
+      else block = { start: i + 2, lines: [] };
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) {
+      block.lines.push(raw);
+      return;
+    }
+    if (/^\s*>/.test(raw)) return; // цитата называет решение прошлого, а не сегодняшний API
+
+    const line = nestTable && /^\s*\|/.test(raw) ? raw.replace(/^\s*\|[^|]*/, '') : raw;
+    for (const name of usesInProse(line)) hits.set(`${i + 1} ${name}`, { line: i + 1, name });
+  });
+
+  flushBlock(); // блок кода без закрывающей ограды
+
+  for (const { line, name } of [...hits.values()].sort((a, b) => a.line - b.line)) {
+    add('ERROR', 'deleted-names', file, `строка ${line}: удалённое имя ${name}`);
+  }
+}
+
+if (!deletedSet) {
+  add('WARN', 'deleted-names', join(ROOT, '.claude/skills/docs-audit/scripts/tag-names.mjs'),
+    'тегов выпуска нет — множество удалённых имён не построить');
+} else {
+  const liveTexts = [
+    ...[...published.keys()].filter((f) => !/^docs\/(en\/)?releases\//.test(slashed(f))),
+    ...skillFiles(join(PACKAGES, 'nestling.agent-skill', 'skill')),
+  ];
+  for (const file of liveTexts) {
+    if (existsSync(file)) scanDeletedNames(file);
   }
 }
 

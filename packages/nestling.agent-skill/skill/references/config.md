@@ -81,22 +81,24 @@ export class Pager {
 `ConfigService` and no `get('some.key')`: a typo is a compile error.
 
 Outside the container — in `main.ts`, to pick features or switches before
-build — the same section is read with `load(RootConfig)`.
+build — the choice goes into `build()`: values by hand, or the
+`argv(process.argv)` marker.
 
 ## Sources
 
-By default a section reads the environment. `config:` in `makeApp` binds a
+By default a section reads the environment. `config:` in `run()` binds a
 source to the keys of a section instead:
 
 ```
 config: [
-  [objectSource({ APP_PAGE_SIZE: '50' }, 'defaults'), appConfigKeys],
-  [env({ prefix: 'SERVICE_1_' }), '*'],
+  bind({ name: 'defaults', get: (key) => ({ APP_PAGE_SIZE: '50' })[key] },
+    { keys: appConfigKeys }),
+  bind(env({ prefix: 'SERVICE_1_' })),
 ]
 ```
 
-- The target is `Section.keys` — the right to bind, which does not grant
-  the right to read — or `'*'` for every key.
+- The target is `keys` of the binding — `Section.keys`, the right to bind,
+  which does not grant the right to read — or `'*'` for every key, the default.
 - Sources are tried in order; the first one that answers wins.
 - A source is any object implementing `ConfigSource`: `get(key)` is
   required, `watch()` is what makes a section reloadable.
