@@ -1,6 +1,6 @@
 # An application inside a foreign process
 
-> Guide to the current API; verified against `6717ebad` (2026-09-14).
+> Guide to the current API; verified against `f4a5c7e5` (2026-09-14).
 > Target description: [design/transports.md](../design/transports.md) §4.3,
 > [design/composition.md](../design/composition.md) §1. Rationale: the
 > entry [ideas.md](../../decisions/ideas.md)
