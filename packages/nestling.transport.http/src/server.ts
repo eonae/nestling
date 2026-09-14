@@ -24,7 +24,7 @@ import type {
   ServerDeclaration,
 } from '@nestlingjs/app';
 import { DEFAULT_INSTANCE, makeServerDeclaration } from '@nestlingjs/app';
-import type { InjectionToken } from '@nestlingjs/container';
+import type { InjectionToken, TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily, resourceProvider } from '@nestlingjs/container';
 
 /** Сколько `drain()` ждёт активные соединения по умолчанию (10 с) */
@@ -45,9 +45,8 @@ type HttpServerConfigValues = ConfigProjection<
  * `server` заводит сервер с собственным именем, поэтому `HttpServer$` и
  * `HttpTransport$` токена семейства одного имени описывают одну пару.
  */
-export const HttpServer$ = makeTokenFamily<HttpServer, [instance: string]>(
-  'server:http',
-);
+export const HttpServer$: TokenFamily<HttpServer, [instance: string]> =
+  makeTokenFamily<HttpServer, [instance: string]>('server:http');
 
 /** Опции HTTP-сервера: всё, что относится к сокету, а не к разбору запроса */
 export interface HttpServerOptions {

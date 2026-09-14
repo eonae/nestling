@@ -669,24 +669,6 @@ function implementOperation(
 }
 
 /**
- * Пространство имён HTTP-деклараций: конструктор на каждый HTTP-метод и
- * реализация операции.
- *
- * Тип объявлен отдельно, чтобы состав проверялся при создании значения:
- * пропущенный метод стал бы ошибкой компиляции, а не тихой дырой в
- * публичном имени.
- */
-interface HttpEndpointNamespace {
-  get: HttpMethodConstructor;
-  head: HttpMethodConstructor;
-  post: HttpMethodConstructor;
-  put: HttpMethodConstructor;
-  patch: HttpMethodConstructor;
-  delete: HttpMethodConstructor;
-  implement: typeof implementOperation;
-}
-
-/**
  * Конструкторы HTTP-деклараций.
  *
  * Значение, а не функция: декларацию создаёт статик, названный
@@ -701,7 +683,15 @@ interface HttpEndpointNamespace {
  * const Impl = httpEndpoint.implement(CreateUserOperation, { handler });
  * ```
  */
-export const httpEndpoint = {
+export const httpEndpoint: {
+  get: HttpMethodConstructor;
+  head: HttpMethodConstructor;
+  post: HttpMethodConstructor;
+  put: HttpMethodConstructor;
+  patch: HttpMethodConstructor;
+  delete: HttpMethodConstructor;
+  implement: typeof implementOperation;
+} = {
   get: makeMethodConstructor('GET'),
   head: makeMethodConstructor('HEAD'),
   post: makeMethodConstructor('POST'),
@@ -709,4 +699,4 @@ export const httpEndpoint = {
   patch: makeMethodConstructor('PATCH'),
   delete: makeMethodConstructor('DELETE'),
   implement: implementOperation,
-} satisfies HttpEndpointNamespace;
+};

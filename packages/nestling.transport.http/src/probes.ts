@@ -20,6 +20,7 @@ import type {
 import { Health$, makeFail, makePlugin, Ok } from '@nestlingjs/app';
 import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { Handler } from '@nestlingjs/container';
+import type { FailDefinitionWithDetails } from '@nestlingjs/operations';
 
 /** Причина, по которой пробы выведены из-под инвариантов сборки */
 const REASON = 'load balancer probe: never reaches the application pipeline';
@@ -57,7 +58,10 @@ const livenessSchema: StandardSchemaV1<unknown, LivenessReport> = {
  * задекларирован в `errors:`, поэтому `details` уходит клиенту при любой
  * политике раскрытия — тело пробы и должно нести отчёт.
  */
-export const NotReady = makeFail('service_unavailable:not_ready', {
+export const NotReady: FailDefinitionWithDetails<
+  'service_unavailable:not_ready',
+  HealthReport
+> = makeFail('service_unavailable:not_ready', {
   details: reportSchema,
   message: 'Service is not ready',
 });

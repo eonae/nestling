@@ -6,7 +6,11 @@
  * этот пакет (см. `@nestlingjs/app`).
  */
 
-import type { ConfigKeys } from '@nestlingjs/app';
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+} from '@nestlingjs/app';
 import { DEFAULT_INSTANCE, makeConfig } from '@nestlingjs/app';
 import { z } from 'zod';
 
@@ -19,7 +23,16 @@ import { z } from 'zod';
  * таймауты, `sseHeartbeat`) задаются аргументом фабрики: они не зависят от
  * окружения.
  */
-export const HttpServerConfig = makeConfig.family('http', {
+export const HttpServerConfig: (instance: string) => ConfigSectionToken<
+  ConfigValues<
+    {
+      port: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      host: z.ZodDefault<z.ZodString>;
+    },
+    Record<never, never>
+  >,
+  string
+> = makeConfig.family('http', {
   port: z.coerce.number().int().min(0).max(65_535).default(3000),
   host: z.string().default('0.0.0.0'),
 });

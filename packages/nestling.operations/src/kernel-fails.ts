@@ -1,4 +1,8 @@
 import { jsonSchema } from './json-schema.js';
+import type {
+  FailDefinitionWithDetails,
+  FailDefinitionWithoutDetails,
+} from './make-fail.js';
 import { makeFail } from './make-fail.js';
 
 import type { SchemaIssue, StandardSchemaV1 } from '@nestlingjs/common.misc';
@@ -97,7 +101,10 @@ function numberFieldSchema<K extends string>(
  * `multipart` не прошли схему `fields`, разбор запроса не удался.
  * Детали — `issues` в формате Standard Schema.
  */
-export const BadRequest = makeFail('bad_request', {
+export const BadRequest: FailDefinitionWithDetails<
+  'bad_request',
+  readonly SchemaIssue[]
+> = makeFail('bad_request', {
   message: 'Bad request',
   details: issuesSchema,
 });
@@ -109,7 +116,10 @@ export const BadRequest = makeFail('bad_request', {
  * У потокового входа лимит срабатывает во время чтения, то есть уже
  * внутри хендлера, и без кода ядра 413 превращался бы на границе в 500.
  */
-export const PayloadTooLarge = makeFail('payload_too_large', {
+export const PayloadTooLarge: FailDefinitionWithDetails<
+  'payload_too_large',
+  Record<'limit', number>
+> = makeFail('payload_too_large', {
   details: numberFieldSchema('limit'),
   message: (d) => `Payload exceeds the limit of ${d.limit}`,
 });
@@ -121,17 +131,21 @@ export const PayloadTooLarge = makeFail('payload_too_large', {
  * Объявлен здесь, а не в `@nestlingjs/app`: набор кодов ядра закрыт и не
  * пополняется из других пакетов. `@nestlingjs/app` его реэкспортирует.
  */
-export const Timeout = makeFail('timeout', {
-  message: 'Operation timed out',
-});
+export const Timeout: FailDefinitionWithoutDetails<'timeout'> = makeFail(
+  'timeout',
+  {
+    message: 'Operation timed out',
+  },
+);
 
 /**
  * Отказ, которым заменяется любой незадекларированный отказ и любая
  * необработанная ошибка на выходе из пайплайна.
  */
-export const InternalError = makeFail('internal_error', {
-  message: 'Internal server error',
-});
+export const InternalError: FailDefinitionWithoutDetails<'internal_error'> =
+  makeFail('internal_error', {
+    message: 'Internal server error',
+  });
 
 /**
  * Объединение определений отказов ядра.

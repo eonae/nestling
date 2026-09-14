@@ -111,6 +111,17 @@ export interface HttpResponseMeta {
 }
 
 /**
+ * Метка конверта: объявлена отдельно от класса, потому что имя ей даёт
+ * символ, а декларация выводится из одного файла и такого имени не
+ * выражает. Ставится конструктором — поле остаётся собственным, как было.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export interface HttpResponse {
+  /** Метка конверта; по ней его распознаёт рантайм пайплайна */
+  readonly [TRANSPORT_RESPONSE]: true;
+}
+
+/**
  * HTTP-форма ответа: результат плюс заголовки, cookie и редирект.
  *
  * Значение реализует конверт транспортного ответа с именем `http`:
@@ -133,21 +144,21 @@ export interface HttpResponseMeta {
  * return HttpResponse.redirect('/app', { status: 303 });
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class HttpResponse<
   TValue = unknown,
   TStatus extends SuccessStatus = SuccessStatus,
 > implements TransportResponse<TValue, TStatus>
 {
-  /** Метка конверта; по ней его распознаёт рантайм пайплайна */
-  readonly [TRANSPORT_RESPONSE] = true as const;
-
   /** Имя транспорта, который понимает `meta` */
   readonly transport: string = HTTP_TRANSPORT_NAME;
 
   private constructor(
     readonly result: OutputSync<TValue, AnyFail, TStatus>,
     readonly meta: HttpResponseMeta,
-  ) {}
+  ) {
+    Object.assign(this, { [TRANSPORT_RESPONSE]: true });
+  }
 
   /**
    * Обычный ответ с заголовками и cookie.

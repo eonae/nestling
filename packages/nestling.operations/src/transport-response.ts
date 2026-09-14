@@ -8,7 +8,9 @@ import type { SuccessStatus } from './status.js';
  * `Symbol.for`, а не уникальный символ: две копии пакета в одном процессе
  * дают один и тот же символ, и конверт из чужой копии распознаётся.
  */
-export const TRANSPORT_RESPONSE = Symbol.for('nestling:transport-response');
+export const TRANSPORT_RESPONSE: unique symbol = Symbol.for(
+  'nestling:transport-response',
+);
 
 /**
  * Ответ, оформленный транспортом: результат плюс метаданные протокола.

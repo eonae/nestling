@@ -19,7 +19,7 @@ import type {
 } from './operation.js';
 import type { Ok } from './result.js';
 
-import type { Token } from '@nestlingjs/container/tokens';
+import type { Token, TokenFamily } from '@nestlingjs/container/tokens';
 import { makeTokenFamily } from '@nestlingjs/container/tokens';
 
 /**
@@ -161,7 +161,10 @@ export interface Emitter<
  *
  * @internal Пользовательский код получает DI-токен через `Operation.caller`
  */
-export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
+export const PortFamily: TokenFamily<
+  Port<any>,
+  [name: string]
+> = makeTokenFamily<Port<any>, [name: string]>('Port');
 
 /**
  * Семейство эмиттеров: один DI-токен на операцию вида `command` или `event`
@@ -169,9 +172,10 @@ export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
  *
  * @internal Пользовательский код получает DI-токен через `Operation.emitter`
  */
-export const EmitterFamily = makeTokenFamily<Emitter<any>, [name: string]>(
-  'Emitter',
-);
+export const EmitterFamily: TokenFamily<
+  Emitter<any>,
+  [name: string]
+> = makeTokenFamily<Emitter<any>, [name: string]>('Emitter');
 
 /** DI-токен порта операции: токен семейства, типизированный операцией */
 export type PortToken<C extends RequestOperation<any, any, any>> = Token<
