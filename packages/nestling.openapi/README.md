@@ -22,29 +22,29 @@ validator needs that validator's converter — it is passed in the
 ## Minimal example
 
 ```typescript
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 
-export const appOpenapi = openapi({
+export const openapi = makeOpenapi({
   info: { title: 'Users API', version: '1.0.0' },
   pipeline: observability, // if the root policy requires the layer
 });
 
 makeApp({
   features: [UsersFeature],
-  plugins: [appOpenapi],
+  plugins: [openapi],
   transports: [http()],
 });
 // GET /openapi.json
 
 // The same document for the build artifacts, without starting the app:
-appOpenapi.document(app.discover(args));
+openapi.document(app.discover(args));
 ```
 
 ## Exports
 
 | Name | What it does |
 |---|---|
-| `openapi` | a plugin: builds the document on the BUILD phase, serves it as an endpoint, and gives it as a value through the `document(discovery)` method |
+| `makeOpenapi` | a plugin: builds the document on the BUILD phase, serves it as an endpoint, and gives it as a value through the `document(discovery)` method |
 | `OpenApiDocument$` | the DI token of the ready document |
 | `OpenApiPlugin` | the plugin value: an ordinary step of the composition plus the `document` method |
 | `OpenApiOptions` | `info`, the optional `converters`, `servers`, `security`, `externalDocs` |

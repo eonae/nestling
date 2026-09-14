@@ -1,5 +1,5 @@
 /**
- * `drizzlePg(options)` — форма, которой пакет отдаётся приложению.
+ * `makeDrizzlePg(options)` — форма, которой пакет отдаётся приложению.
  *
  * Соединение объявляется значением: вызов создаёт DI-токен, переменную
  * транзакции, слой и политику, и все четыре несут тип схемы этого
@@ -183,8 +183,8 @@ const declared = new Set<string>();
  *
  * @example
  * ```typescript
- * export const db = drizzlePg({ schema });
- * export const analytics = drizzlePg({ name: 'analytics', schema: reports });
+ * export const db = makeDrizzlePg({ schema });
+ * export const analytics = makeDrizzlePg({ name: 'analytics', schema: reports });
  *
  * export const app = makeApp({
  *   features: [UsersFeature],
@@ -194,7 +194,7 @@ const declared = new Set<string>();
  * });
  * ```
  */
-export function drizzlePg<
+export function makeDrizzlePg<
   S extends PgSchema,
   N extends string = typeof DEFAULT_CONNECTION,
 >(options: DrizzlePgOptions<S, N>): DrizzlePgPlugin<S, N> {

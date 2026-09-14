@@ -66,7 +66,7 @@ export const valueOfVar = (
  *
  * @example
  * ```typescript
- * subscriptions({
+ * makeSubscriptions({
  *   identity: computed([TenantId, UserId], (_ctx, tenant, user) =>
  *     `${tenant}:${user}`),
  * });

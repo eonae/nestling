@@ -10,10 +10,10 @@
 export class PgInboxTransactionError extends TypeError {
   constructor(received: string) {
     super(
-      `pgInboxStore.claim(transaction, …): expected the drizzle value of ` +
+      `makePgInboxStore.claim(transaction, …): expected the drizzle value of ` +
         `this connection's transaction, got ${received}. Either compose ` +
         `db.transaction() into the pipeline of this endpoint, or pass the ` +
-        `transaction variable of this very connection to inbox({ ` +
+        `transaction variable of this very connection to makeInbox({ ` +
         `transaction }) — the mark and the business row must be written by ` +
         `one transaction.`,
     );

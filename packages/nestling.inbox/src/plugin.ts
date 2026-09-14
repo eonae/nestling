@@ -1,5 +1,5 @@
 /**
- * Плагин `inbox(options)` — форма, которой пакет отдаётся приложению.
+ * Плагин `makeInbox(options)` — форма, которой пакет отдаётся приложению.
  *
  * Плагин, а не механизм: единица остаётся функцией, возвращающей
  * значение. Роль даёт ровно две вещи — своё поле корня (`plugins:`) и
@@ -59,7 +59,7 @@ export interface InboxPlugin extends Plugin {
    * Слой приёма — одно неизменяемое значение.
    *
    * Подписчик композирует его внутрь слоя транзакции:
-   * `compose(db.transaction(), appInbox.layer)`.
+   * `compose(db.transaction(), inbox.layer)`.
    */
   readonly layer: InboxLayer;
 
@@ -79,7 +79,7 @@ export interface InboxPlugin extends Plugin {
    *
    * @example
    * ```typescript
-   * policies: [appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
+   * policies: [inbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
    * ```
    */
   requiresInbox(filter?: EndpointFilter, label?: string): Policy;
@@ -89,7 +89,7 @@ export interface InboxPlugin extends Plugin {
 function assertOptions(options: InboxOptions): void {
   if (typeof options.transaction?.key !== 'string') {
     throw new TypeError(
-      `inbox({ transaction }): expected a context variable value declared ` +
+      `makeInbox({ transaction }): expected a context variable value declared ` +
         `with contextVar<T>()('key'), not a key. The package reads the ` +
         `transaction through that variable and passes it to the store as is.`,
     );
@@ -97,7 +97,7 @@ function assertOptions(options: InboxOptions): void {
 
   if (options.store === undefined || options.store === null) {
     throw new TypeError(
-      `inbox({ store }): expected the DI token of the store adapter. The ` +
+      `makeInbox({ store }): expected the DI token of the store adapter. The ` +
         `adapter belongs to the application: it and the transaction must ` +
         `live on one connection.`,
     );
@@ -108,20 +108,20 @@ function assertOptions(options: InboxOptions): void {
  * Объявляет плагин транзакционного приёма.
  *
  * Значение создаётся композиционным корнем **один раз**: слой сравнивается
- * политикой по ссылке, и второй вызов `inbox(...)` дал бы другой слой.
+ * политикой по ссылке, и второй вызов `makeInbox(...)` дал бы другой слой.
  *
  * @param options - Переменная транзакции и DI-токен хранилища
  * @returns Плагин со слоем, ключами секции и политикой предпосылки
  *
  * @example
  * ```typescript
- * export const appInbox = inbox({
+ * export const inbox = makeInbox({
  *   transaction: db.tx,
  *   store: inboxStore.token,
  * });
  * ```
  */
-export function inbox(options: InboxOptions): InboxPlugin {
+export function makeInbox(options: InboxOptions): InboxPlugin {
   assertOptions(options);
 
   const layer = makeInboxLayer();

@@ -35,7 +35,7 @@ import { http } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [appLogging],
+  plugins: [logging],
   transports: [http()], // объявление экземпляра, а не экземпляр
 });
 

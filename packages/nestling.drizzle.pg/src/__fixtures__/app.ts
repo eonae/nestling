@@ -8,7 +8,7 @@
  */
 
 import type { PgTx } from '../connection.js';
-import { drizzlePg } from '../plugin.js';
+import { makeDrizzlePg } from '../plugin.js';
 
 import { analyticsSchema, schema, users } from './schema.js';
 import { TestTransport$ } from './transport.js';
@@ -20,10 +20,10 @@ import { Ok } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Соединение по умолчанию: ключи `DATABASE_*`, переменная `tx` */
-export const db = drizzlePg({ schema });
+export const db = makeDrizzlePg({ schema });
 
 /** Второе соединение: ключи `DATABASE_ANALYTICS_*`, переменная `analyticsTx` */
-export const analytics = drizzlePg({
+export const analytics = makeDrizzlePg({
   name: 'analytics',
   schema: analyticsSchema,
 });

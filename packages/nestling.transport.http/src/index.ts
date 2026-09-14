@@ -114,7 +114,7 @@ export {
 } from './binding.js';
 
 // ./probes.js — 1
-export { httpProbes } from './probes.js';
+export { makeHttpProbes } from './probes.js';
 
 /**
  * Из конфиг-секции наружу уходит только дескриптор ключей: право

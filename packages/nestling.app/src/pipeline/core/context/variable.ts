@@ -198,7 +198,7 @@ export const declaredVarOf = (step: unknown): AnyContextVar | undefined =>
  * read-only {@link Signal}.
  *
  * Публичен ради опций, принимающих переменную **либо** функцию
- * (`subscriptions({ identity: RequestId })`): форму значения различает
+ * (`makeSubscriptions({ identity: RequestId })`): форму значения различает
  * тот, кто владеет объявлением переменной, а не каждый потребитель
  * собственной копией проверки.
  *

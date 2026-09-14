@@ -31,29 +31,29 @@ an event, and this one does not let it be processed twice.
 ```typescript
 // The plugin is built next to the connection: its `layer` field is
 // needed by the subscriber declaration.
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 
 // The intake layer is composed inside the transaction layer: the mark
 // and the records of the handler are committed together.
 export const WelcomeEmail = implement(UserCreated, {
   subscriber: 'welcome-email',
-  pipeline: compose(db.transaction(), appInbox.layer),
+  pipeline: compose(db.transaction(), inbox.layer),
   handler: WelcomeEmailHandler,
 });
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [db, inboxStore, appInbox],
+  plugins: [db, inboxStore, inbox],
   transports: [http()],
   // The precondition is checked on the BUILD phase: a subscriber
   // without the layer fails the build before the socket opens
-  policies: [appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
+  policies: [inbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
 });
 ```
 
 ## Exports
 
-- **Connection** — `inbox`, `InboxOptions`, `InboxPlugin`, `InboxLayer`,
+- **Connection** — `makeInbox`, `InboxOptions`, `InboxPlugin`, `InboxLayer`,
   `inboxConfigKeys`, `InboxConfigValues`, `InboxClaimStep`,
   `readIdempotencyKey`, `InboxKeyMissingError`.
 - **Storage** — `InboxStore`, `InMemoryInboxStore`, `InboxMark`,

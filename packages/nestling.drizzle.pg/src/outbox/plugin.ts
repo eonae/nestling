@@ -1,5 +1,5 @@
 /**
- * `pgOutboxStore(connection)` — плагин с DI-токеном хранилища.
+ * `makePgOutboxStore(connection)` — плагин с DI-токеном хранилища.
  *
  * Хранилище живёт на том же соединении, что и транзакция запроса: иначе
  * строку события и строку бизнес-изменения одной транзакцией не
@@ -33,21 +33,21 @@ export interface PgOutboxStorePlugin extends Plugin {
 /**
  * Объявляет адаптер хранилища на соединении.
  *
- * @param connection - Значение соединения, вернувшееся из `drizzlePg`
+ * @param connection - Значение соединения, вернувшееся из `makeDrizzlePg`
  * @param options - Имя таблицы записей
  *
  * @example
  * ```typescript
- * export const outboxStore = pgOutboxStore(db);
+ * export const outboxStore = makePgOutboxStore(db);
  *
- * export const appOutbox = outbox({
+ * export const outbox = makeOutbox({
  *   transaction: db.tx,
  *   store: outboxStore.token,
  *   operations: [UserCreated],
  * });
  * ```
  */
-export function pgOutboxStore<S extends PgSchema, N extends string>(
+export function makePgOutboxStore<S extends PgSchema, N extends string>(
   connection: DrizzlePgPlugin<S, N>,
   options: PgOutboxStoreOptions = {},
 ): PgOutboxStorePlugin {

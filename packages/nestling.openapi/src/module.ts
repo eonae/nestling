@@ -1,5 +1,5 @@
 /**
- * `openapi(...)` — параметризованный плагин-издатель.
+ * `makeOpenapi(...)` — параметризованный плагин-издатель.
  *
  * Новых механизмов роль плагина не приносит: инфраструктура остаётся
  * значением с параметрами, ровно как `logging({ service })` в примерах.
@@ -112,19 +112,19 @@ export interface OpenApiPlugin extends Plugin {
  *
  * @example
  * ```typescript
- * export const appOpenapi = openapi({
+ * export const openapi = makeOpenapi({
  *   info: { title: 'Users API', version: '1.0.0' },
  *   pipeline: observabilityBase,
  * });
  *
  * build({
  *   features: [UsersFeature],
- *   plugins: [appOpenapi],
+ *   plugins: [openapi],
  *   transports: [http()],
  * });
  *
  * // Тот же документ для артефактов сборки, без поднятия приложения:
- * appOpenapi.document(app.discover(args));
+ * openapi.document(app.discover(args));
  * ```
  */
 /**
@@ -142,7 +142,7 @@ const documentSchema: StandardSchemaV1<unknown, OpenApiDocument> = {
   },
 };
 
-export function openapi<P extends AnyInput = AnyInput, PN = never>(
+export function makeOpenapi<P extends AnyInput = AnyInput, PN = never>(
   options: OpenApiOptions & OpenApiServeOptions<P, PN>,
 ): OpenApiPlugin {
   const { path, pipeline, detached, announceHidden, ...documentOptions } =

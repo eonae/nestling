@@ -106,7 +106,7 @@ describeWithDatabase('адаптер хранилища на настоящей 
 
   it('чужое значение транзакции названо ошибкой с обеими починками', async () => {
     await expect(store.append({}, [makeOutboxRecord()])).rejects.toThrow(
-      /db\.transaction\(\).*outbox\({/s,
+      /db\.transaction\(\).*makeOutbox\({/s,
     );
   });
 });

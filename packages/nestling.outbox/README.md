@@ -28,7 +28,7 @@ application writes the adapter.
 // The plugin is built in the composition root: the transaction
 // variable, the DI token of the storage and the list of operations that
 // travel through the outbox.
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: Tx,
   store: OutboxStore$,
   operations: [UserCreated],
@@ -36,9 +36,9 @@ export const appOutbox = outbox({
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [persistence, appOutbox],
+  plugins: [persistence, outbox],
   transports: [http()],
-  policies: [appOutbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
+  policies: [outbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
 
 // In the handler the emitter arrives by the DI token outboxed(UserCreated):
@@ -48,7 +48,7 @@ export const app = makeApp({
 
 ## Exports
 
-- **Connection** — `outbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
+- **Connection** — `makeOutbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
   `OutboxEmitter`, `OutboxEmitMeta`, `outboxConfigKeys`,
   `OutboxConfigValues`, `StagingTransaction`,
   `OutboxTransactionMissingError`.

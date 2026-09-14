@@ -254,7 +254,7 @@ const APP_BRAND = Symbol.for('nestling:app');
  * ```typescript
  * export const app = makeApp({
  *   features: [OrdersFeature, BillingFeature],
- *   plugins: [appLogging],
+ *   plugins: [logging],
  *   switches: [Storage],
  *   transports: [http(), nats({ name: 'events' })],
  *   intercom: 'events',
@@ -352,7 +352,7 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    *
    * @example
    * ```typescript
-   * const document = appOpenapi.document(app.discover(args));
+   * const document = openapi.document(app.discover(args));
    * ```
    */
   discover(args?: BuildArgs<S>): EndpointDiscovery {

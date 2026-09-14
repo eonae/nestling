@@ -71,7 +71,7 @@ export const GET = toFetchHandler(embedded); // (Request) => Promise<Response>
 - **Adapter** ([recipe](../../docs/en/recipes/embedded.md)) — `adapter`,
   `HttpAdapter`, `HttpFetchHandler`, `HttpNodeHandler`, `toFetchHandler`,
   `toNodeHandler`.
-- **Server and probes** — `httpProbes`, `HttpServer`, `HttpServer$`,
+- **Server and probes** — `makeHttpProbes`, `HttpServer`, `HttpServer$`,
   `server`, `serverKeys`.
 - **Endpoint declaration** ([design](../../docs/en/design/endpoints.md))
   — `httpBindingOf`, `httpEndpoint`, `httpEndpoint.implement`,

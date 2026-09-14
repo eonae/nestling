@@ -56,14 +56,16 @@ export interface SubscriptionsOptions extends RegistryOptions {
  * @example
  * ```typescript
  * // src/infrastructure.ts
- * export const appSubscriptions = subscriptions({
+ * export const subscriptions = makeSubscriptions({
  *   identity: RequestId,
  *   publish: true,
  *   node: process.env.HOSTNAME,
  * });
  * ```
  */
-export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
+export const makeSubscriptions = (
+  options: SubscriptionsOptions = {},
+): Plugin => {
   // Условный список зависимостей — тот же приём, которым `portsKernel`
   // добавляет шину в `invokerDeps`: выключенная публикация не порождает
   // ни одного узла

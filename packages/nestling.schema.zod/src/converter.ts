@@ -29,7 +29,7 @@ export type ZodConverterOptions = Omit<
  *
  * @example Заменить умолчание своими опциями
  * ```typescript
- * openapi({ info: { title: 'My API', version: '1.0.0' },
+ * makeOpenapi({ info: { title: 'My API', version: '1.0.0' },
  *           converters: [zodConverter({ unrepresentable: 'any' })] })
  * ```
  */

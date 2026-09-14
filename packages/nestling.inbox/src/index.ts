@@ -26,7 +26,7 @@ export { InboxKeyMissingError } from './errors.js';
 export { readIdempotencyKey } from './key.js';
 export { InMemoryInboxStore } from './memory-store.js';
 export type { RollbackAwareTransaction } from './memory-store.js';
-export { inbox } from './plugin.js';
+export { makeInbox } from './plugin.js';
 export type { InboxLayer, InboxOptions, InboxPlugin } from './plugin.js';
 export { InboxSweeper, InboxSweeper$ } from './sweeper.js';
 export type { InboxSweeperOptions } from './sweeper.js';

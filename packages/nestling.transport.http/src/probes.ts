@@ -1,5 +1,5 @@
 /**
- * `httpProbes()` — плагин проб: два endpoint'а поверх узла ядра `Health$`.
+ * `makeHttpProbes()` — плагин проб: два endpoint'а поверх узла ядра `Health$`.
  *
  * Правило «когда приложение готово» живёт в ядре: итог, таймаут и кэш
  * принадлежат `Health$`. Пакету принадлежат только адреса и коды ответа.
@@ -74,7 +74,7 @@ export interface HttpProbesOptions {
    * Имя экземпляра HTTP-транспорта, который обслуживает пробы.
    *
    * По умолчанию `'default'`. Приложение с админским портом отдаёт пробы
-   * на нём: `httpProbes({ on: 'admin' })`.
+   * на нём: `makeHttpProbes({ on: 'admin' })`.
    */
   readonly on?: string;
 }
@@ -91,12 +91,12 @@ export interface HttpProbesOptions {
  * ```typescript
  * makeApp({
  *   features: [UsersFeature],
- *   plugins: [httpProbes()],
+ *   plugins: [makeHttpProbes()],
  *   transports: [http()],
  * });
  * ```
  */
-export function httpProbes(options: HttpProbesOptions = {}): Plugin {
+export function makeHttpProbes(options: HttpProbesOptions = {}): Plugin {
   const { liveness = '/healthz', readiness = '/readyz', on } = options;
 
   @Handler([Health$])

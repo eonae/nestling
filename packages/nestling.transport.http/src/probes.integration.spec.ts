@@ -9,7 +9,7 @@
 import { request } from 'node:http';
 
 import { serverKeys } from './config.js';
-import { httpProbes } from './probes.js';
+import { makeHttpProbes } from './probes.js';
 import type { HttpServer } from './server.js';
 import { HttpTransport$ } from './token.js';
 import { http } from './transport.js';
@@ -83,7 +83,7 @@ const socket: ConfigSource = {
 
 /** Собирает приложение с пробами на эфемерном порту */
 const start = async (
-  plugin = httpProbes(),
+  plugin = makeHttpProbes(),
 ): Promise<{ app: BuiltApp; port: number }> => {
   const app = makeApp({
     features: [makeFeature({ name: 'db', modules: [DbModule] })],
@@ -180,7 +180,7 @@ describe('пробы HTTP', () => {
 
   it('свои пути обслуживаются, умолчательные отвечают 404', async () => {
     const { app, port } = await start(
-      httpProbes({ liveness: '/live', readiness: '/ready' }),
+      makeHttpProbes({ liveness: '/live', readiness: '/ready' }),
     );
 
     try {
@@ -205,7 +205,7 @@ describe('пробы HTTP', () => {
 
     const report = await makeApp({
       features: [makeFeature({ name: 'db', modules: [DbModule] })],
-      plugins: [httpProbes()],
+      plugins: [makeHttpProbes()],
       transports: [http()],
       policies: [
         everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
@@ -227,7 +227,7 @@ describe('пробы HTTP', () => {
   });
 
   it('обе пробы скрыты от документа причиной', () => {
-    const declarations = httpProbes()
+    const declarations = makeHttpProbes()
       .endpoints as readonly AnyEndpointDefinition[];
 
     expect(

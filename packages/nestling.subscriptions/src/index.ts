@@ -27,7 +27,7 @@ export type {
 export { computed } from './computed.js';
 export { SubscriptionKilledError } from './errors.js';
 export { tracked, TrackSubscription, UntrackSubscription } from './layer.js';
-export { subscriptions } from './module.js';
+export { makeSubscriptions } from './module.js';
 export type { SubscriptionsOptions } from './module.js';
 export { SubscriptionRegistry } from './registry.js';
 export type {

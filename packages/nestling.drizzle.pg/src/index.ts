@@ -30,7 +30,7 @@ export {
   PgConnectionFailedError,
   PgDuplicateConnectionError,
 } from './errors.js';
-export { drizzlePg } from './plugin.js';
+export { makeDrizzlePg } from './plugin.js';
 export type {
   DrizzlePgOptions,
   DrizzlePgPlugin,

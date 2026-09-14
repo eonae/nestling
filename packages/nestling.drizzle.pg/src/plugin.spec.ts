@@ -12,7 +12,7 @@ import { analyticsSchema, schema } from './__fixtures__/schema.js';
 import { testTransport } from './__fixtures__/transport.js';
 import { PgConnection } from './connection.js';
 import { PgDuplicateConnectionError } from './errors.js';
-import { drizzlePg } from './plugin.js';
+import { makeDrizzlePg } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition, App } from '@nestlingjs/app';
@@ -51,7 +51,7 @@ const application = (endpoints: readonly AnyEndpointDefinition[]): App =>
     policies: [db.requiresTransaction({ pattern: /^POST / })],
   });
 
-describe('drizzlePg(): соединение в собранном приложении', () => {
+describe('makeDrizzlePg(): соединение в собранном приложении', () => {
   it('запрос идёт в транзакции: `BEGIN`, запись, `COMMIT`', async () => {
     pool.commands.length = 0;
     await using app = await buildTest(application([CreateUser]), {
@@ -89,7 +89,7 @@ describe('drizzlePg(): соединение в собранном приложе
   });
 });
 
-describe('drizzlePg(): политика предпосылки', () => {
+describe('makeDrizzlePg(): политика предпосылки', () => {
   it('endpoint под фильтром без слоя роняет сборку', async () => {
     await expect(
       buildTest(application([Ping]), {
@@ -115,14 +115,14 @@ describe('drizzlePg(): политика предпосылки', () => {
   });
 });
 
-describe('drizzlePg(): повторное имя', () => {
+describe('makeDrizzlePg(): повторное имя', () => {
   it('второе соединение с тем же именем не объявляется', () => {
     expect(() =>
-      drizzlePg({ name: 'analytics', schema: analyticsSchema }),
+      makeDrizzlePg({ name: 'analytics', schema: analyticsSchema }),
     ).toThrow(PgDuplicateConnectionError);
   });
 
   it('текст ошибки называет имя экземпляра', () => {
-    expect(() => drizzlePg({ schema })).toThrow(/'default'/);
+    expect(() => makeDrizzlePg({ schema })).toThrow(/'default'/);
   });
 });

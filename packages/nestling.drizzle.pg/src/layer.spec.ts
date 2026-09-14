@@ -10,7 +10,7 @@ import { FakePool } from './__fixtures__/pool.js';
 import { schema } from './__fixtures__/schema.js';
 import { PgConnection } from './connection.js';
 import type { TxLayerInput } from './plugin.js';
-import { drizzlePg } from './plugin.js';
+import { makeDrizzlePg } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type {
@@ -23,7 +23,7 @@ import { makeEmptyContext } from '@nestlingjs/app';
 import { Ok } from '@nestlingjs/operations';
 import { sql } from 'drizzle-orm';
 
-const db = drizzlePg({ schema });
+const db = makeDrizzlePg({ schema });
 
 /** Накопленный контекст слоя: сессия и значение переменной */
 type LayerInput = TxLayerInput<typeof schema, 'default'>;

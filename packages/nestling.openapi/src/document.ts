@@ -1,7 +1,7 @@
 /**
  * Построение документа из деклараций — одна функция на обоих потребителей.
  *
- * Её зовут метод плагина (`appOpenapi.document(app.discover(args))`) и
+ * Её зовут метод плагина (`openapi.document(app.discover(args))`) и
  * фабрика провайдера документа. Поэтому документ из артефактов CI и
  * документ, отдаваемый endpoint'ом, совпадают по построению.
  *
@@ -58,7 +58,7 @@ interface Documented {
  * path-параметр без свойства в схеме; неразложимый вход. Нарушения
  * перечисляются **все сразу**
  *
- * @internal Наружу пакет отдаёт метод плагина `openapi(options).document()`
+ * @internal Наружу пакет отдаёт метод плагина `makeOpenapi(options).document()`
  */
 export function buildDocument(
   endpoints: readonly DocumentedEndpoint[],
@@ -114,7 +114,7 @@ function assertInfo(info: unknown): void {
 
   if (typeof title !== 'string' || typeof version !== 'string') {
     throw new TypeError(
-      `openapi({ info }): 'info' must carry a 'title' and a 'version' — ` +
+      `makeOpenapi({ info }): 'info' must carry a 'title' and a 'version' — ` +
         `both are required by the OpenAPI specification.`,
     );
   }

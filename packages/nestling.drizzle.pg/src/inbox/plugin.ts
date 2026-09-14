@@ -1,5 +1,5 @@
 /**
- * `pgInboxStore(connection)` — плагин с DI-токеном хранилища отметок.
+ * `makePgInboxStore(connection)` — плагин с DI-токеном хранилища отметок.
  *
  * Хранилище живёт на том же соединении, что и транзакция запроса: иначе
  * строку отметки и строку бизнес-изменения одной транзакцией не
@@ -33,20 +33,20 @@ export interface PgInboxStorePlugin extends Plugin {
 /**
  * Объявляет адаптер хранилища отметок на соединении.
  *
- * @param connection - Значение соединения, вернувшееся из `drizzlePg`
+ * @param connection - Значение соединения, вернувшееся из `makeDrizzlePg`
  * @param options - Имя таблицы отметок
  *
  * @example
  * ```typescript
- * export const inboxStore = pgInboxStore(db);
+ * export const inboxStore = makePgInboxStore(db);
  *
- * export const appInbox = inbox({
+ * export const inbox = makeInbox({
  *   transaction: db.tx,
  *   store: inboxStore.token,
  * });
  * ```
  */
-export function pgInboxStore<S extends PgSchema, N extends string>(
+export function makePgInboxStore<S extends PgSchema, N extends string>(
   connection: DrizzlePgPlugin<S, N>,
   options: PgInboxStoreOptions = {},
 ): PgInboxStorePlugin {

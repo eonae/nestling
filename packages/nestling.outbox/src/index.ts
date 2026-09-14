@@ -30,7 +30,7 @@ export type {
 } from './memory-store.js';
 export { OutboxPublished, OutboxStuck } from './operations.js';
 export type { OutboxPublishedFact, OutboxStuckFact } from './operations.js';
-export { outbox } from './plugin.js';
+export { makeOutbox } from './plugin.js';
 export type { OutboxOptions, OutboxPlugin } from './plugin.js';
 export { OutboxRelay, OutboxRelay$ } from './relay.js';
 export type { OutboxDrainReport, OutboxRelayOptions } from './relay.js';
