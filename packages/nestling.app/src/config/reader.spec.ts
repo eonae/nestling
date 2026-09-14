@@ -35,8 +35,11 @@ const declaration = (prefix: string, keys: readonly string[]) =>
 /** Шпион логгера: предупреждения читалки попадают сюда после `attachLogger` */
 let spy: SpyLogger = spyLogger();
 
-/** Сообщения предупреждений в порядке записи */
-const warnings = (): string[] => spy.entries.map((entry) => entry.message);
+/** Сообщения предупреждений в порядке записи; порядок подъёма уходит в debug */
+const warnings = (): string[] =>
+  spy.entries
+    .filter((entry) => entry.level === 'warn')
+    .map((entry) => entry.message);
 
 /** Источник, который никогда ничего не знает — «пропускаю ход» на любой ключ. */
 const silent = (name: string): ConfigSource => ({
@@ -329,6 +332,11 @@ describe('предупреждения', () => {
     reader.attachLogger(spy.logger);
 
     expect(spy.entries).toEqual([
+      {
+        level: 'debug',
+        message: expect.stringContaining('raised in this order'),
+        fields: {},
+      },
       {
         level: 'warn',
         message: expect.stringContaining("targets '*_NOPE'"),

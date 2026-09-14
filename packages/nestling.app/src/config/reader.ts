@@ -7,11 +7,18 @@
 
 import type { SectionDeclaration } from './declaration.js';
 import type { SharedKeyReader } from './errors.js';
-import { ConfigSharedKeyError, ConfigSourceError } from './errors.js';
+import {
+  ConfigNeedsDeclarationError,
+  ConfigSharedKeyError,
+  ConfigSourceCycleError,
+  ConfigSourceError,
+  ConfigSourceNeedsError,
+} from './errors.js';
 import type { ConfigTarget } from './keys.js';
 import { describeTarget, targetCovers } from './keys.js';
-import { declaredKeys } from './registry.js';
+import { declaredKeys, lookupSection } from './registry.js';
 import type { Binding, ConfigSource } from './source.js';
+import { presentValue } from './source.js';
 
 import type { Logger } from '@nestlingjs/logging';
 
@@ -28,9 +35,42 @@ export interface Reloadable {
   readonly keys: readonly string[];
 }
 
+/**
+ * Проекция объявленной секции — её даёт фаза 0 аргументом конструктора.
+ *
+ * Функция, а не импорт проекции: иначе `reader → project → reader` дал бы
+ * цикл модулей. Секцию `needs` источника и секцию узла графа считает один и
+ * тот же код, поэтому источник получает значения, проверенные теми же
+ * схемами полей.
+ */
+export type SectionProjector = (
+  declaration: SectionDeclaration,
+  reader: ConfigReader,
+) => unknown;
+
+/**
+ * Умолчание проектора: читалка создана вне фазы 0.
+ *
+ * Проекция нужна только источнику с `needs`, поэтому отсутствие проектора
+ * замечается там же — с именем секции, которую некому спроецировать.
+ */
+const projectorMissing: SectionProjector = (declaration) => {
+  throw new Error(
+    `Config section '${declaration.prefix}' is needed by a source, but this ` +
+      `reader was created without a section projector. Phase 0 supplies it: ` +
+      `create the reader with bootstrapConfig().`,
+  );
+};
+
+/** Запись, ждущая подключения логгера */
+interface PendingLog {
+  readonly level: 'debug' | 'warn';
+  readonly message: string;
+}
+
 /** Привязка в разобранном виде */
 interface ResolvedBinding {
-  readonly source: ConfigSource;
+  readonly source: ConfigSource<unknown>;
   readonly keys: ConfigTarget;
   readonly optional: boolean;
   readonly timeout: number;
@@ -59,9 +99,12 @@ export class ConfigReader {
    * него зависеть: реализация логгера читает секцию конфига. Поэтому до
    * `attachLogger` предупреждения копятся, а после — идут напрямую.
    */
-  readonly #pending: string[] = [];
+  readonly #pending: PendingLog[] = [];
 
   #logger?: Logger;
+
+  /** Проекция секции `needs` — приходит от фазы 0 */
+  readonly #project: SectionProjector;
 
   /**
    * Снимок фазы 0: ключ → его значение.
@@ -83,7 +126,10 @@ export class ConfigReader {
    */
   readonly #claims = new Map<string, SharedKeyReader>();
 
-  constructor(bindings: readonly Binding[] = []) {
+  constructor(
+    bindings: readonly Binding[] = [],
+    project: SectionProjector = projectorMissing,
+  ) {
     this.#bindings = bindings.map((binding, index) => ({
       source: binding.source,
       keys: binding.keys,
@@ -91,42 +137,85 @@ export class ConfigReader {
       timeout: binding.timeout,
       name: binding.source.name ?? `source #${index + 1}`,
     }));
+    this.#project = project;
   }
 
   /**
    * Фаза 0: поднимает источники, снимает снимок объявленных ключей и
    * сверяет области с реестром.
    *
-   * `init()` каждого источника зовётся один раз, по порядку привязок, с
-   * границей `timeout`. Привязка с `optional: true`, чей `init()` отказал
-   * или не уложился в границу, пропускается — фаза 0 продолжается без
-   * этого источника вместо отказа. Повторы при временно недоступном
+   * Очерёдность подъёма выводится из `needs`, а не из порядка списка:
+   * источник поднимается после привязок, покрывающих ключи его секции
+   * координат. Порядок списка остаётся приоритетом разрешения ключа, и
+   * Vault, стоящий выше `.env`, поднимается после него.
+   *
+   * `init()` каждого источника зовётся один раз, с границей `timeout`.
+   * Привязка с `optional: true`, чей `init()` отказал, не уложился в
+   * границу или остался без координат, пропускается — фаза 0 продолжается
+   * без этого источника вместо отказа. Повторы при временно недоступном
    * источнике — забота самого источника: цену и уместность повтора знает
    * он, ядру нечем отличить временный отказ от постоянного.
    *
    * Наблюдение навешивается после инициализации: до неё источнику нечего
    * сообщать, а секции ещё не спроецированы.
    *
+   * @throws {ConfigSourceCycleError} Если привязки ссылаются друг на друга
+   * через `needs`
+   * @throws {ConfigNeedsDeclarationError} Если секция `needs` не объявлена
+   * или объявлена `makeConfig.reloadable`
+   * @throws {ConfigSourceNeedsError} Если секция `needs` не спроецировалась,
+   * а привязка не `optional`
    * @throws {ConfigSourceError} Если `init()` источника отказал или не
    * уложился в `timeout`, а привязка не `optional`
    */
   async init(): Promise<void> {
-    for (const binding of this.#bindings) {
+    const order = this.#raiseOrder();
+    const raised = new Set<ResolvedBinding>();
+
+    if (order.length > 0) {
+      this.#log(
+        'debug',
+        `config sources are raised in this order: ${order
+          .map((binding) => binding.name)
+          .join(', ')}`,
+      );
+    }
+
+    for (const binding of order) {
+      // До `try`: дефект объявления секции координат чинится в коде, а не
+      // ожиданием внешней системы, поэтому `optional` его не проглатывает
+      const declaration = this.#needsDeclaration(binding);
+
       try {
-        await this.#initOne(binding);
+        const values = declaration
+          ? this.#projectNeeds(binding, declaration, raised)
+          : undefined;
+
+        await this.#initOne(binding, values);
       } catch (error) {
         if (binding.optional) {
           this.#skipped.add(binding);
           continue;
         }
 
-        throw new ConfigSourceError(binding.name, error);
+        throw error instanceof ConfigSourceNeedsError
+          ? error
+          : new ConfigSourceError(binding.name, error);
       }
+
+      raised.add(binding);
     }
 
     this.#warnAboutEmptyTargets();
 
     for (const key of declaredKeys()) {
+      // Ключи секции координат уже лежат в снимке: источник поднимался по
+      // ним, и перечитывание сменило бы их значением источника, который
+      // поднялся позже
+      if (this.#snapshot.has(key)) {
+        continue;
+      }
+
       this.#snapshot.set(key, this.#lookup(key));
     }
 
@@ -203,11 +292,7 @@ export class ConfigReader {
    * подключения.
    */
   warn(message: string): void {
-    if (this.#logger) {
-      this.#logger.warn(message);
-    } else {
-      this.#pending.push(message);
-    }
+    this.#log('warn', message);
   }
 
   /**
@@ -220,8 +305,8 @@ export class ConfigReader {
   attachLogger(logger: Logger): void {
     this.#logger = logger;
 
-    for (const message of this.#pending.splice(0)) {
-      logger.warn(message);
+    for (const entry of this.#pending.splice(0)) {
+      logger[entry.level](entry.message);
     }
   }
 
@@ -261,11 +346,25 @@ export class ConfigReader {
   }
 
   /**
+   * Запись в логгер ядра, если он подключён, иначе в буфер до подключения.
+   */
+  #log(level: PendingLog['level'], message: string): void {
+    if (this.#logger) {
+      this.#logger[level](message);
+    } else {
+      this.#pending.push({ level, message });
+    }
+  }
+
+  /**
    * Вызывает `init()` источника с границей `timeout` этой привязки.
    *
    * `Promise.race` с таймером: источник без `init()` разрешается сразу.
+   *
+   * @param binding - Привязка поднимаемого источника
+   * @param values - Проекция секции `needs`; `undefined` у источника без неё
    */
-  async #initOne(binding: ResolvedBinding): Promise<void> {
+  async #initOne(binding: ResolvedBinding, values: unknown): Promise<void> {
     if (!binding.source.init) {
       return;
     }
@@ -284,7 +383,10 @@ export class ConfigReader {
     });
 
     try {
-      await Promise.race([Promise.resolve(binding.source.init()), timeout]);
+      await Promise.race([
+        Promise.resolve(binding.source.init(values)),
+        timeout,
+      ]);
     } finally {
       clearTimeout(timer);
     }
@@ -314,10 +416,22 @@ export class ConfigReader {
    * Привязки просматриваются по порядку (порядок = приоритет): выигрывает
    * первая, чья область покрывает ключ и чей источник вернул не-`undefined`.
    * Источник, чья область ключ не покрывает, не опрашивается вовсе.
+   *
+   * Привязка не отвечает за ключи, которые называет секция `needs` её
+   * собственного источника: иначе координаты Vault искались бы в самом
+   * Vault, и привязка без `keys` давала бы цикл. Правило живёт здесь одно
+   * на все чтения — и на проекцию секции координат, и на любое позднейшее.
+   *
+   * @param key - Имя ключа
+   * @param scope - Привязки, у которых спрашивать; умолчание — все
+   * поднявшиеся. Фаза 0 сужает область до источников, поднятых раньше
    */
-  #lookup(key: string): unknown {
-    for (const binding of this.#active()) {
-      if (!targetCovers(binding.keys, key)) {
+  #lookup(
+    key: string,
+    scope: readonly ResolvedBinding[] = this.#active(),
+  ): unknown {
+    for (const binding of scope) {
+      if (!targetCovers(binding.keys, key) || this.#isOwnNeeds(binding, key)) {
         continue;
       }
 
@@ -328,6 +442,173 @@ export class ConfigReader {
     }
 
     return undefined;
+  }
+
+  /** Называет ли ключ секция `needs` источника этой привязки */
+  #isOwnNeeds(binding: ResolvedBinding, key: string): boolean {
+    return binding.source.needs?.keys.names.includes(key) ?? false;
+  }
+
+  /**
+   * Порядок подъёма: топологический по `needs`, стабильный по списку.
+   *
+   * Привязка `A` идёт после привязки `B`, если таргет `B` покрывает хотя бы
+   * один ключ секции `A.needs`. Покрытие считается по таргету, а не по
+   * наличию значения: значений до подъёма не существует. Сама себе
+   * привязка предшественником не становится — её `needs`-ключи она не
+   * обслуживает.
+   *
+   * Из привязок, готовых к подъёму, выбирается первая по списку, поэтому
+   * не связанные зависимостью источники поднимаются в порядке списка.
+   *
+   * @throws {ConfigSourceCycleError} Если привязки ссылаются друг на друга
+   */
+  #raiseOrder(): readonly ResolvedBinding[] {
+    const predecessors = new Map<ResolvedBinding, readonly ResolvedBinding[]>();
+
+    for (const binding of this.#bindings) {
+      const names = binding.source.needs?.keys.names ?? [];
+
+      predecessors.set(
+        binding,
+        names.length === 0
+          ? []
+          : this.#bindings.filter(
+              (candidate) =>
+                candidate !== binding &&
+                names.some((key) => targetCovers(candidate.keys, key)),
+            ),
+      );
+    }
+
+    const order: ResolvedBinding[] = [];
+    const placed = new Set<ResolvedBinding>();
+
+    while (order.length < this.#bindings.length) {
+      const next = this.#bindings.find(
+        (binding) =>
+          !placed.has(binding) &&
+          (predecessors.get(binding) ?? []).every((dep) => placed.has(dep)),
+      );
+
+      if (!next) {
+        throw new ConfigSourceCycleError(
+          this.#cycleChain(predecessors, placed),
+        );
+      }
+
+      order.push(next);
+      placed.add(next);
+    }
+
+    return order;
+  }
+
+  /**
+   * Цепочка имён цикла для текста отказа.
+   *
+   * Путь строится по предшественникам — в том же направлении, в каком
+   * читается сообщение: `a → b → a` значит «`a` ждёт `b`, `b` ждёт `a`».
+   * Каждая неразмещённая привязка ждёт хотя бы одну неразмещённую, иначе
+   * она была бы размещена, поэтому путь замыкается.
+   */
+  #cycleChain(
+    predecessors: ReadonlyMap<ResolvedBinding, readonly ResolvedBinding[]>,
+    placed: ReadonlySet<ResolvedBinding>,
+  ): readonly string[] {
+    const path: ResolvedBinding[] = [];
+    let current = this.#bindings.find((binding) => !placed.has(binding));
+
+    while (current && !path.includes(current)) {
+      path.push(current);
+      current = (predecessors.get(current) ?? []).find(
+        (dep) => !placed.has(dep),
+      );
+    }
+
+    // Хвост до входа в цикл отбрасывается: привязка, которая лишь ждёт
+    // цикл, сама в него не входит и чинится не здесь
+    const cycle = current ? path.slice(path.indexOf(current)) : path;
+
+    return [...cycle, ...cycle.slice(0, 1)].map((binding) => binding.name);
+  }
+
+  /**
+   * Декларация секции `needs` этой привязки или `undefined`, если источник
+   * координат ниоткуда не берёт.
+   *
+   * @throws {ConfigNeedsDeclarationError} Если секции нет в реестре или она
+   * объявлена `makeConfig.reloadable`
+   */
+  #needsDeclaration(binding: ResolvedBinding): SectionDeclaration | undefined {
+    const needs = binding.source.needs;
+
+    if (!needs) {
+      return undefined;
+    }
+
+    const prefix = needs.keys.prefix;
+    const declaration = lookupSection(prefix);
+
+    if (!declaration) {
+      throw new ConfigNeedsDeclarationError(binding.name, prefix, 'undeclared');
+    }
+
+    if (declaration.reloadable) {
+      throw new ConfigNeedsDeclarationError(binding.name, prefix, 'reloadable');
+    }
+
+    return declaration;
+  }
+
+  /**
+   * Проецирует секцию координат из источников, поднятых раньше, и кладёт
+   * значения её ключей в снимок.
+   *
+   * Снимком порядок и держится: финальный проход по объявленным ключам эти
+   * значения не перечитывает, поэтому источник, поднявшийся позже, координат
+   * уже не меняет.
+   *
+   * @param binding - Привязка поднимаемого источника
+   * @param declaration - Декларация его секции `needs`
+   * @param raised - Привязки, чьи источники уже поднялись
+   * @returns Проверенные значения секции — их получает `init()`
+   * @throws {ConfigSourceNeedsError} Если секция не спроецировалась
+   */
+  #projectNeeds(
+    binding: ResolvedBinding,
+    declaration: SectionDeclaration,
+    raised: ReadonlySet<ResolvedBinding>,
+  ): unknown {
+    const scope = this.#bindings.filter((candidate) => raised.has(candidate));
+
+    for (const field of declaration.fields) {
+      this.#snapshot.set(field.key, this.#lookup(field.key, scope));
+    }
+
+    try {
+      const values = this.#project(declaration, this);
+
+      // Секцию прочитал источник, а не узел графа, но прочитана она
+      // по-настоящему: непотреблённой она больше не считается
+      declaration.consumed = true;
+
+      return values;
+    } catch (error) {
+      const missing = declaration.fields
+        .filter(
+          (field) => presentValue(this.#snapshot.get(field.key)) === undefined,
+        )
+        .map((field) => field.key);
+
+      throw new ConfigSourceNeedsError(
+        binding.name,
+        declaration.prefix,
+        missing,
+        scope.map((candidate) => candidate.name),
+        error,
+      );
+    }
   }
 
   #hasWatchingSource(keys: readonly string[]): boolean {

@@ -29,11 +29,18 @@ export type {
 export { from, secret } from './declaration.js';
 export {
   ConfigDerivedError,
+  ConfigNeedsDeclarationError,
   ConfigSharedKeyError,
+  ConfigSourceCycleError,
   ConfigSourceError,
+  ConfigSourceNeedsError,
   ConfigValidationError,
 } from './errors.js';
-export type { ConfigFieldFailure, SharedKeyReader } from './errors.js';
+export type {
+  ConfigFieldFailure,
+  NeedsDeclarationFault,
+  SharedKeyReader,
+} from './errors.js';
 /**
  * `Config` — и семейство одиночных ключей (значение), и тип проекции
  * секции (`Config<typeof OrdersConfig>`). Обе формы взяты из design-дока.

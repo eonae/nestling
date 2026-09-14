@@ -56,9 +56,16 @@ const materializeSection = (prefix: string, reader: ConfigReader): unknown => {
  * этого вызова ввод-вывод есть, после его нет. Порядок «источники раньше
  * секций» держит фаза, а не топология графа.
  *
+ * Очерёдность подъёма выводится из `needs` источников, а порядок списка
+ * остаётся приоритетом разрешения ключа. Проекция секции передаётся читалке
+ * значением: секцию координат источника и секцию узла графа считает один и
+ * тот же код.
+ *
  * @param bindings - Список привязок `bind()`; порядок = приоритет
  * @returns Читалку со снятым снимком — её принимает {@link configKernel}
  * @throws {ConfigSourceError} Если `init()` источника отказал
+ * @throws {ConfigSourceCycleError} Если привязки ссылаются друг на друга
+ * через `needs`
  *
  * @example
  * ```typescript
@@ -73,7 +80,7 @@ const materializeSection = (prefix: string, reader: ConfigReader): unknown => {
 export const bootstrapConfig = async (
   bindings: readonly Binding[] = [],
 ): Promise<ConfigReader> => {
-  const reader = new ConfigReader(bindings);
+  const reader = new ConfigReader(bindings, projectSection);
   await reader.init();
 
   return reader;

@@ -8,16 +8,37 @@
 import { readFile } from 'node:fs/promises';
 import { parseEnv } from 'node:util';
 
+import type { ConfigSectionToken } from './declaration.js';
 import type { ConfigTarget } from './keys.js';
+
+/**
+ * Пустое значение ключа — то же, что незаданный ключ.
+ *
+ * `KEY=` в окружении или в файле означает «ключ не задан», и решает дальше
+ * схема поля: `default` даёт умолчание, обязательное поле даёт отказ. Ядро
+ * сводит пустую строку к `undefined` **до** схемы, поэтому схемам полей
+ * знать об этом правиле не нужно — ни своим, ни пользовательским.
+ *
+ * Правило живёт здесь одно на все пути чтения: проекцию секции из графа,
+ * первичное чтение фазы 0 и подсчёт недостающих ключей секции `needs`.
+ * Порядок поиска значения оно не трогает — значение уже взято у первой
+ * привязки, которая ключ покрывает.
+ */
+export const presentValue = (raw: unknown): unknown =>
+  raw === '' ? undefined : raw;
 
 /**
  * Источник значений ключей.
  *
- * Координаты источника (путь к файлу, адрес Vault) приходят аргументом его
- * конструктора — `process.env` внутри `init()` источник не читает.
- * Бизнес-ключи он отдаёт только через `get()`.
+ * Координаты источника приходят аргументом его конструктора
+ * (`dotenv(path)`) или значениями секции, объявленной полем `needs`, —
+ * `process.env` внутри `init()` источник не читает. Бизнес-ключи он отдаёт
+ * только через `get()`.
+ *
+ * @template Needs - Значения секции, которые источнику нужны для подъёма;
+ * `void` у источника без зависимостей
  */
-export interface ConfigSource {
+export interface ConfigSource<Needs = void> {
   /**
    * Значение ключа или `undefined`, если источник его не знает.
    *
@@ -29,8 +50,22 @@ export interface ConfigSource {
   /** Человекочитаемое имя для предупреждений и перечня опрошенных источников */
   readonly name?: string;
 
-  /** Разовая инициализация: читается файл, поднимается соединение */
-  init?(): void | Promise<void>;
+  /**
+   * DI-токен секции, значения которой нужны источнику для подъёма.
+   *
+   * Читалка поднимает источник после тех привязок, которые покрывают ключи
+   * секции, проецирует её и отдаёт значения аргументом `init`. Источник без
+   * зависимостей поле не объявляет.
+   */
+  readonly needs?: ConfigSectionToken<Needs>;
+
+  /**
+   * Разовая инициализация: читается файл, поднимается соединение.
+   *
+   * @param values - Проверенные значения секции `needs`; у источника без
+   * `needs` параметра нет
+   */
+  init?(values: Needs): void | Promise<void>;
 
   /**
    * Подписка на изменение содержимого источника.
@@ -65,9 +100,14 @@ export interface BindOptions {
   readonly timeout?: number;
 }
 
-/** Привязка источника к области ключей — результат {@link bind} */
+/**
+ * Привязка источника к области ключей — результат {@link bind}.
+ *
+ * Источник хранится как `ConfigSource<unknown>`: список привязок однороден,
+ * а форму значений `needs` сверил {@link bind} в месте вызова.
+ */
 export interface Binding {
-  readonly source: ConfigSource;
+  readonly source: ConfigSource<unknown>;
   readonly keys: ConfigTarget;
   readonly optional: boolean;
   readonly timeout: number;
@@ -95,8 +135,8 @@ const DEFAULT_TIMEOUT = 10_000;
  * });
  * ```
  */
-export const bind = (
-  source: ConfigSource,
+export const bind = <Needs>(
+  source: ConfigSource<Needs>,
   options: BindOptions = {},
 ): Binding => ({
   source,

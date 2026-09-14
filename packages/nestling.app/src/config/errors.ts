@@ -167,3 +167,101 @@ export class ConfigSourceError extends Error {
     this.name = 'ConfigSourceError';
   }
 }
+
+/**
+ * Привязки ссылаются друг на друга полем `needs`.
+ *
+ * Дефект списка привязок, а не недоступность внешней системы: цепочку
+ * некуда начать, поэтому первого источника для подъёма нет. Считается до
+ * первого `init()`, и `optional` его не проглатывает — пропуск одной
+ * привязки цикла оставил бы порядок таким же непостроимым.
+ */
+export class ConfigSourceCycleError extends Error {
+  constructor(
+    /** Имена источников цикла; первое имя повторено последним */
+    readonly chain: readonly string[],
+  ) {
+    super(
+      `Config sources depend on each other through 'needs': ` +
+        `${chain.join(' -> ')}. Phase 0 raises a source after the bindings ` +
+        `that cover the keys of its section, so a cycle has no source to ` +
+        `start with. Break it: pass the coordinates of one source as a ` +
+        `constructor argument, or narrow the 'keys' of its binding so that ` +
+        `it stops covering the section of the other.`,
+    );
+    this.name = 'ConfigSourceCycleError';
+  }
+}
+
+/** Почему секция `needs` непригодна для подъёма источника */
+export type NeedsDeclarationFault = 'undeclared' | 'reloadable';
+
+/**
+ * Секция, объявленная источником в `needs`, не годится ему в координаты.
+ *
+ * Дефект объявления, а не недоступность внешней системы: секции либо нет в
+ * реестре, либо она обещает перепроекцию, которой у координат не бывает.
+ * Поэтому `optional` этот отказ не проглатывает — пропуск источника скрыл
+ * бы опечатку в имени секции или неимпортированный модуль.
+ */
+export class ConfigNeedsDeclarationError extends Error {
+  constructor(
+    /** Имя источника из привязки */
+    readonly source: string,
+    /** Префикс секции, объявленной в `needs` */
+    readonly section: string,
+    /** Что именно не так с секцией */
+    readonly fault: NeedsDeclarationFault,
+  ) {
+    super(
+      `Config source '${source}' needs section '${section}', which ` +
+        (fault === 'undeclared'
+          ? `is not declared. Declare it with makeConfig('${section}', { … }) ` +
+            `and make sure the module that declares it is imported: phase 0 ` +
+            `reads the section by its declared keys.`
+          : `is declared with makeConfig.reloadable. The section a source ` +
+            `reads is projected once, before that source is raised, and is ` +
+            `never projected again — declare it with makeConfig instead.`),
+    );
+    this.name = 'ConfigNeedsDeclarationError';
+  }
+}
+
+/**
+ * Секция координат не спроецировалась, поэтому источник поднять нечем.
+ *
+ * Названы источник, секция, ключи, значений которых не нашлось, и источники,
+ * поднятые раньше него: искать пропажу нужно среди них, потому что читалка
+ * спрашивала только их. Деталь отказа схемы лежит в `cause`.
+ *
+ * Значений в тексте нет — только имена ключей: секция координат несёт
+ * секретные поля, а ошибка старта попадает в лог целиком.
+ */
+export class ConfigSourceNeedsError extends Error {
+  constructor(
+    /** Имя источника из привязки */
+    readonly source: string,
+    /** Префикс секции, объявленной в `needs` */
+    readonly section: string,
+    /** Ключи секции, значения которых не нашлись */
+    readonly missing: readonly string[],
+    /** Источники, поднятые раньше, в порядке приоритета */
+    readonly sources: readonly string[],
+    /** Исходная ошибка проекции */
+    cause: unknown,
+  ) {
+    super(
+      `Config source '${source}' cannot be raised: its section '${section}' ` +
+        `did not project.\n` +
+        (missing.length > 0
+          ? `  - keys with no value: ${missing.join(', ')}\n`
+          : `  - every key has a value, so a field schema rejected one of ` +
+            `them; the failure is in 'cause'\n`) +
+        `Sources raised before it, in priority order: ${
+          sources.length > 0 ? sources.join(', ') : '(none)'
+        }`,
+      { cause },
+    );
+    this.name = 'ConfigSourceNeedsError';
+  }
+}
