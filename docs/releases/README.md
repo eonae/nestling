@@ -9,3 +9,4 @@
 | Версия | Главное |
 |---|---|
 | [0.3.0](./v0.3.0.md) | `build(argv(process.argv))`, привязки конфигурации на `run()`, `server()`, статус и развилка исходов в декларации, отказ по HTTP документом RFC 9457, метрика как декларация, пакеты `logging`, `logging.pino`, `prometheus` и `otel`, фабрики плагинов `make*` |
+| [0.2.0](./v0.2.0.md) | `httpEndpoint.get('/users', { … })` и пять соседей по методу, `httpEndpoint.implement`, имя команды первым аргументом `cliEndpoint`, досрочный успех pre-шага `done()`, пакеты `drizzle.pg`, `inbox` и `mcp`, трасса и метрики в ядре, `openapi.zod` → `schema.zod`, барели поимённо |
