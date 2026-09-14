@@ -1,0 +1,1910 @@
+[
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 0,
+    "ts": 0,
+    "args": {
+      "name": "Group #1"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 1,
+    "ts": 0,
+    "args": {
+      "name": "Group #2"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 2,
+    "ts": 0,
+    "args": {
+      "name": "Group #3"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 3,
+    "ts": 0,
+    "args": {
+      "name": "Group #4"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 4,
+    "ts": 0,
+    "args": {
+      "name": "Group #5"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 5,
+    "ts": 0,
+    "args": {
+      "name": "Group #6"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 6,
+    "ts": 0,
+    "args": {
+      "name": "Group #7"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 7,
+    "ts": 0,
+    "args": {
+      "name": "Group #8"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 8,
+    "ts": 0,
+    "args": {
+      "name": "Group #9"
+    }
+  },
+  {
+    "name": "thread_name",
+    "ph": "M",
+    "pid": 85809,
+    "tid": 9,
+    "ts": 0,
+    "args": {
+      "name": "Group #10"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.graphs:test",
+    "cat": "@nestlingjs/common.graphs,test,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 3505000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.graphs",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.misc:test",
+    "cat": "@nestlingjs/common.misc,test,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 4881000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.misc",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.graphs:typecheck",
+    "cat": "@nestlingjs/common.graphs,typecheck,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 6007000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.graphs",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/eslint-plugin:test",
+    "cat": "@nestlingjs/eslint-plugin,test,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 6624000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/eslint-plugin",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.misc:typecheck",
+    "cat": "@nestlingjs/common.misc,typecheck,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 7608000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.misc",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.graphs:build",
+    "cat": "@nestlingjs/common.graphs,build,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 8746000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.graphs",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.static-server:build",
+    "cat": "@nestlingjs/common.static-server,build,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 9091000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.static-server",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.static-server:test",
+    "cat": "@nestlingjs/common.static-server,test,",
+    "ph": "X",
+    "ts": 1789366664043000,
+    "dur": 3156000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.static-server",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.misc:build",
+    "cat": "@nestlingjs/common.misc,build,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 9562000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.misc",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.static-server:typecheck",
+    "cat": "@nestlingjs/common.static-server,typecheck,",
+    "ph": "X",
+    "ts": 1789366662917000,
+    "dur": 5733000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.static-server",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/container:test",
+    "cat": "@nestlingjs/container,test,",
+    "ph": "X",
+    "ts": 1789366666786000,
+    "dur": 5746000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/container",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/container:build",
+    "cat": "@nestlingjs/container,build,",
+    "ph": "X",
+    "ts": 1789366666786000,
+    "dur": 6034000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/container",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/container:typecheck",
+    "cat": "@nestlingjs/container,typecheck,",
+    "ph": "X",
+    "ts": 1789366666786000,
+    "dur": 6207000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/container",
+        "target": "typecheck"
+      },
+      "status": "failure"
+    }
+  },
+  {
+    "name": "@nestlingjs/eslint-plugin:build",
+    "cat": "@nestlingjs/eslint-plugin,build,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 15158000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/eslint-plugin",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/eslint-plugin:typecheck",
+    "cat": "@nestlingjs/eslint-plugin,typecheck,",
+    "ph": "X",
+    "ts": 1789366661542000,
+    "dur": 13146000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/eslint-plugin",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/app:type-budget",
+    "cat": "@nestlingjs/app,type-budget,",
+    "ph": "X",
+    "ts": 1789366658035000,
+    "dur": 18258000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/app",
+        "target": "type-budget"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.graphs:lint",
+    "cat": "@nestlingjs/common.graphs,lint,",
+    "ph": "X",
+    "ts": 1789366673211000,
+    "dur": 7232000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.graphs",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/operations:build",
+    "cat": "@nestlingjs/operations,build,",
+    "ph": "X",
+    "ts": 1789366672826000,
+    "dur": 8102000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/operations",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/operations:typecheck",
+    "cat": "@nestlingjs/operations,typecheck,",
+    "ph": "X",
+    "ts": 1789366672826000,
+    "dur": 9297000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/operations",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging:lint",
+    "cat": "@nestlingjs/logging,lint,",
+    "ph": "X",
+    "ts": 1789366673211000,
+    "dur": 9769000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.misc:lint",
+    "cat": "@nestlingjs/common.misc,lint,",
+    "ph": "X",
+    "ts": 1789366673211000,
+    "dur": 10546000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.misc",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/operations:test",
+    "cat": "@nestlingjs/operations,test,",
+    "ph": "X",
+    "ts": 1789366682981000,
+    "dur": 5079000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/operations",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/client:lint",
+    "cat": "@nestlingjs/client,lint,",
+    "ph": "X",
+    "ts": 1789366676294000,
+    "dur": 12370000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/client",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/operations:lint",
+    "cat": "@nestlingjs/operations,lint,",
+    "ph": "X",
+    "ts": 1789366673211000,
+    "dur": 16186000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/operations",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/client:build",
+    "cat": "@nestlingjs/client,build,",
+    "ph": "X",
+    "ts": 1789366680936000,
+    "dur": 8917000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/client",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging:build",
+    "cat": "@nestlingjs/logging,build,",
+    "ph": "X",
+    "ts": 1789366682124000,
+    "dur": 8350000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging:typecheck",
+    "cat": "@nestlingjs/logging,typecheck,",
+    "ph": "X",
+    "ts": 1789366683758000,
+    "dur": 7766000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/viz:build",
+    "cat": "@nestlingjs/viz,build,",
+    "ph": "X",
+    "ts": 1789366673211000,
+    "dur": 19147000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/viz",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/client:test",
+    "cat": "@nestlingjs/client,test,",
+    "ph": "X",
+    "ts": 1789366689858000,
+    "dur": 5059000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/client",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/schema.zod:lint",
+    "cat": "@nestlingjs/schema.zod,lint,",
+    "ph": "X",
+    "ts": 1789366689401000,
+    "dur": 7625000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/schema.zod",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/client:typecheck",
+    "cat": "@nestlingjs/client,typecheck,",
+    "ph": "X",
+    "ts": 1789366688063000,
+    "dur": 10617000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/client",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging:test",
+    "cat": "@nestlingjs/logging,test,",
+    "ph": "X",
+    "ts": 1789366692361000,
+    "dur": 7527000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging.pino:build",
+    "cat": "@nestlingjs/logging.pino,build,",
+    "ph": "X",
+    "ts": 1789366691526000,
+    "dur": 11306000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging.pino",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/container:lint",
+    "cat": "@nestlingjs/container,lint,",
+    "ph": "X",
+    "ts": 1789366673211000,
+    "dur": 30511000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/container",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/testing:lint",
+    "cat": "@nestlingjs/testing,lint,",
+    "ph": "X",
+    "ts": 1789366688665000,
+    "dur": 15993000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/testing",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/app:build",
+    "cat": "@nestlingjs/app,build,",
+    "ph": "X",
+    "ts": 1789366690482000,
+    "dur": 15365000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/app",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/app:typecheck",
+    "cat": "@nestlingjs/app,typecheck,",
+    "ph": "X",
+    "ts": 1789366694927000,
+    "dur": 15005000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/app",
+        "target": "typecheck"
+      },
+      "status": "failure"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.http:lint",
+    "cat": "@nestlingjs/transport.http,lint,",
+    "ph": "X",
+    "ts": 1789366680451000,
+    "dur": 30211000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.http",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/eslint-plugin:lint",
+    "cat": "@nestlingjs/eslint-plugin,lint,",
+    "ph": "X",
+    "ts": 1789366699889000,
+    "dur": 12212000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/eslint-plugin",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.cli:lint",
+    "cat": "@nestlingjs/transport.cli,lint,",
+    "ph": "X",
+    "ts": 1789366697028000,
+    "dur": 15365000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.cli",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/openapi:lint",
+    "cat": "@nestlingjs/openapi,lint,",
+    "ph": "X",
+    "ts": 1789366698686000,
+    "dur": 14453000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/openapi",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/app:lint",
+    "cat": "@nestlingjs/app,lint,",
+    "ph": "X",
+    "ts": 1789366674689000,
+    "dur": 39767000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/app",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/inbox:lint",
+    "cat": "@nestlingjs/inbox,lint,",
+    "ph": "X",
+    "ts": 1789366702839000,
+    "dur": 11866000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/inbox",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/prometheus:lint",
+    "cat": "@nestlingjs/prometheus,lint,",
+    "ph": "X",
+    "ts": 1789366703723000,
+    "dur": 11384000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/prometheus",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/schema.zod:build",
+    "cat": "@nestlingjs/schema.zod,build,",
+    "ph": "X",
+    "ts": 1789366705861000,
+    "dur": 11507000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/schema.zod",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/outbox:lint",
+    "cat": "@nestlingjs/outbox,lint,",
+    "ph": "X",
+    "ts": 1789366704659000,
+    "dur": 13343000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/outbox",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.nats:build",
+    "cat": "@nestlingjs/transport.nats,build,",
+    "ph": "X",
+    "ts": 1789366710664000,
+    "dur": 10932000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.nats",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.http:build",
+    "cat": "@nestlingjs/transport.http,build,",
+    "ph": "X",
+    "ts": 1789366709935000,
+    "dur": 11825000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.http",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/schema.zod:test",
+    "cat": "@nestlingjs/schema.zod,test,",
+    "ph": "X",
+    "ts": 1789366718003000,
+    "dur": 7732000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/schema.zod",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.http:test",
+    "cat": "@nestlingjs/transport.http,test,",
+    "ph": "X",
+    "ts": 1789366712394000,
+    "dur": 14207000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.http",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/schema.zod:typecheck",
+    "cat": "@nestlingjs/schema.zod,typecheck,",
+    "ph": "X",
+    "ts": 1789366714456000,
+    "dur": 12192000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/schema.zod",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.http:typecheck",
+    "cat": "@nestlingjs/transport.http,typecheck,",
+    "ph": "X",
+    "ts": 1789366713140000,
+    "dur": 13569000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.http",
+        "target": "typecheck"
+      },
+      "status": "failure"
+    }
+  },
+  {
+    "name": "@nestlingjs/app:test",
+    "cat": "@nestlingjs/app,test,",
+    "ph": "X",
+    "ts": 1789366712103000,
+    "dur": 15820000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/app",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.cli:build",
+    "cat": "@nestlingjs/transport.cli,build,",
+    "ph": "X",
+    "ts": 1789366717373000,
+    "dur": 11455000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.cli",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/drizzle.pg:lint",
+    "cat": "@nestlingjs/drizzle.pg,lint,",
+    "ph": "X",
+    "ts": 1789366714706000,
+    "dur": 16315000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/drizzle.pg",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/otel:lint",
+    "cat": "@nestlingjs/otel,lint,",
+    "ph": "X",
+    "ts": 1789366715108000,
+    "dur": 15950000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/otel",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.cli:test",
+    "cat": "@nestlingjs/transport.cli,test,",
+    "ph": "X",
+    "ts": 1789366726649000,
+    "dur": 5030000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.cli",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.cli:typecheck",
+    "cat": "@nestlingjs/transport.cli,typecheck,",
+    "ph": "X",
+    "ts": 1789366721598000,
+    "dur": 10687000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.cli",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/testing:typecheck",
+    "cat": "@nestlingjs/testing,typecheck,",
+    "ph": "X",
+    "ts": 1789366726604000,
+    "dur": 5934000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/testing",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/testing:build",
+    "cat": "@nestlingjs/testing,build,",
+    "ph": "X",
+    "ts": 1789366721770000,
+    "dur": 10840000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/testing",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/testing:test",
+    "cat": "@nestlingjs/testing,test,",
+    "ph": "X",
+    "ts": 1789366725738000,
+    "dur": 7502000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/testing",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/subscriptions:lint",
+    "cat": "@nestlingjs/subscriptions,lint,",
+    "ph": "X",
+    "ts": 1789366726710000,
+    "dur": 7242000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/subscriptions",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/common.static-server:lint",
+    "cat": "@nestlingjs/common.static-server,lint,",
+    "ph": "X",
+    "ts": 1789366727924000,
+    "dur": 7099000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/common.static-server",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.nats:test",
+    "cat": "@nestlingjs/transport.nats,test,",
+    "ph": "X",
+    "ts": 1789366731681000,
+    "dur": 6002000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.nats",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/openapi:build",
+    "cat": "@nestlingjs/openapi,build,",
+    "ph": "X",
+    "ts": 1789366728837000,
+    "dur": 10986000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/openapi",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/viz:lint",
+    "cat": "@nestlingjs/viz,lint,",
+    "ph": "X",
+    "ts": 1789366732286000,
+    "dur": 7554000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/viz",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/inbox:test",
+    "cat": "@nestlingjs/inbox,test,",
+    "ph": "X",
+    "ts": 1789366735025000,
+    "dur": 5881000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/inbox",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/openapi:typecheck",
+    "cat": "@nestlingjs/openapi,typecheck,",
+    "ph": "X",
+    "ts": 1789366731022000,
+    "dur": 10393000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/openapi",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/inbox:build",
+    "cat": "@nestlingjs/inbox,build,",
+    "ph": "X",
+    "ts": 1789366732626000,
+    "dur": 9653000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/inbox",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/outbox:build",
+    "cat": "@nestlingjs/outbox,build,",
+    "ph": "X",
+    "ts": 1789366733241000,
+    "dur": 9299000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/outbox",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/mcp:lint",
+    "cat": "@nestlingjs/mcp,lint,",
+    "ph": "X",
+    "ts": 1789366731059000,
+    "dur": 12406000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/mcp",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/subscriptions:build",
+    "cat": "@nestlingjs/subscriptions,build,",
+    "ph": "X",
+    "ts": 1789366733953000,
+    "dur": 9604000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/subscriptions",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.nats:lint",
+    "cat": "@nestlingjs/transport.nats,lint,",
+    "ph": "X",
+    "ts": 1789366732540000,
+    "dur": 11523000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.nats",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/openapi:test",
+    "cat": "@nestlingjs/openapi,test,",
+    "ph": "X",
+    "ts": 1789366740907000,
+    "dur": 6016000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/openapi",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/outbox:typecheck",
+    "cat": "@nestlingjs/outbox,typecheck,",
+    "ph": "X",
+    "ts": 1789366737685000,
+    "dur": 9473000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/outbox",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/outbox:test",
+    "cat": "@nestlingjs/outbox,test,",
+    "ph": "X",
+    "ts": 1789366742282000,
+    "dur": 6022000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/outbox",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/prometheus:build",
+    "cat": "@nestlingjs/prometheus,build,",
+    "ph": "X",
+    "ts": 1789366739830000,
+    "dur": 9386000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/prometheus",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/mcp:build",
+    "cat": "@nestlingjs/mcp,build,",
+    "ph": "X",
+    "ts": 1789366739842000,
+    "dur": 9814000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/mcp",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/drizzle.pg:build",
+    "cat": "@nestlingjs/drizzle.pg,build,",
+    "ph": "X",
+    "ts": 1789366742545000,
+    "dur": 7401000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/drizzle.pg",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/drizzle.pg:test",
+    "cat": "@nestlingjs/drizzle.pg,test,",
+    "ph": "X",
+    "ts": 1789366743561000,
+    "dur": 6764000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/drizzle.pg",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/inbox:typecheck",
+    "cat": "@nestlingjs/inbox,typecheck,",
+    "ph": "X",
+    "ts": 1789366741416000,
+    "dur": 9119000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/inbox",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/drizzle.pg:typecheck",
+    "cat": "@nestlingjs/drizzle.pg,typecheck,",
+    "ph": "X",
+    "ts": 1789366744064000,
+    "dur": 7591000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/drizzle.pg",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/prometheus:typecheck",
+    "cat": "@nestlingjs/prometheus,typecheck,",
+    "ph": "X",
+    "ts": 1789366743465000,
+    "dur": 8850000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/prometheus",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/subscriptions:test",
+    "cat": "@nestlingjs/subscriptions,test,",
+    "ph": "X",
+    "ts": 1789366747159000,
+    "dur": 5998000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/subscriptions",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/prometheus:test",
+    "cat": "@nestlingjs/prometheus,test,",
+    "ph": "X",
+    "ts": 1789366749661000,
+    "dur": 5869000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/prometheus",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/viz:test",
+    "cat": "@nestlingjs/viz,test,",
+    "ph": "X",
+    "ts": 1789366752316000,
+    "dur": 3374000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/viz",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/mcp:test",
+    "cat": "@nestlingjs/mcp,test,",
+    "ph": "X",
+    "ts": 1789366750327000,
+    "dur": 6539000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/mcp",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/viz:typecheck",
+    "cat": "@nestlingjs/viz,typecheck,",
+    "ph": "X",
+    "ts": 1789366751656000,
+    "dur": 5264000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/viz",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/subscriptions:typecheck",
+    "cat": "@nestlingjs/subscriptions,typecheck,",
+    "ph": "X",
+    "ts": 1789366746924000,
+    "dur": 10203000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/subscriptions",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/otel:build",
+    "cat": "@nestlingjs/otel,build,",
+    "ph": "X",
+    "ts": 1789366749221000,
+    "dur": 9342000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/otel",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/otel:typecheck",
+    "cat": "@nestlingjs/otel,typecheck,",
+    "ph": "X",
+    "ts": 1789366749950000,
+    "dur": 9169000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/otel",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging.pino:test",
+    "cat": "@nestlingjs/logging.pino,test,",
+    "ph": "X",
+    "ts": 1789366756867000,
+    "dur": 3320000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging.pino",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/mcp:typecheck",
+    "cat": "@nestlingjs/mcp,typecheck,",
+    "ph": "X",
+    "ts": 1789366748305000,
+    "dur": 12551000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/mcp",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/agent-skill:test",
+    "cat": "@nestlingjs/agent-skill,test,",
+    "ph": "X",
+    "ts": 1789366755532000,
+    "dur": 5897000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/agent-skill",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/transport.nats:typecheck",
+    "cat": "@nestlingjs/transport.nats,typecheck,",
+    "ph": "X",
+    "ts": 1789366753158000,
+    "dur": 9044000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/transport.nats",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging.pino:typecheck",
+    "cat": "@nestlingjs/logging.pino,typecheck,",
+    "ph": "X",
+    "ts": 1789366756922000,
+    "dur": 5713000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging.pino",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/agent-skill:build",
+    "cat": "@nestlingjs/agent-skill,build,",
+    "ph": "X",
+    "ts": 1789366755690000,
+    "dur": 8242000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/agent-skill",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/otel:test",
+    "cat": "@nestlingjs/otel,test,",
+    "ph": "X",
+    "ts": 1789366759120000,
+    "dur": 5205000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/otel",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/microservice:lint",
+    "cat": "@examples/microservice,lint,",
+    "ph": "X",
+    "ts": 1789366750537000,
+    "dur": 14995000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@examples/microservice",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/cli:lint",
+    "cat": "@examples/cli,lint,",
+    "ph": "X",
+    "ts": 1789366757129000,
+    "dur": 9939000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@examples/cli",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/microservice:typecheck",
+    "cat": "@examples/microservice,typecheck,",
+    "ph": "X",
+    "ts": 1789366760188000,
+    "dur": 8636000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@examples/microservice",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/microservice:test",
+    "cat": "@examples/microservice,test,",
+    "ph": "X",
+    "ts": 1789366760857000,
+    "dur": 8021000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@examples/microservice",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/modular-app:test",
+    "cat": "@examples/modular-app,test,",
+    "ph": "X",
+    "ts": 1789366761430000,
+    "dur": 7590000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@examples/modular-app",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/microservice:build",
+    "cat": "@examples/microservice,build,",
+    "ph": "X",
+    "ts": 1789366758569000,
+    "dur": 11259000,
+    "pid": 85809,
+    "tid": 3,
+    "args": {
+      "target": {
+        "project": "@examples/microservice",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/agent-skill:typecheck",
+    "cat": "@nestlingjs/agent-skill,typecheck,",
+    "ph": "X",
+    "ts": 1789366762638000,
+    "dur": 8944000,
+    "pid": 85809,
+    "tid": 9,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/agent-skill",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/modular-app:build",
+    "cat": "@examples/modular-app,build,",
+    "ph": "X",
+    "ts": 1789366762204000,
+    "dur": 9955000,
+    "pid": 85809,
+    "tid": 4,
+    "args": {
+      "target": {
+        "project": "@examples/modular-app",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/logging.pino:lint",
+    "cat": "@nestlingjs/logging.pino,lint,",
+    "ph": "X",
+    "ts": 1789366763937000,
+    "dur": 8744000,
+    "pid": 85809,
+    "tid": 6,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/logging.pino",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/modular-app:typecheck",
+    "cat": "@examples/modular-app,typecheck,",
+    "ph": "X",
+    "ts": 1789366767069000,
+    "dur": 5965000,
+    "pid": 85809,
+    "tid": 2,
+    "args": {
+      "target": {
+        "project": "@examples/modular-app",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@nestlingjs/agent-skill:lint",
+    "cat": "@nestlingjs/agent-skill,lint,",
+    "ph": "X",
+    "ts": 1789366764326000,
+    "dur": 9386000,
+    "pid": 85809,
+    "tid": 8,
+    "args": {
+      "target": {
+        "project": "@nestlingjs/agent-skill",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/cli:test",
+    "cat": "@examples/cli,test,",
+    "ph": "X",
+    "ts": 1789366769831000,
+    "dur": 4231000,
+    "pid": 85809,
+    "tid": 0,
+    "args": {
+      "target": {
+        "project": "@examples/cli",
+        "target": "test"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/cli:typecheck",
+    "cat": "@examples/cli,typecheck,",
+    "ph": "X",
+    "ts": 1789366769831000,
+    "dur": 4865000,
+    "pid": 85809,
+    "tid": 5,
+    "args": {
+      "target": {
+        "project": "@examples/cli",
+        "target": "typecheck"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/modular-app:lint",
+    "cat": "@examples/modular-app,lint,",
+    "ph": "X",
+    "ts": 1789366765533000,
+    "dur": 9546000,
+    "pid": 85809,
+    "tid": 7,
+    "args": {
+      "target": {
+        "project": "@examples/modular-app",
+        "target": "lint"
+      },
+      "status": "success"
+    }
+  },
+  {
+    "name": "@examples/cli:build",
+    "cat": "@examples/cli,build,",
+    "ph": "X",
+    "ts": 1789366769831000,
+    "dur": 5962000,
+    "pid": 85809,
+    "tid": 1,
+    "args": {
+      "target": {
+        "project": "@examples/cli",
+        "target": "build"
+      },
+      "status": "success"
+    }
+  }
+]
