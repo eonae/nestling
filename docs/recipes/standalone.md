@@ -1,6 +1,6 @@
 # Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `5383a51c`
+> Гайд по текущему API; сверено с кодом `561d1000`
 > и `container` (2026-09-14).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
