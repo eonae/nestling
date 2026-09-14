@@ -68,7 +68,7 @@ describeWithVault('живой Vault', () => {
     ).rejects.toThrow(/nestling\/absent/);
   });
 
-  it('чужой токен — отказ прав', async () => {
+  it('чужие учётные данные — отказ прав', async () => {
     const source = vault(VaultConfig);
 
     await expect(

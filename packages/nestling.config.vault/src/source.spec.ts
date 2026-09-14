@@ -83,7 +83,7 @@ describe('чтение секрета', () => {
     expect(fake).toHaveBeenCalledTimes(1);
   });
 
-  it('форма запроса — KV v2 с заголовком токена', async () => {
+  it('форма запроса — KV v2 с заголовком `X-Vault-Token`', async () => {
     const fake = stubFetch(secretResponse({}));
 
     const source = vault(VaultConfig);
@@ -104,7 +104,7 @@ describe('чтение секрета', () => {
 });
 
 describe('отказы', () => {
-  it('отказ прав называет адрес, но не токен', async () => {
+  it('отказ прав называет адрес, но не секрет', async () => {
     stubFetch(new Response('', { status: 403 }));
 
     const source = vault(VaultConfig);

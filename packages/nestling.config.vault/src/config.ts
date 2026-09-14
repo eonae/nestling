@@ -21,7 +21,7 @@ import { z } from 'zod';
 export interface VaultCoordinates {
   /** Адрес сервера: `https://vault.internal:8200` */
   readonly addr: string;
-  /** Токен доступа; уходит заголовком `X-Vault-Token` */
+  /** Учётные данные: уходят заголовком `X-Vault-Token` */
   readonly token: string;
   /** Точка монтирования движка KV v2 */
   readonly mount: string;
@@ -32,8 +32,8 @@ export interface VaultCoordinates {
 /**
  * Секция координат: `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_MOUNT`, `VAULT_PATH`.
  *
- * Токен объявлен `secret()`, поэтому его значение не попадает ни в снимок
- * реестра, ни в диагностику. Точка монтирования по умолчанию — `secret`,
+ * Поле `token` объявлено `secret()`, поэтому его значение не попадает ни в
+ * снимок реестра, ни в диагностику. Точка монтирования по умолчанию — `secret`,
  * то есть движок KV, который Vault поднимает сам.
  *
  * @example

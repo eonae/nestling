@@ -1,8 +1,8 @@
 /**
  * Общая обвязка тестов на работающем Vault.
  *
- * Адрес сервера приходит переменной `TEST_VAULT_ADDR`, корневой токен —
- * `TEST_VAULT_TOKEN`. Без адреса прогон пропускается: `yarn verify` на
+ * Адрес сервера приходит переменной `TEST_VAULT_ADDR`, корневые учётные
+ * данные — `TEST_VAULT_TOKEN`. Без адреса прогон пропускается: `yarn verify` на
  * машине без docker остаётся зелёным, а CI поднимает Vault сервисом и обе
  * переменные задаёт.
  *
@@ -16,7 +16,7 @@ import { describe } from 'vitest';
 /** Адрес сервера; без него тесты этого каталога пропускаются */
 export const TEST_VAULT_ADDR = process.env.TEST_VAULT_ADDR ?? '';
 
-/** Корневой токен dev-режима; тот же, что в `docker-compose.yml` */
+/** Учётные данные dev-режима; те же, что в `docker-compose.yml` */
 export const TEST_VAULT_TOKEN = process.env.TEST_VAULT_TOKEN ?? 'nestling-root';
 
 /** `describe`, который молчит без сервера */

@@ -57,7 +57,8 @@ const secretUrl = (coordinates: VaultCoordinates): string =>
 /**
  * Хранилище в тексте отказа: адрес, точка монтирования и путь.
  *
- * Токена здесь нет и не будет: ошибка старта попадает в лог целиком.
+ * Учётных данных здесь нет и не будет: ошибка старта попадает в лог
+ * целиком.
  */
 const describeTarget = (coordinates: VaultCoordinates): string =>
   `Vault at ${coordinates.addr} (mount '${coordinates.mount}', path '${coordinates.path}')`;

@@ -81,14 +81,14 @@
   плашкой статуса по правилам `docs-package-readme`
 - [x] 6.2 Строка `@nestlingjs/config.vault` в таблице пакетов
   `docs/README.md` и счёт каталогов там же
-- [ ] 6.3 Раздел рецепта `docs/recipes/config-sources.md` про источник,
+- [x] 6.3 Раздел рецепта `docs/recipes/config-sources.md` про источник,
   берущий координаты из другого источника, и его английская пара
-- [ ] 6.4 Уточнить `docs/design/config.md` §3 до итоговой формы опций
+- [x] 6.4 Уточнить `docs/design/config.md` §3 до итоговой формы опций
   `vault(...)` (у минимального источника есть `retries`, наблюдения нет) и
   английскую пару
-- [ ] 6.5 Запись в `docs/decisions/deferred.md` про наблюдение за Vault
+- [x] 6.5 Запись в `docs/decisions/deferred.md` про наблюдение за Vault
   (опрос против внешнего сигнала) с триггером
-- [ ] 6.6 Прогнать `node .claude/skills/docs-style/scripts/lint.mjs` по
+- [x] 6.6 Прогнать `node .claude/skills/docs-style/scripts/lint.mjs` по
   всем изменённым текстам — 0 запрещённых слов
 
 ## 7. Definition of Done
