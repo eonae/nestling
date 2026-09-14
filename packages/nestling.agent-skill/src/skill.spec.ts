@@ -5,7 +5,7 @@
  * Файл `references/` без ссылки из `SKILL.md` он не найдёт, а файл сверх
  * потолка вытеснит из контекста код пользователя.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -170,11 +170,18 @@ describe('язык', () => {
   });
 });
 
-/** Имена публикуемых пакетов репозитория по алфавиту */
+/**
+ * Имена публикуемых пакетов репозитория по алфавиту.
+ *
+ * Каталог без манифеста пакетом не является и в перечень не идёт. Такой
+ * каталог остаётся от переименованного пакета: в нём один `dist`,
+ * содержимое `dist` не отслеживается, и переименование папку не уносит.
+ */
 function publishedPackages(): string[] {
   return readdirSync(PACKAGES_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => join(PACKAGES_DIR, entry.name, 'package.json'))
+    .filter((path) => existsSync(path))
     .map(
       (path) =>
         JSON.parse(readFileSync(path, 'utf8')) as {
