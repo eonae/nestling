@@ -26,7 +26,7 @@ import { makeOpenapi } from '@nestlingjs/openapi';
 
 export const openapi = makeOpenapi({
   info: { title: 'Users API', version: '1.0.0' },
-  pipeline: observability, // if the root policy requires the layer
+  pipeline: traced, // if the root policy requires the layer
 });
 
 makeApp({

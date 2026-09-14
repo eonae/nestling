@@ -46,7 +46,7 @@ export const OpenApiDocument$: InjectionToken<OpenApiDocument> =
  *
  * Параметры пайплайна вынесены в тип-аргументы, потому что слой приложения
  * приходит со своими требованиями к контексту и своими классами-шагами:
- * зафиксировать их здесь значило бы отвергать законный `observability`.
+ * зафиксировать их здесь значило бы отвергать законный `traced`.
  */
 export interface OpenApiServeOptions<
   P extends AnyInput = AnyInput,
@@ -60,7 +60,7 @@ export interface OpenApiServeOptions<
    *
    * Обязателен как **возможность**: приложение может требовать политикой
    * слой на каждом HTTP-endpoint'е
-   * (`everyEndpoint(...).hasLayer(observability)`), а satellite-модуль про
+   * (`everyEndpoint(...).hasLayer(traced)`), а satellite-модуль про
    * этот слой ничего не знает. Без этой опции подключение модуля роняло бы
    * `policies` — и это была бы наша проблема, а не пользователя.
    */
@@ -114,7 +114,7 @@ export interface OpenApiPlugin extends Plugin {
  * ```typescript
  * export const openapi = makeOpenapi({
  *   info: { title: 'Users API', version: '1.0.0' },
- *   pipeline: observabilityBase,
+ *   pipeline: traced,
  * });
  *
  * build({
