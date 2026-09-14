@@ -90,8 +90,9 @@ language would be a way around the check.
 The text of the skill is held by two more checks, in `scripts/freshness.mjs`
 and `src/skill.spec.ts`: the version named in `SKILL.md` matches
 `package.json`, a name removed by a release does not appear in the text,
-the table of packages names every published package, and the table of
-phases has no gap.
+the table of packages names every published package, the rules named in the
+text are exactly the rules of the plugin, and the table of phases has no
+gap.
 
 The snippets are checked by more than compilation. The ones that
 `snippets/app.ts` reaches by imports are built into an application by

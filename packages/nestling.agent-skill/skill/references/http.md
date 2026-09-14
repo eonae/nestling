@@ -26,10 +26,9 @@ a number.
 | `Ok.noContent()` | `no_content` | 204 |
 
 `status: 'created'` is a field of the declaration or of the operation, not
-of `doc:`: the status is a contract of the answer, and one default serves
-the runtime, the document and the client — `ok` with an `output`,
-`no_content` without one. A bare value from the handler gets the declared
-status.
+of `doc:`: the status is a contract of the answer, and one default serves the
+runtime, the document and the client — `ok` with an `output`, `no_content`
+without one. A bare value from the handler gets the declared status.
 
 Several outcomes with different bodies are declared by a fork in the
 `output` slot: `outputs({ ok: User, created: User, no_content: none() })`.
@@ -82,8 +81,7 @@ export const POST = handler;
 `toFetchHandler(app, { name })` gives `(Request) => Promise<Response>`;
 `toNodeHandler(app, { name })` gives `(req, res) => Promise<boolean>`,
 where `false` means the route is not the application's. `signals: false`
-leaves `SIGTERM` and `SIGINT` to the owner of the process. Every io form
-works either way: `value`, `stream`, `events`, `multipart`, `rawBody`.
+leaves `SIGTERM` and `SIGINT` to the owner; every io form works either way.
 
 ## Headers and cookies
 
@@ -131,14 +129,12 @@ export const CreateSession = httpEndpoint.post('/sessions', {
 ```
 
 The first argument of `of` is either a bare value or an `Ok`, never a
-failure: a failure is returned as it is, and its status comes from its
-code.
+failure: a failure is returned as it is, with the status of its code.
 
 Header names are lowercased before they are merged, so a header set here
-wins over one the transport would have written whatever the case. Every
-entry of `cookies` goes out as its own `Set-Cookie`; the fields are
-`name`, `value`, `maxAge`, `expires`, `path`, `domain`, `secure`,
-`httpOnly` and `sameSite`.
+wins over one the transport would have written whatever the case. Each entry
+of `cookies` goes out as its own `Set-Cookie`, with `name`, `value`, `maxAge`,
+`expires`, `path`, `domain`, `secure`, `httpOnly` and `sameSite`.
 
 ## The request side
 
@@ -159,6 +155,11 @@ async handle(input: Credentials, meta: HttpHandlerMeta) {
 `ip`. The same value is in the start context, so a `.pre` step sees it too:
 authentication reads the header there once, and the handler takes a typed
 field instead.
+
+`rawBody: true` on the declaration puts the bytes of the body there as
+well, beside the input the schema parsed: a webhook signature is checked
+against what arrived, and JSON serialised again signs differently. A step
+that reads `ctx.input.rawBody` does not compile without the field.
 
 ## Redirect
 
@@ -188,10 +189,9 @@ export const GetAvatar = httpEndpoint.get('/users/:id/avatar', {
 
 **The field `redirect:` is mandatory.** A handler that returns
 `HttpResponse.redirect(…)` from a declaration without it answers
-`internal_error`, and the text of the error names the endpoint and the
-missing field. Nothing catches this at compile time: the declaration and
-the handler are checked apart, and a redirect is a valid answer for a
-declaration that expects one.
+`internal_error`, and the error names the endpoint and the missing field.
+Nothing catches this at compile time: declaration and handler are checked
+apart.
 
 The status is taken from the call first — `HttpResponse.redirect(url, {
 status: 307 })` — then from the field, then `302`. Headers and cookies go
