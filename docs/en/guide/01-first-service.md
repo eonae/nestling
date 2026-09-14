@@ -13,6 +13,14 @@ Start with an HTTP service that answers `GET /users` with JSON. It starts with
 one command and stops on `SIGTERM` without dropping requests that are already
 being handled. It fits in one file.
 
+```bash
+npm install @nestlingjs/app @nestlingjs/transport.http zod
+```
+
+`zod` stands next to the framework packages, not inside them: the
+application chooses the version of the validator, and one copy serves both
+it and the framework.
+
 ```typescript
 // src/main.ts
 import { makeApp } from '@nestlingjs/app';

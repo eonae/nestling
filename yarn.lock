@@ -1342,6 +1342,7 @@ __metadata:
     "@nestlingjs/transport.http": "workspace:*"
     "@opentelemetry/api": "npm:^1.9.0"
     "@opentelemetry/exporter-trace-otlp-http": "npm:^0.207.0"
+    "@opentelemetry/sdk-metrics": "npm:^2.1.0"
     "@opentelemetry/sdk-trace-base": "npm:^2.1.0"
     "@types/pg": "npm:^8.23.0"
     drizzle-kit: "npm:^0.31.10"
@@ -1371,6 +1372,7 @@ __metadata:
     "@nestlingjs/viz": "workspace:*"
     "@opentelemetry/api": "npm:^1.9.0"
     "@opentelemetry/exporter-trace-otlp-http": "npm:^0.207.0"
+    "@opentelemetry/sdk-metrics": "npm:^2.1.0"
     "@opentelemetry/sdk-trace-base": "npm:^2.1.0"
     "@types/pg": "npm:^8.23.0"
     drizzle-kit: "npm:^0.31.10"
@@ -1758,6 +1760,8 @@ __metadata:
     "@nestlingjs/logging": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1799,6 +1803,8 @@ __metadata:
     "@nestlingjs/app": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1833,6 +1839,7 @@ __metadata:
     "@nestlingjs/outbox": "workspace:*"
     drizzle-orm: ^0.45.0
     pg: ^8.16.0
+    zod: ^4.0.0
   peerDependenciesMeta:
     "@nestlingjs/inbox":
       optional: true
@@ -1865,6 +1872,8 @@ __metadata:
     "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1903,6 +1912,8 @@ __metadata:
     "@nestlingjs/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1948,6 +1959,10 @@ __metadata:
     "@opentelemetry/sdk-trace-base": "npm:^2.1.0"
     "@opentelemetry/semantic-conventions": "npm:^1.37.0"
     typescript: "npm:5.7.3"
+  peerDependencies:
+    "@opentelemetry/api": ^1.9.0
+    "@opentelemetry/sdk-metrics": ^2.1.0
+    "@opentelemetry/sdk-trace-base": ^2.1.0
   languageName: unknown
   linkType: soft
 
@@ -1963,6 +1978,8 @@ __metadata:
     "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -2003,6 +2020,8 @@ __metadata:
     "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -2044,6 +2063,8 @@ __metadata:
     busboy: "npm:^1.6.0"
     find-my-way: "npm:^9.7.0"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -2059,6 +2080,7 @@ __metadata:
     zod: "npm:^4.0.0"
   peerDependencies:
     nats: ^2.29.3
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 

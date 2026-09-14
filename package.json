@@ -17,8 +17,8 @@
   ],
   "scripts": {
     "nx": "NX_CACHE_DIRECTORY=\"${HOME}/.cache/nestling/nx\" nx",
-    "verify": "yarn nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
-    "verify:fresh": "yarn nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
+    "verify": "yarn nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs && node --test scripts/boundary/manifest-deps.spec.mjs && node scripts/boundary/manifest-deps.mjs",
+    "verify:fresh": "yarn nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs && node --test scripts/boundary/manifest-deps.spec.mjs && node scripts/boundary/manifest-deps.mjs",
     "verify:strict": "yarn nx run-many -t build && tsc -p tsconfig.strict.json",
     "bench:http": "tsx scripts/bench/http.ts",
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs",

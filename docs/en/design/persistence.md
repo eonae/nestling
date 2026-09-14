@@ -13,7 +13,8 @@ live in the satellite
 [`@nestlingjs/drizzle.pg`](../../../packages/nestling.drizzle.pg/): the
 adapter and the transaction must be on the same connection, so the
 package that carries the transaction layer carries the driver too.
-`drizzle-orm` and `pg` are peer dependencies.
+`drizzle-orm`, `pg` and `zod` are peer dependencies: the application
+chooses their version.
 
 The dialect stands in the name of the package, because the dialect
 stands in the code: the package opens a transaction with a command on

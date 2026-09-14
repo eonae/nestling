@@ -30,14 +30,18 @@ records of facts, the field helpers) are written in it, and the packages
 that need JSON Schema take the zod converter by default (§2). For an
 application this is an implementation choice, not a requirement: an
 application on another validator builds and works, and passes its own
-converter wherever a document is needed.
+converter wherever a document is needed. It still has to install zod next
+to the framework: the packages declare it a peer dependency.
 
 **The boundary runs along the public API.** No exported type, parameter
 or return value of the framework packages names a validator; the one
 exception is named by the name of the package —
-`@nestlingjs/schema.zod`. The dependency of a package on zod is visible
-to the application only as a line in `node_modules`, whereas a vendor in
-a **type** would take away its choice of its own validator. So a schema
+`@nestlingjs/schema.zod`. The dependency of a package on zod is declared
+by the application itself: zod is a peer dependency, because the schemas
+of the framework and the schemas of the application meet in one converter
+and have to come from one copy (the layout of dependencies is set by the
+`packages-layout` capability). This takes away no choice of a validator —
+a vendor in a **type** would. So a schema
 the framework writes and that goes into a public type (the record of a
 fact) is declared with the neutral type
 `StandardSchemaV1<unknown, T>`: the value stays a zod schema and is

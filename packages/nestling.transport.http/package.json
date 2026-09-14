@@ -50,12 +50,15 @@
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "busboy": "^1.6.0",
-    "find-my-way": "^9.7.0",
+    "find-my-way": "^9.7.0"
+  },
+  "peerDependencies": {
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nestlingjs/client": "workspace:*",
     "@nestlingjs/common.misc": "workspace:*",
-    "@types/busboy": "^1.5.4"
+    "@types/busboy": "^1.5.4",
+    "zod": "^4.0.0"
   }
 }

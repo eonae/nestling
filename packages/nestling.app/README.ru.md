@@ -7,8 +7,8 @@
 плагинов, проводит приложение по фазам жизненного цикла и останавливает его
 по `SIGTERM` и `SIGINT`.
 
-> 🚧 Активная разработка, API может меняться. Валидатор схем в пакет не
-> входит: подходит любая [Standard Schema](https://standardschema.dev).
+> 🚧 Активная разработка, API может меняться. Валидатор для схем приложения
+> ядро не выбирает: подходит любая [Standard Schema](https://standardschema.dev).
 > Дизайн: [`docs/design/composition.md`](../../docs/design/composition.md),
 > [`docs/design/pipeline.md`](../../docs/design/pipeline.md),
 > [`docs/design/container.md`](../../docs/design/container.md).
@@ -19,12 +19,12 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/app @nestlingjs/container @nestlingjs/operations
+npm install @nestlingjs/app @nestlingjs/container @nestlingjs/operations zod
 ```
 
-Три пакета ядра ставятся вместе. Транспорт выбирается отдельно:
-`@nestlingjs/transport.http`, `@nestlingjs/transport.cli`,
-`@nestlingjs/transport.nats`.
+Три пакета ядра и `zod` ставятся вместе: копия валидатора одна на ядро и
+приложение. Транспорт выбирается отдельно: `@nestlingjs/transport.http`,
+`@nestlingjs/transport.cli`, `@nestlingjs/transport.nats`.
 
 ## Минимальный пример
 

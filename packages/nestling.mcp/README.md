@@ -12,13 +12,14 @@ the agent is not needed.
 ## Install
 
 ```bash
-npm install @nestlingjs/mcp
+npm install @nestlingjs/mcp zod
 ```
 
 The converter for the vendor the framework writes its own schemas in
-comes as a dependency of the package. An application on another
-validator needs that validator's converter — it is passed in the
-`converters` list.
+comes as a dependency of the package, and `zod` itself installs next to
+it: one copy of the validator serves the package and the application. An
+application on another validator needs that validator's converter — it is
+passed in the `converters` list.
 
 ## Minimal example
 

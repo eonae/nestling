@@ -48,10 +48,13 @@
     "test": "run -T vitest run"
   },
   "dependencies": {
-    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/app": "workspace:*"
+  },
+  "peerDependencies": {
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
   }
 }

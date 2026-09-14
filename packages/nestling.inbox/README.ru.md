@@ -14,8 +14,11 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/inbox
+npm install @nestlingjs/inbox zod
 ```
+
+Рядом ставится `zod`: схемы своих объявлений пакет пишет им, и копия
+валидатора у него и у приложения одна.
 
 Хранилище пакет не выбирает: адаптер `InboxStore` приходит извне. Для
 PostgreSQL его отдаёт `@nestlingjs/drizzle.pg/inbox`, для тестов есть

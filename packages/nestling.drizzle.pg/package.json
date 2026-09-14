@@ -71,14 +71,14 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/common.misc": "workspace:*",
     "@nestlingjs/container": "workspace:*",
-    "@nestlingjs/schema.zod": "workspace:*",
-    "zod": "^4.0.0"
+    "@nestlingjs/schema.zod": "workspace:*"
   },
   "peerDependencies": {
     "@nestlingjs/inbox": "workspace:*",
     "@nestlingjs/outbox": "workspace:*",
     "drizzle-orm": "^0.45.0",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "@nestlingjs/inbox": {
@@ -96,6 +96,7 @@
     "@types/pg": "^8.23.0",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.16.0",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
   }
 }

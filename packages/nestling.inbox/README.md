@@ -14,8 +14,12 @@ package neither creates it, nor commits it, nor rolls it back.
 ## Install
 
 ```bash
-npm install @nestlingjs/inbox
+npm install @nestlingjs/inbox zod
 ```
+
+`zod` installs next to it: the package writes the schemas of its own
+declarations in it, and one copy of the validator serves the package and the
+application.
 
 The package does not choose the storage: the `InboxStore` adapter comes
 from outside. For PostgreSQL it is given by `@nestlingjs/drizzle.pg/inbox`,

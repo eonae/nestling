@@ -40,6 +40,7 @@
     "@nestlingjs/transport.http": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
+    "@opentelemetry/sdk-metrics": "^2.1.0",
     "@opentelemetry/sdk-trace-base": "^2.1.0",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.16.0",

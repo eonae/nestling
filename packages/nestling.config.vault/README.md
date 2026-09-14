@@ -11,11 +11,13 @@ another source — from `.env`, for example.
 ## Install
 
 ```bash
-npm install @nestlingjs/config.vault
+npm install @nestlingjs/config.vault zod
 ```
 
 The package takes no Vault client: the request goes through the standard
-`fetch`, so the dependencies are the core and `zod`.
+`fetch`. `zod` installs next to it: the package writes the schema of its own
+section in it, and one copy of the validator serves the package and the
+application.
 
 ## Minimal example
 

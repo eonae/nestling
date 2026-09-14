@@ -21,7 +21,17 @@
 
 ## Сателлит отдаёт слой и плагин
 
-Экспорт телеметрии живёт в пакете `@nestlingjs/otel`. Вход один:
+Экспорт телеметрии живёт в пакете `@nestlingjs/otel`. Пакеты SDK
+приложение ставит рядом: экспортёр оно создаёт само, и копия SDK у него и
+у сателлита обязана быть одна.
+
+```bash
+npm install @nestlingjs/otel @opentelemetry/api \
+  @opentelemetry/sdk-trace-base @opentelemetry/sdk-metrics \
+  @opentelemetry/exporter-trace-otlp-http
+```
+
+Вход один:
 
 ```typescript
 // src/observability.ts

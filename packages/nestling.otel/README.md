@@ -16,8 +16,17 @@ kernel's `Trace` variable, the metric points from the snapshot of
 ## Install
 
 ```bash
-npm install @nestlingjs/otel @opentelemetry/exporter-trace-otlp-http
+npm install @nestlingjs/otel @opentelemetry/api \
+  @opentelemetry/sdk-trace-base @opentelemetry/sdk-metrics \
+  @opentelemetry/exporter-trace-otlp-http
 ```
+
+`@opentelemetry/api`, `@opentelemetry/sdk-trace-base` and
+`@opentelemetry/sdk-metrics` are peer dependencies: the application creates
+the trace exporter and the metric exporter with its own copy of the SDK and
+passes them in the `traces` and `metrics` options, so one copy of the SDK
+serves both it and the package. The exporter is chosen separately; in the
+example below it is OTLP over HTTP.
 
 ## Minimal example
 

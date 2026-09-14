@@ -50,17 +50,22 @@
   "dependencies": {
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
-    "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/resources": "^2.1.0",
-    "@opentelemetry/sdk-metrics": "^2.1.0",
-    "@opentelemetry/sdk-trace-base": "^2.1.0",
     "@opentelemetry/semantic-conventions": "^1.37.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-metrics": "^2.1.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0"
   },
   "devDependencies": {
     "@nestlingjs/prometheus": "workspace:*",
     "@nestlingjs/testing": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
+    "@opentelemetry/sdk-metrics": "^2.1.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
     "typescript": "5.7.3"
   },
   "nx": {

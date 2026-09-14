@@ -104,6 +104,7 @@ const manifest = JSON.parse(
 ) as {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
 };
 
 /**
@@ -124,11 +125,32 @@ const ALLOWED_DEPENDENCIES = new Set([
   'zod',
 ]);
 
+/**
+ * Имена, которые пакет требует от дерева приложения.
+ *
+ * Поля два, и вид объявления выбирает тот, кто выбирает версию: свой
+ * пакет — `dependencies`, стороннюю библиотеку — `peerDependencies`
+ * (capability `packages-layout`). Для этой проверки поля равны: она
+ * считает состав, а не раскладку.
+ */
+function requiredOfApplication(): string[] {
+  return [
+    ...Object.keys(manifest.dependencies ?? {}),
+    ...Object.keys(manifest.peerDependencies ?? {}),
+  ];
+}
+
 describe('@nestlingjs/inbox: пакет самодостаточен', () => {
   it('в зависимостях нет ничего сверх объявленного списка', () => {
-    expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual(
+    expect(requiredOfApplication().sort()).toEqual(
       [...ALLOWED_DEPENDENCIES].sort(),
     );
+  });
+
+  it('валидатор приходит peer-зависимостью, а не своей', () => {
+    expect(Object.keys(manifest.peerDependencies ?? {})).toContain('zod');
+    expect(Object.keys(manifest.dependencies ?? {})).not.toContain('zod');
+    expect(Object.keys(manifest.devDependencies ?? {})).toContain('zod');
   });
 
   it('поставляемый код не импортирует ничего сверх этого списка', () => {
@@ -154,7 +176,7 @@ describe('@nestlingjs/inbox: пакет самодостаточен', () => {
     const drivers =
       /\b(pg|mysql2?|better-sqlite3|mongodb|knex|prisma|drizzle|typeorm|sequelize)\b/;
     const manifested = [
-      ...Object.keys(manifest.dependencies ?? {}),
+      ...requiredOfApplication(),
       ...Object.keys(manifest.devDependencies ?? {}),
     ];
 

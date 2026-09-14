@@ -12,8 +12,12 @@ singleton in the container — so the kernel does not know about it.
 ## Install
 
 ```bash
-npm install @nestlingjs/subscriptions
+npm install @nestlingjs/subscriptions zod
 ```
+
+`zod` installs next to it: the package writes the schemas of its own
+declarations in it, and one copy of the validator serves the package and
+the application.
 
 ## Minimal example
 

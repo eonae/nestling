@@ -5,6 +5,14 @@ take it. All of them ship one version at a time, so a project pins the same
 number everywhere. Read the README of a package for its full list of
 exports; this table only says when the package is the answer.
 
+A library whose values cross the boundary of a package is a peer
+dependency, so the project installs it itself and keeps one copy of it:
+`zod` for every package that carries schemas of its own — the core among
+them — plus `drizzle-orm` and `pg` for `@nestlingjs/drizzle.pg`, `nats` for
+`@nestlingjs/transport.nats`, `pino` for `@nestlingjs/logging.pino`, and
+`@opentelemetry/api`, `@opentelemetry/sdk-trace-base` and
+`@opentelemetry/sdk-metrics` for `@nestlingjs/otel`.
+
 ## The core and a transport
 
 | Package | When you need it |
