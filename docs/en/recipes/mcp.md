@@ -54,7 +54,7 @@ class that serves the HTTP declaration.
 // src/features/users/tools/get-user.tool.ts
 export const GetUserTool = mcpTool.implement(GetUserOperation, {
   annotations: { readOnlyHint: true },
-  pipeline: observability,
+  pipeline: traced,
   handler: GetUserHandler,
 });
 ```
@@ -91,7 +91,7 @@ export const SearchUsersTool = mcpTool('search_users', {
   annotations: { readOnlyHint: true },
   input: SearchUsersInput,
   output: SearchUsersOutput,
-  pipeline: observability,
+  pipeline: traced,
   handler: SearchUsersHandler,
 });
 ```
@@ -122,8 +122,8 @@ the root — the same one that writes it for HTTP.
 ```typescript
 // src/app.ts
 everyEndpoint({ transport: McpTransport$('default') }).hasLayer(
-  observability,
-  'observability',
+  traced,
+  'traced',
 ),
 ```
 

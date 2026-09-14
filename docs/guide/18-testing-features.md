@@ -208,7 +208,7 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
   });
 ```
 
-Слой `observability` по-прежнему кладёт свой `requestId` в контекст, но
+Слой `traced` по-прежнему кладёт свой `requestId` в контекст, но
 сервис читает подставленное значение. Семейство DI-токенов целиком
 подменяет `familyOverride(Family, make)` в том же списке `overrides`.
 

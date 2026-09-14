@@ -287,14 +287,14 @@ curl -X POST localhost:3000/users \
 
 ## What is shared goes into plugins
 
-Both features need the `observability` layer. A provider that two
+Both features need the `traced` layer. A provider that two
 features depend on is declared as a plugin:
 
 ```typescript
 // src/plugins/observability/observability.plugin.ts
-export const appObservability: Plugin = makePlugin({
+export const observability: Plugin = makePlugin({
   name: 'app-observability',
-  // The step class of the observability layer: without registering it the layer will not build
+  // The step class of the `traced` layer: without registering it the layer will not build
   providers: [AuditOutcome],
 });
 ```
@@ -303,7 +303,7 @@ A plugin is cross-cutting infrastructure. `makePlugin` accepts the same
 thing as `makeFeature`: a name, providers, endpoints if needed. The
 difference is in the role: a plugin is listed in `plugins:` of the root,
 is present in every process, and features reach it by DI tokens.
-`appObservability` has no parameters: the kernel gives the step its
+`observability` has no parameters: the kernel gives the step its
 logger, and `NESTLING_LOG_LEVEL` of the kernel logger sets the record
 level ([chapter 9](./09-logging.md)), so the plugin has one value and it
 is declared right here.
@@ -312,14 +312,14 @@ A parameterized plugin is a function that returns a value:
 
 ```typescript
 // src/ops/ops.plugin.ts (fragment)
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: false,
 });
 ```
 
-`subscriptions(options)` from the `@nestlingjs/subscriptions` package
+`makeSubscriptions(options)` from the `@nestlingjs/subscriptions` package
 builds a subscription registry. `identity` names a context variable:
 the registry takes its value by the key and does not know the shape of
 the accumulated input. `labels` is a function of the context; the
@@ -334,13 +334,13 @@ The DI token check is built the same way:
 
 ```typescript
 // src/plugins/auth/index.ts
-export const appAuth = makePlugin({
+export const auth = makePlugin({
   name: 'app-auth',
   providers: [Authenticate],
 });
 
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 ```
@@ -393,21 +393,21 @@ module, lists the endpoints.
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature],
   plugins: [
-    appObservability,
-    appAuth,
-    appSubscriptions,
+    observability,
+    auth,
+    subscriptions,
     // The documentation plugin stands under a composition switch — chapter
     // 19 introduces it: [chapter 19](./19-select.md)
-    Docs.when(appOpenapi),
+    DocsEnabled.when(openapi),
   ],
-  switches: [Docs],
+  switches: [DocsEnabled],
   // Two protocols on one socket: the recipe
   // [«Expose the operations to an agent over MCP»](../recipes/mcp.md)
   transports: [http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     everyEndpoint({
       transport: HttpTransport$('default'),
@@ -419,7 +419,7 @@ export const app = makeApp({
 ```
 
 The value of a parameterized plugin is created once and imported: a
-second `subscriptions({ … })` call would give a second plugin with the
+second `makeSubscriptions({ … })` call would give a second plugin with the
 same name, and the build would stop.
 
 ## Check

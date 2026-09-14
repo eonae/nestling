@@ -120,7 +120,7 @@ export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ListUsersHandler,
 });
 ```

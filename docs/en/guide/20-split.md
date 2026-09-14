@@ -152,7 +152,7 @@ export const WelcomeEmail = implement(UserRegistered, {
   // process it tells subscriptions to one event apart, and at a broker
   // it becomes the name of the queue group and of the durable consumer
   subscriber: 'welcome-email',
-  pipeline: base,
+  pipeline: traced,
   handler: WelcomeEmailHandler,
 });
 ```
@@ -190,7 +190,7 @@ export const RegisterUserImpl = implement(RegisterUser, {
   // The base layer returns the trace and the tenant into the context:
   // both arrived in the message envelope, and the
   // `notifications.check-address` caller will pass them on
-  pipeline: base,
+  pipeline: traced,
   handler: RegisterUserHandler,
 });
 ```
@@ -203,7 +203,7 @@ stands in the pipeline of every implementation: both `notifications.check-addres
 
 ```typescript
 // src/base.ts
-export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
+export const traced: Pipeline<EmptyInput, BaseContext> = makePipeline()
   .pre(withTracing())
   .pre(TenantId.propagated());
 ```

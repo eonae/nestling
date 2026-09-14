@@ -278,14 +278,14 @@ curl -X POST localhost:3000/users \
 
 ## Общее уходит в плагины
 
-Слой `observability` нужен обеим фичам. Провайдер, от которого зависят
+Слой `traced` нужен обеим фичам. Провайдер, от которого зависят
 две фичи, объявляется плагином:
 
 ```typescript
 // src/plugins/observability/observability.plugin.ts
-export const appObservability: Plugin = makePlugin({
+export const observability: Plugin = makePlugin({
   name: 'app-observability',
-  // Класс-шаг слоя `observability`: без регистрации слой не соберётся
+  // Класс-шаг слоя `traced`: без регистрации слой не соберётся
   providers: [AuditOutcome],
 });
 ```
@@ -293,7 +293,7 @@ export const appObservability: Plugin = makePlugin({
 Плагин — сквозная инфраструктура. `makePlugin` принимает то же, что
 `makeFeature`: имя, провайдеры, при необходимости endpoint'ы. Разница в
 роли: плагин перечисляется в `plugins:` корня, есть в каждом процессе, и
-фичи обращаются к нему DI-токенами. У `appObservability` параметров нет:
+фичи обращаются к нему DI-токенами. У `observability` параметров нет:
 логгер шагу даёт ядро, а уровень записи задаёт `NESTLING_LOG_LEVEL`
 логгера ядра ([глава 9](./09-logging.md)), поэтому значение плагина одно
 и объявлено прямо здесь.
@@ -302,14 +302,14 @@ export const appObservability: Plugin = makePlugin({
 
 ```typescript
 // src/ops/ops.plugin.ts (фрагмент)
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: false,
 });
 ```
 
-`subscriptions(options)` из пакета `@nestlingjs/subscriptions` собирает
+`makeSubscriptions(options)` из пакета `@nestlingjs/subscriptions` собирает
 реестр подписок. `identity` называет контекстную переменную: реестр берёт
 её значение по ключу, а формы накопленного входа не знает. `labels` —
 функция от контекста; накопленный вход ей тоже недоступен, и значения
@@ -322,13 +322,13 @@ export const appSubscriptions = subscriptions({
 
 ```typescript
 // src/plugins/auth/index.ts
-export const appAuth = makePlugin({
+export const auth = makePlugin({
   name: 'app-auth',
   providers: [Authenticate],
 });
 
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 ```
@@ -381,21 +381,21 @@ export const UsersFeature = makeFeature({
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature],
   plugins: [
-    appObservability,
-    appAuth,
-    appSubscriptions,
+    observability,
+    auth,
+    subscriptions,
     // Плагин документации стоит под переключателем состава — его вводит
     // [глава 19](./19-select.md)
-    Docs.when(appOpenapi),
+    DocsEnabled.when(openapi),
   ],
-  switches: [Docs],
+  switches: [DocsEnabled],
   // Два протокола на одном сокете: рецепт
   // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
   transports: [http({ server: api }), mcp({ … })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     everyEndpoint({
       transport: HttpTransport$('default'),
@@ -407,7 +407,7 @@ export const app = makeApp({
 ```
 
 Значение параметризованного плагина создаётся один раз и импортируется:
-второй вызов `subscriptions({ … })` дал бы второй плагин с тем же
+второй вызов `makeSubscriptions({ … })` дал бы второй плагин с тем же
 именем, и сборка остановилась бы.
 
 ## Проверка

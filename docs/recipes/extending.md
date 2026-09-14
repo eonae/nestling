@@ -94,7 +94,7 @@ export const tracked = makePipeline()
 потребителем, поэтому запись снимается в тот же момент, когда подписка
 действительно завершилась. Своего хука или таймера реестру не нужно.
 
-Приложение подключает слой так же, как любой свой: `compose(observability,
+Приложение подключает слой так же, как любой свой: `compose(traced,
 tracked)`. Обязательность слоя задаёт политика корня
 `everyEndpoint({ … }).hasLayer(tracked)`, а не скрытый механизм пакета.
 
@@ -219,9 +219,9 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 Плагин сателлита устроен так же, как плагин логирования из
 [главы 14](../guide/14-features.md): функция принимает решения композиции и
 возвращает значение `makePlugin`. Класс-шаги слоя регистрирует сам
-плагин, поэтому endpoint со слоем `tracked` без `subscriptions()` в корне
+плагин, поэтому endpoint со слоем `tracked` без `makeSubscriptions()` в корне
 останавливает сборку на фазе BUILD: класс-шаг слоя не получает
-зависимостей. Второе значение `subscriptions({ … })` в одном и том же
+зависимостей. Второе значение `makeSubscriptions({ … })` в одном и том же
 корне тоже останавливает сборку: два плагина с одним именем. Список
 `deps` ресурса зависит от опции `publish`: при выключенной публикации
 вызывателей операций в графе нет.
@@ -309,7 +309,7 @@ export const testTransport = (): TransportDeclaration =>
   it('видит подписку, убивает её и снимает запись', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -354,7 +354,7 @@ yarn workspace @nestlingjs/subscriptions test
 
 ```typescript
 // src/app.ts (фрагмент)
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,

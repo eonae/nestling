@@ -144,7 +144,7 @@ export class ExportUsersHandler {
 export const ExportUsers = httpEndpoint.get('/users/export', {
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ExportUsersHandler,
 });
 ```
@@ -166,7 +166,7 @@ NDJSON, по одному JSON-объекту на строку, с chunked-ко
 сохраняют тип элемента, потому что оба конца цепочки зафиксированы
 схемой `output`.
 
-Слой `observability` работает и здесь. Шаг `.finally` вызывается после
+Слой `traced` работает и здесь. Шаг `.finally` вызывается после
 того, как поток завершился или оборвался, поэтому исход в строке аудита
 верный.
 

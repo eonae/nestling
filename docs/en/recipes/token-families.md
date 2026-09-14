@@ -86,7 +86,7 @@ mechanism, only the recipe is registered by the kernel.
 
 ```typescript
 // src/counters/counters.plugin.ts (fragment)
-export const appCounters = makePlugin({
+export const counters = makePlugin({
   name: 'app-counters',
   providers: [
     // One recipe for the whole family: `name` is the parameter of the

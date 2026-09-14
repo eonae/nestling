@@ -126,7 +126,7 @@ export class DbUsersRepository implements UsersRepository {
 
 `db.connection` is the DI token of the PostgreSQL connection. The
 `@nestlingjs/drizzle.pg` package declares the connection with one call to
-`drizzlePg({ schema })`. How this works, and why a mutating method writes
+`makeDrizzlePg({ schema })`. How this works, and why a mutating method writes
 through the request's transaction rather than through a connection from the
 pool, is shown by [chapter 11](./11-database.md).
 
@@ -223,7 +223,7 @@ From this follows the main property: the consumer of a resource is created
 at all.
 
 The database connection in the example is declared with exactly this role, but
-not in the application code: `drizzlePg({ schema })` creates the resource
+not in the application code: `makeDrizzlePg({ schema })` creates the resource
 inside itself and gives out a DI token. The application puts the value in
 `plugins:` and gives the pool no further thought.
 

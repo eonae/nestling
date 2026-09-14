@@ -47,7 +47,7 @@ in the chapters that the last column links to.
 | `@Header()`, `@Res().cookie()`, `@Redirect()` | `HttpResponse.of(ok, { headers, cookies })`, `HttpResponse.redirect(location)` | a header, a cookie and a redirect are the HTTP form of the response; it is allowed where the address is declared by the transport | [10](./guide/10-auth.md) |
 | `StreamableFile`, a response through `@Res()` | the io shapes `stream(T)`, `events(T)`, `multipart()` | the handler returns an `AsyncIterable`, the transport chooses NDJSON or SSE | [12](./guide/12-files-and-streams.md), [17](./guide/17-live-feed.md) |
 | `FileInterceptor` | `multipart({ fields, files })` and `upload({ maxSize, mime })` | the limit and the type are checked during parsing, a file over the limit is not buffered | [12](./guide/12-files-and-streams.md) |
-| `@nestjs/swagger` decorators | the `openapi()` plugin and the `doc:` slot | the document is derived from the same schemas that validate requests | [13](./guide/13-openapi-and-client.md) |
+| `@nestjs/swagger` decorators | the `makeOpenapi()` plugin and the `doc:` slot | the document is derived from the same schemas that validate requests | [13](./guide/13-openapi-and-client.md) |
 
 ## Interaction between application parts
 

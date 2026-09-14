@@ -59,7 +59,7 @@ export class Authenticate {
 }
 
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 ```
@@ -91,7 +91,7 @@ failure before the result is written into the context.
 pre-steps of the outer layer run earlier, so `requestId` is already in the
 context by the time the Bearer token is checked, and the audit line is
 written for rejected requests too. The `authed` layer descends from
-`observability` — the build policy below relies on this.
+`traced` — the build policy below relies on this.
 
 A layer can declare a requirement on the outer context with the
 `makePipeline<{ caller: Caller }>()` signature. Composing such a layer with
@@ -111,7 +111,7 @@ export const DeleteUser = httpEndpoint.delete('/users/:id', {
 });
 ```
 
-The endpoint connects `authed` instead of `observability`. `Unauthorized`
+The endpoint connects `authed` instead of `traced`. `Unauthorized`
 is not listed in `errors:`: the layer declared it. The failure set of an
 endpoint is made up of the `errors:` dictionary and the failures of its
 layers, and this set gets the type of the handler, the check at the
@@ -165,7 +165,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 # 204
 ```
 
-A new endpoint with `pipeline: observability` compiles and works, but lets
+A new endpoint with `pipeline: traced` compiles and works, but lets
 everyone through. So that such an endpoint does not reach production, the
 root declares build policies:
 
@@ -181,8 +181,8 @@ export const app = makeApp({
   policies: [
     // Every HTTP endpoint has the observability layer
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     // Every endpoint that changes data checks the Bearer token
     everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(
@@ -205,7 +205,7 @@ cannot be bypassed by redeclaring the layer.
 
 Policies are checked on the BUILD phase: before the instances are
 created, before the socket opens. A `POST /rogue` endpoint with the
-`observability` layer stops the start with this message:
+`traced` layer stops the start with this message:
 
 ```
 1 endpoint violation(s) of build policies:
@@ -283,7 +283,7 @@ start and reaches the `check()` report:
 ```
 
 There is no need to write the liveness and readiness probes by hand: the
-`httpProbes()` plugin gives them over the `Health$` kernel node, and both
+`makeHttpProbes()` plugin gives them over the `Health$` kernel node, and both
 of them are declared with the same `detached` and `doc.hidden` (recipe
 ["Who is connected right now and how to disconnect
 them"](../recipes/ops.md)).
@@ -304,7 +304,7 @@ export default [
     rules: {
       '@nestlingjs/endpoint-has-layer': [
         'warn',
-        { layer: 'observability', constructorName: 'httpEndpoint' },
+        { layer: 'traced', constructorName: 'httpEndpoint' },
       ],
     },
   },
@@ -351,7 +351,7 @@ export const Login = httpEndpoint.post('/login', {
   redirect: 303,
   errors: [UserNotFound],
   detached: 'вход выдаёт сессию, поэтому Bearer-токена у него ещё нет',
-  pipeline: observability,
+  pipeline: traced,
   handler: LoginHandler,
 });
 ```

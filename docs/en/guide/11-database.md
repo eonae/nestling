@@ -24,7 +24,7 @@ to PostgreSQL, the transaction variable and the layer that opens it.
 
 ```typescript
 // src/persistence.ts
-export const db = drizzlePg({ schema });
+export const db = makeDrizzlePg({ schema });
 ```
 
 One call creates five things: the DI token of the connection, the context
@@ -97,7 +97,7 @@ variable, into the context: `.ok`, `.catch` and `.finally` all read it, and
 the connection that issues it comes from the container. Earlier the
 application wrote such a bridge by hand (recipe ["Extend the kernel with
 your own package"](../recipes/extending.md)); now it is declared inside
-`drizzlePg` next to the DI token of the connection and stays invisible from
+`makeDrizzlePg` next to the DI token of the connection and stays invisible from
 the outside.
 
 The key of the variable is derived from the name of the connection: `tx`

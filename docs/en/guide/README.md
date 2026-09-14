@@ -63,7 +63,7 @@ introduces are not in the map — the map describes the reading order.
 | early success | The third outcome of a pre-step: `done()` finishes the endpoint with a success without reaching the handler | [10](./10-auth.md) |
 | HTTP shape of a handler | A handler whose `meta` contains the request and whose result allows an `HttpResponse`: headers, cookies and a redirect | [10](./10-auth.md) |
 | transport start context | The fields the transport puts into the context before the first `.pre` step; for HTTP it is `HttpStartContext` | [10](./10-auth.md) |
-| database connection | The value `drizzlePg({ schema })`: the DI token of the pool, the transaction variable, the layer and the policy in one declaration | [11](./11-database.md) |
+| database connection | The value `makeDrizzlePg({ schema })`: the DI token of the pool, the transaction variable, the layer and the policy in one declaration | [11](./11-database.md) |
 | request transaction | The context variable that the pipeline layer puts there: the repository and the transactional emitter read it with the `Ctx` reader | [11](./11-database.md) |
 | io shape | The kind of input or output of an endpoint: `value`, `stream(T)`, `events(T)`, `multipart()`, `upload()` | [12](./12-files-and-streams.md) |
 | operation | The unit of communication between features: a name, the `input` and `output` schemas, the list of `errors` | [14](./14-features.md) |
@@ -75,7 +75,7 @@ introduces are not in the map — the map describes the reading order.
 | inbox mark | The record «this consumer has processed this message», committed by the request transaction | [16](./16-durable-events.md) |
 | feature selection | Which features to include in the build: `'all'`, a list of names or the `features` field of the argument | [19](./19-select.md) |
 | composition switch | A value that chooses one of the declared composition branches by a value known before build | [19](./19-select.md) |
-| composition branch | The elements that go into the list at one of the values of a switch: `Storage.pick({ … })`, `Audit.when(…)` | [19](./19-select.md) |
+| composition branch | The elements that go into the list at one of the values of a switch: `Storage.pick({ … })`, `AuditEnabled.when(…)` | [19](./19-select.md) |
 | intercom | The role of the carrier of operations between processes, assigned to a declared transport | [20](./20-split.md) |
 | split deployment | The features of one application are started in different processes and talk through a broker | [20](./20-split.md) |
 | metric | A number that the application or the kernel writes by name with attributes: a counter or a histogram | [22](./22-metrics.md) |
@@ -94,9 +94,9 @@ introduces are not in the map — the map describes the reading order.
 | [8. Make sure it works without starting a server](./08-testing.md) | `buildTest(app, …)`, `overrides`, `vars`, a unit test of a handler |
 | [9. See every request in the log](./09-logging.md) | the pipeline `.pre` and `.finally`, a layer, `compose`, `Ctx(RequestId)` |
 | [10. Let only your own through](./10-auth.md) | a pre-step with a failure, the context of a layer, the `hasLayer` and `hasVar` policies, `detached`, `HttpResponse` and transport steps |
-| [11. Write to the database in the request transaction](./11-database.md) | `drizzlePg`, a transaction in a context variable, drizzle-kit migrations |
+| [11. Write to the database in the request transaction](./11-database.md) | `makeDrizzlePg`, a transaction in a context variable, drizzle-kit migrations |
 | [12. Files and large exports](./12-files-and-streams.md) | `multipart`, `upload`, `stream(T)` on the input and on the output |
-| [13. Give the frontend the documentation and the client](./13-openapi-and-client.md) | `openapi()`, `doc:`, an operation with `http:`, `makeClient` |
+| [13. Give the frontend the documentation and the client](./13-openapi-and-client.md) | `makeOpenapi()`, `doc:`, an operation with `http:`, `makeClient` |
 
 ## Part 2. The application
 

@@ -47,7 +47,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 | `@Header()`, `@Res().cookie()`, `@Redirect()` | `HttpResponse.of(ok, { headers, cookies })`, `HttpResponse.redirect(location)` | заголовок, cookie и редирект — HTTP-форма ответа; она допустима там, где адрес объявлен транспортом | [10](./guide/10-auth.md) |
 | `StreamableFile`, ответ через `@Res()` | формы io `stream(T)`, `events(T)`, `multipart()` | хендлер возвращает `AsyncIterable`, транспорт выбирает NDJSON или SSE | [12](./guide/12-files-and-streams.md), [17](./guide/17-live-feed.md) |
 | `FileInterceptor` | `multipart({ fields, files })` и `upload({ maxSize, mime })` | лимит и тип проверяются во время разбора, файл сверх лимита не буферизуется | [12](./guide/12-files-and-streams.md) |
-| `@nestjs/swagger` декораторы | плагин `openapi()` и слот `doc:` | документ выводится из тех же схем, что проверяют запросы | [13](./guide/13-openapi-and-client.md) |
+| `@nestjs/swagger` декораторы | плагин `makeOpenapi()` и слот `doc:` | документ выводится из тех же схем, что проверяют запросы | [13](./guide/13-openapi-and-client.md) |
 
 ## Взаимодействие частей приложения
 

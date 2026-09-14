@@ -142,7 +142,7 @@ export const WelcomeEmail = implement(UserRegistered, {
   // подписки на одно событие, у брокера становится именем queue-группы
   // и durable-потребителя
   subscriber: 'welcome-email',
-  pipeline: base,
+  pipeline: traced,
   handler: WelcomeEmailHandler,
 });
 ```
@@ -179,7 +179,7 @@ export const RegisterUserImpl = implement(RegisterUser, {
   // Базовый слой возвращает в контекст трассу и арендатора: оба пришли в
   // конверте сообщения, и вызыватель `notifications.check-address`
   // передаст их дальше
-  pipeline: base,
+  pipeline: traced,
   handler: RegisterUserHandler,
 });
 ```
@@ -192,7 +192,7 @@ export const RegisterUserImpl = implement(RegisterUser, {
 
 ```typescript
 // src/base.ts
-export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
+export const traced: Pipeline<EmptyInput, BaseContext> = makePipeline()
   .pre(withTracing())
   .pre(TenantId.propagated());
 ```

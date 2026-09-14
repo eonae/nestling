@@ -60,7 +60,7 @@ export class Authenticate {
 }
 
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 ```
@@ -89,7 +89,7 @@ HTTP-запроса; имена заголовков приведены к ни�
 `authed` — новый слой, составленный из двух: `compose(outer, inner)`.
 Pre-шаги внешнего слоя выполняются раньше, поэтому `requestId` уже
 лежит в контексте, когда проверяется Bearer-токен, а строка аудита пишется и
-для отклонённых запросов. Слой `authed` происходит от `observability` —
+для отклонённых запросов. Слой `authed` происходит от `traced` —
 это использует политика сборки ниже.
 
 Слой может объявить требование к внешнему контексту сигнатурой
@@ -110,7 +110,7 @@ export const DeleteUser = httpEndpoint.delete('/users/:id', {
 });
 ```
 
-Endpoint подключает `authed` вместо `observability`. `Unauthorized` в
+Endpoint подключает `authed` вместо `traced`. `Unauthorized` в
 `errors:` не перечислен: его объявил слой. Множество отказов endpoint'а
 складывается из `errors:` словаря и отказов его слоёв, и это множество
 получают тип хендлера, проверка на границе и документ OpenAPI. Отказ из
@@ -163,7 +163,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 # 204
 ```
 
-Новый endpoint с `pipeline: observability` компилируется и работает, но
+Новый endpoint с `pipeline: traced` компилируется и работает, но
 пропускает всех. Чтобы такой endpoint не дошёл до запуска, корень
 объявляет политики сборки:
 
@@ -179,8 +179,8 @@ export const app = makeApp({
   policies: [
     // У каждого HTTP-endpoint'а есть слой наблюдаемости
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     // Каждый endpoint, который меняет данные, проверяет Bearer-токен
     everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(
@@ -202,7 +202,7 @@ export const app = makeApp({
 проверку переобъявлением слоя нельзя.
 
 Политики проверяются на фазе BUILD: до создания экземпляров, до открытия сокета.
-Endpoint `POST /rogue` со слоем `observability` остановит запуск с таким
+Endpoint `POST /rogue` со слоем `traced` остановит запуск с таким
 сообщением:
 
 ```
@@ -279,7 +279,7 @@ true` нет. Причина видна в диффе, печатается пр
 ```
 
 Пробы живости и готовности своими руками писать не нужно: их даёт плагин
-`httpProbes()` поверх узла ядра `Health$`, и обе они объявлены с тем же
+`makeHttpProbes()` поверх узла ядра `Health$`, и обе они объявлены с тем же
 `detached` и `doc.hidden` (рецепт [«Кто сейчас подключён и как его
 отключить»](../recipes/ops.md)).
 
@@ -298,7 +298,7 @@ export default [
     rules: {
       '@nestlingjs/endpoint-has-layer': [
         'warn',
-        { layer: 'observability', constructorName: 'httpEndpoint' },
+        { layer: 'traced', constructorName: 'httpEndpoint' },
       ],
     },
   },
@@ -344,7 +344,7 @@ export const Login = httpEndpoint.post('/login', {
   redirect: 303,
   errors: [UserNotFound],
   detached: 'вход выдаёт сессию, поэтому Bearer-токена у него ещё нет',
-  pipeline: observability,
+  pipeline: traced,
   handler: LoginHandler,
 });
 ```

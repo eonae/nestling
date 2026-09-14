@@ -15,14 +15,14 @@
 
 ```typescript
 // src/app.ts
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 
 export const app = makeApp({
   features: [UsersFeature],
   plugins: [
-    openapi({
+    makeOpenapi({
       info: { title: 'Users API', version: '1.0.0' },
-      pipeline: observability,
+      pipeline: traced,
     }),
   ],
   transports: [http()],
@@ -30,7 +30,7 @@ export const app = makeApp({
 });
 ```
 
-`openapi()` — плагин: пакет, который подключается к корню и работает на
+`makeOpenapi()` — плагин: пакет, который подключается к корню и работает на
 всё приложение, а не на одну фичу. Здесь достаточно поставить его в
 `plugins:`.
 
@@ -40,7 +40,7 @@ export const app = makeApp({
 
 - `info` — заголовок документа.
 - `pipeline` — слой для endpoint'а `GET /openapi.json`. Политика из
-  [главы 10](./10-auth.md) требует `observability` от каждого
+  [главы 10](./10-auth.md) требует `traced` от каждого
   HTTP-endpoint'а, и endpoint плагина не исключение.
 - `converters` — кто переводит схемы в JSON Schema. Схемы, написанные на
   валидаторе фреймворка, переводятся без этой строки: его конвертер плагин
@@ -79,12 +79,12 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 // src/openapi.ts
 import { writeFileSync } from 'node:fs';
 
-import { app, appOpenapi } from './app.js';
+import { app, openapi } from './app.js';
 
 /** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
 const args = process.argv[2];
 
-const document = appOpenapi.document(app.discover(args));
+const document = openapi.document(app.discover(args));
 
 // `file` — `openapi.json` в корне пакета примера
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
@@ -115,7 +115,7 @@ yarn openapi users
 зовут одну функцию.
 
 Метод работает и тогда, когда плагин не попал в состав. Значение живёт в
-декларации, а `Docs.when(appOpenapi)` решает только судьбу endpoint'а:
+декларации, а `DocsEnabled.when(openapi)` решает только судьбу endpoint'а:
 документ для контура с `docs=off` строится тем же вызовом.
 
 `app.discover(args)` бросает ошибки фазы 0: неизвестное имя фичи, значение
@@ -247,7 +247,7 @@ export class GetUserHandler {
 }
 
 export const GetUser = httpEndpoint.implement(GetUserOperation, {
-  pipeline: observability,
+  pipeline: traced,
   handler: GetUserHandler,
 });
 ```

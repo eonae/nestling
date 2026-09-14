@@ -23,10 +23,10 @@
 ```typescript
 // src/app.ts (фрагмент)
 import { everyEndpoint, RequestId } from '@nestlingjs/app';
-import { subscriptions } from '@nestlingjs/subscriptions';
+import { makeSubscriptions } from '@nestlingjs/subscriptions';
 // …
 
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
@@ -36,9 +36,9 @@ export const appSubscriptions = subscriptions({
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
-    appObservability,
-    appAuth,
-    appSubscriptions,
+    observability,
+    auth,
+    subscriptions,
     // …
   ],
   policies: [
@@ -49,15 +49,15 @@ export const app = makeApp({
 });
 ```
 
-`subscriptions(options)` возвращает плагин. Значение создаётся один раз и
+`makeSubscriptions(options)` возвращает плагин. Значение создаётся один раз и
 перечисляется в `plugins:`, как параметризованный плагин из
 [главы 14](../guide/14-features.md). Класс-шаги слоя подписок регистрирует
 именно этот плагин: endpoint со слоем `tracked` в сборке без
-`appSubscriptions` останавливает старт на фазе BUILD, потому что
+`subscriptions` останавливает старт на фазе BUILD, потому что
 незарегистрированный класс-шаг не создаётся.
 
 Опции описывают решения композиции. `identity` называет подписчика
-контекстной переменной: здесь это `RequestId` слоя `observability`, в
+контекстной переменной: здесь это `RequestId` слоя `traced`, в
 приложении с аутентификацией на её месте была бы переменная с
 идентификатором пользователя. Реестр читает значение переменной по её
 ключу и формы накопленного входа не знает.
@@ -103,7 +103,7 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
     event: (event) => event.kind,
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: ActivityStreamHandler,
 });
 ```
@@ -148,7 +148,7 @@ class ListSubscriptionsHandler {
 export const ListSubscriptions = httpEndpoint.get('/ops/subscriptions', {
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ListSubscriptionsHandler,
 });
 ```
@@ -218,7 +218,7 @@ export const WatchSubscriptions = httpEndpoint.get('/ops/subscriptions/live', {
     event: (change) => change.type,
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: WatchSubscriptionsHandler,
 });
 ```
@@ -280,11 +280,11 @@ split-развёртывании из [главы 20](../guide/20-split.md) од
 
 ```typescript
 // src/app.ts (фрагмент)
-import { http, httpProbes } from '@nestlingjs/transport.http';
+import { http, makeHttpProbes } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
-  plugins: [appObservability, appAuth, appSubscriptions, httpProbes(), …],
+  plugins: [observability, auth, subscriptions, makeHttpProbes(), …],
   transports: [http({ server: api }), …],
 });
 ```
@@ -295,7 +295,7 @@ export const app = makeApp({
 наблюдаемости» их не роняет, а причина печатается на старте и попадает в
 отчёт `check()`. Провайдеров плагин не объявляет: узел `Health$` уже в
 графе у любого приложения. Пути меняются опциями —
-`httpProbes({ liveness: '/live', readiness: '/ready' })`.
+`makeHttpProbes({ liveness: '/live', readiness: '/ready' })`.
 
 `GET /healthz` отвечает 200, пока процесс отвечает вообще: проверок он не
 запускает. Вставший event loop не ответит в любом случае, а отвалившуюся

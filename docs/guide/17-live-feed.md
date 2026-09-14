@@ -133,7 +133,7 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
     event: (event) => event.kind,
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: ActivityStreamHandler,
 });
 ```
@@ -162,7 +162,7 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
 объединяет сигнал запроса с административной отменой из реестра, поэтому
 хендлер слушает только его.
 
-Для потокового ответа шаги `.finally` слоя `observability` выполняются
+Для потокового ответа шаги `.finally` слоя `traced` выполняются
 после того, как поток закончился, оборвался или был закрыт, поэтому исход
 честен: отключение клиента даёт `disconnected`, источник, который
 закончился сам, даёт `completed`, отказ даёт `failed`. Закрытием считается

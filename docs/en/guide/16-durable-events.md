@@ -35,10 +35,10 @@ DI token of the store:
 
 ```typescript
 // src/persistence.ts
-export const outboxStore = pgOutboxStore(db);
+export const outboxStore = makePgOutboxStore(db);
 
 // src/app.ts
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: db.tx,
   store: outboxStore.token,
   operations: [UserRegistered],
@@ -141,13 +141,13 @@ application opens the transaction, and the store arrives as a DI token.
 
 ```typescript
 // src/persistence.ts
-export const inboxStore = pgInboxStore(db);
+export const inboxStore = makePgInboxStore(db);
 
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 
 // The subscriber layer: a transaction with no Bearer token check —
 // a message from the bus carries no token
-export const subscribed = compose(observability, db.transaction());
+export const subscribed = compose(traced, db.transaction());
 ```
 
 The subscriber composes the inbox layer **inside** the transaction
@@ -157,7 +157,7 @@ layer:
 // src/features/notifications/welcome-email.endpoint.ts
 export const WelcomeEmail = implement(UserRegistered, {
   subscriber: 'welcome-email',
-  pipeline: compose(subscribed, appInbox.layer),
+  pipeline: compose(subscribed, inbox.layer),
   handler: WelcomeEmailHandler,
 });
 ```

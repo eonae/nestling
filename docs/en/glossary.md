@@ -132,7 +132,7 @@ there too.
   token, so the choice is not injected.
 - **Composition branch** (`ветка состава`, `Switch.pick`, `Switch.when`) —
   the elements that go into the list at one of the values of a switch:
-  `Storage.pick({ s3: […], local: […] })`, `Audit.when(…)`. A value, not
+  `Storage.pick({ s3: […], local: […] })`, `AuditEnabled.when(…)`. A value, not
   a function: both branches are read without running code. It is expanded
   on the BUILD phase, before discovery.
 - **Built application** (`собранное приложение`, `BuiltApp`) — the
@@ -196,7 +196,7 @@ there too.
   application: the node `Health$` and the family of contributions
   `HealthCheck$`. Liveness always answers `ok`, readiness answers `ready`
   only in the RUN phase and only when the critical checks succeed. A
-  transport adapts them: `httpProbes()` returns the report with the codes
+  transport adapts them: `makeHttpProbes()` returns the report with the codes
   200 and 503.
 - **Probe contribution** (`вклад в пробы`) — a provider of a member of
   `HealthCheck$(name)` with `critical` and `check(signal)`. A resource

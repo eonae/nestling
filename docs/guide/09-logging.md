@@ -131,7 +131,7 @@ export class AuditOutcome {
   }
 }
 
-export const observability = makePipeline()
+export const traced = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(AuditOutcome);
@@ -167,7 +167,7 @@ export const observability = makePipeline()
 запроса. Вне запроса, например при захвате ресурса, поля нет. Что ещё
 попадает в записи полем, задаёт опция `logging` корня — [ниже](#свой-логгер).
 
-`observability` — слой: один вызов `makePipeline()` с цепочкой методов,
+`traced` — слой: один вызов `makePipeline()` с цепочкой методов,
 обычное значение. Оно экспортируется и подключается к каждому endpoint'у.
 
 ## Подключение к endpoint'ам
@@ -178,14 +178,14 @@ export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ListUsersHandler,
 });
 ```
 
 Поле `pipeline:` принимает слой. Endpoint без этого поля тоже работает:
 у `BuildInfo` из [главы 10](./10-auth.md) пайплайна нет, как и у проб
-`httpProbes()` из рецепта [«Кто сейчас подключён и как его
+`makeHttpProbes()` из рецепта [«Кто сейчас подключён и как его
 отключить»](../recipes/ops.md).
 
 Класс-шаг создаёт контейнер, поэтому `AuditOutcome` регистрируется в

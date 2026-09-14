@@ -35,7 +35,7 @@ const runtime: ConfigSource = {
 
 const app = makeApp({
   features: [AppFeature],
-  plugins: [appCounters],
+  plugins: [counters],
   providers: [Demo],
 }).build();
 
@@ -103,7 +103,7 @@ export const makeContainer = async (
     // the context
     .register(contextKernel(), loggerKernel())
     // The example has no switch branches, so the value map is empty
-    .register(...resolveBranches(appCounters.modules, {}))
+    .register(...resolveBranches(counters.modules, {}))
     .register(AppModule);
 
   // Probes come after the modules: the kernel node names every
@@ -123,7 +123,7 @@ input-output here, and `build()` builds the graph synchronously.
 `configKernel(config)` connects the configuration kernel, and
 `contextKernel()` and `loggerKernel()` connect the request context and
 the kernel logger. When building through `makeApp`, the build
-itself registers all three. The `appCounters` plugin registers through
+itself registers all three. The `counters` plugin registers through
 its own modules. The `modules` list may hold switch branches, so
 `resolveBranches(modules, values)` expands it: the example has no
 branches, and the value map is empty. `registerHealth` connects the

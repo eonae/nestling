@@ -132,7 +132,7 @@ export class AuditOutcome {
   }
 }
 
-export const observability = makePipeline()
+export const traced = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(AuditOutcome);
@@ -173,7 +173,7 @@ resource acquisition, the field is absent. What else goes into records as
 a field is set by the `logging` option of the root —
 [below](#your-own-logger).
 
-`observability` is a layer: one `makePipeline()` call with a chain of
+`traced` is a layer: one `makePipeline()` call with a chain of
 methods, an ordinary value. It is exported and connected to every endpoint.
 
 ## Connecting to endpoints
@@ -184,14 +184,14 @@ export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ListUsersHandler,
 });
 ```
 
 The `pipeline:` field accepts a layer. An endpoint without this field works
 too: `BuildInfo` from [chapter 10](./10-auth.md) has no pipeline, and
-neither do the `httpProbes()` probes from the recipe ["Who is connected
+neither do the `makeHttpProbes()` probes from the recipe ["Who is connected
 right now and how to disconnect them"](../recipes/ops.md).
 
 The container creates the step class, so `AuditOutcome` is registered in

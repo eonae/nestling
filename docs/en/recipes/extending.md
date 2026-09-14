@@ -101,7 +101,7 @@ removed at the exact moment the subscription actually ends. The
 registry needs no hook or timer of its own.
 
 The application connects the layer the same way as any of its own:
-`compose(observability, tracked)`. The root policy
+`compose(traced, tracked)`. The root policy
 `everyEndpoint({ … }).hasLayer(tracked)` sets the layer as mandatory,
 not a hidden mechanism of the package.
 
@@ -232,9 +232,9 @@ The satellite's plugin is built the same way as the logging plugin
 from [chapter 14](../guide/14-features.md): the function accepts
 composition decisions and returns a `makePlugin` value. The plugin
 itself registers the layer's class steps, so an endpoint with the
-`tracked` layer and no `subscriptions()` in the root stops the
+`tracked` layer and no `makeSubscriptions()` in the root stops the
 build at the BUILD phase: the layer's class step gets no
-dependencies. A second `subscriptions({ … })` value in the same root
+dependencies. A second `makeSubscriptions({ … })` value in the same root
 also stops the build: two plugins with one name. The resource's
 `deps` list depends on the `publish` option: with publishing turned
 off, there are no operation callers in the graph.
@@ -325,7 +325,7 @@ fixture:
   it('видит подписку, убивает её и снимает запись', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -371,7 +371,7 @@ Connecting it in the application:
 
 ```typescript
 // src/app.ts (fragment)
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,

@@ -25,10 +25,10 @@ primitives and connects as a plugin; the kernel knows nothing about it.
 ```typescript
 // src/app.ts (fragment)
 import { everyEndpoint, RequestId } from '@nestlingjs/app';
-import { subscriptions } from '@nestlingjs/subscriptions';
+import { makeSubscriptions } from '@nestlingjs/subscriptions';
 // …
 
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,
@@ -38,9 +38,9 @@ export const appSubscriptions = subscriptions({
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
-    appObservability,
-    appAuth,
-    appSubscriptions,
+    observability,
+    auth,
+    subscriptions,
     // …
   ],
   policies: [
@@ -51,16 +51,16 @@ export const app = makeApp({
 });
 ```
 
-`subscriptions(options)` returns a plugin. The value is created once
+`makeSubscriptions(options)` returns a plugin. The value is created once
 and listed in `plugins:`, like the parametrized plugin from
 [chapter 14](../guide/14-features.md). This exact plugin registers the
 subscription layer's class steps: an endpoint with the `tracked` layer
-in a build without `appSubscriptions` stops the start at the
+in a build without `subscriptions` stops the start at the
 BUILD phase, because an unregistered class step is not created.
 
 The options describe composition decisions. `identity` names the
 subscriber with a context variable: here it is `RequestId` of the
-`observability` layer, and in an application with authentication its
+`traced` layer, and in an application with authentication its
 place would be taken by a variable holding the user's identifier. The
 registry reads the value of the variable by its key and does not know
 the shape of the accumulated input.
@@ -108,7 +108,7 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
     event: (event) => event.kind,
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: ActivityStreamHandler,
 });
 ```
@@ -140,7 +140,7 @@ layer is connected on both `events` endpoints by hand.
 
 The registry is injected by the ordinary DI token
 `SubscriptionRegistry`. The endpoints live in the `ops` feature: it has
-no providers of its own, and observability, authentication and the
+no providers of its own, and traced, authentication and the
 registry arrive as plugins.
 
 ```typescript
@@ -157,7 +157,7 @@ class ListSubscriptionsHandler {
 export const ListSubscriptions = httpEndpoint.get('/ops/subscriptions', {
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ListSubscriptionsHandler,
 });
 ```
@@ -229,7 +229,7 @@ export const WatchSubscriptions = httpEndpoint.get('/ops/subscriptions/live', {
     event: (change) => change.type,
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: WatchSubscriptionsHandler,
 });
 ```
@@ -297,11 +297,11 @@ response codes.
 
 ```typescript
 // src/app.ts (fragment)
-import { http, httpProbes } from '@nestlingjs/transport.http';
+import { http, makeHttpProbes } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
-  plugins: [appObservability, appAuth, appSubscriptions, httpProbes(), …],
+  plugins: [observability, auth, subscriptions, makeHttpProbes(), …],
   transports: [http({ server: api }), …],
 });
 ```
@@ -313,7 +313,7 @@ endpoint has an observability layer" does not fail them, and the
 reason is printed at start and appears in the `check()` report. The
 plugin declares no providers: the `Health$` node is already in the
 graph of every application. The paths change with options —
-`httpProbes({ liveness: '/live', readiness: '/ready' })`.
+`makeHttpProbes({ liveness: '/live', readiness: '/ready' })`.
 
 `GET /healthz` answers 200 as long as the process answers at all: it
 runs no checks. A stuck event loop does not answer either way, and
