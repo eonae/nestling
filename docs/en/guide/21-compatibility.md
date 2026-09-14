@@ -1,6 +1,6 @@
 # 21. Do not break the neighbours when an operation changes
 
-> Guide to the current API; verified against `bbad4ad3`.
+> Guide to the current API; verified against `92353887`.
 > Target description: [design/operations.md](../design/operations.md) §1.6 and
 > §1.7. Why: entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-31] Версионирование контрактов: снапшот, вердикт по слоту, третий вердикт unknown`.
