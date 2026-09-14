@@ -1,11 +1,14 @@
+import { objectSource } from './__fixtures__/object-source.js';
 import { from, secret } from './declaration.js';
 import { ConfigValidationError } from './errors.js';
 import type { Config } from './families.js';
 import { ConfigSection } from './families.js';
+import { readSectionSnapshot } from './kernel.js';
 import { ConfigKeys } from './keys.js';
-import { load } from './load.js';
+import { ConfigReader } from './reader.js';
 import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
+import { bind } from './source.js';
 
 import type { InjectionToken } from '@nestlingjs/container';
 import { tokenId } from '@nestlingjs/container';
@@ -18,6 +21,16 @@ type Equal<A, B> =
     : false;
 
 const assertType = <T extends true>(assertion: T): T => assertion;
+
+/** Читалка с одним источником: секции проецируются из графа */
+const readerOf = async (
+  values: Record<string, string>,
+): Promise<ConfigReader> => {
+  const reader = new ConfigReader([bind(objectSource(values, 'spec'))]);
+  await reader.init();
+
+  return reader;
+};
 
 const OrdersConfig = makeConfig('orders', {
   maxItems: z.coerce.number().default(100),
@@ -140,25 +153,30 @@ describe('обёртка secret()', () => {
     );
   });
 
-  it('обёртка не участвует в валидации: обе секции принимают одно и то же', () => {
-    const Plain = makeConfig('plainmirror', { token: z.string().min(4) });
-    const Secret = makeConfig('secretmirror', {
-      token: secret(z.string().min(4)),
+  it('обёртка не участвует в валидации: обе секции принимают одно и то же', async () => {
+    makeConfig('plainmirror', { token: z.string().min(4) });
+    makeConfig('secretmirror', { token: secret(z.string().min(4)) });
+
+    const good = await readerOf({
+      PLAINMIRROR_TOKEN: 'good',
+      SECRETMIRROR_TOKEN: 'good',
     });
 
-    process.env.PLAINMIRROR_TOKEN = 'good';
-    process.env.SECRETMIRROR_TOKEN = 'good';
+    expect(readSectionSnapshot('secretmirror', good)).toEqual(
+      readSectionSnapshot('plainmirror', good),
+    );
 
-    expect(load(Secret).token).toBe(load(Plain).token);
+    const short = await readerOf({
+      PLAINMIRROR_TOKEN: 'no',
+      SECRETMIRROR_TOKEN: 'no',
+    });
 
-    process.env.PLAINMIRROR_TOKEN = 'no';
-    process.env.SECRETMIRROR_TOKEN = 'no';
-
-    expect(() => load(Plain)).toThrow(ConfigValidationError);
-    expect(() => load(Secret)).toThrow(ConfigValidationError);
-
-    delete process.env.PLAINMIRROR_TOKEN;
-    delete process.env.SECRETMIRROR_TOKEN;
+    expect(() => readSectionSnapshot('plainmirror', short)).toThrow(
+      ConfigValidationError,
+    );
+    expect(() => readSectionSnapshot('secretmirror', short)).toThrow(
+      ConfigValidationError,
+    );
   });
 });
 

@@ -1,6 +1,6 @@
 # 20. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `4a206018`.
+> Гайд по текущему API; сверено с кодом `bbad4ad3`.
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
@@ -17,7 +17,7 @@
 сообщения между ними переносит брокер.
 
 Обратное направление даёт локальный запуск. Та же декларация с
-`build('all')` поднимает все фичи в одном процессе, и операции между
+`--features all` поднимает все фичи в одном процессе, и операции между
 ними доставляет шина внутри процесса: вызов `notifications.check-address` на брокер не
 выходит. Брокер и несколько процессов нужны стенду, а не разработчику —
 локально приложение запускается одной командой и тогда, когда на стенде
@@ -63,8 +63,8 @@ export const app = declareApp();
 переносчика вызов операции, чей владелец не выбран, останавливает сборку,
 как в главе [19](./19-select.md).
 
-Роль процесса задаёт выбор фич, который `main.ts` читает из
-`APP_FEATURES` до сборки, как в главе [19](./19-select.md).
+Роль процесса задаёт выбор фич, который `main.ts` передаёт маркером
+`argv(process.argv)`, как в главе [19](./19-select.md).
 
 ## Оставьте код фич как есть
 
@@ -266,8 +266,8 @@ docker run --rm -p 4222:4222 nats:2 -js
 создастся, и сборка остановится.
 
 ```bash
-APP_FEATURES=notifications yarn start:dev
-APP_FEATURES=users yarn start:dev
+yarn start:dev --features notifications
+yarn start:dev --features users
 ```
 
 Владельца запроса запускайте первым. У брокера нет очереди ожидания для
@@ -282,7 +282,7 @@ APP_FEATURES=users yarn start:dev
 nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"acme"}'
 ```
 
-Тот же корень с `APP_FEATURES=all` поднимает обе фичи одним процессом. Ни
+Тот же корень с `--features all` поднимает обе фичи одним процессом. Ни
 один файл фич при этом не меняется.
 
 Политика диспатча `NESTLING_PORTS_DISPATCH=always-remote` отправляет

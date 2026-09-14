@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `4a206018`.
+> Guide to the current API; verified against `bbad4ad3`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -15,78 +15,81 @@ bring up only its own features. The same code must build into all
 three roles, and a wrong composition must stop the build, not the
 first request.
 
-## Read the build argument before the container
+## Pass the command line as the build argument
 
 ```typescript
 // src/main.ts
 import { app } from './app.js';
 
-import { from, load, makeConfig } from '@nestlingjs/app';
-import { z } from 'zod';
+import { argv } from '@nestlingjs/app';
 
 /**
- * The root's section: the build argument is read before the
- * container.
- *
- * The `root` prefix tells it apart from the `app` section in
- * `app.config.ts`, the feature selection key is set exactly
- * (`APP_FEATURES`), and the switch values are described by their
- * schemas.
+ * The entry point. `--features users` brings up the users feature,
+ * `--features all` brings up all of them, `--include-deps` adds the
+ * features whose operations the selected ones call, and `--docs off`
+ * removes the documentation from the composition.
  */
-const RootConfig = makeConfig('root', {
-  features: from('APP_FEATURES', z.string().default('all')),
-  docs: from('APP_DOCS', DocsEnabled.schema),
-});
-
-/**
- * The entry point. `APP_FEATURES=users` brings up the users feature
- * and the features whose operations it calls. `APP_FEATURES=all`
- * brings up all of them. `APP_DOCS=off` removes the documentation
- * from the composition.
- */
-const cfg = load(RootConfig);
-
-await app.build({ ...cfg, includeDeps: true }).run();
+await app.build(argv(process.argv)).run();
 ```
 
-`load(section)` reads the values before the container is built:
-synchronously and only from `process.env`. It works this way because
-the build argument determines the composition of the container, and
-a section inside the container would appear only after the selection.
-The sources bound by the `config` option of `run()` take no part in
-this read. This is the only configuration read before the build.
+`argv(process.argv)` is a marker: it carries a list of strings and
+parses nothing. The declaration knows the flag schema, and the build
+parses the flags. The core does not read `process.argv`: the entry
+point passes the list.
 
-The `APP_FEATURES` key is set through `from()`: the root has its own
-`root` prefix, because the `app` prefix is already taken by the
-application's section.
+The list is taken whole, together with the path to the executable and
+the path to the script: the parser drops the first two entries, and it
+needs the second one for the usage line of the help text. A sliced list
+(`process.argv.slice(2)`) is rejected — otherwise the parser would lose
+the first two flags, and the process would come up with a different
+composition.
 
-The section's fields are named the same as the build argument's
-fields, so `cfg` fits `build` whole. The name `docs` is the switch's
-name, and an extra field in this object does not compile.
+Configuration does not set the composition: a root section with keys
+like `APP_FEATURES` no longer exists, and the environment does not
+affect the feature selection.
 
-## Argument shapes and the closure over calls
+## The flag schema and the argument shapes
+
+The schema is derived from the declaration whole:
+
+| Flag | Value |
+|---|---|
+| `--features` | `all` or names separated by commas: `--features users,ops` |
+| `--include-deps` | no value: close the selection over the called operations |
+| `--<switch name>` | one of the `makeSwitch` values: `--docs off` |
+| `--help` | no value: prints the schema and exits with code `0` |
+
+A value is written in two ways: `--docs off` and `--docs=off`. There
+are no short flags, no flag grouping and no positional arguments.
+
+The second shape of the argument is an object; it is used by tests and
+by an application with its own command-line parsing:
 
 | Form | What it selects |
 |---|---|
-| `'all'` | every feature from `features:` |
-| `'users,ops'` | features by name (spaces around the names are ignored) |
-| `['users', 'ops']` | the same as a list |
+| `{ features: 'all' }` | every feature from `features:` |
+| `{ features: 'users,ops' }` | features by name (spaces around the names are ignored) |
+| `{ features: ['users', 'ops'] }` | the same as a list |
 | `{ features, includeDeps: true }` | features by name plus the features whose operations they call |
 | `{ features, docs: 'off' }` | the same features plus switch values |
 
-The string form is needed because the selection comes from an
-environment variable. With it, the switch values are taken from their
-defaults. If `features:` is set and there is no selection, every
-feature is selected. The plugins from `plugins:` do not enter the
-selection: they are in every process. A feature that is not selected
-is absent from the process entirely: its providers are not created,
-its endpoints are not registered, its implementations of operations do
-not subscribe. An unknown feature name stops the build, and the
-error lists the available ones, the same as two features with one
-name, an empty selection, and a selection with no `features:`.
+If `features:` is set and there is no selection, every feature is
+selected. The plugins from `plugins:` do not enter the selection: they
+are in every process. A feature that is not selected is absent from the
+process entirely: its providers are not created, its endpoints are not
+registered, its implementations of operations do not subscribe. An
+unknown feature name stops the build, and the error lists the available
+ones, the same as two features with one name, an empty selection, and a
+selection with no `features:`.
+
+The command line is parsed strictly, and it refuses before phase 0: an
+unknown flag lists the known ones, a value outside a switch dictionary
+lists the allowed ones, a flag with no value lists the values of its
+switch, and a positional argument is named in the message. A switch with
+no default requires its flag.
 
 ```bash
-APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev --features users --include-deps
 ```
 
 ```
@@ -180,10 +183,11 @@ the root's `endpoints:`, `providers:`, `modules:`, `plugins:` and
 the composition of features. It is not in `policies:`: an invariant is
 either declared or it is not.
 
-The root declares the `switches:` dictionary, and the type of the
-build argument is derived from it. A switch field with a default is
-optional, one with no default is required, and a value outside the
-dictionary does not compile:
+The root declares the `switches:` dictionary, and both the type of the
+object shape of the argument and the command-line flag schema are
+derived from it. A switch field with a default is optional, one with no
+default is required, and a value outside the dictionary does not
+compile:
 
 ```typescript
 app.build({ features: 'all', docs: 'off' }); // ok
@@ -192,9 +196,15 @@ app.build({ features: 'all', docs: 'no' }); // does not compile: no such value
 ```
 
 The runtime repeats the same four checks on the BUILD phase, for JS
-consumers and for values that came from the environment: a value not
+consumers and for values that came from the command line: a value not
 from the dictionary, a `pick` on a switch outside `switches:`, two
 switches with one name, a value with no default that was not passed.
+The `argv` marker gets these checks whole: the content of the command
+line is known at run time, not at compile time.
+
+The names `features`, `includeDeps`, `include-deps` and `help` belong to
+the build argument: a switch with such a name is rejected when the
+declaration is created.
 
 A switch has no DI token: the choice cannot be injected. The
 composition does not leak into the application's code, so a provider
@@ -275,10 +285,13 @@ the configuration section.
 ```typescript
 // src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
-    const usersWithDeps = { features: 'users', includeDeps: true } as const;
     const reports = await checkTopologies(
       checked,
-      ['all', usersWithDeps, 'ops'],
+      [
+        { features: 'all' },
+        { features: 'users', includeDeps: true },
+        { features: 'ops' },
+      ],
       CHECK_OPTIONS,
     );
 
@@ -311,7 +324,11 @@ visible under names like `subscriptions.opened@ops`.
 ```typescript
 // src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
-    const [{ report }] = await checkTopologies(checked, ['all'], CHECK_OPTIONS);
+    const [{ report }] = await checkTopologies(
+      checked,
+      [{ features: 'all' }],
+      CHECK_OPTIONS,
+    );
 
     expect(
       report.endpoints
@@ -344,21 +361,23 @@ visible under names like `subscriptions.opened@ops`.
   });
 ```
 
-A topology is described by the whole build argument, so the matrix
-goes through the feature selection and the switch branches as one
-list. A branch that builds only in the dev environment is checked
-by the same test as the rest.
+A topology is described by the whole object shape of the argument, so
+the matrix goes through the feature selection and the switch branches as
+one list. The `argv` marker is not accepted as a list item: the matrix
+lists the topologies in code rather than taking them from the command
+line. A branch that builds only in the dev environment is checked by the
+same test as the rest.
 
 The policies from chapter [10](./10-auth.md) are checked in every
 topology of the matrix, not only in the full build. An invariant
-that holds at the `'all'` selection and breaks on a subset is visible
+that holds at the `all` selection and breaks on a subset is visible
 in the test, not at deployment. The `detached` reasons arrive as
 values in the report: the test compares a list rather than reading
 console output.
 
 ```bash
 yarn test
-APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn start:dev --features ops
 ```
 
 The roles build separately, but for now they run in one process:

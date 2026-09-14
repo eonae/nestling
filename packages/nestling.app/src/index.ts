@@ -10,7 +10,7 @@
  * Полный перечень с разбивкой по подсистемам — в README пакета.
  */
 
-// ./config/index.js — 33
+// ./config/index.js — 32
 export {
   bind,
   bootstrapConfig,
@@ -25,7 +25,6 @@ export {
   dotenv,
   env,
   from,
-  load,
   makeConfig,
   secret,
 } from './config/index.js';
@@ -226,9 +225,10 @@ export type {
   SubscribeOptions,
 } from './ports/index.js';
 
-// ./root/index.js — 18
+// ./root/index.js — 21
 export {
   App,
+  argv,
   BuiltApp,
   Discovery$,
   isApp,
@@ -237,7 +237,9 @@ export {
   makePlugin,
 } from './root/index.js';
 export type {
+  ArgvArgs,
   BuildArgs,
+  BuildObject,
   Bundle,
   CheckOptions,
   CheckReport,

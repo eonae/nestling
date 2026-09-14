@@ -15,6 +15,7 @@ The table names the check, the moment it fires and the chapter of the
 | Layer failures are included in the `errors:` of the operation | at compile time | [14](./guide/14-features.md) |
 | The path of an endpoint is non-empty, without repeated path parameters | when the declaration is created | [3](./guide/03-input.md) |
 | A declaration with an early-success layer has no `output` | when the declaration is created | [10](./guide/10-auth.md) |
+| Command-line flags are known to the declaration, values to its dictionaries | before phase 0, while parsing the argument | [19](./guide/19-select.md) |
 | The configuration keys are set and pass their schemas | phase BOOTSTRAP, before the container | [7](./guide/07-config.md) |
 | All dependencies are registered, the graph has no cycles | phase BUILD | [6](./guide/06-repository.md) |
 | Every endpoint has connected the required layer | phase BUILD | [10](./guide/10-auth.md) |
@@ -35,7 +36,12 @@ over the matrix of topologies in CI ([chapter 19](./guide/19-select.md))
 and by the test build `buildTest`
 ([chapter 8](./guide/08-testing.md)).
 
-The build argument alone determines the composition of a process.
-Config bindings passed to `run()`, `check()` or `buildTest()` do not
-affect it: `discover()` builds the OpenAPI document and the topology
-matrix without reading a single source ([chapter 7](./guide/07-config.md)).
+The build argument alone determines the composition of a process: an
+object or the `argv(process.argv)` marker. The environment does not
+affect it — neither the feature selection nor the switch values are read
+from it. Config bindings passed to `run()`, `check()` or `buildTest()`
+do not affect it either: `discover()` builds the OpenAPI document and
+the topology matrix without reading a single source
+([chapter 7](./guide/07-config.md)). An unknown flag, an unknown feature
+and a switch value outside its dictionary stop the process before phase
+0 — earlier than any I/O.

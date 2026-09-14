@@ -12,6 +12,7 @@ import { Ok } from '../pipeline/index.js';
 
 import { testEndpoint } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
+import { argv } from './argv.js';
 import { makeFeature } from './feature.js';
 
 import { makeSwitch } from '@nestlingjs/container';
@@ -59,11 +60,22 @@ const full = app.build({
   debug: 'on',
 });
 
-/** Строковая форма задаёт только выбор фич */
+/** Строковой формы нет: выбор фич приходит полем `features` */
+// @ts-expect-error формы аргумента две — объект и маркер `argv`
 const stringForm = app.build('users');
 
-/** Массив имён — та же форма */
+/** Голого массива имён нет по той же причине */
+// @ts-expect-error формы аргумента две — объект и маркер `argv`
 const arrayForm = app.build(['users']);
+
+/** Маркер командной строки присвоим аргументу любой декларации */
+const markerForm = app.build(argv(process.argv));
+
+/** Маркер снимает проверку обязательных полей: она переезжает в разбор */
+const markerWithoutRequired = makeApp({
+  features: [Users],
+  switches: [Storage],
+}).build(argv(process.argv));
 
 /** `check` принимает те же формы */
 const checked = app.check({ storage: 's3' });
@@ -113,5 +125,10 @@ const discoverMissing = app.discover({ tier: 'pro' });
 // @ts-expect-error поля 'storag' у аргумента сборки нет
 const discoverTypo = app.discover({ storage: 's3', storag: 'local' });
 
-/** Строковая форма аргумента у `discover` тоже принимается */
+/** Строковой формы у `discover` тоже нет */
+// @ts-expect-error формы аргумента две — объект и маркер `argv`
 const discoverByName = app.discover('users');
+
+/** Маркер принимают все три входа декларации */
+const discoverByArgv = app.discover(argv(process.argv));
+const checkedByArgv = app.check(argv(process.argv));

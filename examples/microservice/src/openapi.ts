@@ -8,11 +8,11 @@
  *
  * Опции документа берутся у самого плагина, поэтому `info` записан в
  * одном месте — в декларации приложения. Документ строится и тогда, когда
- * ветка переключателя выключена: `docs=off` решает судьбу endpoint'а, а не
+ * ветка переключателя выключена: `--docs off` решает судьбу endpoint'а, а не
  * значения.
  *
  * Запуск: `yarn workspace @examples/microservice openapi` — состав по
- * умолчанию; `… openapi docs=off` — состав без документации.
+ * умолчанию; `… openapi --docs off` — состав без документации.
  */
 
 import { writeFileSync } from 'node:fs';
@@ -21,12 +21,11 @@ import { fileURLToPath } from 'node:url';
 
 import { app, openapi } from './app.js';
 
-import { makeConsoleLogger } from '@nestlingjs/app';
+import { argv, makeConsoleLogger } from '@nestlingjs/app';
 
-/** Аргумент сборки — аргумент командной строки; без него состав по умолчанию */
-const args = process.argv[2];
-
-const document = openapi.document(app.discover(args));
+// Аргумент сборки — командная строка скрипта: флаги те же, что у
+// `main.ts`, и состав документа совпадает с составом процесса
+const document = openapi.document(app.discover(argv(process.argv)));
 
 const file = resolve(
   dirname(fileURLToPath(import.meta.url)),

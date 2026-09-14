@@ -263,7 +263,7 @@ CI без деплоя одним хелпером: `checkTopologies(app, args, 
 
 ```typescript
 const published = new Set(
-  (await checkTopologies(app, ['all', 'orders', 'notifications']))
+  (await checkTopologies(app, [{ features: 'all' }, { features: 'orders' }]))
     .flatMap(({ report }) => report.operations.map((c) => c.name)),
 );
 
@@ -277,9 +277,11 @@ expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
 приложения:
 
 ```typescript
-const reports = await checkTopologies(app, ['all', 'orders'], {
-  converters: [zodConverter()],
-});
+const reports = await checkTopologies(
+  app,
+  [{ features: 'all' }, { features: 'orders' }],
+  { converters: [zodConverter()] },
+);
 
 const report = diffOperations(readBaseline(), snapshotOperations(reports));
 console.log(formatCompatibility(report));

@@ -18,8 +18,8 @@ const descriptor = (
   ...overrides,
 });
 
-const topology = (args: string, published: OperationDescriptor[]) => ({
-  args,
+const topology = (features: string, published: OperationDescriptor[]) => ({
+  args: { features },
   report: { published },
 });
 

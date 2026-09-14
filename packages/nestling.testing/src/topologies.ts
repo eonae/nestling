@@ -4,7 +4,7 @@
 
 import type {
   App,
-  BuildArgs,
+  BuildObject,
   CheckOptions,
   CheckReport,
 } from '@nestlingjs/app';
@@ -16,7 +16,7 @@ export interface TopologyReport<
   S extends readonly AnySwitch[] = readonly AnySwitch[],
 > {
   /** Аргумент сборки, с которым топология собиралась */
-  readonly args: BuildArgs<S>;
+  readonly args: BuildObject<S>;
 
   /** Состав, который вернул `check()` */
   readonly report: CheckReport;
@@ -25,9 +25,10 @@ export interface TopologyReport<
 /**
  * Прогоняет `app.check()` по каждой топологии из списка.
  *
- * Топология описывается аргументом сборки целиком: выбором фич и
- * значениями переключателей вместе. Элемент списка — то же значение, что
- * принимает `app.build(args)`.
+ * Топология описывается объектной формой аргумента сборки целиком: выбором
+ * фич и значениями переключателей вместе. Маркер `argv` элементом списка не
+ * принимается: матрица перечисляет топологии в коде, а не берёт их из
+ * командной строки.
  *
  * Разделение обязанностей намеренное: ядро фейлится быстро — первая же
  * несобираемая топология бросает свою ошибку, — а тестовый хелпер
@@ -47,7 +48,8 @@ export interface TopologyReport<
  * единого источника, а значит и без ввода-вывода.
  *
  * @param app - Декларация приложения — та же, что у `main.ts`
- * @param topologies - Варианты деплоя: `['all', 'users', { storage: 's3' }]`
+ * @param topologies - Варианты деплоя:
+ * `[{ features: 'all' }, { features: 'users' }, { storage: 's3' }]`
  * @param options - Опции `check()`: конвертеры схем и конфиг проверки
  * @returns Отчёты по каждой топологии в порядке перечисления
  * @throws {TypeError} Если первый аргумент — не декларация `makeApp`
@@ -58,14 +60,14 @@ export interface TopologyReport<
  * ```typescript
  * const reports = await checkTopologies(
  *   app,
- *   ['all', 'users', { features: 'all', storage: 'local' }],
+ *   [{ features: 'all' }, { features: 'users', storage: 'local' }],
  *   { converters: [zodConverter()], config: [bind(vars({ ORDERS_MAX_ITEMS: '10' }))] },
  * );
  * ```
  */
 export async function checkTopologies<const S extends readonly AnySwitch[]>(
   app: App<S>,
-  topologies: readonly BuildArgs<S>[],
+  topologies: readonly BuildObject<S>[],
   options: CheckOptions = {},
 ): Promise<TopologyReport<S>[]> {
   if (!isApp(app)) {
@@ -101,10 +103,4 @@ export async function checkTopologies<const S extends readonly AnySwitch[]>(
 }
 
 /** Читаемое имя топологии для сообщения об отказе */
-const describeArgs = (args: BuildArgs<any>): string => {
-  if (typeof args === 'string') {
-    return `'${args}'`;
-  }
-
-  return Array.isArray(args) ? `[${args.join(', ')}]` : JSON.stringify(args);
-};
+const describeArgs = (args: BuildObject<any>): string => JSON.stringify(args);

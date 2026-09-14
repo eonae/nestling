@@ -16,7 +16,8 @@
  * `yarn db:up`.
  *
  * Запуск: `yarn workspace @examples/modular-app visualize` — выгрузка и
- * открытие браузера; `… graph users` — граф процесса одной фичи.
+ * открытие браузера; `… graph --features users` — граф процесса одной
+ * фичи.
  */
 
 import { writeFileSync } from 'node:fs';
@@ -26,13 +27,13 @@ import { fileURLToPath } from 'node:url';
 import { declareApp } from './app.js';
 import { ephemeralHttp } from './testing.js';
 
-import { bind, makeConsoleLogger } from '@nestlingjs/app';
+import { argv, bind, makeConsoleLogger } from '@nestlingjs/app';
 import { wireApp } from '@nestlingjs/app/testing';
 import { vars } from '@nestlingjs/testing';
 import { NatsDouble, natsDouble } from '@nestlingjs/transport.nats/testing';
 
-/** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
-const args = process.argv[2] ?? 'all';
+/** Аргумент сборки — командная строка скрипта; без флагов выбраны все фичи */
+const args = argv(process.argv);
 
 // Порт `0` — эфемерный: скрипт не занимает порт боевого процесса. База и
 // брокер тоже ненастоящие: граф известен до первого запроса
@@ -68,4 +69,4 @@ writeFileSync(
 
 await wired.close();
 
-makeConsoleLogger().info('graph written', { file, args });
+makeConsoleLogger().info('graph written', { file, args: args.strings });

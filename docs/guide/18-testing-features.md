@@ -1,6 +1,6 @@
 # 18. Тестировать фичу без соседей
 
-> Гайд по текущему API; сверено с кодом `4a206018`.
+> Гайд по текущему API; сверено с кодом `bbad4ad3`.
 > Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestlingjs/testing`)».
@@ -162,7 +162,11 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 
     // Матрица проверяет граф без подстановок: стаб операции, которой не
     // реализует ни одна топология, здесь станет виден
-    const topologies = await checkTopologies(app, ['all', 'users', 'notifications']);
+    const topologies = await checkTopologies(app, [
+      { features: 'all' },
+      { features: 'users' },
+      { features: 'notifications' },
+    ]);
 
     const published = new Set(
       topologies.flatMap(({ report }) =>

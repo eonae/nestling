@@ -330,7 +330,7 @@ describe('stub — место в сборке', () => {
           features: [ConsumerFeature],
         }),
         {
-          args: 'orders',
+          args: { features: 'orders' },
         },
       ),
     ).rejects.toThrow(
@@ -347,7 +347,7 @@ describe('stub — место в сборке', () => {
         features: [ConsumerFeature],
       }),
       {
-        args: 'orders',
+        args: { features: 'orders' },
         stubs: [stub(ClaimQuota, async ({ amount }) => ({ granted: amount }))],
       },
     );
@@ -367,7 +367,7 @@ describe('stub — место в сборке', () => {
         features: [ConsumerFeature],
       }),
       {
-        args: 'orders',
+        args: { features: 'orders' },
         stubs: [entry],
       },
     );

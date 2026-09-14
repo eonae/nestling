@@ -1,6 +1,6 @@
 # 18. Test a feature without its neighbours
 
-> Guide to the current API; verified against `4a206018`.
+> Guide to the current API; verified against `bbad4ad3`.
 > Target description: [design/testing.md](../design/testing.md) §3 and §4. Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
@@ -173,7 +173,11 @@ graph stands next to the stubs:
 
     // The matrix checks the graph with no overrides: a stub of an
     // operation that no topology implements becomes visible here
-    const topologies = await checkTopologies(app, ['all', 'users', 'notifications']);
+    const topologies = await checkTopologies(app, [
+      { features: 'all' },
+      { features: 'users' },
+      { features: 'notifications' },
+    ]);
 
     const published = new Set(
       topologies.flatMap(({ report }) =>

@@ -446,7 +446,7 @@ describe('app.call — полный пайплайн in-proc', () => {
         transports: [asHttpTransport(new SpyTransport())],
       }),
       {
-        args: 'module:users',
+        args: { features: 'module:users' },
       },
     );
 

@@ -152,7 +152,7 @@ describe('политики — точка проверки', () => {
       features: [Users, Profile],
       transports: [asTransport(new MockTransport())],
       policies: [hasAuth()],
-    }).check('profile');
+    }).check({ features: 'profile' });
 
     expect(report.endpoints.map((e) => e.pattern)).toEqual(['GET /me']);
   });

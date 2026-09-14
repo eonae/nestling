@@ -74,13 +74,13 @@ describe('checkTopologies', () => {
         plugins: [loggingPlugin],
         transports: [asHttpTransport(transport)],
       }),
-      ['all', 'users', 'reports'],
+      [{ features: 'all' }, { features: 'users' }, { features: 'reports' }],
     );
 
     expect(reports.map(({ args }) => args)).toEqual([
-      'all',
-      'users',
-      'reports',
+      { features: 'all' },
+      { features: 'users' },
+      { features: 'reports' },
     ]);
     expect(reports[1].report.features).toEqual(['users']);
     expect(reports[2].report.endpoints).toEqual([]);
@@ -129,15 +129,15 @@ describe('checkTopologies', () => {
         features: [UsersFeature, ReportsFeature],
         transports: [asHttpTransport(new SpyTransport())],
       }),
-      ['all', 'users', 'reports'],
+      [{ features: 'all' }, { features: 'users' }, { features: 'reports' }],
     ).catch((error_: Error) => error_);
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain(
       '3 of 3 topologies did not build',
     );
-    expect((error as Error).message).toContain(`args: 'users'`);
-    expect((error as Error).message).toContain(`args: 'reports'`);
+    expect((error as Error).message).toContain('args: {"features":"users"}');
+    expect((error as Error).message).toContain('args: {"features":"reports"}');
     expect((error as Error).message).toContain('TopologyLogger');
   });
 
@@ -165,7 +165,7 @@ describe('checkTopologies', () => {
         features: [UsersFeature],
         transports: [asHttpTransport(new SpyTransport())],
       }),
-      ['all', 'users'],
+      [{ features: 'all' }, { features: 'users' }],
       { config: [bind(vars({ TOPOLOGY_PAGE_SIZE: '10' }))] },
     );
 
@@ -206,9 +206,13 @@ describe('checkTopologies — операции и снапшот', () => {
     });
 
   it('прокидывает конвертеры в каждую топологию', async () => {
-    const reports = await checkTopologies(spec(), ['all', 'users'], {
-      converters: [zodConverter()],
-    });
+    const reports = await checkTopologies(
+      spec(),
+      [{ features: 'all' }, { features: 'users' }],
+      {
+        converters: [zodConverter()],
+      },
+    );
 
     for (const { report } of reports) {
       for (const descriptor of report.published) {
@@ -218,16 +222,20 @@ describe('checkTopologies — операции и снапшот', () => {
   });
 
   it('без опций листья непрозрачны, а поведение прежнее', async () => {
-    const [{ report }] = await checkTopologies(spec(), ['all']);
+    const [{ report }] = await checkTopologies(spec(), [{ features: 'all' }]);
 
     expect(report.published).toHaveLength(2);
     expect(report.published[0].output.leaf).toMatchObject({ leaf: 'opaque' });
   });
 
   it('снапшот собирается из отчётов матрицы без пересборки приложения', async () => {
-    const reports = await checkTopologies(spec(), ['all', 'users'], {
-      converters: [zodConverter()],
-    });
+    const reports = await checkTopologies(
+      spec(),
+      [{ features: 'all' }, { features: 'users' }],
+      {
+        converters: [zodConverter()],
+      },
+    );
 
     const snapshot = snapshotOperations(reports);
 
@@ -284,7 +292,7 @@ describe('checkTopologies — операции и снапшот', () => {
   });
 
   it('дифф снапшота с самим собой не находит расхождений', async () => {
-    const reports = await checkTopologies(spec(), ['all'], {
+    const reports = await checkTopologies(spec(), [{ features: 'all' }], {
       converters: [zodConverter()],
     });
     const snapshot = snapshotOperations(reports);

@@ -78,9 +78,11 @@ describe('users', () => {
   it('builds every deployment topology', async () => {
     // Structural only: no instance is created, so `config` binds the
     // required keys instead of substituting values
-    const reports = await checkTopologies(app, ['all', 'users', 'quotas'], {
-      config: [bind(vars({ API_TOKEN: 'test-token' }))],
-    });
+    const reports = await checkTopologies(
+      app,
+      [{ features: 'all' }, { features: 'users' }, { features: 'quotas' }],
+      { config: [bind(vars({ API_TOKEN: 'test-token' }))] },
+    );
 
     expect(reports).toHaveLength(3);
   });

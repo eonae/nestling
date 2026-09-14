@@ -127,7 +127,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
       transports: [asTransport(new MockTransport())],
-    }).build('discovery-users');
+    }).build({ features: 'discovery-users' });
 
     await app.run();
 
@@ -140,7 +140,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
       transports: [asTransport(new MockTransport())],
-    }).build('all');
+    }).build({ features: 'all' });
 
     await app.run();
 

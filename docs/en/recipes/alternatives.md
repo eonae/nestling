@@ -139,12 +139,12 @@ shorter. When a feature grows and its providers split into groups that
 need each other, switch to `modules:`. The feature lists the endpoints
 in both cases.
 
-## Feature selection by string
+## An object or the command-line marker
 
-The `app.build(select)` argument accepts four forms: `'all'`, a
-comma-separated string `'users,ops'`, an array `['users', 'ops']` and
-the object `{ features, includeDeps }`. The example reads a string
-from `APP_FEATURES` and wraps it in an object for `includeDeps`, as
-[chapter 19](../guide/19-select.md) shows. A string without the object
-fits when closure over the calls is not needed: every needed feature
-is named explicitly.
+The `app.build(args)` argument accepts two shapes. The
+`argv(process.argv)` marker fits the production entry point: the build
+knows the flag schema from the declaration, so no parsing has to be
+written ([chapter 19](../guide/19-select.md)). The object
+`{ features, includeDeps, …switch values }` fits tests, the topology
+matrix and an application with its own command-line parsing — wherever
+the composition is set in code rather than by the start line.

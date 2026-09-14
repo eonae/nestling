@@ -66,15 +66,8 @@ export type SnapshotSource = OperationReport | TopologyOperationReport;
 function nameOfTopology(source: SnapshotSource, index: number): string {
   const args = (source as TopologyOperationReport).args;
 
-  if (typeof args === 'string') {
-    return args;
-  }
-  if (Array.isArray(args)) {
-    return `[${args.map(String).join(', ')}]`;
-  }
-
-  // Объектная форма аргумента: имя топологии даёт её список фич, а не
-  // порядковый номер — иначе снапшот зависел бы от порядка матрицы
+  // Имя топологии даёт её список фич, а не порядковый номер — иначе
+  // снапшот зависел бы от порядка матрицы
   const features = (args as { features?: unknown } | undefined)?.features;
 
   if (typeof features === 'string') {
@@ -124,7 +117,7 @@ const sameDescriptor = (
  *
  * @example
  * ```typescript
- * const reports = await checkTopologies(spec, ['all', 'users']);
+ * const reports = await checkTopologies(spec, [{ features: 'all' }]);
  * const snapshot = snapshotOperations(reports);
  * ```
  */

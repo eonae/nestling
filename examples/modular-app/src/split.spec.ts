@@ -60,8 +60,8 @@ async function run(
   broker: NatsDouble,
   ...args: string[]
 ): Promise<{ close: () => Promise<void> }> {
-  const apps: BuiltApp[] = args.map((selection) =>
-    declareApp({ nats: { connect: natsDouble(broker) } }).build(selection),
+  const apps: BuiltApp[] = args.map((features) =>
+    declareApp({ nats: { connect: natsDouble(broker) } }).build({ features }),
   );
 
   for (const app of apps) {

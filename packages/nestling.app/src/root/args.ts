@@ -7,10 +7,27 @@
  * обязательно.
  */
 
+import type { ArgvArgs } from './argv.js';
+import { isArgv } from './argv.js';
+import { parseCommandLine } from './command-line.js';
+
 import type { AnySwitch, SwitchValues } from '@nestlingjs/container';
 
-/** Поля аргумента сборки, занятые выбором фич */
+/** Поля объектной формы аргумента сборки, занятые выбором фич */
 export const RESERVED_ARG_FIELDS = ['features', 'includeDeps'] as const;
+
+/**
+ * Имена, занятые аргументом сборки: поля объектной формы и флаги.
+ *
+ * Переключателю они запрещены. `include-deps` и `help` полями не бывают,
+ * но флагами бывают, и переключатель с таким именем отобрал бы флаг.
+ */
+export const RESERVED_SWITCH_NAMES = [
+  'features',
+  'includeDeps',
+  'include-deps',
+  'help',
+] as const;
 
 /** Есть ли у переключателя умолчание — по нему поле аргумента опционально */
 type HasDefault<S extends AnySwitch> = [S['default']] extends [undefined]
@@ -28,33 +45,44 @@ export type SwitchFields<S extends readonly AnySwitch[]> = {
     : never]?: K['values'][number];
 };
 
-/** Объектная форма аргумента сборки */
-export type BuildObject<S extends readonly AnySwitch[]> = {
-  /** Имена выбранных фич либо `'all'` */
-  readonly features?: string | readonly string[];
+/**
+ * Сводит пересечение к одному рекорду, сохраняя `readonly` и
+ * необязательность.
+ *
+ * Без сведения компилятор откладывает проверку «нет общих полей»: маркер
+ * `argv` прошёл бы туда, где ждут объектную форму, — например элементом
+ * матрицы топологий.
+ */
+type Flatten<T> = { [K in keyof T]: T[K] };
 
-  /**
-   * Замкнуть выбор по вызываемым операциям видов `request` и `command`.
-   *
-   * События в замыкании не участвуют: у события ноль или больше
-   * подписчиков, и отсутствие подписчика в этом процессе допустимо.
-   */
-  readonly includeDeps?: boolean;
-} & SwitchFields<S>;
+/** Объектная форма аргумента сборки */
+export type BuildObject<S extends readonly AnySwitch[]> = Flatten<
+  {
+    /** Имена выбранных фич либо `'all'` */
+    readonly features?: string | readonly string[];
+
+    /**
+     * Замкнуть выбор по вызываемым операциям видов `request` и `command`.
+     *
+     * События в замыкании не участвуют: у события ноль или больше
+     * подписчиков, и отсутствие подписчика в этом процессе допустимо.
+     */
+    readonly includeDeps?: boolean;
+  } & SwitchFields<S>
+>;
 
 /**
- * Аргумент `build` и `check`.
+ * Аргумент `build`, `discover` и `check`.
  *
- * Строковая форма — граница процесса (аргумент бинарника, переменная
- * окружения), она строковая по природе и задаёт только выбор фич.
- * Объектная форма добавляет `includeDeps` и значения переключателей;
- * `load(RootConfig)` подходит ею целиком, когда имена полей совпадают с
- * именами переключателей.
+ * Форм две. Объектная несёт выбор фич, `includeDeps` и значения
+ * переключателей; её поля проверяет компилятор. Маркер `argv(process.argv)`
+ * несёт командную строку: её содержимое известно в работе, а не при
+ * компиляции, поэтому маркер присвоим аргументу любой декларации, а
+ * ошибки разбора становятся отказом до фазы 0.
  */
 export type BuildArgs<S extends readonly AnySwitch[] = []> =
-  | string
-  | readonly string[]
-  | BuildObject<S>;
+  | BuildObject<S>
+  | ArgvArgs;
 
 /** Разобранный аргумент сборки: выбор фич отдельно от значений */
 export interface ParsedArgs {
@@ -66,39 +94,52 @@ export interface ParsedArgs {
 
   /** Значения переключателей, названные аргументом */
   readonly given: Readonly<Record<string, unknown>>;
-
-  /** Был ли аргумент объектной формой — для текста ошибок */
-  readonly object: boolean;
 }
-
-/** Объектная ли это форма аргумента: не строка и не массив имён */
-const isObjectForm = (args: unknown): args is Record<string, unknown> =>
-  typeof args === 'object' && args !== null && !Array.isArray(args);
 
 /**
  * Разбирает аргумент сборки на выбор фич, флаг замыкания и значения
  * переключателей.
  *
- * Перечень полей объектной формы закрыт: неизвестное поле — ошибка,
+ * Обе формы дают одно значение: ниже разбора о происхождении никто не
+ * знает. Перечень полей объектной формы закрыт: неизвестное поле — ошибка,
  * перечисляющая известные. Молчаливое игнорирование пропустило бы опечатку
  * в имени переключателя с умолчанием, и приложение поднялось бы с другим
  * составом, чем просил автор.
  *
- * @param args - Аргумент в любой из трёх форм
+ * `--help` обслуживается здесь: текст строит чистая функция, а печать в
+ * `stdout` и выход кодом `0` остаются тремя строками на границе. Другого
+ * разумного исхода у входа `build(argv(…)).run()` нет, а `catch` в каждой
+ * точке входа печатал бы стек вместо справки.
+ *
+ * @param args - Аргумент в одной из двух форм
  * @param switches - Переключатели, объявленные корнем
+ * @param features - Имена объявленных фич — для текста справки
  * @returns Разобранный аргумент
- * @throws {Error} Неизвестное поле объектной формы
+ * @throws {Error} Неизвестное поле объектной формы либо отказ разбора
+ * командной строки
  */
 export function parseArgs(
   args: BuildArgs<any> | undefined,
   switches: readonly AnySwitch[],
+  features: readonly string[] = [],
 ): ParsedArgs {
   if (args === undefined) {
-    return { includeDeps: false, given: {}, object: false };
+    return { includeDeps: false, given: {} };
   }
 
-  if (!isObjectForm(args)) {
-    return { features: args, includeDeps: false, given: {}, object: false };
+  if (isArgv(args)) {
+    const line = parseCommandLine(args.strings, { features, switches });
+
+    if (line.help) {
+      process.stdout.write(line.text);
+
+      // Выход процесса — поведение командной строки, а не библиотеки:
+      // `--help` печатает схему и завершает процесс
+      // eslint-disable-next-line unicorn/no-process-exit
+      process.exit(0);
+    }
+
+    return line.parsed;
   }
 
   const known = new Set<string>([
@@ -128,7 +169,6 @@ export function parseArgs(
       : { features: args.features as string | readonly string[] }),
     includeDeps: args.includeDeps === true,
     given,
-    object: true,
   };
 }
 

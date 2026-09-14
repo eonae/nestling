@@ -59,11 +59,6 @@ export {
  * `bootstrapConfig` и принимает `configKernel`.
  */
 export type { ConfigReader } from './kernel.js';
-/**
- * Первичное чтение секции — фаза 0: аргумент сборки считается до сборки, а
- * значит до читалки и привязанных источников.
- */
-export { load } from './load.js';
 export { describeConfig, keysGlob } from './registry.js';
 export type {
   ConfigDerivedDescription,

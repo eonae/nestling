@@ -57,7 +57,7 @@ describeWithDatabase('метрики ядра и приложения в одн�
     const declared = declareApp();
 
     await using testApp = await buildTest(declared, {
-      args: 'all',
+      args: { features: 'all' },
       config: testConfig,
     });
 

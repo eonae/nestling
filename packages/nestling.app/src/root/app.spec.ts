@@ -951,7 +951,7 @@ describe('build — фичи в приложении', () => {
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(transport)],
-    }).build('orders');
+    }).build({ features: 'orders' });
 
     await app.run();
 
@@ -1056,7 +1056,7 @@ describe('build — фичи в приложении', () => {
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(new MockTransport())],
-    }).build('orders');
+    }).build({ features: 'orders' });
 
     await app.run();
 

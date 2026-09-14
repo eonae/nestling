@@ -202,7 +202,7 @@ export class TestApp {
    *
    * ```typescript
    * const published = new Set(
-   *   (await checkTopologies(spec, ['all', 'orders', 'quotas']))
+   *   (await checkTopologies(spec, [{ features: 'all' }, { features: 'orders' }]))
    *     .flatMap(({ report }) => report.operations.map((c) => c.name)),
    * );
    *
