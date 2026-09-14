@@ -1,6 +1,6 @@
 # 22. Считать запросы и вызовы между процессами
 
-> Гайд по текущему API; сверено с кодом `5e9f05b0`.
+> Гайд по текущему API; сверено с кодом `61c0a878`.
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Метрики ядра», [design/pipeline.md](../design/pipeline.md) §2 и
 > [design/operations.md](../design/operations.md) §2.3. Почему так:

@@ -1,6 +1,6 @@
 # 20. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `5e9f05b0`.
+> Гайд по текущему API; сверено с кодом `61c0a878`.
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
