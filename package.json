@@ -27,6 +27,9 @@
     "pack:check": "node scripts/pack-check.mjs",
     "test:live": "node scripts/test-live.mjs"
   },
+  "resolutions": {
+    "@types/estree": "1.0.9"
+  },
   "devDependencies": {
     "@eslint/compat": "~1.1.1",
     "@eslint/js": "^9.10.0",
