@@ -1,6 +1,6 @@
 # 23. See where the request spent time
 
-> Guide to the current API; verified against `5383a51c`.
+> Guide to the current API; verified against `561d1000`.
 > Target description: [design/pipeline.md](../design/pipeline.md) §3,
 > the "Standard observability steps" section, and
 > [design/container.md](../design/container.md), the "Kernel metrics"

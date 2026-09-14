@@ -1,6 +1,6 @@
 # Отдать операции агенту по MCP
 
-> Гайд по текущему API; сверено с кодом `5383a51c`.
+> Гайд по текущему API; сверено с кодом `561d1000`.
 > Целевое описание: [design/transports.md](../design/transports.md) §8,
 > [design/operations.md](../design/operations.md) §1.8. Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Разбор обзоров d/10 и d/13», пункт 7.
