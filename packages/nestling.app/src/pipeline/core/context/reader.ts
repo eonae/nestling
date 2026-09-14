@@ -11,7 +11,7 @@ import { currentCell } from './store.js';
 import type { AnyContextVar } from './variable.js';
 import { isContextVar, SIGNAL_KEY } from './variable.js';
 
-import type { Token } from '@nestlingjs/container';
+import type { Token, TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
@@ -43,7 +43,8 @@ export type AnyCtxReader = CtxReader<unknown>;
  *
  * @internal Рецепт семейства регистрирует модуль ядра `contextKernel()`
  */
-export const CtxFamily = makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
+export const CtxFamily: TokenFamily<AnyCtxReader, [key: string]> =
+  makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
 
 /**
  * Возвращает DI-токен ридера переменной. Это обычный DI-токен: он годится в

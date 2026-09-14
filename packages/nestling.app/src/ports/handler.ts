@@ -71,4 +71,4 @@ export interface Handler<C extends AnyOperation> {
  * формы одним импортом. Код без операций импортирует декоратор из
  * `@nestlingjs/container`.
  */
-export const Handler = HandlerDecorator;
+export const Handler: typeof HandlerDecorator = HandlerDecorator;

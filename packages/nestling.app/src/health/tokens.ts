@@ -7,6 +7,7 @@
 
 import type { Health, HealthCheck } from './interface.js';
 
+import type { Token, TokenFamily } from '@nestlingjs/container';
 import { makeToken, makeTokenFamily } from '@nestlingjs/container';
 
 /**
@@ -24,7 +25,7 @@ import { makeToken, makeTokenFamily } from '@nestlingjs/container';
  * }
  * ```
  */
-export const Health$ = makeToken<Health>('Health');
+export const Health$: Token<Health> = makeToken<Health>('Health');
 
 /**
  * Семейство вкладов в пробы: `HealthCheck$('db')` — проверка базы.
@@ -42,6 +43,5 @@ export const Health$ = makeToken<Health>('Health');
  * });
  * ```
  */
-export const HealthCheck$ = makeTokenFamily<HealthCheck, [name: string]>(
-  'HealthCheck',
-);
+export const HealthCheck$: TokenFamily<HealthCheck, [name: string]> =
+  makeTokenFamily<HealthCheck, [name: string]>('HealthCheck');

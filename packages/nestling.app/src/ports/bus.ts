@@ -43,6 +43,7 @@ import { followSignal } from './signal.js';
 import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
 import { structuralCopy } from './wire.js';
 
+import type { Token } from '@nestlingjs/container';
 import { makeToken } from '@nestlingjs/container';
 import type { Logger } from '@nestlingjs/logging';
 import { Topic } from '@nestlingjs/operations';
@@ -215,9 +216,12 @@ export interface IMessageBus {
  * из `transports:`. Зачем она понадобилась потребителю — знает потребитель,
  * и это его подсказка.
  */
-export const MessageBus$ = makeToken<IMessageBus>('MessageBus', {
-  hint: "add a bus transport to 'transports:'",
-});
+export const MessageBus$: Token<IMessageBus> = makeToken<IMessageBus>(
+  'MessageBus',
+  {
+    hint: "add a bus transport to 'transports:'",
+  },
+);
 
 /** Опции шины внутри процесса */
 export interface InProcessBusOptions {

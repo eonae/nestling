@@ -15,6 +15,7 @@ import type {
   MetricsSnapshot,
 } from './snapshot.js';
 
+import type { Token } from '@nestlingjs/container';
 import { makeToken } from '@nestlingjs/container';
 
 /** Агрегат гистограммы одного ряда: наблюдения по корзинам декларации */
@@ -258,4 +259,5 @@ export class MetricsStore {
  * Узел есть в графе всегда, без опций и условий. Провайдер приложения под
  * ним — ошибка дубля: store принадлежит ядру, и второго не бывает.
  */
-export const MetricsStore$ = makeToken<MetricsStore>('MetricsStore');
+export const MetricsStore$: Token<MetricsStore> =
+  makeToken<MetricsStore>('MetricsStore');

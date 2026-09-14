@@ -11,7 +11,13 @@
  */
 
 import type { SeriesResolutions } from './catalog.js';
-import type { AttributesOf, MetricsOf } from './declaration.js';
+import type {
+  AttributesOf,
+  CounterDeclaration,
+  HistogramDeclaration,
+  MetricsGroup,
+  MetricsOf,
+} from './declaration.js';
 import { counter, histogram, makeMetrics, open } from './declaration.js';
 import type { MetricAttributes } from './snapshot.js';
 
@@ -43,19 +49,28 @@ const DURATION_BUCKETS = [
 ] as const;
 
 /** Атрибуты метрик обработки запроса */
-const REQUEST_ATTRIBUTES = {
+const REQUEST_ATTRIBUTES: {
+  readonly transport: typeof open;
+  readonly pattern: typeof open;
+  readonly outcome: typeof REQUEST_OUTCOMES;
+} = {
   transport: open,
   pattern: open,
   outcome: REQUEST_OUTCOMES,
-} as const;
+};
 
 /** Атрибуты метрик вызова порта */
-const CALL_ATTRIBUTES = {
+const CALL_ATTRIBUTES: {
+  readonly operation: typeof open;
+  readonly kind: typeof OPERATION_KINDS;
+  readonly binding: typeof BINDINGS;
+  readonly outcome: typeof CALL_OUTCOMES;
+} = {
   operation: open,
   kind: OPERATION_KINDS,
   binding: BINDINGS,
   outcome: CALL_OUTCOMES,
-} as const;
+};
 
 /**
  * Метрики ядра: обработка запроса и вызов порта.
@@ -63,7 +78,12 @@ const CALL_ATTRIBUTES = {
  * Группа входит в каталог любой сборки: её вклад приходит kernel-модулем,
  * а не выбором приложения.
  */
-export const KernelMetrics = makeMetrics('nestling', {
+export const KernelMetrics: MetricsGroup<{
+  requests: CounterDeclaration<NoInfer<typeof REQUEST_ATTRIBUTES>>;
+  'request.duration': HistogramDeclaration<NoInfer<typeof REQUEST_ATTRIBUTES>>;
+  'port.calls': CounterDeclaration<NoInfer<typeof CALL_ATTRIBUTES>>;
+  'port.duration': HistogramDeclaration<NoInfer<typeof CALL_ATTRIBUTES>>;
+}> = makeMetrics('nestling', {
   requests: counter({
     help: 'Handled requests',
     attributes: REQUEST_ATTRIBUTES,

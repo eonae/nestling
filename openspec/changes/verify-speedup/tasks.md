@@ -47,12 +47,12 @@
       --emitDeclarationOnly` и свести в таблицу
 - [x] 4.2 Аннотировать `container` (1 место) и `common.*`
 - [x] 4.3 Аннотировать `transport.http` (7) и `operations` (8)
-- [ ] 4.4 Переписать `makeConfig` и `makeConfig.reloadable`
+- [x] 4.4 Переписать `makeConfig` и `makeConfig.reloadable`
       (`packages/nestling.app/src/config/section.ts:221,244`) через интерфейс
-- [ ] 4.5 Переписать `REQUEST_ATTRIBUTES` и `CALL_ATTRIBUTES`
+- [x] 4.5 Переписать `REQUEST_ATTRIBUTES` и `CALL_ATTRIBUTES`
       (`packages/nestling.app/src/metrics/kernel-group.ts:47,54`) через
       именованный тип
-- [ ] 4.6 Аннотировать оставшиеся места в `app`
+- [x] 4.6 Аннотировать оставшиеся места в `app`
 - [ ] 4.7 Аннотировать остальные пакеты по таблице из 4.1
 
 ## 5. Сборка без проверки типов

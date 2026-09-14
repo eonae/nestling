@@ -6,6 +6,7 @@
  * замены не видят.
  */
 
+import type { Token, TokenFamily } from '@nestlingjs/container';
 import { makeToken, makeTokenFamily } from '@nestlingjs/container';
 import type { Logger } from '@nestlingjs/logging';
 
@@ -17,7 +18,7 @@ import type { Logger } from '@nestlingjs/logging';
  * приложения под этим DI-токеном — ошибка дубля: второго способа задать
  * корень нет.
  */
-export const RootLogger$ = makeToken<Logger>('RootLogger');
+export const RootLogger$: Token<Logger> = makeToken<Logger>('RootLogger');
 
 /**
  * Семейство логгеров по области: `Logger$('users')` — дочерний логгер
@@ -34,4 +35,7 @@ export const RootLogger$ = makeToken<Logger>('RootLogger');
  * }
  * ```
  */
-export const Logger$ = makeTokenFamily<Logger, [scope: string]>('Logger');
+export const Logger$: TokenFamily<Logger, [scope: string]> = makeTokenFamily<
+  Logger,
+  [scope: string]
+>('Logger');

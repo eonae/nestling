@@ -8,6 +8,11 @@
  * видимостью ES-модулей, снаружи доступен только `.keys`.
  */
 
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+} from '../config/index.js';
 import { makeConfig } from '../config/index.js';
 
 import type { LogFormat, LogThreshold } from '@nestlingjs/logging';
@@ -44,13 +49,30 @@ export const NESTLING_LOG_PREFIX = 'nestlingLog';
  * @internal Проецируется на фазе 0 корневым логгером; наружу отдаётся
  * только `.keys`
  */
-export const NestlingLogConfig = makeConfig(NESTLING_LOG_PREFIX, {
+export const NestlingLogConfig: ConfigSectionToken<
+  ConfigValues<
+    {
+      level: z.ZodDefault<
+        z.ZodEnum<{
+          error: 'error';
+          debug: 'debug';
+          info: 'info';
+          warn: 'warn';
+          silent: 'silent';
+        }>
+      >;
+      format: z.ZodDefault<z.ZodEnum<{ text: 'text'; json: 'json' }>>;
+    },
+    Record<never, never>
+  >,
+  'nestlingLog'
+> = makeConfig(NESTLING_LOG_PREFIX, {
   level: z.enum(LEVELS).default('info'),
   format: z.enum(FORMATS).default('text'),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */
-export const logConfigKeys = NestlingLogConfig.keys;
+export const logConfigKeys: ConfigKeys<'nestlingLog'> = NestlingLogConfig.keys;
 
 /** Проекция секции логгера */
 export interface LogConfig {

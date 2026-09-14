@@ -12,7 +12,7 @@ import { ConfigReader } from './reader.js';
 import { lookupSection } from './registry.js';
 import type { Binding } from './source.js';
 
-import type { Module } from '@nestlingjs/container';
+import type { Module, Token } from '@nestlingjs/container';
 import { familyProvider, makeToken } from '@nestlingjs/container';
 
 /**
@@ -23,7 +23,9 @@ import { familyProvider, makeToken } from '@nestlingjs/container';
  * @internal Сборка приложения берёт по нему читалку после `build()`, чтобы
  * подключить логгер (`attachLogger`)
  */
-export const ConfigReaderToken = makeToken<ConfigReader>('kernel:ConfigReader');
+export const ConfigReaderToken: Token<ConfigReader> = makeToken<ConfigReader>(
+  'kernel:ConfigReader',
+);
 
 /**
  * Находит декларацию по префиксу и проецирует секцию.

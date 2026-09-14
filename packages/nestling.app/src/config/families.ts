@@ -7,6 +7,7 @@
 
 import type { ConfigSectionToken } from './declaration.js';
 
+import type { TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
@@ -19,9 +20,8 @@ import { makeTokenFamily } from '@nestlingjs/container';
  * @internal Пользовательский код обращается к секции её собственным
  * DI-токеном
  */
-export const ConfigSection = makeTokenFamily<unknown, [prefix: string]>(
-  'ConfigSection',
-);
+export const ConfigSection: TokenFamily<unknown, [prefix: string]> =
+  makeTokenFamily<unknown, [prefix: string]>('ConfigSection');
 
 /**
  * Узел на **одиночный ключ**. Отдаёт сырое значение из читалки.
@@ -45,7 +45,10 @@ export const ConfigSection = makeTokenFamily<unknown, [prefix: string]>(
  * }));
  * ```
  */
-export const Config = makeTokenFamily<unknown, [key: string]>('Config');
+export const Config: TokenFamily<unknown, [key: string]> = makeTokenFamily<
+  unknown,
+  [key: string]
+>('Config');
 
 /**
  * Тип проекции секции: `Config<typeof OrdersConfig>`.

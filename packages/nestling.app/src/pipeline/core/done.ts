@@ -18,7 +18,7 @@
  * дискриминант `isFail`, а добавка — обычный объект со строковыми
  * ключами.
  */
-const DONE_BRAND = Symbol.for('nestling:done');
+const DONE_BRAND: unique symbol = Symbol.for('nestling:done');
 
 /** Значение досрочного успеха; создаётся только функцией {@link done} */
 export interface Done {
