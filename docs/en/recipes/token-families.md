@@ -1,6 +1,6 @@
 # Dependencies by name and contributions collected from modules
 
-> Guide to the current API; verified against `6717ebad`.
+> Guide to the current API; verified against `f4a5c7e5`.
 > Target description: [design/container.md](../design/container.md), the
 > sections "DI token families" and "Kernel logger". Rationale: the entries
 > [ideas.md](../../decisions/ideas.md)
