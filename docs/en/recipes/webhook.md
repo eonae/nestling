@@ -1,6 +1,6 @@
 # Webhook with a signature check
 
-> Guide to the current API; verified against `46971d4e`.
+> Guide to the current API; verified against `a2535b50`.
 > Target description: [design/endpoints.md](../design/endpoints.md), the "Raw
 > bytes: `rawBody` " section. Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
