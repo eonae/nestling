@@ -4,13 +4,14 @@
  * границах одной сборки.
  */
 
+import { objectSource } from './__fixtures__/object-source.js';
 import { from } from './declaration.js';
 import { ConfigSharedKeyError, ConfigValidationError } from './errors.js';
 import type { Config } from './families.js';
 import { bootstrapConfig, configKernel } from './kernel.js';
 import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
-import { objectSource } from './source.js';
+import { bind } from './source.js';
 
 import type { BuiltContainer } from '@nestlingjs/container';
 import { Component, ContainerBuilder } from '@nestlingjs/container';
@@ -69,7 +70,7 @@ const build = async (
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
   builder.register(
-    configKernel(await bootstrapConfig([[objectSource(values, 'test'), '*']])),
+    configKernel(await bootstrapConfig([bind(objectSource(values, 'test'))])),
   );
   register(builder);
 

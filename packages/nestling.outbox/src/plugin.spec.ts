@@ -26,6 +26,7 @@ import { OutboxRelay$ } from './relay.js';
 import { describe, expect, it } from '@jest/globals';
 import type { App, Output } from '@nestlingjs/app';
 import {
+  bind,
   implement,
   makeApp,
   makeFeature,
@@ -158,7 +159,7 @@ describe('outbox(): пакет в собранном приложении', () =
 
   it('процесс с выключенным relay пишет записи и не запускает задачу', async () => {
     await using app = await buildTest(application(), {
-      config: vars({ OUTBOX_RELAY: 'false' }),
+      config: [bind(vars({ OUTBOX_RELAY: 'false' }))],
     });
 
     await app.call(CreateUser, { id: 'u-5', email: 'eve@example.com' });

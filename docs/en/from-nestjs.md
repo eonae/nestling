@@ -64,7 +64,7 @@ in the chapters that the last column links to.
 | NestJS | Nestling | What differs | Chapter |
 |---|---|---|---|
 | `ConfigModule.forRoot()` and `ConfigService.get('X')` | `makeConfig(prefix, fields)` and injecting the section | the section is typed by a schema and validated at start; it does not need to be registered | [7](./guide/07-config.md) |
-| `ConfigModule` with `load` and `validationSchema` | `config: [[source, Section.keys]]` in the root | a source is bound to keys, not to a module | [recipe](./recipes/config-sources.md) |
+| `ConfigModule` with `load` and `validationSchema` | `run({ config: [bind(source, { keys: Section.keys })] })` | a source is bound to keys, not to a module | [recipe](./recipes/config-sources.md) |
 | `Test.createTestingModule()` with `overrideProvider()` | `buildTest(app, { overrides })` | the test builds the same application through the same phases; the socket is not opened | [8](./guide/08-testing.md) |
 | `supertest` against `app.getHttpServer()` | `testApp.call(Endpoint, payload)` | the request goes through the full pipeline without the network; e2e on port `0` stays a separate level | [8](./guide/08-testing.md), [18](./guide/18-testing-features.md) |
 | a mock of the service of a neighbour module | `stubs: [stub(Operation, impl)]` | the response of the stub is validated by the schema of the operation | [18](./guide/18-testing-features.md) |

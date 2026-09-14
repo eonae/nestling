@@ -1,6 +1,6 @@
 # 8. Убедиться, что работает, без запуска сервера
 
-> Гайд по текущему API; сверено с кодом `bd9dce44`.
+> Гайд по текущему API; сверено с кодом `46971d4e`.
 > Целевое описание: [design/testing.md](../design/testing.md). Почему так:
 > запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestlingjs/testing`)».
@@ -28,10 +28,11 @@ export const app = makeApp({
 import { app } from './app.js';
 
 /** Конфиг теста: объект вместо `process.env` */
-const testConfig = vars({
-  API_TOKEN: 'test-token',
-  DATABASE_URL: TEST_DATABASE_URL ?? '',
-});
+const testConfig = [
+  bind(
+    vars({ API_TOKEN: 'test-token', DATABASE_URL: TEST_DATABASE_URL ?? '' }),
+  ),
+];
 ```
 
 Тест задаёт только то, что относится к прогону: подмены, выбор фич и
@@ -161,11 +162,15 @@ DI-токена, которого нет в графе, останавливае
 // src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
   await using testApp = await buildTest(app, {
-    config: vars({
-      API_TOKEN: 'test-token',
-      APP_PAGE_SIZE: '1',
-      DATABASE_URL: TEST_DATABASE_URL ?? '',
-    }),
+    config: [
+      bind(
+        vars({
+          API_TOKEN: 'test-token',
+          APP_PAGE_SIZE: '1',
+          DATABASE_URL: TEST_DATABASE_URL ?? '',
+        }),
+      ),
+    ],
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
 
@@ -173,10 +178,10 @@ it('читает размер страницы из конфига', async () =>
 });
 ```
 
-`vars(record)` даёт источник конфига из объекта и заменяет привязку
-источников декларации целиком: `process.env` не читается и не меняется,
-поэтому тесты изолированы и могут идти параллельно, а боевой источник в
-тесте не инициализируется.
+`vars(record)` даёт источник конфига из объекта. Привязка `bind(vars({…}))`
+в опции `config` — единственный источник тестового прогона: у декларации
+привязок нет вовсе. `process.env` не читается и не меняется, поэтому тесты
+изолированы и могут идти параллельно.
 
 ## Юнит-тест хендлера
 

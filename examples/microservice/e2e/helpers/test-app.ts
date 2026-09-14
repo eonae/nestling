@@ -1,11 +1,11 @@
 import { appConfigKeys } from '../../src/app.config.js';
-import { api, app } from '../../src/app.js';
+import { app } from '../../src/app.js';
 import { db } from '../../src/persistence.js';
 
 import { describe } from '@jest/globals';
-import type { BuiltApp } from '@nestlingjs/app';
-import { makeApp, objectSource } from '@nestlingjs/app';
-import type { HttpServer } from '@nestlingjs/transport.http';
+import { bind } from '@nestlingjs/app';
+import type { TestApp } from '@nestlingjs/testing';
+import { buildTest, vars } from '@nestlingjs/testing';
 import { serverKeys } from '@nestlingjs/transport.http';
 import { Pool } from 'pg';
 
@@ -34,7 +34,7 @@ export const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 export const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };
 
 export interface TestAppContext {
-  app: BuiltApp;
+  testApp: TestApp;
   baseUrl: string;
   /** Возвращает базу к засеву */
   reset(): Promise<void>;
@@ -63,8 +63,8 @@ async function reset(): Promise<void> {
 /**
  * Поднимает приложение на эфемерном порту и засевает базу.
  *
- * Порт задаётся ключом `HTTP_PORT=0` из объекта-источника: сокетом владеет
- * сервер, а фактический адрес известен только после `listen`. Секреты и
+ * Порт задаётся ключом `HTTP_PORT=0` объектным источником: сокетом владеет
+ * сервер, а фактический адрес известен только после `run()`. Секреты и
  * адрес базы привязываются тем же способом, `process.env` не трогается.
  */
 export async function createTestApp(): Promise<TestAppContext> {
@@ -75,51 +75,29 @@ export async function createTestApp(): Promise<TestAppContext> {
   pool = new Pool({ connectionString: TEST_DATABASE_URL });
   await reset();
 
-  // Та же декларация, что в `app.ts`, с эфемерным портом и секретами из
-  // объекта: состав берётся из `app.spec`, включая оба транспорта на
-  // общем сервере
-  const built = makeApp({
-    features: app.spec.features,
-    plugins: app.spec.plugins,
-    switches: app.spec.switches,
-    policies: app.spec.policies,
-    transports: app.spec.transports,
-    metrics: app.spec.metrics,
+  const testApp = await buildTest(app, {
     config: [
-      [
-        objectSource(
-          { API_TOKEN: E2E_TOKEN, WEBHOOK_SECRET: E2E_WEBHOOK_SECRET },
-          'e2e',
-        ),
-        appConfigKeys,
-      ],
-      // Адрес базы — ключ секции соединения, а не секции приложения: её
-      // объявляет пакет `@nestlingjs/drizzle.pg`
-      [objectSource({ DATABASE_URL: TEST_DATABASE_URL }, 'e2e-db'), db.keys],
-      [
-        objectSource({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }, 'e2e-http'),
-        serverKeys(),
-      ],
+      bind(vars({ API_TOKEN: E2E_TOKEN, WEBHOOK_SECRET: E2E_WEBHOOK_SECRET }), {
+        keys: appConfigKeys,
+      }),
+      bind(vars({ DATABASE_URL: TEST_DATABASE_URL }), { keys: db.keys }),
+      bind(vars({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }), {
+        keys: serverKeys(),
+      }),
     ],
-  }).build();
+  });
 
-  await built.run();
-
-  const server = built.servers.get(api.name) as HttpServer | undefined;
-  const address = server?.address();
-  if (!address) {
-    throw new Error('server did not report an address after listen()');
-  }
+  await testApp.run();
 
   return {
-    app: built,
-    baseUrl: `http://127.0.0.1:${address.port}`,
+    testApp,
+    baseUrl: testApp.baseUrl(),
     reset,
   };
 }
 
 export async function closeTestApp(context: TestAppContext): Promise<void> {
-  await context.app.close();
+  await context.testApp.close();
   await pool?.end();
   pool = undefined;
 }

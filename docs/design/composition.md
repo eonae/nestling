@@ -334,8 +334,8 @@ export const app = makeApp({
   providers: [OrdersService],
   transports: [http()],
 });
-// Второй источник подключается так:
-//   config: [[file('config.yaml'), [OrdersConfig.keys]]]
+// Второй источник подключается на run():
+//   app.build().run({ config: [bind(file('config.yaml'), { keys: OrdersConfig.keys })] })
 ```
 
 ### L2 — фичи, выбор и переключатели

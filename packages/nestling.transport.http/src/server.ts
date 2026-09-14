@@ -209,6 +209,25 @@ export class HttpServer implements IListener, HttpAttach {
   }
 
   /**
+   * Базовый адрес сервера (`http://host:port`) поверх уже открытого сокета.
+   *
+   * @throws {Error} До `listen()` и после дренажа — адреса без открытого
+   * сокета не существует
+   */
+  baseUrl(): string {
+    const address = this.address();
+
+    if (!address) {
+      throw new Error(
+        'HttpServer.baseUrl(): the server is not listening — call it after ' +
+          'listen() has resolved (testApp.run() or a running app).',
+      );
+    }
+
+    return `http://${address.host}:${address.port}`;
+  }
+
+  /**
    * Перестаёт принимать соединения и дочитывает открытые.
    *
    * Порядок: перестать принимать новые соединения (`server.close`), сразу

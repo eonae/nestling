@@ -15,8 +15,10 @@
  */
 
 import { describe } from '@jest/globals';
-import type { ConfigInput } from '@nestlingjs/app';
+import type { Binding } from '@nestlingjs/app';
+import { bind } from '@nestlingjs/app';
 import { vars } from '@nestlingjs/testing';
+import { serverKeys } from '@nestlingjs/transport.http';
 
 /** Адрес базы; без него набор пропускается */
 export const TEST_DATABASE_URL = process.env.MODULAR_TEST_DATABASE_URL;
@@ -26,9 +28,15 @@ export const describeWithDatabase: (title: string, suite: () => void) => void =
   TEST_DATABASE_URL ? describe : describe.skip;
 
 /** Конфиг теста: объект вместо `process.env` */
-export const testConfig: ConfigInput = vars({
-  DATABASE_URL: TEST_DATABASE_URL ?? '',
-});
+export const testConfig: readonly Binding[] = [
+  bind(vars({ DATABASE_URL: TEST_DATABASE_URL ?? '' })),
+];
+
+/**
+ * Порт `0` — эфемерный: несколько поднятых процессов не делят один порт.
+ */
+export const ephemeralHttp = (): Binding =>
+  bind(vars({ HTTP_PORT: '0' }), { keys: serverKeys() });
 
 /**
  * Ждёт, пока условие станет истинным.

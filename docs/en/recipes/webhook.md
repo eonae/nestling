@@ -1,6 +1,6 @@
 # Webhook with a signature check
 
-> Guide to the current API; verified against `bd9dce44`.
+> Guide to the current API; verified against `46971d4e`.
 > Target description: [design/endpoints.md](../design/endpoints.md), the "Raw
 > bytes: `rawBody` " section. Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)
@@ -234,7 +234,7 @@ it('отклоняет тело с чужой подписью', async () => {
 ```
 
 The secret in the e2e build is bound by a source to the section's
-keys (`e2e/helpers/create-test-app.ts`); the test does not touch
+keys (`e2e/helpers/test-app.ts`); the test does not touch
 `process.env`.
 
 ```bash

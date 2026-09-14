@@ -24,9 +24,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { declareApp } from './app.js';
+import { ephemeralHttp } from './testing.js';
 
-import { makeConsoleLogger } from '@nestlingjs/app';
+import { bind, makeConsoleLogger } from '@nestlingjs/app';
 import { wireApp } from '@nestlingjs/app/testing';
+import { vars } from '@nestlingjs/testing';
 import { NatsDouble, natsDouble } from '@nestlingjs/transport.nats/testing';
 
 /** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
@@ -36,13 +38,21 @@ const args = process.argv[2] ?? 'all';
 // брокер тоже ненастоящие: граф известен до первого запроса
 const wired = await wireApp(
   declareApp({
-    httpPort: 0,
-    databaseUrl:
-      process.env.DATABASE_URL ??
-      'postgresql://modular:modular@localhost:5433/modular',
     nats: { connect: natsDouble(new NatsDouble()) },
   }),
-  { args },
+  {
+    args,
+    config: [
+      ephemeralHttp(),
+      bind(
+        vars({
+          DATABASE_URL:
+            process.env.DATABASE_URL ??
+            'postgresql://modular:modular@localhost:5433/modular',
+        }),
+      ),
+    ],
+  },
 );
 
 const file = resolve(

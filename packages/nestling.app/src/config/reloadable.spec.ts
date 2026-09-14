@@ -6,14 +6,15 @@
 import type { SpyLogger } from '../logger/__fixtures__/spy.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 
+import type { ObjectSource } from './__fixtures__/object-source.js';
+import { objectSource } from './__fixtures__/object-source.js';
 import type { SectionDeclaration } from './declaration.js';
 import type { Config } from './families.js';
 import { projectSection, reloadableOf } from './project.js';
 import { ConfigReader } from './reader.js';
 import { lookupSection } from './registry.js';
 import { makeConfig } from './section.js';
-import type { ObjectSource } from './source.js';
-import { objectSource } from './source.js';
+import { bind } from './source.js';
 
 import { z } from 'zod';
 
@@ -35,7 +36,7 @@ const project = async (
   values: Record<string, unknown>,
 ): Promise<{ cfg: RuntimeValues; source: ObjectSource }> => {
   const source = objectSource(values, 'test');
-  const reader = new ConfigReader([[source, '*']]);
+  const reader = new ConfigReader([bind(source)]);
   await reader.init();
   // Логгер подключается после `init()`, как это делает сборка приложения:
   // предупреждения `refresh()` дальше идут в него напрямую
@@ -99,7 +100,7 @@ describe('read-latest без подписки', () => {
 
   it('обновление доходит до снимка фазы 0', async () => {
     const source = objectSource({ RUNTIME_RPS: '10' }, 'test');
-    const reader = new ConfigReader([[source, '*']]);
+    const reader = new ConfigReader([bind(source)]);
     await reader.init();
 
     const declaration = lookupSection('runtime') as SectionDeclaration;

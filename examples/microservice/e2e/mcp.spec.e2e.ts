@@ -7,13 +7,13 @@
  * заголовки запроса агента доходят до пайплайна обычным путём.
  */
 
-import type { TestAppContext } from './helpers/create-test-app.js';
+import type { TestAppContext } from './helpers/test-app.js';
 import {
   closeTestApp,
   createTestApp,
   describeWithDatabase,
   E2E_TOKEN,
-} from './helpers/create-test-app.js';
+} from './helpers/test-app.js';
 
 import { afterAll, beforeAll, expect, it } from '@jest/globals';
 

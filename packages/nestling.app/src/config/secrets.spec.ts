@@ -9,6 +9,8 @@ import { inspect } from 'node:util';
 import type { SpyLogger } from '../logger/__fixtures__/spy.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 
+import type { ObjectSource } from './__fixtures__/object-source.js';
+import { objectSource } from './__fixtures__/object-source.js';
 import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigValidationError, REDACTED } from './errors.js';
@@ -20,8 +22,7 @@ import { ConfigReader } from './reader.js';
 import { SECRET_MASK } from './redact.js';
 import { describeConfig, lookupSection } from './registry.js';
 import { makeConfig } from './section.js';
-import type { ObjectSource } from './source.js';
-import { objectSource } from './source.js';
+import { bind } from './source.js';
 
 import type { BuiltContainer } from '@nestlingjs/container';
 import { Component, ContainerBuilder } from '@nestlingjs/container';
@@ -77,7 +78,7 @@ const build = async (
   values: Record<string, unknown>,
   register: (builder: ContainerBuilder) => void,
 ): Promise<BuiltContainer> => {
-  const reader = await bootstrapConfig([[objectSource(values, 'test'), '*']]);
+  const reader = await bootstrapConfig([bind(objectSource(values, 'test'))]);
   reader.attachLogger(spy.logger);
 
   const builder = new ContainerBuilder();
@@ -96,7 +97,7 @@ const project = async (
   prefix: string,
 ): Promise<{ cfg: Record<string, unknown>; source: ObjectSource }> => {
   const source = objectSource(values, 'test');
-  const reader = new ConfigReader([[source, '*']]);
+  const reader = new ConfigReader([bind(source)]);
   await reader.init();
   reader.attachLogger(spy.logger);
 

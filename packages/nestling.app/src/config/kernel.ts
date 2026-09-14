@@ -10,7 +10,7 @@ import { Config, ConfigSection } from './families.js';
 import { projectSection } from './project.js';
 import { ConfigReader } from './reader.js';
 import { lookupSection } from './registry.js';
-import type { ConfigBinding } from './source.js';
+import type { Binding } from './source.js';
 
 import type { Module } from '@nestlingjs/container';
 import { familyProvider, makeToken } from '@nestlingjs/container';
@@ -54,22 +54,22 @@ const materializeSection = (prefix: string, reader: ConfigReader): unknown => {
  * этого вызова ввод-вывод есть, после его нет. Порядок «источники раньше
  * секций» держит фаза, а не топология графа.
  *
- * @param bindings - Плоский список `[source, target]`; порядок = приоритет
+ * @param bindings - Список привязок `bind()`; порядок = приоритет
  * @returns Читалку со снятым снимком — её принимает {@link configKernel}
  * @throws {ConfigSourceError} Если `init()` источника отказал
  *
  * @example
  * ```typescript
  * const reader = await bootstrapConfig([
- *   [vault(), [ordersKeys]],
- *   [file('config.yaml'), ['*_URL']],
+ *   bind(vault(), { keys: ordersKeys }),
+ *   bind(file('config.yaml'), { keys: '*_URL' }),
  * ]);
  *
  * builder.register(configKernel(reader));
  * ```
  */
 export const bootstrapConfig = async (
-  bindings: readonly ConfigBinding[] = [],
+  bindings: readonly Binding[] = [],
 ): Promise<ConfigReader> => {
   const reader = new ConfigReader(bindings);
   await reader.init();

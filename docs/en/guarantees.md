@@ -34,3 +34,8 @@ than it acquires resources. The same checks are run by `app.check(args)`
 over the matrix of topologies in CI ([chapter 19](./guide/19-select.md))
 and by the test build `buildTest`
 ([chapter 8](./guide/08-testing.md)).
+
+The build argument alone determines the composition of a process.
+Config bindings passed to `run()`, `check()` or `buildTest()` do not
+affect it: `discover()` builds the OpenAPI document and the topology
+matrix without reading a single source ([chapter 7](./guide/07-config.md)).

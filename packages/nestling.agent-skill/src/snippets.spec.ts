@@ -11,7 +11,7 @@ import { checkSnippets } from '../scripts/snippets.mjs';
 import { app } from '../snippets/app.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { RootLogger$ } from '@nestlingjs/app';
+import { bind, RootLogger$ } from '@nestlingjs/app';
 import { buildTest, spyLogger, vars } from '@nestlingjs/testing';
 
 describe('сниппеты скилла', () => {
@@ -29,7 +29,7 @@ describe('сниппеты скилла', () => {
     // потому что `apiToken` объявлен без умолчания, логгер — потому что
     // иначе сборка пишет в консоль теста
     await using built = await buildTest(app, {
-      config: vars({ API_TOKEN: 'test-token' }),
+      config: [bind(vars({ API_TOKEN: 'test-token' }))],
       overrides: [[RootLogger$, spyLogger().logger]],
     });
 

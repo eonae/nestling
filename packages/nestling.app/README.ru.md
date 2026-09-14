@@ -45,19 +45,20 @@ await app.build().run();
 
 ## Экспорты
 
-- **Композиционный корень** ([design](../../docs/design/composition.md)) — `App`,
-  `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`, `CheckReport`,
-  `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
-  `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
-  `PluginOptions`, `RunOptions`.
-- **Конфигурация** ([design](../../docs/design/config.md)) — `bootstrapConfig`,
-  `Config`, `ConfigBinding`, `ConfigDerivedError`, `ConfigField`, `ConfigGlob`,
-  `ConfigInput`, `configKernel`, `ConfigKeys`, `ConfigProjection`, `ConfigRecord`,
-  `ConfigSectionToken`, `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
-  `ConfigValidationError`, `ConfigValues`, `DerivedConstructor`, `DerivedField`,
-  `DerivedRecord`, `DeriveFn`, `describeConfig`, `env`, `from`, `FromField`, `load`,
-  `makeConfig`, `objectSource`, `ObjectSource`, `ReloadableConfig`, `secret`,
-  `SecretField`, `toBindings`.
+- **Композиционный корень** ([design](../../docs/design/composition.md)) —
+  `App`, `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`,
+  `CheckReport`, `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`,
+  `Feature`, `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`,
+  `Plugin`, `PluginOptions`, `RunOptions`.
+- **Конфигурация** ([design](../../docs/design/config.md)) — `bind`,
+  `Binding`, `BindOptions`, `bootstrapConfig`, `Config`, `ConfigDerivedError`,
+  `ConfigField`, `ConfigGlob`, `configKernel`, `ConfigKeys`,
+  `ConfigProjection`, `ConfigRecord`, `ConfigSectionToken`,
+  `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
+  `ConfigValidationError`, `ConfigValues`, `defaultSources`,
+  `DerivedConstructor`, `DerivedField`, `DerivedRecord`, `DeriveFn`,
+  `describeConfig`, `dotenv`, `env`, `from`, `FromField`, `load`,
+  `makeConfig`, `ReloadableConfig`, `secret`, `SecretField`.
 - **Пайплайн и endpoint'ы** ([design](../../docs/design/pipeline.md)) —
   `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
   `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,

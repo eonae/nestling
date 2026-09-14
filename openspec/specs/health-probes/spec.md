@@ -162,16 +162,17 @@ SHALL NOT попадать в отчёт.
 неотрицательных целых SHALL быть ошибкой сборки с именем ключа.
 
 Секция SHALL читаться узлом из графа обычной зависимостью. Наружу пакет
-SHALL отдавать только `healthConfigKeys` — право привязать источник в
-`config:` корня; DI-токен секции SHALL оставаться приватным.
+SHALL отдавать только `healthConfigKeys` — право привязать источник опцией
+`config` у `run()` (capability `config-sources-binding`); DI-токен секции
+SHALL оставаться приватным.
 
 #### Scenario: Источник привязан к ключам секции
 
-- **WHEN** корень объявляет `config: [[envSource(), healthConfigKeys]]`, а в
-  окружении `NESTLING_HEALTH_TIMEOUT=50`
+- **WHEN** вызван `run({ config: [bind(envSource(), { keys: healthConfigKeys })] })`,
+  а в окружении `NESTLING_HEALTH_TIMEOUT=50`
 - **THEN** каждая проверка отменяется через 50 мс
 
 #### Scenario: Умолчания без единой привязки
 
-- **WHEN** приложение не объявляет `config:` вовсе
+- **WHEN** `run()` вызван без опции `config`
 - **THEN** таймаут проверки — 2000 мс, срок кэша — 1000 мс

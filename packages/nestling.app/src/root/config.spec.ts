@@ -1,14 +1,15 @@
 /**
- * Конфиг в корне: прогрессивность (только env), приоритет источников,
- * граница фазы 0 и fail-fast на старте — до того, как транспорт начнёт
- * слушать.
+ * Конфиг в опции `run()`/`check()`: приоритет источников, граница фазы 0 и
+ * fail-fast на старте — до того, как транспорт начнёт слушать.
  */
 
+import { objectSource } from '../config/__fixtures__/object-source.js';
 import type { Config, ConfigSource } from '../config/index.js';
 import {
+  bind,
   ConfigValidationError,
+  env,
   makeConfig,
-  objectSource,
 } from '../config/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -127,8 +128,8 @@ beforeEach(() => {
   phases.length = 0;
 });
 
-describe('привязка конфига в build', () => {
-  it('прогрессивность: без поля config секции читаются из process.env', async () => {
+describe('привязка конфига в run()', () => {
+  it('без опции config секции читаются из defaultSources (process.env)', async () => {
     await withEnv({ ROOTAPP_RETRIES: '3' }, async () => {
       const transport = new MockTransport();
       const app = makeApp({
@@ -149,7 +150,7 @@ describe('привязка конфига в build', () => {
     });
   });
 
-  it('порядок привязок задаёт приоритет, env остаётся источником по умолчанию', async () => {
+  it('порядок привязок задаёт приоритет; process.env читается, только если назван явно', async () => {
     await withEnv(
       { ROOTAPP_RETRIES: '1', ROOTAPP_GREETING: 'from-env' },
       async () => {
@@ -160,27 +161,52 @@ describe('привязка конфига в build', () => {
               capabilities: VALUE_ONLY,
             }),
           ],
+        }).build();
+
+        await app.run({
           config: [
-            [objectSource({ ROOTAPP_RETRIES: '5' }, 'high'), '*'],
-            [
+            bind(objectSource({ ROOTAPP_RETRIES: '5' }, 'high')),
+            bind(
               objectSource(
                 { ROOTAPP_RETRIES: '9', ROOTAPP_GREETING: 'low' },
                 'low',
               ),
-              '*',
-            ],
+            ),
+            bind(env()),
           ],
-        }).build();
-
-        await app.run();
+        });
 
         // retries — из первой привязки, greeting — из второй (первая его не
-        // знает), env остаётся источником по умолчанию и не используется
+        // знает); env — обычная привязка последним элементом списка, а не
+        // неявный хвост
         expect(projected).toEqual([{ greeting: 'low', retries: 5 }]);
 
         await app.close();
       },
     );
+  });
+
+  it('переданный список заменяет defaultSources целиком', async () => {
+    await withEnv({ ROOTAPP_RETRIES: '9' }, async () => {
+      const app = makeApp({
+        features: [GreeterModule],
+        transports: [
+          transportValue(TestTransport$('default'), new MockTransport(), {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
+      }).build();
+
+      // Привязка не называет `ROOTAPP_RETRIES`: будь `defaultSources`
+      // добавлены поверх, `process.env` дал бы значение и старт бы прошёл
+      const failure = await app
+        .run({
+          config: [bind(objectSource({ ROOTAPP_GREETING: 'x' }, 'only'))],
+        })
+        .catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(ConfigValidationError);
+    });
   });
 
   it('невалидный конфиг роняет старт до приёма запросов', async () => {
@@ -192,12 +218,13 @@ describe('привязка конфига в build', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-      config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
     }).build();
 
     // Секция — провайдер значения: сборка вычисляет её сразу, и ошибка
     // валидации доходит наружу как есть
-    const failure = await app.run().catch((error: unknown) => error);
+    const failure = await app
+      .run({ config: [bind(objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'))] })
+      .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(ConfigValidationError);
     expect(transport.serving).toBe(false);
@@ -230,10 +257,9 @@ describe('фаза 0 BOOTSTRAP', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-      config: [[source, '*']],
     }).build();
 
-    await app.run();
+    await app.run({ config: [bind(source)] });
 
     // `init()` источника завершился до захвата первого ресурса
     expect(phases).toEqual(['init', 'construct']);
@@ -256,10 +282,9 @@ describe('фаза 0 BOOTSTRAP', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-      config: [[source, '*']],
     }).build();
 
-    await app.run();
+    await app.run({ config: [bind(source)] });
     await app.close();
 
     expect(phases).toEqual(['init', 'construct', 'destroy', 'close']);
@@ -283,10 +308,11 @@ describe('фаза 0 BOOTSTRAP', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-      config: [[failing, '*']],
     }).build();
 
-    await expect(app.run()).rejects.toThrow(/Config source 'vault'/);
+    await expect(app.run({ config: [bind(failing)] })).rejects.toThrow(
+      /Config source 'vault'/,
+    );
 
     expect(phases).toEqual([]);
     expect(transport.serving).toBe(false);
@@ -294,8 +320,8 @@ describe('фаза 0 BOOTSTRAP', () => {
 });
 
 describe('check() и источники', () => {
-  it('с config: vars({ … }) привязки декларации не поднимаются', async () => {
-    const { source } = probeSource({ ROOTAPP_RETRIES: '3' }, 'declared');
+  it('поднимает переданные привязки на фазе 0, как и run()', async () => {
+    const { source, reads } = probeSource({ ROOTAPP_RETRIES: '3' });
 
     const app = makeApp({
       features: [ProbeFeature],
@@ -304,17 +330,14 @@ describe('check() и источники', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-      config: [[source, '*']],
     });
 
-    await app.check(undefined, {
-      config: objectSource({ ROOTAPP_RETRIES: '7' }, 'vars'),
-    });
+    await app.check(undefined, { config: [bind(source)] });
 
-    // `check()` не создаёт экземпляров: ресурс не захватывается, а
-    // объявленный источник не поднимается вовсе — проверка обошлась
-    // переданным и ввода-вывода не сделала
-    expect(phases).toEqual([]);
+    // `check()` не создаёт экземпляров: ресурс не захватывается; источник
+    // уже закрыт — отчёт готов, и фазы 0 держать его открытым незачем
+    expect(phases).toEqual(['init', 'close']);
+    expect(reads).toContain('ROOTAPP_RETRIES');
   });
 
   it('закрывает источники сразу после отчёта, хотя графа не разрушает', async () => {
@@ -327,10 +350,9 @@ describe('check() и источники', () => {
           capabilities: VALUE_ONLY,
         }),
       ],
-      config: [[source, '*']],
     });
 
-    await app.check();
+    await app.check(undefined, { config: [bind(source)] });
 
     // Ресурс не захватывался — `check()` не создаёт экземпляров, — а
     // источники уже закрыты

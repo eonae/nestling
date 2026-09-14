@@ -5,9 +5,11 @@
 
 import type { ConfigReader } from '../config/index.js';
 import {
+  bind,
   bootstrapConfig,
   configKernel,
   ConfigValidationError,
+  env,
 } from '../config/index.js';
 import { contextKernel } from '../pipeline/core/context/index.js';
 
@@ -38,7 +40,7 @@ const kernelBuilder = async (
   options: ContainerBuilderOptions = {},
   root?: Logger,
 ) => {
-  const reader = await bootstrapConfig();
+  const reader = await bootstrapConfig([bind(env())]);
 
   return new ContainerBuilder(options).register(
     configKernel(reader),
@@ -230,7 +232,7 @@ describe('секция nestlingLog', () => {
     const restore = withEnv({ NESTLING_LOG_LEVEL: 'loud' });
 
     try {
-      const reader = await bootstrapConfig();
+      const reader = await bootstrapConfig([bind(env())]);
 
       expect(() => makeKernelLogger(reader)).toThrow(ConfigValidationError);
       // Перечень приходит от валидатора: секция написана на нём, и второго

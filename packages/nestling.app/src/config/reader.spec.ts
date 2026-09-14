@@ -1,13 +1,14 @@
 import type { SpyLogger } from '../logger/__fixtures__/spy.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 
+import { objectSource } from './__fixtures__/object-source.js';
 import type { SectionDeclaration } from './declaration.js';
 import { ConfigSourceError } from './errors.js';
 import { ConfigKeys } from './keys.js';
 import { ConfigReader } from './reader.js';
 import { registerSection, resetConfigRegistry } from './registry.js';
 import type { ConfigSource } from './source.js';
-import { env, objectSource } from './source.js';
+import { bind, env } from './source.js';
 
 import { jest } from '@jest/globals';
 
@@ -58,41 +59,40 @@ describe('разрешение ключа', () => {
     const first = objectSource({ ORDERS_MAX_ITEMS: 'first' }, 'first');
     const second = objectSource({ ORDERS_MAX_ITEMS: 'second' }, 'second');
 
-    const reader = new ConfigReader([
-      [first, '*'],
-      [second, '*'],
-    ]);
+    const reader = new ConfigReader([bind(first), bind(second)]);
     await reader.init();
 
     expect(reader.read('ORDERS_MAX_ITEMS')).toBe('first');
   });
 
-  it('провал до env, а без env — undefined', async () => {
+  it('ключ, которого не знает ни один источник, — undefined', async () => {
     process.env.ORDERS_MAX_ITEMS = 'from-env';
 
     const empty = objectSource({}, 'empty');
-    const reader = new ConfigReader([[empty, '*']]);
+    const reader = new ConfigReader([bind(empty)]);
     await reader.init();
 
-    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('from-env');
+    // `process.env` больше не читается неявным хвостом: источник, не
+    // назвавший ключ, оставляет его непокрытым, даже если он есть в окружении
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBeUndefined();
     expect(reader.read('NOT_SET_ANYWHERE')).toBeUndefined();
   });
 
-  it('без привязок читает только process.env', async () => {
+  it('без привязок ничего не читает', async () => {
     process.env.ORDERS_MAX_ITEMS = 'bare-env';
 
     const reader = new ConfigReader();
     await reader.init();
 
-    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('bare-env');
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBeUndefined();
   });
 
-  it('источник не опрашивается для ключей вне его таргета', async () => {
+  it('источник не опрашивается для ключей вне его области', async () => {
     const get = jest.fn(() => 'x');
     const scoped: ConfigSource = { name: 'scoped', get };
 
     const reader = new ConfigReader([
-      [scoped, new ConfigKeys('orders', ['ORDERS_MAX_ITEMS'])],
+      bind(scoped, { keys: new ConfigKeys('orders', ['ORDERS_MAX_ITEMS']) }),
     ]);
     await reader.init();
 
@@ -109,11 +109,11 @@ describe('разрешение ключа', () => {
     const anonymous: ConfigSource = { ...silent('x'), name: undefined };
 
     const reader = new ConfigReader([
-      [objectSource({}, 'vault'), '*'],
-      [anonymous, '*'],
+      bind(objectSource({}, 'vault')),
+      bind(anonymous),
     ]);
 
-    expect(reader.sources).toEqual(['vault', 'source #2', 'process.env']);
+    expect(reader.sources).toEqual(['vault', 'source #2']);
   });
 });
 
@@ -133,7 +133,7 @@ describe('жизненный цикл источников', () => {
       },
     };
 
-    const reader = new ConfigReader([[source, '*']]);
+    const reader = new ConfigReader([bind(source)]);
     await reader.init();
     reader.read('ANY');
 
@@ -145,10 +145,7 @@ describe('жизненный цикл источников', () => {
     const withClose: ConfigSource = { ...silent('a'), close };
     const withoutClose = silent('b');
 
-    const reader = new ConfigReader([
-      [withClose, '*'],
-      [withoutClose, '*'],
-    ]);
+    const reader = new ConfigReader([bind(withClose), bind(withoutClose)]);
     await reader.init();
     await reader.close();
 
@@ -163,7 +160,7 @@ describe('снимок фазы 0', () => {
     const get = jest.fn(() => '10');
     const source: ConfigSource = { name: 'snapshot', get };
 
-    const reader = new ConfigReader([[source, '*']]);
+    const reader = new ConfigReader([bind(source)]);
     await reader.init();
 
     expect(get).toHaveBeenCalledTimes(1);
@@ -179,7 +176,7 @@ describe('снимок фазы 0', () => {
     registerSection(declaration('orders', ['ORDERS_MAX_ITEMS']));
 
     const source = objectSource({ ORDERS_MAX_ITEMS: '10' }, 'snapshot');
-    const reader = new ConfigReader([[source, '*']]);
+    const reader = new ConfigReader([bind(source)]);
     await reader.init();
 
     source.set('ORDERS_MAX_ITEMS', '20');
@@ -191,7 +188,7 @@ describe('снимок фазы 0', () => {
     const get = jest.fn(() => 'localhost:50051');
     const source: ConfigSource = { name: 'globs', get };
 
-    const reader = new ConfigReader([[source, '*']]);
+    const reader = new ConfigReader([bind(source)]);
     await reader.init();
 
     // Реестр пуст, значит снимок тоже: первое чтение идёт к источнику
@@ -212,7 +209,7 @@ describe('снимок фазы 0', () => {
       },
     };
 
-    const reader = new ConfigReader([[failing, '*']]);
+    const reader = new ConfigReader([bind(failing)]);
     const error = await reader.init().catch((error_: unknown) => error_);
 
     expect(error).toBeInstanceOf(ConfigSourceError);
@@ -227,10 +224,78 @@ describe('снимок фазы 0', () => {
     });
     const flaky: ConfigSource = { ...silent('flaky'), init };
 
-    const reader = new ConfigReader([[flaky, '*']]);
+    const reader = new ConfigReader([bind(flaky)]);
 
     await expect(reader.init()).rejects.toThrow(/Config source 'flaky'/);
     expect(init).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('optional и timeout привязки', () => {
+  it('optional пропускает источник, чей init() отказал', async () => {
+    const first: ConfigSource = {
+      ...silent('missing'),
+      init: () => {
+        throw new Error('not found');
+      },
+    };
+    const second = objectSource({ ORDERS_MAX_ITEMS: 'fallback' }, 'second');
+
+    const reader = new ConfigReader([
+      bind(first, { optional: true }),
+      bind(second),
+    ]);
+    await reader.init();
+
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('fallback');
+    expect(reader.sources).toEqual(['second']);
+  });
+
+  it('без optional отказ init() отказывает фазу 0', async () => {
+    const failing: ConfigSource = {
+      ...silent('missing'),
+      init: () => {
+        throw new Error('not found');
+      },
+    };
+
+    const reader = new ConfigReader([bind(failing)]);
+
+    await expect(reader.init()).rejects.toThrow(ConfigSourceError);
+  });
+
+  it('timeout ограничивает init(): превышение — та же отказ-семантика', async () => {
+    const slow: ConfigSource = {
+      name: 'slow',
+      // eslint-disable-next-line unicorn/no-useless-undefined -- никогда не резолвится
+      init: () => new Promise<never>(() => undefined),
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      get: () => undefined,
+    };
+
+    const reader = new ConfigReader([bind(slow, { timeout: 20 })]);
+
+    const error = await reader.init().catch((error_: unknown) => error_);
+
+    expect(error).toBeInstanceOf(ConfigSourceError);
+    expect((error as ConfigSourceError).source).toBe('slow');
+  });
+
+  it('timeout вместе с optional пропускает источник вместо отказа', async () => {
+    const slow: ConfigSource = {
+      name: 'slow',
+      // eslint-disable-next-line unicorn/no-useless-undefined -- никогда не резолвится
+      init: () => new Promise<never>(() => undefined),
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      get: () => undefined,
+    };
+
+    const reader = new ConfigReader([
+      bind(slow, { timeout: 20, optional: true }),
+    ]);
+
+    await expect(reader.init()).resolves.toBeUndefined();
+    expect(reader.sources).toEqual([]);
   });
 });
 
@@ -238,8 +303,12 @@ describe('предупреждения', () => {
   it('таргет, не покрывший ни одного объявленного ключа, виден на старте', async () => {
     registerSection(declaration('orders', ['ORDERS_URL']));
 
+    // Одна привязка несёт одну область: вторая, `'*_URL'`, покрывает
+    // объявленный ключ и не предупреждает
+    const vault = objectSource({}, 'vault');
     const reader = new ConfigReader([
-      [objectSource({}, 'vault'), ['*_UR', '*_URL']],
+      bind(vault, { keys: '*_UR' }),
+      bind(vault, { keys: '*_URL' }),
     ]);
     await reader.init();
     reader.attachLogger(spy.logger);
@@ -250,7 +319,9 @@ describe('предупреждения', () => {
   });
 
   it('копятся до подключения логгера и уходят в него разом', async () => {
-    const reader = new ConfigReader([[objectSource({}, 'v'), '*_NOPE']]);
+    const reader = new ConfigReader([
+      bind(objectSource({}, 'v'), { keys: '*_NOPE' }),
+    ]);
     await reader.init();
 
     expect(spy.entries).toEqual([]);
@@ -303,25 +374,41 @@ describe('objectSource', () => {
 });
 
 describe('env({ prefix })', () => {
-  /** Один `.env` на два сервиса: приставка перекрывает неявный `process.env` */
+  /** Один `.env` на два сервиса: приставка перекрывает общий ключ */
   it('значение под приставкой выигрывает у общего', async () => {
     process.env.ORDERS_MAX_ITEMS = 'shared';
     process.env.SERVICE_1_ORDERS_MAX_ITEMS = 'mine';
 
     registerSection(declaration('orders', ['ORDERS_MAX_ITEMS']));
 
-    const reader = new ConfigReader([[env({ prefix: 'SERVICE_1_' }), '*']]);
+    const reader = new ConfigReader([bind(env({ prefix: 'SERVICE_1_' }))]);
     await reader.init();
 
     expect(reader.read('ORDERS_MAX_ITEMS')).toBe('mine');
   });
 
-  it('ключ без приставки читается неявным `process.env`', async () => {
+  it('без явной второй привязки ключ под чужой приставкой не читается', async () => {
     process.env.DATABASE_URL = 'postgresql://shared';
 
     registerSection(declaration('orders', ['DATABASE_URL']));
 
-    const reader = new ConfigReader([[env({ prefix: 'SERVICE_1_' }), '*']]);
+    const reader = new ConfigReader([bind(env({ prefix: 'SERVICE_1_' }))]);
+    await reader.init();
+
+    // `SERVICE_1_DATABASE_URL` не задан — привязка «пропускает ход», а
+    // неявного хвоста `process.env` больше нет
+    expect(reader.read('DATABASE_URL')).toBeUndefined();
+  });
+
+  it('общий ключ остаётся общим явной второй привязкой', async () => {
+    process.env.DATABASE_URL = 'postgresql://shared';
+
+    registerSection(declaration('orders', ['DATABASE_URL']));
+
+    const reader = new ConfigReader([
+      bind(env({ prefix: 'SERVICE_1_' })),
+      bind(env()),
+    ]);
     await reader.init();
 
     expect(reader.read('DATABASE_URL')).toBe('postgresql://shared');
@@ -351,8 +438,8 @@ describe('env({ prefix })', () => {
   });
 
   it('приставка попадает в перечень опрошенных источников', () => {
-    const reader = new ConfigReader([[env({ prefix: 'SERVICE_1_' }), '*']]);
+    const reader = new ConfigReader([bind(env({ prefix: 'SERVICE_1_' }))]);
 
-    expect(reader.sources).toEqual(['env(SERVICE_1_*)', 'process.env']);
+    expect(reader.sources).toEqual(['env(SERVICE_1_*)']);
   });
 });

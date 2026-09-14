@@ -10,7 +10,7 @@ import { declareApp } from './app.js';
 import type { MetricsExporter } from './metrics.js';
 import { metricsPlugin, prometheusExporter } from './metrics.js';
 import { RegisterUser } from './operations.js';
-import { describeWithDatabase, TEST_DATABASE_URL } from './testing.js';
+import { describeWithDatabase, testConfig } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
@@ -82,12 +82,12 @@ describeWithDatabase('метрики ядра в экспорте примера
     // Шины в этой сборке нет: обе фичи выбраны, и вызов
     // `notifications.check-address` идёт через `dispatch` — метрика порта
     // при этом пишется та же
-    const declared = declareApp({
-      httpPort: 0,
-      databaseUrl: TEST_DATABASE_URL,
-    });
+    const declared = declareApp();
 
-    await using testApp = await buildTest(declared, { args: 'all' });
+    await using testApp = await buildTest(declared, {
+      args: 'all',
+      config: testConfig,
+    });
 
     await testApp.emit(RegisterUser, {
       name: 'Alice',

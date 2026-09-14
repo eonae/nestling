@@ -1,6 +1,6 @@
 # 7. The port and the database address from the environment
 
-> Guide to the current API; verified against `bd9dce44`.
+> Guide to the current API; verified against `46971d4e`.
 > Target description: [design/config.md](../design/config.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-08] Kernel/user space; конфиг как token-families; плагины`,
@@ -162,7 +162,7 @@ framework does not control the strings the consumer writes itself.
 ```
 failed to start: ConfigValidationError: Config section 'app' is invalid:
   - API_TOKEN (field 'apiToken'): Invalid input: expected string, received undefined
-Sources consulted, in priority order: process.env
+Sources consulted, in priority order: env
 ```
 
 ```bash

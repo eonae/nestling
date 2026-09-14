@@ -5,12 +5,13 @@
  * чтения: проекции секции из графа и первичном чтении фазы 0.
  */
 
+import { objectSource } from './__fixtures__/object-source.js';
 import { ConfigValidationError } from './errors.js';
 import { readSectionSnapshot } from './kernel.js';
 import { load } from './load.js';
 import { ConfigReader } from './reader.js';
 import { makeConfig } from './section.js';
-import { objectSource } from './source.js';
+import { bind } from './source.js';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
@@ -28,10 +29,9 @@ const readerOf = async (
   ...sources: Record<string, string>[]
 ): Promise<ConfigReader> => {
   const reader = new ConfigReader(
-    sources.map((values, index) => [
-      objectSource(values, `source-${index}`),
-      '*',
-    ]),
+    sources.map((values, index) =>
+      bind(objectSource(values, `source-${index}`)),
+    ),
   );
   await reader.init();
 

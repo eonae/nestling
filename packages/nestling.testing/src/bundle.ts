@@ -5,11 +5,7 @@
 import type { TestApp, TestStub } from './app.js';
 import { buildTest } from './app.js';
 
-import type {
-  Bundle,
-  ConfigInput,
-  TransportDeclaration,
-} from '@nestlingjs/app';
+import type { Binding, Bundle, TransportDeclaration } from '@nestlingjs/app';
 import { makeApp } from '@nestlingjs/app';
 
 /** Словарь `testBundle` */
@@ -24,8 +20,8 @@ export interface TestBundleOptions {
    */
   stubs?: readonly TestStub[];
 
-  /** Конфиг: источник, одна привязка или их список */
-  config?: ConfigInput;
+  /** Конфиг: список привязок `bind()` */
+  config?: readonly Binding[];
 
   /**
    * Транспорты для endpoint'ов единицы — объявляются явно, как и в бою.

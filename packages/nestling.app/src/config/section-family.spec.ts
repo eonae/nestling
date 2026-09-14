@@ -3,9 +3,10 @@
  * адресуют ключи одного экземпляра.
  */
 
+import { objectSource } from './__fixtures__/object-source.js';
 import { bootstrapConfig, configKernel } from './kernel.js';
 import { makeConfig } from './section.js';
-import { objectSource } from './source.js';
+import { bind } from './source.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { InjectionToken } from '@nestlingjs/container';
@@ -43,10 +44,10 @@ async function read(
   const values$ = makeToken<ListenerValues>(`listener-values:${instance}`);
 
   const reader = await bootstrapConfig([
-    [
+    bind(
       objectSource(vars, 'test'),
-      boundTo === undefined ? '*' : ListenerConfig(boundTo).keys,
-    ],
+      boundTo === undefined ? {} : { keys: ListenerConfig(boundTo).keys },
+    ),
   ]);
 
   const container = new ContainerBuilder()

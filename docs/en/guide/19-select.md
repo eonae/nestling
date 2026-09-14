@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `bd9dce44`.
+> Guide to the current API; verified against `46971d4e`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -53,8 +53,8 @@ await app.build({ ...cfg, includeDeps: true }).run();
 synchronously and only from `process.env`. It works this way because
 the build argument determines the composition of the container, and
 a section inside the container would appear only after the selection.
-The sources bound in `config:` take no part in this read. This is the
-only configuration read before the build.
+The sources bound by the `config` option of `run()` take no part in
+this read. This is the only configuration read before the build.
 
 The `APP_FEATURES` key is set through `from()`: the root has its own
 `root` prefix, because the `app` prefix is already taken by the
@@ -217,7 +217,7 @@ and in the `check()` report as the `switches` field.
     // `ops` is selected alone: there are no providers of the `users`
     // feature in the graph, and plugins are in every build
     await using testApp = await buildTest(app, {
-      ...testConfig,
+      config: testConfig,
       args: 'ops',
     });
 
@@ -233,19 +233,19 @@ are no providers of the `users` feature in this build.
 
 ```typescript
 // src/app.spec.ts
-/**
- * The declaration for `check()`: the structural check has no
- * overrides, so the secret values are bound to the section's keys by
- * a source
- */
 const checked = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
   switches: app.spec.switches,
   policies: app.spec.policies,
   transports: app.spec.transports,
-  config: [[objectSource(testEnv, 'test'), appConfigKeys]],
 });
+
+/**
+ * `check()` options: the structural check has no overrides, so the
+ * secret values are bound to the section's keys by a source
+ */
+const CHECK_OPTIONS = { config: [bind(vars(testEnv), { keys: appConfigKeys })] };
 ```
 
 The application's `check()` runs phases 0 and 1: parsing the build
@@ -266,9 +266,9 @@ and it brings up no configuration sources. Graph errors remain the job
 of `check()`. The OpenAPI document in CI is built from it
 ([chapter 13](./13-openapi-and-client.md)).
 
-`check()` accepts no overrides: it checks the honest graph. So the
-secrets come not from `vars()` but from binding a source to the
-section's keys right in the declaration. The `API_TOKEN` and
+`check()` accepts no overrides: it checks the honest graph. Secrets
+come through the `config` option, the same `bind()` list as `run()`
+takes — the declaration has no bindings at all. The `API_TOKEN` and
 `WEBHOOK_SECRET` secrets are needed here too, because `build()` creates
 the configuration section.
 
@@ -276,11 +276,11 @@ the configuration section.
 // src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
-    const reports = await checkTopologies(checked, [
-      'all',
-      usersWithDeps,
-      'ops',
-    ]);
+    const reports = await checkTopologies(
+      checked,
+      ['all', usersWithDeps, 'ops'],
+      CHECK_OPTIONS,
+    );
 
     // `users` calls `notifications.check-address`, so the closure over
     // the operations pulls in the mailing feature. Nobody calls `ops`,
@@ -311,7 +311,7 @@ visible under names like `subscriptions.opened@ops`.
 ```typescript
 // src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
-    const [{ report }] = await checkTopologies(checked, ['all']);
+    const [{ report }] = await checkTopologies(checked, ['all'], CHECK_OPTIONS);
 
     expect(
       report.endpoints
@@ -330,10 +330,14 @@ visible under names like `subscriptions.opened@ops`.
 ```typescript
 // src/app.spec.ts
   it('проверяет обе ветки переключателя документации', async () => {
-    const [withDocs, withoutDocs] = await checkTopologies(checked, [
-      { features: 'all', docs: 'on' },
-      { features: 'all', docs: 'off' },
-    ]);
+    const [withDocs, withoutDocs] = await checkTopologies(
+      checked,
+      [
+        { features: 'all', docs: 'on' },
+        { features: 'all', docs: 'off' },
+      ],
+      CHECK_OPTIONS,
+    );
 
     expect(withDocs.report.switches).toEqual({ docs: 'on' });
     expect(withoutDocs.report.switches).toEqual({ docs: 'off' });

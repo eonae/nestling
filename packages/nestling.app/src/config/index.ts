@@ -75,11 +75,10 @@ export type {
   ConfigSharedKeyDescription,
 } from './registry.js';
 export { makeConfig } from './section.js';
-export { env, objectSource, toBindings } from './source.js';
+export { bind, defaultSources, dotenv, env } from './source.js';
 export type {
-  ConfigBinding,
-  ConfigInput,
+  Binding,
+  BindOptions,
   ConfigSource,
   EnvSourceOptions,
-  ObjectSource,
 } from './source.js';

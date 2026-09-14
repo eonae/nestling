@@ -19,10 +19,9 @@ import {
   everyEndpoint,
   IdempotencyKey,
   makeApp,
-  objectSource,
 } from '@nestlingjs/app';
 import { outbox } from '@nestlingjs/outbox';
-import { http, httpProbes, serverKeys } from '@nestlingjs/transport.http';
+import { http, httpProbes } from '@nestlingjs/transport.http';
 import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
 import { nats } from '@nestlingjs/transport.nats';
 
@@ -33,20 +32,6 @@ export interface DeclareOptions {
    * конфига `nats`. В тестах сюда передаётся двойник брокера
    */
   nats?: NatsTransportOptions;
-
-  /**
-   * Порт HTTP-сервера. В бою не задан: его читает секция `http` из
-   * `HTTP_PORT`. Тест, поднимающий два процесса сразу, передаёт `0` —
-   * два слушателя на один порт не биндятся
-   */
-  httpPort?: number;
-
-  /**
-   * Адрес базы. В бою не задан: его читает секция соединения из
-   * `DATABASE_URL`. Тест передаёт адрес своей базы объектом, не трогая
-   * `process.env`
-   */
-  databaseUrl?: string;
 }
 
 /**
@@ -68,7 +53,7 @@ export const appOutbox = outbox({
  * `metrics` он становится корнем, под которым ядро считает запросы и
  * вызовы портов, и узлом графа — его читает endpoint `GET /metrics`.
  *
- * @param options - Опции брокера и порт HTTP-сервера
+ * @param options - Опции брокера
  */
 export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
   const exporter = prometheusExporter();
@@ -110,24 +95,6 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
         transport: BusTransport$,
         pattern: /^notifications\.forget-address$/,
       }).hasVar(IdempotencyKey, 'idempotencyKey'),
-    ],
-    config: [
-      ...(options.httpPort === undefined
-        ? []
-        : [
-            [
-              objectSource({ HTTP_PORT: String(options.httpPort) }, 'test'),
-              serverKeys(),
-            ] as const,
-          ]),
-      ...(options.databaseUrl === undefined
-        ? []
-        : [
-            [
-              objectSource({ DATABASE_URL: options.databaseUrl }, 'test'),
-              db.keys,
-            ] as const,
-          ]),
     ],
   });
 }

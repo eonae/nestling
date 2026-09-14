@@ -17,16 +17,17 @@ import { http } from './transport.js';
 import type {
   AnyEndpointDefinition,
   BuiltApp,
+  ConfigSource,
   HealthCheck,
   HealthStatus,
 } from '@nestlingjs/app';
 import {
+  bind,
   everyEndpoint,
   HealthCheck$,
   makeApp,
   makeFeature,
   makePipeline,
-  objectSource,
 } from '@nestlingjs/app';
 import { classProvider, Component, makeModule } from '@nestlingjs/container';
 
@@ -71,10 +72,14 @@ const DbModule = makeModule({
 });
 
 /** Порт выбирает ОС, адрес — loopback: сокет теста никуда не смотрит */
-const socket = objectSource(
-  { HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' },
-  'test-socket',
-);
+const socketValues: Record<string, string> = {
+  HTTP_PORT: '0',
+  HTTP_HOST: '127.0.0.1',
+};
+const socket: ConfigSource = {
+  name: 'test-socket',
+  get: (key) => socketValues[key],
+};
 
 /** Собирает приложение с пробами на эфемерном порту */
 const start = async (
@@ -84,10 +89,9 @@ const start = async (
     features: [makeFeature({ name: 'db', modules: [DbModule] })],
     plugins: [plugin],
     transports: [http()],
-    config: [[socket, serverKeys()]],
   }).build();
 
-  await app.run();
+  await app.run({ config: [bind(socket, { keys: serverKeys() })] });
 
   // Порт назначает ОС, поэтому фактический адрес читается у сервера
   const server = app.servers.get('default') as HttpServer | undefined;
@@ -203,14 +207,13 @@ describe('пробы HTTP', () => {
       features: [makeFeature({ name: 'db', modules: [DbModule] })],
       plugins: [httpProbes()],
       transports: [http()],
-      config: [[socket, serverKeys()]],
       policies: [
         everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
           authed,
           'authed',
         ),
       ],
-    }).check();
+    }).check(undefined, { config: [bind(socket, { keys: serverKeys() })] });
 
     expect(
       report.endpoints.map(({ pattern, detached }) => [

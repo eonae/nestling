@@ -361,8 +361,8 @@ export const app = makeApp({
   providers: [OrdersService],
   transports: [http()],
 });
-// A second source is connected this way:
-//   config: [[file('config.yaml'), [OrdersConfig.keys]]]
+// A second source is connected at run():
+//   app.build().run({ config: [bind(file('config.yaml'), { keys: OrdersConfig.keys })] })
 ```
 
 ### L2 — features, selection and switches

@@ -19,25 +19,25 @@ import type {
   AnyOutput,
   AnyPayload,
   App,
+  Binding,
   BuildArgs,
-  ConfigBinding,
-  ConfigInput,
   DispatchOptions,
   EndpointDefinition,
   EndpointMeta,
   ExtendableContext,
+  IListener,
   InferInput,
   InferOutput,
   Raw,
   ResponseContext,
 } from '@nestlingjs/app';
 import {
+  bind,
   busBindingOf,
   isApp,
   logConfigKeys,
   makeEmptyContext,
   profileAttributes,
-  toBindings,
   transportNameOf,
 } from '@nestlingjs/app';
 import type { WiredApp, WiredEndpoint } from '@nestlingjs/app/testing';
@@ -133,12 +133,13 @@ export interface TestBuildOptions<
   args?: BuildArgs<S>;
 
   /**
-   * Конфиг теста: источник, одна привязка или их список.
+   * Конфиг теста: список привязок `bind()`.
    *
-   * **Заменяет** привязку источников декларации целиком: тест изолирован
-   * от источников приложения так же, как от `process.env`.
+   * Единственный источник привязок теста — у декларации их нет вовсе. Без
+   * опции источники не поднимаются: тест изолирован и от `process.env`, и
+   * от любых умолчаний.
    */
-  config?: ConfigInput;
+  config?: readonly Binding[];
 
   /**
    * Подстановки: пары `DI-токен → фейк` и подмены рецептов семейств.
@@ -164,9 +165,9 @@ export interface TestBuildOptions<
  *
  * `dispatch` создан, экземпляры созданы и ресурсы захвачены. Не
  * выполняются: `@OnStart`, `serve`, обработчики сигналов процесса и печать
- * состава сборки. Работа, начатая в `@OnStart`, в app-тесте не начинается —
- * это не баг, а цена фазовой модели: `@OnStart` — хук фазы START, а
- * тестовый прогон эту фазу не проходит.
+ * состава сборки. Работа, начатая в `@OnStart`, в app-тесте не начинается,
+ * пока не вызван {@link TestApp.run} — он доводит приложение до RUN тем же
+ * тестовым прогоном, без обработчиков сигналов и без строки состава.
  */
 export class TestApp {
   readonly #wired: WiredApp;
@@ -213,6 +214,63 @@ export class TestApp {
   /** Имена выбранных фич — включая приехавшие по `dependsOn` */
   get features(): readonly string[] {
     return this.#wired.features.map((feature) => feature.name);
+  }
+
+  /**
+   * Доводит приложение до RUN: `@OnStart` выполняется, `serve` каждого
+   * транспорта вызывается, слушатели открывают сокеты.
+   *
+   * Ни обработчиков сигналов процесса, ни строки состава сборки в stdout —
+   * это остаётся тестовым прогоном, а не вторым способом поднять боевой
+   * процесс. Идемпотентен: повторный вызов не открывает сокет дважды.
+   */
+  async run(): Promise<void> {
+    await this.#wired.run();
+  }
+
+  /**
+   * Базовый адрес сервера, поднятого {@link TestApp.run}.
+   *
+   * Без имени — если объявлен ровно один сервер, его адрес; ноль или
+   * больше одного сервера — явный отказ, перечисляющий доступные имена.
+   * С именем — адрес `servers.get(name)`; отсутствие сервера с таким
+   * именем — явный отказ с перечнем доступных.
+   *
+   * Сервер, не реализующий необязательную способность `baseUrl?()`
+   * листенера (для HTTP её реализует `HttpServer`), даёт явный отказ,
+   * называющий сервер, — не `undefined`. До {@link TestApp.run} сокета нет,
+   * поэтому вызов отказывает и в этом случае.
+   *
+   * @param name - Имя сервера; без него ожидается ровно один
+   * @throws {Error} Нет сервера с таким именем, серверов не один без
+   * имени, или сервер не реализует `baseUrl?()`
+   */
+  baseUrl(name?: string): string {
+    const servers = this.#wired.servers;
+
+    if (name === undefined) {
+      if (servers.size !== 1) {
+        throw new Error(
+          `testApp.baseUrl(): a name is required unless exactly one server ` +
+            `is declared, but ${servers.size} are. Available servers: ` +
+            `${[...servers.keys()].join(', ') || '(none)'}.`,
+        );
+      }
+
+      const [[soleName, listener]] = servers;
+      return this.#resolveBaseUrl(listener, soleName);
+    }
+
+    const listener = servers.get(name);
+
+    if (!listener) {
+      throw new Error(
+        `testApp.baseUrl('${name}'): no server is declared with that name. ` +
+          `Available servers: ${[...servers.keys()].join(', ') || '(none)'}.`,
+      );
+    }
+
+    return this.#resolveBaseUrl(listener, name);
   }
 
   /**
@@ -445,6 +503,18 @@ export class TestApp {
         `${available || '(none)'}.`,
     );
   }
+
+  /** Адрес листенера или явный отказ, если способности `baseUrl?()` нет */
+  #resolveBaseUrl(listener: IListener, name: string): string {
+    if (!listener.baseUrl) {
+      throw new Error(
+        `testApp.baseUrl(): server '${name}' does not implement baseUrl() — ` +
+          `it has no network address.`,
+      );
+    }
+
+    return listener.baseUrl();
+  }
 }
 
 /**
@@ -523,10 +593,9 @@ function assertEmitting(
  * привязка не видит. Вывод теста — отчёт раннера, а не записи сборки
  * каждого из сотен прогонов.
  */
-const SILENT_LOG: ConfigBinding = [
-  vars({ NESTLING_LOG_LEVEL: 'silent' }),
-  logConfigKeys,
-];
+const SILENT_LOG: Binding = bind(vars({ NESTLING_LOG_LEVEL: 'silent' }), {
+  keys: logConfigKeys,
+});
 
 export async function buildTest<
   const L extends readonly TestOverride[],
@@ -555,14 +624,9 @@ export async function buildTest<
     providers: (options.stubs ?? []).map(([token, value]) =>
       valueProvider(token, value),
     ),
-    config: [
-      // Конфиг теста заменяет привязку декларации; без него декларация
-      // читает свои источники
-      ...(options.config === undefined
-        ? app.spec.config
-        : toBindings(options.config)),
-      SILENT_LOG,
-    ],
+    // Без опции `config` декларация не поднимает других источников —
+    // принудительная тишина лога остаётся единственной привязкой
+    config: [...(options.config ?? []), SILENT_LOG],
     overrides: tokens,
     familyOverrides: families,
   });
