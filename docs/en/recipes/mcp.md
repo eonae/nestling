@@ -1,6 +1,6 @@
 # Expose the operations to an agent over MCP
 
-> Guide to the current API; verified against `2f5689e5`.
+> Guide to the current API; verified against `86c47c0a`.
 > Target description: [design/transports.md](../design/transports.md) §8,
 > [design/operations.md](../design/operations.md) §1.8. Rationale: the entry
 > [ideas.md](../../decisions/ideas.md)

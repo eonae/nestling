@@ -1,6 +1,6 @@
 # Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `2f5689e5`.
+> Гайд по текущему API; сверено с кодом `86c47c0a`.
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]

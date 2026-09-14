@@ -1,6 +1,6 @@
 # 14. Separate the second area
 
-> Guide to the current API; verified against `2f5689e5`.
+> Guide to the current API; verified against `86c47c0a`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "Feature boundary" and "Plugin" sections, and
 > [design/operations.md](../design/operations.md). Why: entries

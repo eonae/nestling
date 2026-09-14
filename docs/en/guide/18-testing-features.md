@@ -1,6 +1,6 @@
 # 18. Test a feature without its neighbours
 
-> Guide to the current API; verified against `2f5689e5`.
+> Guide to the current API; verified against `86c47c0a`.
 > Target description: [design/testing.md](../design/testing.md) §3 and §4. Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Пакет тестирования (@nestlingjs/testing)`.
