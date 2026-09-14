@@ -16,8 +16,8 @@
 // ./otel.js — 1
 export { otel } from './otel.js';
 
-// ./options.js — 2
-export type { Otel, OtelOptions } from './options.js';
+// ./options.js — 3
+export type { Otel, OtelOptions, SpansLayer } from './options.js';
 
 // ./span.js — 2
 export { Span } from './span.js';

@@ -11,10 +11,11 @@
  * целиком.
  */
 
-import type { SpanRequirements, SpansLayer } from './options.js';
+import type { SpansLayer } from './options.js';
 import { OpenSpan } from './readable.js';
 import { Span } from './span.js';
 
+import type { TraceContext } from '@nestlingjs/app';
 import { makePipeline } from '@nestlingjs/app';
 import type { Resource } from '@opentelemetry/resources';
 import type { SpanExporter } from '@opentelemetry/sdk-trace-base';
@@ -40,9 +41,9 @@ export function makeSpans(
   // Слой собирается в переменную, а не возвращается выражением: под
   // аннотацией возврата компилятор перестаёт выводить параметры
   // `.finally`-шага, и они становятся `any`
-  const layer = makePipeline<SpanRequirements>()
+  const layer = makePipeline<{ trace: TraceContext }>()
     .pre(
-      Span.provide<SpanRequirements>(
+      Span.provide<{ trace: TraceContext }>(
         (ctx) => new OpenSpan(ctx.input.trace, ctx.endpoint),
       ),
     )

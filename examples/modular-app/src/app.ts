@@ -8,6 +8,7 @@
 
 import { NotificationsFeature } from './features/notifications/notifications.feature.js';
 import { UsersFeature } from './features/users/users.feature.js';
+import { telemetry } from './base.js';
 import { UserRegistered } from './operations.js';
 import { db, inbox, inboxStore, outboxStore } from './persistence.js';
 import { Mail } from './switches.js';
@@ -19,6 +20,7 @@ import {
   IdempotencyKey,
   makeApp,
 } from '@nestlingjs/app';
+import { Span } from '@nestlingjs/otel';
 import { makeOutbox } from '@nestlingjs/outbox';
 import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, makeHttpProbes } from '@nestlingjs/transport.http';
@@ -59,6 +61,9 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
     features: [UsersFeature, NotificationsFeature],
     plugins: [
       db,
+      // Сателлит телеметрии: слой участков он отдаёт в `base.ts`, а
+      // плагином закрывает экспортёр на остановке
+      telemetry.plugin,
       outboxStore,
       outbox,
       inboxStore,
@@ -91,6 +96,10 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
         transport: BusTransport$,
         pattern: /^notifications\.forget-address$/,
       }).hasVar(IdempotencyKey, 'idempotencyKey'),
+      // Участок трассы пишет слой сателлита. Политика требует его
+      // переменную: endpoint без слоя пропал бы из трассы молча, а так
+      // сборка падает с его паттерном и модулем
+      everyEndpoint().hasVar(Span, 'span'),
     ],
   });
 }

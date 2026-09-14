@@ -12,30 +12,19 @@ import type { PushMetricExporter } from '@opentelemetry/sdk-metrics';
 import type { SpanExporter } from '@opentelemetry/sdk-trace-base';
 
 /**
- * Внешний контекст слоя участков: трасса запроса.
- *
- * Алиас, а не интерфейс: параметр `Pipeline` требует совместимости с
- * `AnyInput`, а у интерфейса нет неявной индексной сигнатуры.
- */
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type SpanRequirements = {
-  trace: TraceContext;
-};
-
-/** Накопленный контекст слоя участков: трасса и участок */
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type SpanContext = {
-  trace: TraceContext;
-  span: OtelSpan;
-};
-
-/**
  * Слой участков: требует трассу во внешнем контексте, добавляет участок.
  *
  * Композиция без `withTracing()` выше не компилируется: требование к
  * контексту проверяет компилятор, как у любого другого слоя.
+ *
+ * Требование и добавка записаны объектными типами, а не алиасами: имя
+ * алиаса пришлось бы экспортировать барелем, иначе композиция слоя в
+ * приложении не получила бы выводимого типа.
  */
-export type SpansLayer = Pipeline<SpanRequirements, SpanContext>;
+export type SpansLayer = Pipeline<
+  { trace: TraceContext },
+  { trace: TraceContext; span: OtelSpan }
+>;
 
 /** Опции сателлита */
 export interface OtelOptions {
