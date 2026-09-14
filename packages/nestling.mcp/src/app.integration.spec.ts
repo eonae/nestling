@@ -18,7 +18,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { Binding, BuiltApp, ConfigSource } from '@nestlingjs/app';
 import { bind, makeApp, makeFail, makeFeature, Ok } from '@nestlingjs/app';
 import { Handler, makeModule } from '@nestlingjs/container';
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 import { makeRequest } from '@nestlingjs/operations';
 import type { HttpServer } from '@nestlingjs/transport.http';
 import {
@@ -205,7 +205,7 @@ describe('две поверхности одной операции', () => {
 
 describe('состав документа OpenAPI', () => {
   it('не описывает инструменты: у них нет адреса по HTTP', () => {
-    const document = openapi({
+    const document = makeOpenapi({
       info: { title: 'Users API', version: '1.0.0' },
     }).document(spec.discover());
 

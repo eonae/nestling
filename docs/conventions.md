@@ -82,22 +82,36 @@
   имя в нижнем регистре совпадает с флагом аргумента сборки:
   `--storage s3`.
 - Двухпозиционный переключатель называется предикатом:
-  `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapiPlugin)`.
+  `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapi)`.
   Строковое имя остаётся существительным: `'audit'`.
 - Суффикса `Switch` нет: вид значения называет метод `when` или `pick` в
   месте использования.
 
 ## Плагины
 
-- Экземпляр плагина — значение в lowerCamelCase с суффиксом `Plugin`:
-  `authPlugin = makePlugin({ … })`, `openapiPlugin = openapi({ … })`.
-  Инлайновый вызов в `plugins:` суффикса не получает: `httpProbes()`.
-- Строковое имя плагина (`name: 'app-auth'`) от суффикса не зависит.
+- Экземпляр плагина называется существительным в lowerCamelCase, без
+  префикса и без суффикса: `openapi`, `inbox`, `outbox`, `subscriptions`,
+  `db`, `ops`. Вид значения называет поле `plugins:`, и повторять его
+  именем незачем.
+- Фабрика, возвращающая плагин, называется `make<Имя>`: `makeOpenapi`,
+  `makeInbox`, `makeOutbox`, `makeSubscriptions`, `makeDrizzlePg`,
+  `makeHttpProbes`. Существительное остаётся свободным под экземпляр:
+  `const openapi = makeOpenapi({ info })`.
+- Фабрика транспорта и сервера остаётся существительным: `http()`,
+  `nats()`, `mcp()`, `cli()`, `server()`. Транспорт объявляется прямо в
+  `transports:` и переменной под экземпляр не заводит.
+- Инлайновый вызов в `plugins:` переменной тоже не заводит:
+  `makeHttpProbes()`.
+- Строковое имя плагина (`name: 'app-auth'`) от имени значения не
+  зависит.
 
 ## Пайплайн
 
-- Слой — значение в lowerCamelCase с суффиксом `Layer`, основа
-  существительным: `authLayer`, `observabilityLayer`.
+- Слой называется причастием в lowerCamelCase: `traced`, `authed`,
+  `transactional`, `signed`, `tracked`, `outboxed`. Причастие говорит,
+  что слой уже сделал с запросом к вызову хендлера.
+- Суффикса `Layer` нет: вид значения называет поле `pipeline:` и
+  аргумент `compose`.
 - Класс-шаг называется по действию: `Authenticate`, `AuditOutcome`.
 
 ## Файлы

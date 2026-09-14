@@ -25,7 +25,7 @@ npm install @nestlingjs/outbox
 ```typescript
 // Плагин собирается в композиционном корне: переменная транзакции,
 // DI-токен хранилища и перечень операций, которые едут через outbox.
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: Tx,
   store: OutboxStore$,
   operations: [UserCreated],
@@ -33,9 +33,9 @@ export const appOutbox = outbox({
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [persistence, appOutbox],
+  plugins: [persistence, outbox],
   transports: [http()],
-  policies: [appOutbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
+  policies: [outbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
 
 // В хендлере эмиттер приходит DI-токеном outboxed(UserCreated): строка
@@ -45,7 +45,7 @@ export const app = makeApp({
 
 ## Экспорты
 
-- **Подключение** — `outbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
+- **Подключение** — `makeOutbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
   `OutboxEmitter`, `OutboxEmitMeta`, `outboxConfigKeys`,
   `OutboxConfigValues`, `StagingTransaction`,
   `OutboxTransactionMissingError`.

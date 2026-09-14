@@ -15,14 +15,14 @@ has the schemas, the addresses and the failure lists in the declarations.
 
 ```typescript
 // src/app.ts
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 
 export const app = makeApp({
   features: [UsersFeature],
   plugins: [
-    openapi({
+    makeOpenapi({
       info: { title: 'Users API', version: '1.0.0' },
-      pipeline: observability,
+      pipeline: traced,
     }),
   ],
   transports: [http()],
@@ -30,7 +30,7 @@ export const app = makeApp({
 });
 ```
 
-`openapi()` is a plugin: a package that connects to the root and works for
+`makeOpenapi()` is a plugin: a package that connects to the root and works for
 the whole application, not for one feature. Here it is enough to put it
 into `plugins:`.
 
@@ -40,7 +40,7 @@ options here, and a third when you need it:
 
 - `info` — the header of the document.
 - `pipeline` — the layer for the `GET /openapi.json` endpoint. The policy
-  from [chapter 10](./10-auth.md) requires `observability` from every
+  from [chapter 10](./10-auth.md) requires `traced` from every
   HTTP endpoint, and the plugin's endpoint is no exception.
 - `converters` — who translates schemas into JSON Schema. Schemas written
   in the validator of the framework are translated without this line: the
@@ -82,12 +82,12 @@ plugin — through its method, from the result of `app.discover(args)`.
 // src/openapi.ts
 import { writeFileSync } from 'node:fs';
 
-import { app, appOpenapi } from './app.js';
+import { app, openapi } from './app.js';
 
 /** The build argument is a command-line argument; without it every feature is selected */
 const args = process.argv[2];
 
-const document = appOpenapi.document(app.discover(args));
+const document = openapi.document(app.discover(args));
 
 // `file` is `openapi.json` in the root of the example package
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
@@ -119,7 +119,7 @@ document from CI and the document at `GET /openapi.json` coincide by
 construction: the method and the provider call one function.
 
 The method works even when the plugin never made it into the composition.
-The value lives in the declaration, and `Docs.when(appOpenapi)` decides
+The value lives in the declaration, and `DocsEnabled.when(openapi)` decides
 only the fate of the endpoint: the document for a contour with `docs=off`
 is built by the same call.
 
@@ -258,7 +258,7 @@ export class GetUserHandler {
 }
 
 export const GetUser = httpEndpoint.implement(GetUserOperation, {
-  pipeline: observability,
+  pipeline: traced,
   handler: GetUserHandler,
 });
 ```

@@ -113,7 +113,7 @@ export const UserWebhook = httpEndpoint.post('/hooks/users', {
   // the transport meets its requirement, not a neighbouring layer
   pipeline: compose(
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
-    observability,
+    traced,
   ),
   handler: UserWebhookHandler,
 });
@@ -129,7 +129,7 @@ bytes.
 `makePipeline<{ rawBody: Uint8Array }>()` declares the layer's
 requirement on the start context. The layer stands as the first
 argument of `compose`: the transport meets its requirement, and there
-is no outer layer that would put `rawBody` there. The `observability`
+is no outer layer that would put `rawBody` there. The `traced`
 layer stands second and receives the context in which the signature is
 already checked. A layer with such a requirement on a declaration
 without `rawBody: true` does not compile, and the type error names the
@@ -189,7 +189,7 @@ curl localhost:3000/users/2
 
 The first request passed the check, and the handler removed the user.
 The second was rejected by the step before the handler. The
-`observability` layer's audit line is present in both cases: the layer
+`traced` layer's audit line is present in both cases: the layer
 stands inside and sees the outcome of the request.
 
 Checking the signature depends on the bytes of the body, so the test

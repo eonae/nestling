@@ -1,4 +1,4 @@
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import { User } from '../user.js';
 import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
@@ -67,6 +67,6 @@ export const Login = httpEndpoint.post('/login', {
   errors: [UserNotFound],
   detached: 'вход выдаёт сессию, поэтому Bearer-токена у него ещё нет',
   doc: { summary: 'Вход по email', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: LoginHandler,
 });

@@ -1,5 +1,5 @@
 /**
- * Плагин `outbox(options)` — форма, которой пакет отдаётся приложению.
+ * Плагин `makeOutbox(options)` — форма, которой пакет отдаётся приложению.
  *
  * Плагин, а не механизм: единица остаётся функцией, возвращающей
  * значение. Роль даёт ровно две вещи — своё поле корня (`plugins:`) и
@@ -88,7 +88,7 @@ export interface OutboxPlugin extends Plugin {
    * @example
    * ```typescript
    * policies: [
-   *   appOutbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / }),
+   *   outbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / }),
    * ],
    * ```
    */
@@ -112,7 +112,7 @@ const OutboxBus$ = makeToken<IMessageBus>('@nestlingjs/outbox relay', {
 function assertOptions(options: OutboxOptions): void {
   if (typeof options.transaction?.key !== 'string') {
     throw new TypeError(
-      `outbox({ transaction }): expected a context variable value declared ` +
+      `makeOutbox({ transaction }): expected a context variable value declared ` +
         `with contextVar<T>()('key'), not a key. The package reads the ` +
         `transaction through that variable and passes it to the store as is.`,
     );
@@ -120,7 +120,7 @@ function assertOptions(options: OutboxOptions): void {
 
   if (!Array.isArray(options.operations)) {
     throw new TypeError(
-      `outbox({ operations }): expected an array of operations declared ` +
+      `makeOutbox({ operations }): expected an array of operations declared ` +
         `with makeCommand or makeEvent.`,
     );
   }
@@ -128,7 +128,7 @@ function assertOptions(options: OutboxOptions): void {
   for (const operation of options.operations) {
     if (operation?.kind !== 'command' && operation?.kind !== 'event') {
       throw new TypeError(
-        `outbox({ operations }): '${String(
+        `makeOutbox({ operations }): '${String(
           (operation as AnyOperation | undefined)?.name,
         )}' is not a command or an event. A request-reply has a live caller ` +
           `waiting for the answer, so there is nothing to defer until commit.`,
@@ -141,7 +141,7 @@ function assertOptions(options: OutboxOptions): void {
  * Объявляет плагин транзакционного outbox'а.
  *
  * Значение создаётся композиционным корнем **один раз**: рецепт семейства
- * регистрируется однажды, и второй вызов `outbox(...)` в том же
+ * регистрируется однажды, и второй вызов `makeOutbox(...)` в том же
  * приложении контейнер отклонит как повторную регистрацию.
  *
  * @param options - Переменная транзакции, DI-токен хранилища, операции
@@ -149,14 +149,14 @@ function assertOptions(options: OutboxOptions): void {
  *
  * @example
  * ```typescript
- * export const appOutbox = outbox({
+ * export const outbox = makeOutbox({
  *   transaction: Tx,
  *   store: OutboxStore$,
  *   operations: [UserCreated, OrderPlaced],
  * });
  * ```
  */
-export function outbox(options: OutboxOptions): OutboxPlugin {
+export function makeOutbox(options: OutboxOptions): OutboxPlugin {
   assertOptions(options);
 
   const declared = new Map<string, OutboxableOperation>(
@@ -171,7 +171,7 @@ export function outbox(options: OutboxOptions): OutboxPlugin {
     if (!operation) {
       throw new Error(
         `Operation '${name}' is injected as outboxed(…), but it is not ` +
-          `listed in outbox({ operations }). Add it there: the recipe needs ` +
+          `listed in makeOutbox({ operations }). Add it there: the recipe needs ` +
           `the operation itself — its input schema to check the payload and ` +
           `its name for the subject.`,
       );

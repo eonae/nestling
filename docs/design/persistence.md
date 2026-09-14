@@ -22,8 +22,8 @@
 ## 1. Соединение объявляется значением
 
 ```typescript
-export const db = drizzlePg({ schema });
-export const analytics = drizzlePg({ name: 'analytics', schema: reports });
+export const db = makeDrizzlePg({ schema });
+export const analytics = makeDrizzlePg({ name: 'analytics', schema: reports });
 
 export const app = makeApp({
   features: [UsersFeature],
@@ -127,9 +127,9 @@ endpoint под фильтром объявлял переменную тран�
 `@nestlingjs/outbox` объявлен необязательной peer-зависимостью:
 
 ```typescript
-export const outboxStore = pgOutboxStore(db);
+export const outboxStore = makePgOutboxStore(db);
 
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: db.tx,
   store: outboxStore.token,
   operations: [UserCreated],
@@ -162,9 +162,9 @@ relay, читающие одну таблицу, не получат одну з
 `@nestlingjs/inbox` — второй необязательный peer рядом с outbox'ом:
 
 ```typescript
-export const inboxStore = pgInboxStore(db);
+export const inboxStore = makePgInboxStore(db);
 
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 ```
 
 Отметка ставится транзакцией вызывающего, поэтому она и записи хендлера

@@ -32,10 +32,10 @@
 
 ```typescript
 // src/persistence.ts
-export const outboxStore = pgOutboxStore(db);
+export const outboxStore = makePgOutboxStore(db);
 
 // src/app.ts
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: db.tx,
   store: outboxStore.token,
   operations: [UserRegistered],
@@ -130,13 +130,13 @@ relay от него зависит.
 
 ```typescript
 // src/persistence.ts
-export const inboxStore = pgInboxStore(db);
+export const inboxStore = makePgInboxStore(db);
 
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 
 // Слой подписчика: транзакция без проверки Bearer-токена — токена у
 // сообщения из шины нет
-export const subscribed = compose(observability, db.transaction());
+export const subscribed = compose(traced, db.transaction());
 ```
 
 Подписчик композирует слой приёма **внутрь** слоя транзакции:
@@ -145,7 +145,7 @@ export const subscribed = compose(observability, db.transaction());
 // src/features/notifications/welcome-email.endpoint.ts
 export const WelcomeEmail = implement(UserRegistered, {
   subscriber: 'welcome-email',
-  pipeline: compose(subscribed, appInbox.layer),
+  pipeline: compose(subscribed, inbox.layer),
   handler: WelcomeEmailHandler,
 });
 ```

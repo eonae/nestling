@@ -7,7 +7,7 @@
  * ресурсами не отработали, а транспорт не начал принимать запросы.
  */
 
-import { openapi, OpenApiDocument$ } from './module.js';
+import { makeOpenapi, OpenApiDocument$ } from './module.js';
 import type { OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -190,16 +190,16 @@ const BillingFeature = BillingModule;
 describe('документ строит объявленный плагин', () => {
   it('метод строит документ при выключенной ветке переключателя', () => {
     const Docs = makeSwitch('docs', { default: 'on' });
-    const appOpenapi = openapi({ info, announceHidden: false });
+    const openapi = makeOpenapi({ info, announceHidden: false });
 
     const app = makeApp({
       features: [UsersModule],
-      plugins: [Docs.when(appOpenapi)],
+      plugins: [Docs.when(openapi)],
       switches: [Docs],
       transports: [asHttpTransport(new SpyTransport())],
     });
 
-    const document = appOpenapi.document(app.discover({ docs: 'off' }));
+    const document = openapi.document(app.discover({ docs: 'off' }));
 
     expect(document.openapi).toBe('3.1.0');
     expect(document.info).toEqual(info);
@@ -207,12 +207,12 @@ describe('документ строит объявленный плагин', ()
   });
 
   it('тело GET /openapi.json равно документу, построенному методом', async () => {
-    const appOpenapi = openapi({ info, announceHidden: false });
+    const openapi = makeOpenapi({ info, announceHidden: false });
     const transport = new SpyTransport();
 
     const declaration = makeApp({
       features: [UsersModule],
-      plugins: [appOpenapi],
+      plugins: [openapi],
       transports: [asHttpTransport(transport)],
     });
 
@@ -220,19 +220,19 @@ describe('документ строит объявленный плагин', ()
     await app.run();
 
     expect(await serve(transport)).toEqual(
-      appOpenapi.document(declaration.discover()),
+      openapi.document(declaration.discover()),
     );
 
     await app.close();
   });
 });
 
-describe('openapi(...) — плагин-издатель', () => {
+describe('makeOpenapi(...) — плагин-издатель', () => {
   it('announceHidden пишет info на каждый скрытый endpoint', async () => {
     const spy = spyLogger();
     const app = makeApp({
       features: [UsersModule],
-      plugins: [openapi({ info, converters: [zodConverter()] })],
+      plugins: [makeOpenapi({ info, converters: [zodConverter()] })],
       transports: [asHttpTransport(new SpyTransport())],
       logging: { logger: spy.logger },
     }).build();
@@ -275,7 +275,11 @@ describe('openapi(...) — плагин-издатель', () => {
     const app = makeApp({
       features: [UsersModule],
       plugins: [
-        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+        makeOpenapi({
+          info,
+          converters: [zodConverter()],
+          announceHidden: false,
+        }),
       ],
       transports: [asHttpTransport(new SpyTransport())],
       logging: { logger: spy.logger },
@@ -297,7 +301,11 @@ describe('openapi(...) — плагин-издатель', () => {
     const app = makeApp({
       features: [UsersModule],
       plugins: [
-        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+        makeOpenapi({
+          info,
+          converters: [zodConverter()],
+          announceHidden: false,
+        }),
       ],
       transports: [asHttpTransport(transport)],
     }).build();
@@ -361,7 +369,11 @@ describe('openapi(...) — плагин-издатель', () => {
         }),
       ],
       plugins: [
-        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+        makeOpenapi({
+          info,
+          converters: [zodConverter()],
+          announceHidden: false,
+        }),
       ],
       transports: [asHttpTransport(transport)],
     }).build();
@@ -382,7 +394,7 @@ describe('openapi(...) — плагин-издатель', () => {
     const transport = new SpyTransport();
     const app = makeApp({
       features: [UsersModule],
-      plugins: [openapi({ info, announceHidden: false })],
+      plugins: [makeOpenapi({ info, announceHidden: false })],
       transports: [asHttpTransport(transport)],
     }).build();
 
@@ -416,7 +428,7 @@ describe('openapi(...) — плагин-издатель', () => {
 
     const app = makeApp({
       features: [makeFeature({ name: 'module:foreign', endpoints: [Foreign] })],
-      plugins: [openapi({ info, announceHidden: false })],
+      plugins: [makeOpenapi({ info, announceHidden: false })],
       transports: [asHttpTransport(new SpyTransport())],
     }).build();
 
@@ -430,7 +442,11 @@ describe('openapi(...) — плагин-издатель', () => {
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
       plugins: [
-        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+        makeOpenapi({
+          info,
+          converters: [zodConverter()],
+          announceHidden: false,
+        }),
       ],
       transports: [asHttpTransport(transport)],
     }).build('module:openapi-users');
@@ -467,7 +483,7 @@ describe('endpoint документации подчиняется полити�
     const app = makeApp({
       features: [TracedModule],
       plugins: [
-        openapi({
+        makeOpenapi({
           info,
           converters: [zodConverter()],
           pipeline: observability,
@@ -486,7 +502,11 @@ describe('endpoint документации подчиняется полити�
     const app = makeApp({
       features: [TracedModule],
       plugins: [
-        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+        makeOpenapi({
+          info,
+          converters: [zodConverter()],
+          announceHidden: false,
+        }),
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
@@ -500,7 +520,7 @@ describe('endpoint документации подчиняется полити�
     const app = makeApp({
       features: [TracedModule],
       plugins: [
-        openapi({
+        makeOpenapi({
           info,
           converters: [zodConverter()],
           detached: 'служебная ручка документации',
@@ -540,7 +560,11 @@ describe('документ доступен значением', () => {
     const app = makeApp({
       features: [UsersModule, ObserverModule],
       plugins: [
-        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+        makeOpenapi({
+          info,
+          converters: [zodConverter()],
+          announceHidden: false,
+        }),
       ],
       transports: [asHttpTransport(transport)],
     }).build();

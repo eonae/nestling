@@ -144,7 +144,7 @@ SHALL называть команду запуска вместо перечня
 
 #### Scenario: Имя есть в коде, но не в README
 
-- **WHEN** барель `@nestlingjs/transport.http` экспортирует `httpProbes`, а раздел
+- **WHEN** барель `@nestlingjs/transport.http` экспортирует `makeHttpProbes`, а раздел
   «Экспорты» его не называет
 - **THEN** `yarn docs:audit` печатает ERROR со списком имён, которых нет в README
 

@@ -19,10 +19,10 @@ npm install @nestlingjs/subscriptions
 
 ```typescript
 import { RequestId } from '@nestlingjs/app';
-import { subscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
+import { makeSubscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
 
 // 1. Плагин: создаётся один раз в композиционном корне
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId, // подписанта называет переменная контекста
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true, // факты жизненного цикла как операции
@@ -41,7 +41,7 @@ export const Feed = httpEndpoint.get('/api/feed', {
 
 ## Экспорты
 
-- **Подключение** — `subscriptions`, `SubscriptionsOptions`, `tracked`,
+- **Подключение** — `makeSubscriptions`, `SubscriptionsOptions`, `tracked`,
   `TrackSubscription`, `UntrackSubscription`.
 - **Источники опций** — `computed`, `IdentitySource`, `IdentityVar`,
   `IdentityFn`, `LabelsSource`.

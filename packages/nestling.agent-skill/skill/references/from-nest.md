@@ -49,7 +49,7 @@ behind each replacement, read the README of the package that owns it —
 | `@Header()`, `@Res().cookie()`, `@Redirect()` | `HttpResponse.of(ok, { headers, cookies })`, `HttpResponse.redirect(location)` | the HTTP shape of a response, allowed where the transport owns the address |
 | `StreamableFile`, `@Res()` | `stream(T)`, `events(T)`, `multipart()` | the handler returns an `AsyncIterable`; the transport picks NDJSON or SSE |
 | `FileInterceptor` | `multipart({ fields, files })`, `upload({ maxSize, mime })` | limits are checked while parsing; an oversized file is never buffered |
-| `@nestjs/swagger` decorators | the `openapi()` plugin and the `doc:` slot | the document comes from the schemas that validate requests |
+| `@nestjs/swagger` decorators | the `makeOpenapi()` plugin and the `doc:` slot | the document comes from the schemas that validate requests |
 
 ## Talking between parts
 

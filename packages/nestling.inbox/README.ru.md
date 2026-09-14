@@ -30,29 +30,29 @@ PostgreSQL его отдаёт `@nestlingjs/drizzle.pg/inbox`, для тесто
 ```typescript
 // Плагин собирается там же, где соединение: его поле `layer` нужно
 // декларации подписчика.
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 
 // Слой приёма композируется внутрь слоя транзакции: отметка и записи
 // хендлера коммитятся вместе.
 export const WelcomeEmail = implement(UserCreated, {
   subscriber: 'welcome-email',
-  pipeline: compose(db.transaction(), appInbox.layer),
+  pipeline: compose(db.transaction(), inbox.layer),
   handler: WelcomeEmailHandler,
 });
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [db, inboxStore, appInbox],
+  plugins: [db, inboxStore, inbox],
   transports: [http()],
   // Предпосылка проверяется на фазе BUILD: подписчик без слоя роняет
   // сборку до открытия сокета
-  policies: [appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
+  policies: [inbox.requiresInbox({ transport: BusTransport$ }, 'inbox')],
 });
 ```
 
 ## Экспорты
 
-- **Подключение** — `inbox`, `InboxOptions`, `InboxPlugin`, `InboxLayer`,
+- **Подключение** — `makeInbox`, `InboxOptions`, `InboxPlugin`, `InboxLayer`,
   `inboxConfigKeys`, `InboxConfigValues`, `InboxClaimStep`,
   `readIdempotencyKey`, `InboxKeyMissingError`.
 - **Хранилище** — `InboxStore`, `InMemoryInboxStore`, `InboxMark`,

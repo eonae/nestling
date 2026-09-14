@@ -25,7 +25,7 @@
  *       '@nestlingjs/import-through-barrel': 'error',
  *       '@nestlingjs/endpoint-has-layer': [
  *         'warn',
- *         { layer: 'authedBase', constructorName: 'httpEndpoint' },
+ *         { layer: 'authed', constructorName: 'httpEndpoint' },
  *       ],
  *       '@nestlingjs/dependency-list': 'warn',
  *     },

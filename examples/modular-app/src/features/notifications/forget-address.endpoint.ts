@@ -1,4 +1,4 @@
-import { base } from '../../base.js';
+import { traced } from '../../base.js';
 import type { ForgetAddressInput } from '../../operations.js';
 import { ForgetAddress } from '../../operations.js';
 
@@ -42,6 +42,6 @@ class ForgetAddressHandler {
  * команды.
  */
 export const ForgetAddressImpl = implement(ForgetAddress, {
-  pipeline: compose(base, makePipeline().pre(withIdempotencyKey())),
+  pipeline: compose(traced, makePipeline().pre(withIdempotencyKey())),
   handler: ForgetAddressHandler,
 });

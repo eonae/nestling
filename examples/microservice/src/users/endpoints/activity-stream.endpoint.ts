@@ -1,4 +1,4 @@
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import { ActivityHub } from '../activity.hub.js';
 
 import type { Output } from '@nestlingjs/app';
@@ -53,6 +53,6 @@ export const ActivityStream = httpEndpoint.get('/users/activity', {
     event: (event) => event.kind,
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: ActivityStreamHandler,
 });

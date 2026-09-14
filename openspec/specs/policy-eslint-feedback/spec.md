@@ -66,7 +66,7 @@ JSON-схеме правила ломает валидацию конфига в
 
 #### Scenario: Слой на месте — правило молчит
 
-- **WHEN** `pipeline: compose(observability, authedBase)`
+- **WHEN** `pipeline: compose(traced, authed)`
 - **THEN** предупреждения нет
 
 #### Scenario: Пайплайн приезжает параметром — правило молчит

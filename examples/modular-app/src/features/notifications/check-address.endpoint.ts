@@ -1,4 +1,4 @@
-import { base } from '../../base.js';
+import { traced } from '../../base.js';
 import type { CheckAddressInput } from '../../operations.js';
 import { AddressRejected, CheckAddress } from '../../operations.js';
 
@@ -36,6 +36,6 @@ class CheckAddressHandler {
  * пришли в конверте вызова.
  */
 export const CheckAddressImpl = implement(CheckAddress, {
-  pipeline: base,
+  pipeline: traced,
   handler: CheckAddressHandler,
 });

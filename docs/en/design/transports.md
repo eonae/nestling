@@ -394,7 +394,7 @@ looks like as a whole is in
 
 ### 4.4 Probes
 
-`httpProbes()` is a plugin of the package with two endpoints,
+`makeHttpProbes()` is a plugin of the package with two endpoints,
 `GET /healthz` and `GET /readyz`. They read the kernel node `Health$`
 ([composition.md §6](./composition.md)), have no pipeline, and are
 marked `detached` and `hidden`. `readyz` answers 200 for the `ready`

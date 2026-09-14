@@ -185,7 +185,7 @@ function callContainsLayer(
     return 'no';
   }
 
-  // `authedBase.pre(withTenant())` — деривация помнит предшественника
+  // `authed.pre(withTenant())` — деривация помнит предшественника
   if (
     callee.type === 'MemberExpression' &&
     callee.property.type === 'Identifier' &&

@@ -12,7 +12,7 @@
 
 import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
 import { tracked } from './layer.js';
-import { subscriptions } from './module.js';
+import { makeSubscriptions } from './module.js';
 import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { SubscriptionEvent } from './types.js';
@@ -112,11 +112,11 @@ async function waitFor(
   throw new Error('условие не наступило');
 }
 
-describe('subscriptions(): реестр в собранном приложении', () => {
+describe('makeSubscriptions(): реестр в собранном приложении', () => {
   it('видит подписку, убивает её и снимает запись', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -153,7 +153,7 @@ describe('subscriptions(): реестр в собранном приложени
   it('снимает записи на SHUTDOWN и закрывает ленту', async () => {
     const testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -194,7 +194,7 @@ describe('subscriptions(): реестр в собранном приложени
   it('живой просмотр сам является подпиской и не видит своего opened', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [
           makeFeature({ name: 'module:feed', endpoints: [Feed, Ticks] }),
         ],
@@ -247,7 +247,7 @@ describe('subscriptions(): реестр в собранном приложени
     await expect(
       buildTest(
         makeApp({
-          plugins: [subscriptions(), subscriptions({ node: 'other' })],
+          plugins: [makeSubscriptions(), makeSubscriptions({ node: 'other' })],
           features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
           transports: [testTransport()],
         }),
@@ -256,7 +256,7 @@ describe('subscriptions(): реестр в собранном приложени
   });
 });
 
-describe('subscriptions(): подписанта называет переменная', () => {
+describe('makeSubscriptions(): подписанта называет переменная', () => {
   it('снимок несёт значение переменной, положенной пайплайном', async () => {
     const observability = makePipeline().pre(withRequestId());
 
@@ -276,7 +276,7 @@ describe('subscriptions(): подписанта называет перемен�
 
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions({ identity: RequestId })],
+        plugins: [makeSubscriptions({ identity: RequestId })],
         features: [
           makeFeature({ name: 'module:identified', endpoints: [Identified] }),
         ],
@@ -301,7 +301,7 @@ describe('subscriptions(): подписанта называет перемен�
   it('оставляет подписку без identity, когда переменной в пайплайне нет', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions({ identity: RequestId })],
+        plugins: [makeSubscriptions({ identity: RequestId })],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -320,11 +320,11 @@ describe('subscriptions(): подписанта называет перемен�
   });
 });
 
-describe('subscriptions(): факты жизненного цикла', () => {
+describe('makeSubscriptions(): факты жизненного цикла', () => {
   it('без публикации вызывателей операций в графе нет', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -337,7 +337,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
   it('с публикацией и нулём подписчиков собирается, emit — no-op', async () => {
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions({ publish: true, node: 'node-1' })],
+        plugins: [makeSubscriptions({ publish: true, node: 'node-1' })],
         features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
@@ -377,7 +377,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
 
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions({ publish: true, node: 'node-1' })],
+        plugins: [makeSubscriptions({ publish: true, node: 'node-1' })],
         features: [
           makeFeature({
             name: 'module:ticks',
@@ -399,7 +399,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
   });
 });
 
-describe('subscriptions(): слой композируется поверх прикладного', () => {
+describe('makeSubscriptions(): слой композируется поверх прикладного', () => {
   it('складывается с внешним слоем без потери типов', async () => {
     const observability = makePipeline().pre(() => ({ requestId: 'r-1' }));
     const composed = compose(observability, tracked);
@@ -424,7 +424,7 @@ describe('subscriptions(): слой композируется поверх пр
 
     await using testApp = await buildTest(
       makeApp({
-        plugins: [subscriptions()],
+        plugins: [makeSubscriptions()],
         features: [
           makeFeature({ name: 'module:composed', endpoints: [Watched] }),
         ],

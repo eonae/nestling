@@ -1,14 +1,14 @@
 import { ops } from './ops/index.js';
 import { authed } from './auth.js';
 import { metricsPlugin, prometheusExporter } from './metrics.js';
-import { observability } from './observability.js';
+import { traced } from './observability.js';
 import { db } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
 
 import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
 import { mcp, McpTransport$ } from '@nestlingjs/mcp';
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
 
 /**
@@ -21,7 +21,7 @@ export const exporter = prometheusExporter();
  * Переключатель состава: документация нужна в dev-контуре и не нужна за
  * периметром. Значение приходит аргументом сборки — `APP_DOCS`.
  */
-export const Docs = makeSwitch('docs', { default: 'on' });
+export const DocsEnabled = makeSwitch('docs', { default: 'on' });
 
 /**
  * Плагин документации: обе ветки переключателя видны статически.
@@ -31,9 +31,9 @@ export const Docs = makeSwitch('docs', { default: 'on' });
  * не заводится. Конвертер схем не назван — схемы приложения написаны на
  * вендоре фреймворка, и его конвертер подставляется умолчанием.
  */
-export const appOpenapi = openapi({
+export const openapi = makeOpenapi({
   info: { title: 'Users API', version: '1.0.0' },
-  pipeline: observability,
+  pipeline: traced,
 });
 
 /**
@@ -58,9 +58,9 @@ export const app = makeApp({
     metricsPlugin(exporter),
     // Документ строится на фазе BUILD из тех же деклараций, которые
     // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
-    Docs.when(appOpenapi),
+    DocsEnabled.when(openapi),
   ],
-  switches: [Docs],
+  switches: [DocsEnabled],
   // Два протокола на одном сокете: HTTP-endpoint'ы и сообщения MCP по
   // `POST /mcp`. Сервер объявлен отдельно и передан обоим опцией `server`;
   // в списке транспортов его нет, а сокет остаётся один
@@ -75,14 +75,14 @@ export const app = makeApp({
   policies: [
     // У каждого HTTP-endpoint'а есть слой наблюдаемости
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     // И у каждого инструмента агента: слой объявляет декларация, а не
     // транспорт, поэтому проверяет его политика
     everyEndpoint({ transport: McpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     // Каждый endpoint, который меняет данные, проверяет Bearer-токен
     everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(

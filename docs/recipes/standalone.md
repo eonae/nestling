@@ -161,7 +161,7 @@ export const makeContainer = async (
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
     // Веток переключателей у примера нет, поэтому карта значений пуста
-    .register(...resolveBranches(appCounters.modules, {}))
+    .register(...resolveBranches(counters.modules, {}))
     .register(AppModule);
 
   // Пробы — после модулей: узел ядра называет каждый вклад поимённо.
@@ -183,7 +183,7 @@ export const makeContainer = async (
 его на фазе 0 сам, а без `App` его создаёт вызывающий код —
 `makeKernelLogger(config)` — и регистрирует значением под `RootLogger$`.
 Kernel-модули `contextKernel()` и `loggerKernel()` тоже регистрируются
-руками. Плагин `appCounters` регистрируется своими модулями. В списке
+руками. Плагин `counters` регистрируется своими модулями. В списке
 `modules` могут стоять ветки переключателей, поэтому его раскрывает
 `resolveBranches(modules, values)`: у примера веток нет, и карта значений
 пуста. Пробы подключает `registerHealth`: узел `Health$` собирается и без

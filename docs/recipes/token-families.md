@@ -84,7 +84,7 @@ export class UserService {
 
 ```typescript
 // src/counters/counters.plugin.ts (фрагмент)
-export const appCounters = makePlugin({
+export const counters = makePlugin({
   name: 'app-counters',
   providers: [
     // Один рецепт на всё семейство: `name` — параметр запрошенного члена.

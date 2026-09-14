@@ -10,10 +10,10 @@
 export class PgOutboxTransactionError extends TypeError {
   constructor(received: string) {
     super(
-      `pgOutboxStore.append(transaction, …): expected the drizzle value of ` +
+      `makePgOutboxStore.append(transaction, …): expected the drizzle value of ` +
         `this connection's transaction, got ${received}. Either compose ` +
         `db.transaction() into the pipeline of this endpoint, or pass the ` +
-        `transaction variable of this very connection to outbox({ ` +
+        `transaction variable of this very connection to makeOutbox({ ` +
         `transaction }) — the record and the business row must be written ` +
         `by one transaction.`,
     );

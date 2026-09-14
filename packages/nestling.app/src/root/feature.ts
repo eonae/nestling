@@ -279,7 +279,7 @@ export function makeFeature(options: FeatureOptions): Feature {
  *
  * @example
  * ```typescript
- * export const appLogging = (options: LoggingOptions) =>
+ * export const makeLogging = (options: LoggingOptions) =>
  *   makePlugin({
  *     name: '@acme/logging',
  *     providers: [familyProvider(ILogger, recipe(options))],

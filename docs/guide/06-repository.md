@@ -124,7 +124,7 @@ export class DbUsersRepository implements UsersRepository {
 ```
 
 `db.connection` — DI-токен соединения с PostgreSQL. Соединение объявляет
-пакет `@nestlingjs/drizzle.pg` одним вызовом `drizzlePg({ schema })`; как
+пакет `@nestlingjs/drizzle.pg` одним вызовом `makeDrizzlePg({ schema })`; как
 это устроено и почему изменяющий метод пишет транзакцией запроса, а не
 соединением из пула, — [глава 11](./11-database.md).
 
@@ -218,7 +218,7 @@ export class SearchIndex {
 с проверкой — состояния «ещё не подключились» у него просто нет.
 
 Соединение с базой в примере объявлено ровно этой ролью, но не в коде
-приложения: `drizzlePg({ schema })` создаёт ресурс внутри себя и отдаёт
+приложения: `makeDrizzlePg({ schema })` создаёт ресурс внутри себя и отдаёт
 наружу DI-токен. Приложение ставит значение в `plugins:` и больше о пуле
 не думает.
 

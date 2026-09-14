@@ -108,7 +108,7 @@ export default [
       '@nestlingjs/import-through-barrel': 'error',
       '@nestlingjs/endpoint-has-layer': [
         'warn',
-        { layer: 'observability', constructorName: 'httpEndpoint' },
+        { layer: 'traced', constructorName: 'httpEndpoint' },
       ],
       '@nestlingjs/dependency-list': 'warn',
     },
@@ -123,7 +123,7 @@ export default [
 - `endpoint-has-layer` catches a declaration that does not compose the
   named layer. A pipeline is a value and can travel through a factory, so
   the check is incomplete by design and the level is `warn`. The guarantee
-  is the policy in the root — `everyEndpoint({ … }).hasLayer(observability)`
+  is the policy in the root — `everyEndpoint({ … }).hasLayer(traced)`
   — which stops the process instead of printing a hint.
 - `dependency-list` catches a decorator list that does not match the
   constructor parameters: `@Component()` next to a non-empty constructor,

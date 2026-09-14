@@ -167,7 +167,7 @@ export const makeContainer = async (
     // the context
     .register(contextKernel(), loggerKernel())
     // The example has no switch branches, so the value map is empty
-    .register(...resolveBranches(appCounters.modules, {}))
+    .register(...resolveBranches(counters.modules, {}))
     .register(AppModule);
 
   // Probes come after the modules: the kernel node names every
@@ -190,7 +190,7 @@ ready reader into the graph. The root logger lives outside the graph:
 `makeApp` creates it on phase 0 itself, and without `App` the calling
 code creates it — `makeKernelLogger(config)` — and registers it as a
 value under `RootLogger$`. The kernel modules `contextKernel()` and
-`loggerKernel()` are also registered by hand. The `appCounters` plugin
+`loggerKernel()` are also registered by hand. The `counters` plugin
 registers through its own modules. The `modules` list may hold switch
 branches, so `resolveBranches(modules, values)` expands it: the
 example has no branches, and the value map is empty. `registerHealth`

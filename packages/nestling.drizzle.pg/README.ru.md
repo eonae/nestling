@@ -3,7 +3,7 @@
 Соединение с PostgreSQL, транзакция запроса переменной контекста и
 адаптеры `OutboxStore` и `InboxStore` поверх drizzle-orm. Соединение
 объявляется
-значением: `drizzlePg({ schema })` отдаёт плагин с DI-токеном соединения,
+значением: `makeDrizzlePg({ schema })` отдаёт плагин с DI-токеном соединения,
 переменной транзакции, слоем пайплайна и политикой предпосылки.
 
 > 🚧 Активная разработка, API может меняться.
@@ -40,7 +40,7 @@ TEST_DATABASE_URL=postgresql://nestling:nestling@localhost:55432/nestling yarn t
 ```typescript
 // Соединение — значение: DI-токен, переменная транзакции, слой и
 // политика создаются одним вызовом и несут тип схемы.
-export const db = drizzlePg({ schema });
+export const db = makeDrizzlePg({ schema });
 
 // Слой транзакции композируется в пайплайн endpoint'а. `BEGIN` уходит до
 // хендлера, `COMMIT` — после него, соединение возвращается в пул всегда.
@@ -48,7 +48,7 @@ export const transactional = compose(authed, db.transaction());
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [db, pgOutboxStore(db)],
+  plugins: [db, makePgOutboxStore(db)],
   transports: [http()],
   policies: [db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
@@ -66,20 +66,20 @@ export class DbUsersRepository {
 
 ## Экспорты
 
-- **Соединение** — `drizzlePg`, `DrizzlePgOptions`, `DrizzlePgPlugin`,
+- **Соединение** — `makeDrizzlePg`, `DrizzlePgOptions`, `DrizzlePgPlugin`,
   `PgConnection`, `PgSchema`, `databaseConfigKeys`,
   `DatabaseConfigValues`, `PgConnectionFailedError`,
   `PgDuplicateConnectionError`.
 - **Транзакция запроса** — `PgSession`, `PgTx`, `BeginOptions`,
   `IsolationLevel`, `TxLayer`, `TxLayerInput`, `TxBridgeClass`.
-- **Подпуть `./outbox`** — `pgOutboxStore`, `PgOutboxStorePlugin`,
+- **Подпуть `./outbox`** — `makePgOutboxStore`, `PgOutboxStorePlugin`,
   `PgOutboxStoreOptions`, `PgOutboxStore`, `PgOutboxTransactionError`, а
   также всё из группы ниже.
 - **Подпуть `./outbox/table`** — `outboxTable`, `OutboxTable`,
   `outboxDdl`, `DEFAULT_OUTBOX_TABLE`. Отдельный подпуть нужен
   drizzle-kit: он собирает схему как CJS, и из пакета ему годится только
   то, что не тянет за собой ядро.
-- **Подпуть `./inbox`** — `pgInboxStore`, `PgInboxStorePlugin`,
+- **Подпуть `./inbox`** — `makePgInboxStore`, `PgInboxStorePlugin`,
   `PgInboxStoreOptions`, `PgInboxStore`, `PgInboxTransactionError`, а
   также всё из группы ниже.
 - **Подпуть `./inbox/table`** — `inboxTable`, `InboxTable`, `inboxDdl`,

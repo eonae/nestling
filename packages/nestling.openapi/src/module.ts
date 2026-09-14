@@ -1,5 +1,5 @@
 /**
- * `openapi(...)` — параметризованный плагин-издатель.
+ * `makeOpenapi(...)` — параметризованный плагин-издатель.
  *
  * Новых механизмов роль плагина не приносит: инфраструктура остаётся
  * значением с параметрами, ровно как `logging({ service })` в примерах.
@@ -46,7 +46,7 @@ export const OpenApiDocument$: InjectionToken<OpenApiDocument> =
  *
  * Параметры пайплайна вынесены в тип-аргументы, потому что слой приложения
  * приходит со своими требованиями к контексту и своими классами-шагами:
- * зафиксировать их здесь значило бы отвергать законный `observability`.
+ * зафиксировать их здесь значило бы отвергать законный `traced`.
  */
 export interface OpenApiServeOptions<
   P extends AnyInput = AnyInput,
@@ -60,7 +60,7 @@ export interface OpenApiServeOptions<
    *
    * Обязателен как **возможность**: приложение может требовать политикой
    * слой на каждом HTTP-endpoint'е
-   * (`everyEndpoint(...).hasLayer(observability)`), а satellite-модуль про
+   * (`everyEndpoint(...).hasLayer(traced)`), а satellite-модуль про
    * этот слой ничего не знает. Без этой опции подключение модуля роняло бы
    * `policies` — и это была бы наша проблема, а не пользователя.
    */
@@ -112,19 +112,19 @@ export interface OpenApiPlugin extends Plugin {
  *
  * @example
  * ```typescript
- * export const appOpenapi = openapi({
+ * export const openapi = makeOpenapi({
  *   info: { title: 'Users API', version: '1.0.0' },
- *   pipeline: observabilityBase,
+ *   pipeline: traced,
  * });
  *
  * build({
  *   features: [UsersFeature],
- *   plugins: [appOpenapi],
+ *   plugins: [openapi],
  *   transports: [http()],
  * });
  *
  * // Тот же документ для артефактов сборки, без поднятия приложения:
- * appOpenapi.document(app.discover(args));
+ * openapi.document(app.discover(args));
  * ```
  */
 /**
@@ -142,7 +142,7 @@ const documentSchema: StandardSchemaV1<unknown, OpenApiDocument> = {
   },
 };
 
-export function openapi<P extends AnyInput = AnyInput, PN = never>(
+export function makeOpenapi<P extends AnyInput = AnyInput, PN = never>(
   options: OpenApiOptions & OpenApiServeOptions<P, PN>,
 ): OpenApiPlugin {
   const { path, pipeline, detached, announceHidden, ...documentOptions } =

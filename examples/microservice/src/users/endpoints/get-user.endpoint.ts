@@ -1,6 +1,6 @@
 import type { GetUserInput } from '../../api/operations.js';
 import { GetUser as GetUserOperation } from '../../api/operations.js';
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import type { User } from '../user.js';
 import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
@@ -30,6 +30,6 @@ export class GetUserHandler {
  * операцию импортирует клиент. Здесь остаётся только исполнение.
  */
 export const GetUser = httpEndpoint.implement(GetUserOperation, {
-  pipeline: observability,
+  pipeline: traced,
   handler: GetUserHandler,
 });

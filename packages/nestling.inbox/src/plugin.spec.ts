@@ -19,7 +19,7 @@ import {
 import { Tx } from './__fixtures__/transaction.js';
 import { testTransport } from './__fixtures__/transport.js';
 import type { InMemoryInboxStore } from './memory-store.js';
-import { inbox } from './plugin.js';
+import { makeInbox } from './plugin.js';
 import { InboxSweeper$ } from './sweeper.js';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
@@ -35,10 +35,10 @@ import type { TestApp } from '@nestlingjs/testing';
 import { buildTest, vars } from '@nestlingjs/testing';
 
 /** Плагин приёма: один экземпляр на все сборки этого файла */
-const appInbox = inbox({ transaction: Tx, store: InboxStore$ });
+const inbox = makeInbox({ transaction: Tx, store: InboxStore$ });
 
 /** Слой подписчика: приём внутри транзакции */
-const guarded = compose(transactional, appInbox.layer);
+const guarded = compose(transactional, inbox.layer);
 
 /** Первый подписчик события */
 const WelcomeEmail = implement(UserCreated, {
@@ -57,7 +57,7 @@ const Analytics = implement(UserCreated, {
 /** Подписчик со слоем приёма снаружи транзакции */
 const Detached = implement(UserCreated, {
   subscriber: 'detached',
-  pipeline: compose(appInbox.layer, transactional),
+  pipeline: compose(inbox.layer, transactional),
   handler: makeSubscriberHandler('detached'),
 });
 
@@ -74,7 +74,7 @@ const application = (
 ): App =>
   makeApp({
     features: [makeFeature({ name: 'users', endpoints })],
-    plugins: [databasePlugin, appInbox],
+    plugins: [databasePlugin, inbox],
     transports: [testTransport()],
     policies: [...policies],
   });
@@ -98,7 +98,7 @@ const deliver = async (
   idempotencyKey: string,
 ) => app.call(endpoint, payload, { attributes: { idempotencyKey } });
 
-describe('inbox(): пакет в собранном приложении', () => {
+describe('makeInbox(): пакет в собранном приложении', () => {
   beforeEach(() => {
     handled.length = 0;
   });
@@ -226,10 +226,10 @@ describe('inbox(): пакет в собранном приложении', () =>
   });
 });
 
-describe('inbox(): отказы объявления и сборки', () => {
+describe('makeInbox(): отказы объявления и сборки', () => {
   it('не переменная в поле transaction отвергается сразу', () => {
     expect(() =>
-      inbox({ transaction: 'tx' as never, store: InboxStore$ }),
+      makeInbox({ transaction: 'tx' as never, store: InboxStore$ }),
     ).toThrow(/context variable value/);
   });
 
@@ -238,8 +238,8 @@ describe('inbox(): отказы объявления и сборки', () => {
       features: [makeFeature({ name: 'users', endpoints: [WelcomeEmail] })],
       plugins: [
         databasePlugin,
-        appInbox,
-        inbox({ transaction: Tx, store: InboxStore$ }),
+        inbox,
+        makeInbox({ transaction: Tx, store: InboxStore$ }),
       ],
       transports: [testTransport()],
     });
@@ -254,7 +254,7 @@ describe('requiresInbox(): предпосылка проверяется на BU
   it('подписчик без слоя роняет сборку с перечнем нарушивших', async () => {
     const broken = application(
       [WelcomeEmail, Bare],
-      [appInbox.requiresInbox({}, 'inbox')],
+      [inbox.requiresInbox({}, 'inbox')],
     );
 
     await expect(buildTest(broken)).rejects.toThrow(
@@ -266,7 +266,7 @@ describe('requiresInbox(): предпосылка проверяется на BU
     await using app = await buildTest(
       application(
         [WelcomeEmail, Analytics],
-        [appInbox.requiresInbox({}, 'inbox')],
+        [inbox.requiresInbox({}, 'inbox')],
       ),
     );
 

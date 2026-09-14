@@ -169,7 +169,7 @@ function assertFilter(filter: EndpointFilter): void {
  *   transports: [http()],
  *   policies: [
  *     everyEndpoint({ transport: HttpTransport$ })
- *       .hasLayer(authedBase, 'authedBase'),
+ *       .hasLayer(authed, 'authed'),
  *   ],
  * });
  * ```

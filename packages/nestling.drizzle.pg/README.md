@@ -2,7 +2,7 @@
 
 A PostgreSQL connection, a request transaction context variable and
 `OutboxStore`/`InboxStore` adapters over drizzle-orm. The connection is
-declared as a value: `drizzlePg({ schema })` gives a plugin with the
+declared as a value: `makeDrizzlePg({ schema })` gives a plugin with the
 connection DI token, the transaction variable, a pipeline layer and a
 precondition policy.
 
@@ -42,7 +42,7 @@ TEST_DATABASE_URL=postgresql://nestling:nestling@localhost:55432/nestling yarn t
 ```typescript
 // The connection is a value: the DI token, the transaction variable, the
 // layer and the policy are created by one call and carry the schema type.
-export const db = drizzlePg({ schema });
+export const db = makeDrizzlePg({ schema });
 
 // The transaction layer is composed into the endpoint pipeline. `BEGIN`
 // runs before the handler, `COMMIT` after it, the connection always
@@ -51,7 +51,7 @@ export const transactional = compose(authed, db.transaction());
 
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [db, pgOutboxStore(db)],
+  plugins: [db, makePgOutboxStore(db)],
   transports: [http()],
   policies: [db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
@@ -70,20 +70,20 @@ export class DbUsersRepository {
 
 ## Exports
 
-- **Connection** — `drizzlePg`, `DrizzlePgOptions`, `DrizzlePgPlugin`,
+- **Connection** — `makeDrizzlePg`, `DrizzlePgOptions`, `DrizzlePgPlugin`,
   `PgConnection`, `PgSchema`, `databaseConfigKeys`,
   `DatabaseConfigValues`, `PgConnectionFailedError`,
   `PgDuplicateConnectionError`.
 - **Request transaction** — `PgSession`, `PgTx`, `BeginOptions`,
   `IsolationLevel`, `TxLayer`, `TxLayerInput`, `TxBridgeClass`.
-- **Subpath `./outbox`** — `pgOutboxStore`, `PgOutboxStorePlugin`,
+- **Subpath `./outbox`** — `makePgOutboxStore`, `PgOutboxStorePlugin`,
   `PgOutboxStoreOptions`, `PgOutboxStore`, `PgOutboxTransactionError`, plus
   everything from the group below.
 - **Subpath `./outbox/table`** — `outboxTable`, `OutboxTable`,
   `outboxDdl`, `DEFAULT_OUTBOX_TABLE`. A separate subpath is needed by
   drizzle-kit: it builds the schema as CJS, and only what does not pull
   in the kernel suits it from the package.
-- **Subpath `./inbox`** — `pgInboxStore`, `PgInboxStorePlugin`,
+- **Subpath `./inbox`** — `makePgInboxStore`, `PgInboxStorePlugin`,
   `PgInboxStoreOptions`, `PgInboxStore`, `PgInboxTransactionError`, plus
   everything from the group below.
 - **Subpath `./inbox/table`** — `inboxTable`, `InboxTable`, `inboxDdl`,

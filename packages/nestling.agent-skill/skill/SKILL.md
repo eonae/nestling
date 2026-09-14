@@ -148,7 +148,7 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
    separate controller layer: the handler is a function, or a class marked
    `@Handler([…])` with a `handle` method.
 6. **A policy in the root obliges every endpoint.** When `makeApp` declares
-   `everyEndpoint(…).hasLayer(observability)`, every endpoint it selects
+   `everyEndpoint(…).hasLayer(traced)`, every endpoint it selects
    names that layer in `pipeline:` — `httpEndpoint.implement` and
    `implement` included, where it is often the only field they add — or
    opts out with

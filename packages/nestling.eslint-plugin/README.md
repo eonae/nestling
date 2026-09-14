@@ -38,7 +38,7 @@ export default [
       '@nestlingjs/import-through-barrel': 'error',
       '@nestlingjs/endpoint-has-layer': [
         'warn',
-        { layer: 'observability', constructorName: 'httpEndpoint' },
+        { layer: 'traced', constructorName: 'httpEndpoint' },
       ],
       '@nestlingjs/dependency-list': 'warn',
     },

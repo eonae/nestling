@@ -64,7 +64,7 @@ export type OutboxEmitter<C extends OutboxableOperation> = Emitter<
  * Наружу отдаётся типизированная функция {@link outboxed}, поэтому имя
  * операции не пишется руками, а тип значения выводится из самой операции.
  *
- * @internal Рецепт регистрирует плагин `outbox(...)`
+ * @internal Рецепт регистрирует плагин `makeOutbox(...)`
  */
 export const OutboxedFamily = makeTokenFamily<Emitter<any>, [name: string]>(
   'Outboxed',

@@ -81,18 +81,16 @@ export class AuditOutcome {
 }
 
 /** A layer is a value: endpoints reference it, policies compare it by identity */
-export const observability = makePipeline()
-  .pre(withRequestId())
-  .finally(AuditOutcome);
+export const traced = makePipeline().pre(withRequestId()).finally(AuditOutcome);
 
 /** `compose` stacks layers; the failure declared here joins `errors:` */
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 
 /** Step classes are providers: without registration the layer does not build */
-export const appPipeline = makePlugin({
+export const pipeline = makePlugin({
   name: 'app-pipeline',
   providers: [Authenticate, AuditOutcome],
 });
@@ -125,7 +123,7 @@ and it fails the process instead of failing a request.
 
 <!-- snippet: app.ts -->
 ```typescript
-import { appPipeline, authed, observability } from './pipeline.js';
+import { authed, pipeline, traced } from './pipeline.js';
 import { QuotasFeature, UsersFeature } from './users.feature.js';
 
 import { everyEndpoint, makeApp } from '@nestlingjs/app';
@@ -139,12 +137,12 @@ import { http, HttpTransport$ } from '@nestlingjs/transport.http';
  */
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature],
-  plugins: [appPipeline],
+  plugins: [pipeline],
   transports: [http()],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     everyEndpoint({
       transport: HttpTransport$('default'),

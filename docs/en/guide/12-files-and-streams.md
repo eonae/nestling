@@ -146,7 +146,7 @@ export class ExportUsersHandler {
 export const ExportUsers = httpEndpoint.get('/users/export', {
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ExportUsersHandler,
 });
 ```
@@ -169,7 +169,7 @@ pipeline, which processes the request as a whole. Only steps that keep the
 element type are allowed on the output, because both ends of the chain are
 fixed by the `output` schema.
 
-The `observability` layer works here too. The `.finally` step is called
+The `traced` layer works here too. The `.finally` step is called
 after the stream has finished or cut off, so the outcome in the audit line
 is correct.
 

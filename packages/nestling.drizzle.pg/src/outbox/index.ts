@@ -7,7 +7,7 @@
  */
 
 export { PgOutboxTransactionError } from './errors.js';
-export { pgOutboxStore } from './plugin.js';
+export { makePgOutboxStore } from './plugin.js';
 export type { PgOutboxStoreOptions, PgOutboxStorePlugin } from './plugin.js';
 export { PgOutboxStore } from './store.js';
 export { DEFAULT_OUTBOX_TABLE, outboxDdl, outboxTable } from './table.js';

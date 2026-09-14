@@ -191,15 +191,15 @@ pre-шагами, — рядом с провенансом композиции 
 
 #### Scenario: Композиция объединяет объявления
 
-- **WHEN** `const p = compose(observability, validation)`, где переменную
-  кладёт `observability`
+- **WHEN** `const p = compose(traced, validation)`, где переменную
+  кладёт `traced`
 - **THEN** `p` считается объявившим её
 
 #### Scenario: Деривация сохраняет объявления
 
 - **WHEN** `const extended = observability.pre(withTenant())`
-- **THEN** `extended` объявляет всё, что объявлял `observability`, а сам
-  `observability` остаётся неизменным
+- **THEN** `extended` объявляет всё, что объявлял `traced`, а сам
+  `traced` остаётся неизменным
 
 #### Scenario: Связывание сохраняет объявления
 
@@ -237,7 +237,7 @@ ambient-переменных и по тем же правилам:
 
 #### Scenario: Композиция объединяет отказы
 
-- **WHEN** `const authed = compose(observability, makePipeline().pre(Authenticate, { errors: [Unauthorized] }))`
+- **WHEN** `const authed = compose(traced, makePipeline().pre(Authenticate, { errors: [Unauthorized] }))`
 - **THEN** `authed` объявляет `Unauthorized`, а его `TFails` включает
   `typeof Unauthorized`
 

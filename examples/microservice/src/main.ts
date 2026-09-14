@@ -1,4 +1,4 @@
-import { app, Docs } from './app.js';
+import { app, DocsEnabled } from './app.js';
 
 import { from, load, makeConfig } from '@nestlingjs/app';
 
@@ -9,7 +9,7 @@ import { from, load, makeConfig } from '@nestlingjs/app';
  * значения переключателя описаны его схемой.
  */
 const RootConfig = makeConfig('root', {
-  docs: from('APP_DOCS', Docs.schema),
+  docs: from('APP_DOCS', DocsEnabled.schema),
 });
 
 /**

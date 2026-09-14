@@ -2,8 +2,8 @@
 
 ## Purpose
 
-`httpProbes()` — плагин `@nestlingjs/transport.http`, отдающий состояние
-приложения по HTTP: `GET /healthz` для liveness и `GET /readyz` для
+`makeHttpProbes()` — плагин `@nestlingjs/transport.http`, отдающий
+состояние приложения по HTTP: `GET /healthz` для liveness и `GET /readyz` для
 readiness. Плагин ничего не решает сам: хендлеры читают узел ядра `Health$`
 и переводят его итог в коды 200 и 503. Обе декларации выведены из-под
 пайплайна и политик через `detached` и скрыты из документа OpenAPI через
@@ -12,9 +12,9 @@ readiness. Плагин ничего не решает сам: хендлеры 
 
 ## Requirements
 
-### Requirement: `httpProbes()` — плагин пакета с двумя endpoint'ами
+### Requirement: `makeHttpProbes()` — плагин пакета с двумя endpoint'ами
 
-`@nestlingjs/transport.http` SHALL экспортировать `httpProbes(options?)`,
+`@nestlingjs/transport.http` SHALL экспортировать `makeHttpProbes(options?)`,
 возвращающий `Plugin` с двумя HTTP-декларациями: `GET /healthz` (liveness) и
 `GET /readyz` (readiness). Пути SHALL задаваться опциями `liveness` и
 `readiness`; без опций SHALL действовать умолчания.
@@ -27,12 +27,12 @@ readiness. Плагин ничего не решает сам: хендлеры 
 
 #### Scenario: Подключение плагина
 
-- **WHEN** корень объявляет `plugins: [httpProbes()]`
+- **WHEN** корень объявляет `plugins: [makeHttpProbes()]`
 - **THEN** приложение обслуживает `GET /healthz` и `GET /readyz`
 
 #### Scenario: Свои пути проб
 
-- **WHEN** объявлено `httpProbes({ liveness: '/live', readiness: '/ready' })`
+- **WHEN** объявлено `makeHttpProbes({ liveness: '/live', readiness: '/ready' })`
 - **THEN** приложение обслуживает `GET /live` и `GET /ready`, а `/healthz` и
   `/readyz` отвечают 404
 
@@ -48,13 +48,13 @@ readiness. Плагин ничего не решает сам: хендлеры 
 #### Scenario: Политика не требует слоя от проб
 
 - **WHEN** приложение объявляет политику «у каждого HTTP-endpoint'а есть слой
-  `authed`» и подключает `httpProbes()`
+  `authed`» и подключает `makeHttpProbes()`
 - **THEN** сборка проходит, а отчёт `check()` содержит обе пробы с причиной
   вывода из-под политик
 
 #### Scenario: Проб нет в документе OpenAPI
 
-- **WHEN** приложение с `httpProbes()` строит документ OpenAPI
+- **WHEN** приложение с `makeHttpProbes()` строит документ OpenAPI
 - **THEN** путей проб в документе нет
 
 ### Requirement: Коды ответа проб

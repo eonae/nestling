@@ -886,8 +886,8 @@ class PipelineImpl {
    * Проверяет, что `layer` встречается среди источников `pipeline`:
    * обход графа происхождения в ширину, сравнение по ссылке.
    *
-   * Стартовый узел входит в обход: endpoint с `pipeline: authedBase`
-   * содержит `authedBase`. Множество посещённых обязательно: одно значение
+   * Стартовый узел входит в обход: endpoint с `pipeline: authed`
+   * содержит `authed`. Множество посещённых обязательно: одно значение
    * может встречаться в нескольких ветках композиции.
    */
   static derivesFrom(pipeline: PipelineImpl, layer: PipelineImpl): boolean {

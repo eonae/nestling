@@ -20,29 +20,29 @@ npm install @nestlingjs/openapi
 ## Минимальный пример
 
 ```typescript
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 
-export const appOpenapi = openapi({
+export const openapi = makeOpenapi({
   info: { title: 'Users API', version: '1.0.0' },
-  pipeline: observability, // если политика корня требует слой
+  pipeline: traced, // если политика корня требует слой
 });
 
 makeApp({
   features: [UsersFeature],
-  plugins: [appOpenapi],
+  plugins: [openapi],
   transports: [http()],
 });
 // GET /openapi.json
 
 // Тот же документ для артефактов сборки, без поднятия приложения:
-appOpenapi.document(app.discover(args));
+openapi.document(app.discover(args));
 ```
 
 ## Экспорты
 
 | Имя | Что делает |
 |---|---|
-| `openapi` | плагин: строит документ на фазе BUILD, отдаёт его endpoint'ом, а методом `document(discovery)` — значением |
+| `makeOpenapi` | плагин: строит документ на фазе BUILD, отдаёт его endpoint'ом, а методом `document(discovery)` — значением |
 | `OpenApiDocument$` | DI-токен готового документа |
 | `OpenApiPlugin` | значение плагина: обычная единица состава плюс метод `document` |
 | `OpenApiOptions` | `info`, необязательные `converters`, `servers`, `security`, `externalDocs` |

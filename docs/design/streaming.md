@@ -247,7 +247,7 @@ class Topic<T> {
 Поверхность пакета:
 
 ```typescript
-const appSubscriptions = subscriptions({          // параметризованный модуль
+const subscriptions = makeSubscriptions({         // параметризованный модуль
   identity: RequestId,                            // подписанта называет переменная
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,                                  // факты операциями, opt-in
@@ -256,7 +256,7 @@ const appSubscriptions = subscriptions({          // параметризова�
 
 export const Feed = httpEndpoint.get('/api/feed', {
   output: events(Event),
-  pipeline: compose(base, tracked),               // слой ставится композицией
+  pipeline: compose(traced, tracked),             // слой ставится композицией
   handler: {
     deps: [EventHub],
     handle: (hub: EventHub) => async (_payload, meta) =>
@@ -352,7 +352,7 @@ const WindowAggregate = z.object({
 export const AggregateMetrics = httpEndpoint.post('/metrics/aggregate', {
   input: guardedStream(MetricPoint),   // item-цепочка: лимиты/таймауты — без Rx
   output: stream(WindowAggregate),
-  pipeline: base,
+  pipeline: traced,
   handler: async function* (points: AsyncIterableIterator<MetricPoint>) {
     const aggregates$ = from(points).pipe(   // граница: AsyncIterable → Observable
       bufferTime(1_000),
@@ -386,7 +386,7 @@ export class ActivityFeedHandler {
 
 export const ActivityFeed = httpEndpoint.get('/activity/live', {
   output: events(ActivityEvent).tap(e => console.debug('out:', e.kind)),
-  pipeline: base,
+  pipeline: traced,
   handler: ActivityFeedHandler,      // класс-хендлер: endpoint создаёт экземпляр сам
 });
 ```

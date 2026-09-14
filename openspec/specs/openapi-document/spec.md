@@ -3,7 +3,7 @@
 ## Purpose
 
 Генерация документа OpenAPI 3.1 из деклараций. Документ строит объявленный
-плагин — `openapi(options).document(app.discover(args))`, от результата
+плагин — `makeOpenapi(options).document(app.discover(args))`, от результата
 discovery и без поднятого приложения: адрес операции, её параметры и тело
 выводятся из bind-карты, media types — штатным `mediaTypeOf` из форм io,
 `responses` — из `errors:` операции плюс автоматические `400` и `default`.
@@ -11,7 +11,7 @@ discovery и без поднятого приложения: адрес опер
 пакетами: конвертер вендора фреймворка подставляется умолчанием, конвертер
 другого вендора приходит данными вызывающего.
 Недокументируемая схема роняет сборку, и единственный способ не документировать
-ручку — `doc.hidden` с причиной. Модуль `openapi(...)` — параметризованная
+ручку — `doc.hidden` с причиной. Модуль `makeOpenapi(...)` — параметризованная
 инфраструктура: документ строится провайдером на фазе INIT, поэтому вся
 диагностика генератора валит старт до `serve`.
 
@@ -19,7 +19,7 @@ discovery и без поднятого приложения: адрес опер
 
 ### Requirement: Документ строит объявленный плагин из результата discovery
 
-`openapi(options)` SHALL возвращать значение плагина с методом
+`makeOpenapi(options)` SHALL возвращать значение плагина с методом
 `document(discovery)`. Метод SHALL принимать результат `app.discover(args?)`
 (capability `endpoint-discovery`) и возвращать JSON-сериализуемый документ
 **OpenAPI 3.1**. Вычисление SHALL NOT требовать DI-контейнера, транспортов
@@ -49,7 +49,7 @@ HTTP bind-картой (`isHttpBinding`). Декларации прочих тр
 
 #### Scenario: Документ из декларации приложения без его поднятия
 
-- **WHEN** вызван `appOpenapi.document(app.discover())`
+- **WHEN** вызван `openapi.document(app.discover())`
 - **THEN** получен документ с `openapi: '3.1.0'`, объявленным у плагина
   `info` и операциями всех HTTP-endpoint'ов приложения — без построения
   контейнера
@@ -68,9 +68,9 @@ HTTP bind-картой (`isHttpBinding`). Декларации прочих тр
 
 #### Scenario: Выключенная ветка переключателя не мешает документу
 
-- **WHEN** плагин подключён как `Docs.when(appOpenapi)`, а состав разрешён
+- **WHEN** плагин подключён как `DocsEnabled.when(openapi)`, а состав разрешён
   с `docs=off`
-- **THEN** `appOpenapi.document(app.discover(args))` строит документ, хотя
+- **THEN** `openapi.document(app.discover(args))` строит документ, хотя
   endpoint `GET /openapi.json` приложением не обслуживается
 
 #### Scenario: Документ CI и документ endpoint'а совпадают
@@ -371,9 +371,9 @@ NOT повторять их литералом. Несколько отказо�
 - **WHEN** endpoint без конвертера **не** помечен `hidden`
 - **THEN** сборка падает: пропустить его молча нельзя
 
-### Requirement: `openapi(...)` — параметризованный модуль, строящий документ на INIT
+### Requirement: `makeOpenapi(...)` — параметризованный модуль, строящий документ на INIT
 
-`@nestlingjs/openapi` SHALL экспортировать `openapi(options)`, возвращающий
+`@nestlingjs/openapi` SHALL экспортировать `makeOpenapi(options)`, возвращающий
 обычный модуль-значение (конвенция параметризованной инфраструктуры;
 нового примитива SHALL NOT вводиться). Модуль SHALL регистрировать
 провайдер документа, зависящий от инжектируемого discovery, и один
@@ -399,7 +399,7 @@ SHALL отсутствовать в документе так же, как он�
 
 #### Scenario: Документ отдаётся endpoint'ом
 
-- **WHEN** приложение собрано с `plugins: [openapi({ info })]`
+- **WHEN** приложение собрано с `plugins: [makeOpenapi({ info })]`
 - **THEN** `GET /openapi.json` отвечает документом, описывающим все прочие
   HTTP-endpoint'ы приложения, и не описывающим сам этот endpoint
 
@@ -411,8 +411,8 @@ SHALL отсутствовать в документе так же, как он�
 
 #### Scenario: Endpoint документации подчиняется политикам приложения
 
-- **WHEN** корень объявил `everyEndpoint({ transport: HttpTransport$ }).hasLayer(observability)`,
-  а модуль подключён с `openapi({ …, pipeline: observabilityBase })`
+- **WHEN** корень объявил `everyEndpoint({ transport: HttpTransport$ }).hasLayer(traced)`,
+  а модуль подключён с `makeOpenapi({ …, pipeline: traced })`
 - **THEN** сборка проходит; без `pipeline` и без `detached` — падает с
   нарушением политики
 

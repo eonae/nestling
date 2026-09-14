@@ -1,5 +1,5 @@
 import { authed } from '../auth.js';
-import { observability } from '../observability.js';
+import { traced } from '../observability.js';
 
 import type { Output } from '@nestlingjs/app';
 import { compose } from '@nestlingjs/app';
@@ -72,7 +72,7 @@ class ListSubscriptionsHandler {
 export const ListSubscriptions = httpEndpoint.get('/ops/subscriptions', {
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки', tags: ['ops'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ListSubscriptionsHandler,
 });
 
@@ -142,6 +142,6 @@ export const WatchSubscriptions = httpEndpoint.get('/ops/subscriptions/live', {
     event: (change) => change.type,
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
-  pipeline: compose(observability, tracked),
+  pipeline: compose(traced, tracked),
   handler: WatchSubscriptionsHandler,
 });

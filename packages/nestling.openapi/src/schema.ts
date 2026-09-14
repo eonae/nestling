@@ -81,7 +81,7 @@ export function convertLeaf(
       context.where,
       `its '${slot}' schema comes from vendor '${resolved.vendor}', and ` +
         `none of the converters translates that vendor. Pass its converter ` +
-        `in 'converters' of openapi({ … }), or declare the schema ` +
+        `in 'converters' of makeOpenapi({ … }), or declare the schema ` +
         `explicitly with jsonSchema(schema, { … }).`,
     );
     return undefined;

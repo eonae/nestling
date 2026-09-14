@@ -13,7 +13,7 @@ Use the inline form while the address is server-side only.
 <!-- snippet: list-users.endpoint.ts -->
 ```typescript
 import { User } from './api-operations.js';
-import { observability } from './pipeline.js';
+import { traced } from './pipeline.js';
 
 import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
@@ -40,7 +40,7 @@ const page: z.infer<typeof User>[] = [
 export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
-  pipeline: observability,
+  pipeline: traced,
   handler: async ({ limit }) => page.slice(0, limit),
 });
 ```
@@ -145,7 +145,7 @@ takes the class itself — not an instance.
 import type { GetUserInput, User } from './api-operations.js';
 import { GetUser as GetUserOperation } from './api-operations.js';
 import { UserNotFound } from './errors.js';
-import { observability } from './pipeline.js';
+import { traced } from './pipeline.js';
 import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
@@ -174,7 +174,7 @@ export class GetUserHandler {
  * client imports too. Only execution is declared here.
  */
 export const GetUser = httpEndpoint.implement(GetUserOperation, {
-  pipeline: observability,
+  pipeline: traced,
   handler: GetUserHandler,
 });
 ```

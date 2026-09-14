@@ -1,6 +1,6 @@
 import type { UserRegisteredInput } from '../../operations.js';
 import { UserRegistered } from '../../operations.js';
-import { appInbox, transactional } from '../../persistence.js';
+import { inbox, transactional } from '../../persistence.js';
 
 import type { Mailer } from './mailer.js';
 import { Mailer$ } from './mailer.js';
@@ -81,6 +81,6 @@ export class WelcomeEmailHandler {
  */
 export const WelcomeEmail = implement(UserRegistered, {
   subscriber: 'welcome-email',
-  pipeline: compose(transactional, appInbox.layer),
+  pipeline: compose(transactional, inbox.layer),
   handler: WelcomeEmailHandler,
 });

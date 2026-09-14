@@ -219,7 +219,7 @@ value)` gives a reader with a constant value:
   });
 ```
 
-The `observability` layer still puts its own `requestId` into the
+The `traced` layer still puts its own `requestId` into the
 context, but the service reads the overridden value.
 `familyOverride(Family, make)` overrides a whole DI token family in the
 same `overrides` list.

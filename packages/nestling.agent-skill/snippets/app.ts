@@ -1,4 +1,4 @@
-import { appPipeline, authed, observability } from './pipeline.js';
+import { authed, pipeline, traced } from './pipeline.js';
 import { QuotasFeature, UsersFeature } from './users.feature.js';
 
 import { everyEndpoint, makeApp } from '@nestlingjs/app';
@@ -12,12 +12,12 @@ import { http, HttpTransport$ } from '@nestlingjs/transport.http';
  */
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature],
-  plugins: [appPipeline],
+  plugins: [pipeline],
   transports: [http()],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
-      'observability',
+      traced,
+      'traced',
     ),
     everyEndpoint({
       transport: HttpTransport$('default'),

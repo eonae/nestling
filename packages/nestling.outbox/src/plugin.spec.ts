@@ -20,7 +20,7 @@ import {
 import { Tx } from './__fixtures__/transaction.js';
 import { testTransport } from './__fixtures__/transport.js';
 import type { InMemoryOutboxStore } from './memory-store.js';
-import { outbox } from './plugin.js';
+import { makeOutbox } from './plugin.js';
 import { OutboxRelay$ } from './relay.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -71,7 +71,7 @@ const application = (): App =>
     features: [usersFeature],
     plugins: [
       databasePlugin,
-      outbox({
+      makeOutbox({
         transaction: Tx,
         store: OutboxStore$,
         operations: [UserCreated],
@@ -91,7 +91,7 @@ function storeOf(app: TestApp): InMemoryOutboxStore {
   return db.outbox;
 }
 
-describe('outbox(): пакет в собранном приложении', () => {
+describe('makeOutbox(): пакет в собранном приложении', () => {
   it('пишет запись в транзакции запроса и не публикует её сразу', async () => {
     delivered.length = 0;
     await using app = await buildTest(application());
@@ -169,7 +169,7 @@ describe('outbox(): пакет в собранном приложении', () =
   });
 });
 
-describe('outbox(): отказы сборки', () => {
+describe('makeOutbox(): отказы сборки', () => {
   it('операция не перечислена — сборка падает с починкой', async () => {
     const broken = makeApp({
       features: [
@@ -180,7 +180,7 @@ describe('outbox(): отказы сборки', () => {
       ],
       plugins: [
         databasePlugin,
-        outbox({
+        makeOutbox({
           transaction: Tx,
           store: OutboxStore$,
           operations: [UserCreated],
@@ -190,7 +190,7 @@ describe('outbox(): отказы сборки', () => {
     });
 
     await expect(buildTest(broken)).rejects.toThrow(
-      /plugin\.spec\.user-deleted.*outbox\({ operations }\)/s,
+      /plugin\.spec\.user-deleted.*makeOutbox\({ operations }\)/s,
     );
   });
 
@@ -199,8 +199,8 @@ describe('outbox(): отказы сборки', () => {
       features: [usersFeature],
       plugins: [
         databasePlugin,
-        outbox({ transaction: Tx, store: OutboxStore$, operations: [] }),
-        outbox({ transaction: Tx, store: OutboxStore$, operations: [] }),
+        makeOutbox({ transaction: Tx, store: OutboxStore$, operations: [] }),
+        makeOutbox({ transaction: Tx, store: OutboxStore$, operations: [] }),
       ],
       transports: [testTransport()],
     });
@@ -218,7 +218,7 @@ describe('outbox(): отказы сборки', () => {
       features: [makeFeature({ name: 'users', endpoints: [PingUser] })],
       plugins: [
         databasePlugin,
-        outbox({ transaction: Tx, store: OutboxStore$, operations: [] }),
+        makeOutbox({ transaction: Tx, store: OutboxStore$, operations: [] }),
       ],
       transports: [testTransport()],
     });
@@ -246,7 +246,7 @@ describe('outbox(): отказы сборки', () => {
 
   it('операция вида request в списке отвергается при объявлении', () => {
     expect(() =>
-      outbox({
+      makeOutbox({
         transaction: Tx,
         store: OutboxStore$,
         operations: [{ name: 'x', kind: 'request' } as never],
@@ -266,7 +266,7 @@ describe('requiresTransaction(): предпосылка проверяется �
       ],
       plugins: [
         databasePlugin,
-        outbox({
+        makeOutbox({
           transaction: Tx,
           store: OutboxStore$,
           operations: [UserCreated],
@@ -274,7 +274,7 @@ describe('requiresTransaction(): предпосылка проверяется �
       ],
       transports: [testTransport()],
       policies: [
-        outbox({
+        makeOutbox({
           transaction: Tx,
           store: OutboxStore$,
           operations: [UserCreated],
@@ -286,7 +286,7 @@ describe('requiresTransaction(): предпосылка проверяется �
   });
 
   it('endpoint со слоем транзакции политику проходит', async () => {
-    const declaration = outbox({
+    const declaration = makeOutbox({
       transaction: Tx,
       store: OutboxStore$,
       operations: [UserCreated],

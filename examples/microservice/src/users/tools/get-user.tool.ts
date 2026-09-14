@@ -1,5 +1,5 @@
 import { GetUser as GetUserOperation } from '../../api/operations.js';
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import { GetUserHandler } from '../endpoints/index.js';
 
 import { mcpTool } from '@nestlingjs/mcp';
@@ -16,6 +16,6 @@ import { mcpTool } from '@nestlingjs/mcp';
  */
 export const GetUserTool = mcpTool.implement(GetUserOperation, {
   annotations: { readOnlyHint: true },
-  pipeline: observability,
+  pipeline: traced,
   handler: GetUserHandler,
 });

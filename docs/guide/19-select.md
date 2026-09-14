@@ -32,7 +32,7 @@ import { z } from 'zod';
  */
 const RootConfig = makeConfig('root', {
   features: from('APP_FEATURES', z.string().default('all')),
-  docs: from('APP_DOCS', Docs.schema),
+  docs: from('APP_DOCS', DocsEnabled.schema),
 });
 
 /**
@@ -134,18 +134,18 @@ dev-контуре и не нужна за периметром, и это не 
 
 ```typescript
 // src/app.ts
-export const Docs = makeSwitch('docs', { default: 'on' });
+export const DocsEnabled = makeSwitch('docs', { default: 'on' });
 
 export const app = makeApp({
   features: [UsersFeature, NotificationsFeature, OpsFeature],
   plugins: [
-    appObservability,
-    appAuth,
-    appSubscriptions,
+    observability,
+    auth,
+    subscriptions,
     // При `docs=off` плагина в сборке нет целиком
-    Docs.when(appOpenapi),
+    DocsEnabled.when(openapi),
   ],
-  switches: [Docs],
+  switches: [DocsEnabled],
   // Два протокола на одном сокете: рецепт
   // [«Отдать операции агенту по MCP»](../recipes/mcp.md)
   transports: [http({ server: api }), mcp({ … })],

@@ -16,13 +16,13 @@ import {
 } from './__fixtures__/schema.js';
 import type { PgSession, PgTx } from './connection.js';
 import type { SessionKey, TxKey } from './naming.js';
-import { drizzlePg } from './plugin.js';
+import { makeDrizzlePg } from './plugin.js';
 
 import type { CtxReader, EmptyInput, PreStepFn } from '@nestlingjs/app';
 import { makePipeline } from '@nestlingjs/app';
 
-const db = drizzlePg({ schema });
-const analytics = drizzlePg({ name: 'analytics', schema: analyticsSchema });
+const db = makeDrizzlePg({ schema });
+const analytics = makeDrizzlePg({ name: 'analytics', schema: analyticsSchema });
 
 /** Ключ переменной выводится из имени экземпляра */
 const txKey: 'tx' = db.tx.key;

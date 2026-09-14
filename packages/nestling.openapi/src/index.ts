@@ -3,7 +3,7 @@
  *
  * Две поверхности и ни одной больше:
  *
- * - `openapi(options)` — плагин-издатель: строит документ на фазе BUILD
+ * - `makeOpenapi(options)` — плагин-издатель: строит документ на фазе BUILD
  *   и отдаёт его endpoint'ом `GET /openapi.json`. Его же метод
  *   `document(app.discover(args))` кладёт документ в артефакты сборки, не
  *   поднимая приложение: опции у плагина уже есть, поэтому `info` записан
@@ -17,7 +17,7 @@
  * умолчанием, поэтому строки в опциях он не требует.
  */
 
-export { openapi, OpenApiDocument$ } from './module.js';
+export { makeOpenapi, OpenApiDocument$ } from './module.js';
 export type { OpenApiPlugin, OpenApiServeOptions } from './module.js';
 export type {
   DocumentedEndpoint,

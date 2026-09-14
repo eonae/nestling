@@ -19,10 +19,10 @@ npm install @nestlingjs/subscriptions
 
 ```typescript
 import { RequestId } from '@nestlingjs/app';
-import { subscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
+import { makeSubscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
 
 // 1. The plugin: created once in the composition root
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId, // a context variable names the subscriber
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true, // lifecycle facts as operations
@@ -41,7 +41,7 @@ export const Feed = httpEndpoint.get('/api/feed', {
 
 ## Exports
 
-- **Connection** — `subscriptions`, `SubscriptionsOptions`, `tracked`,
+- **Connection** — `makeSubscriptions`, `SubscriptionsOptions`, `tracked`,
   `TrackSubscription`, `UntrackSubscription`.
 - **Option sources** — `computed`, `IdentitySource`, `IdentityVar`,
   `IdentityFn`, `LabelsSource`.

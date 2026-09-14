@@ -270,7 +270,7 @@ does not know about it.
 The surface of the package:
 
 ```typescript
-const appSubscriptions = subscriptions({          // a parameterized module
+const subscriptions = makeSubscriptions({         // a parameterized module
   identity: RequestId,                            // a variable names the subscriber
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: true,                                  // facts as operations, opt-in
@@ -279,7 +279,7 @@ const appSubscriptions = subscriptions({          // a parameterized module
 
 export const Feed = httpEndpoint.get('/api/feed', {
   output: events(Event),
-  pipeline: compose(base, tracked),               // the layer is put in by composition
+  pipeline: compose(traced, tracked),             // the layer is put in by composition
   handler: {
     deps: [EventHub],
     handle: (hub: EventHub) => async (_payload, meta) =>
@@ -385,7 +385,7 @@ const WindowAggregate = z.object({
 export const AggregateMetrics = httpEndpoint.post('/metrics/aggregate', {
   input: guardedStream(MetricPoint),   // item chain: limits/timeouts — no Rx
   output: stream(WindowAggregate),
-  pipeline: base,
+  pipeline: traced,
   handler: async function* (points: AsyncIterableIterator<MetricPoint>) {
     const aggregates$ = from(points).pipe(   // boundary: AsyncIterable → Observable
       bufferTime(1_000),
@@ -419,7 +419,7 @@ export class ActivityFeedHandler {
 
 export const ActivityFeed = httpEndpoint.get('/activity/live', {
   output: events(ActivityEvent).tap(e => console.debug('out:', e.kind)),
-  pipeline: base,
+  pipeline: traced,
   handler: ActivityFeedHandler,      // a class handler: the endpoint creates the instance itself
 });
 ```

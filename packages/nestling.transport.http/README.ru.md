@@ -69,7 +69,7 @@ export const GET = toFetchHandler(embedded); // (Request) => Promise<Response>
 - **Адаптер** ([рецепт](../../docs/recipes/embedded.md)) — `adapter`,
   `HttpAdapter`, `HttpFetchHandler`, `HttpNodeHandler`, `toFetchHandler`,
   `toNodeHandler`.
-- **Сервер и пробы** — `httpProbes`, `HttpServer`, `HttpServer$`,
+- **Сервер и пробы** — `makeHttpProbes`, `HttpServer`, `HttpServer$`,
   `server`, `serverKeys`.
 - **Декларация endpoint'а** ([design](../../docs/design/endpoints.md)) —
   `httpBindingOf`, `httpEndpoint`, `httpEndpoint.implement`, `HttpRouter`,
