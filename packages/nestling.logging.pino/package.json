@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/logging.pino",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "pino под интерфейсом Logger: redaction, сериализаторы и семплирование библиотеки при формате строки, общем со штатным логгером Nestling",
   "keywords": [
     "nestling",

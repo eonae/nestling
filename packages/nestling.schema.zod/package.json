@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/schema.zod",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Всё, что Nestling делает с zod: конвертер схем в JSON Schema, билдеры полей секций конфигурации и модели, сверяемые с TypeScript-типом",
   "keywords": [
     "nestling",

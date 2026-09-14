@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/transport.nats",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "NATS как шина приложения: доставляет вызовы операций между процессами в обе стороны",
   "keywords": [
     "nestling",

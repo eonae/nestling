@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/config.vault",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Источник конфигурации поверх HashiCorp Vault: секрет KV v2 читается на фазе 0 по координатам из другой секции",
   "keywords": [
     "nestling",

@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/testing",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Тестовый composition root: та же декларация приложения проходит фазы до WIRE и останавливается — dispatch создан, сокеты не открыты",
   "keywords": [
     "nestling",
