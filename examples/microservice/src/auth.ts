@@ -1,6 +1,6 @@
 import { AppConfig } from './app.config.js';
 import { Unauthorized } from './errors.js';
-import { observability } from './observability.js';
+import { traced } from './observability.js';
 
 import type { Config, EmptyInput, ExtendableContext } from '@nestlingjs/app';
 import { compose, makePipeline } from '@nestlingjs/app';
@@ -48,6 +48,6 @@ export class Authenticate {
  * перечисляя его у себя.
  */
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );

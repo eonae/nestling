@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { AppConfig } from '../../app.config.js';
-import { observed } from '../../persistence.js';
+import { signed } from '../../persistence.js';
 import { InvalidSignature } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -84,7 +84,7 @@ export const UserWebhook = httpEndpoint.post('/hooks/users', {
   // требование выполняет транспорт, а не соседний слой
   pipeline: compose(
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
-    observed,
+    signed,
   ),
   handler: UserWebhookHandler,
 });

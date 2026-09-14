@@ -5,7 +5,7 @@
  */
 
 export { BuildInfo } from './build-info.endpoint.js';
-export { appSubscriptions, ops } from './ops.plugin.js';
+export { subscriptions, ops } from './ops.plugin.js';
 export {
   KillSubscription,
   ListSubscriptions,

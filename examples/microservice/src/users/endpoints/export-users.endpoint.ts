@@ -1,5 +1,5 @@
 import { EXPORT_USERS_PATH } from '../../api/operations.js';
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -37,6 +37,6 @@ export class ExportUsersHandler {
 export const ExportUsers = httpEndpoint.get(EXPORT_USERS_PATH, {
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
-  pipeline: observability,
+  pipeline: traced,
   handler: ExportUsersHandler,
 });

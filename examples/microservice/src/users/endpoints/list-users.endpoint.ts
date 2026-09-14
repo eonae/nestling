@@ -1,7 +1,7 @@
 import type { ListUsersInput } from '../../api/operations.js';
 import { ListUsers as ListUsersOperation } from '../../api/operations.js';
 import { AppConfig } from '../../app.config.js';
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import type { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -33,6 +33,6 @@ export class ListUsersHandler {
  * операцию импортирует клиент командной строки.
  */
 export const ListUsers = httpEndpoint.implement(ListUsersOperation, {
-  pipeline: observability,
+  pipeline: traced,
   handler: ListUsersHandler,
 });

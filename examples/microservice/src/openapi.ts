@@ -19,14 +19,14 @@ import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { app, appOpenapi } from './app.js';
+import { app, openapi } from './app.js';
 
 import { makeConsoleLogger } from '@nestlingjs/app';
 
 /** Аргумент сборки — аргумент командной строки; без него состав по умолчанию */
 const args = process.argv[2];
 
-const document = appOpenapi.document(app.discover(args));
+const document = openapi.document(app.discover(args));
 
 const file = resolve(
   dirname(fileURLToPath(import.meta.url)),

@@ -31,6 +31,6 @@ export type BaseContext = {
   tenantId: string;
 };
 
-export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
+export const traced: Pipeline<EmptyInput, BaseContext> = makePipeline()
   .pre(withTracing())
   .pre(TenantId.propagated());

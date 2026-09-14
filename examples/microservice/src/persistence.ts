@@ -7,11 +7,11 @@
  */
 
 import { authed } from './auth.js';
-import { observability } from './observability.js';
+import { traced } from './observability.js';
 import { schema } from './schema.js';
 
 import { compose } from '@nestlingjs/app';
-import { drizzlePg } from '@nestlingjs/drizzle.pg';
+import { makeDrizzlePg } from '@nestlingjs/drizzle.pg';
 
 /**
  * Соединение с базой.
@@ -21,7 +21,7 @@ import { drizzlePg } from '@nestlingjs/drizzle.pg';
  * называется `tx`. Второе соединение объявлялось бы вторым вызовом с
  * полем `name`.
  */
-export const db = drizzlePg({ schema });
+export const db = makeDrizzlePg({ schema });
 
 /**
  * Слой транзакции поверх `authed`.
@@ -40,4 +40,4 @@ export const transactional = compose(authed, db.transaction());
  * подписан секретом. Наблюдаемость остаётся — он пишет ту же строку
  * аудита, что и остальные endpoint'ы.
  */
-export const observed = compose(observability, db.transaction());
+export const signed = compose(traced, db.transaction());

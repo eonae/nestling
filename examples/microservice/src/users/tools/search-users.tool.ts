@@ -1,4 +1,4 @@
-import { observability } from '../../observability.js';
+import { traced } from '../../observability.js';
 import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -50,6 +50,6 @@ export const SearchUsersTool = mcpTool('search_users', {
   annotations: { readOnlyHint: true },
   input: SearchUsersInput,
   output: SearchUsersOutput,
-  pipeline: observability,
+  pipeline: traced,
   handler: SearchUsersHandler,
 });

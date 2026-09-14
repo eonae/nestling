@@ -10,7 +10,7 @@ import { NotificationsFeature } from './features/notifications/notifications.fea
 import { UsersFeature } from './features/users/users.feature.js';
 import { metricsPlugin, prometheusExporter } from './metrics.js';
 import { UserRegistered } from './operations.js';
-import { appInbox, db, inboxStore, outboxStore } from './persistence.js';
+import { db, inbox, inboxStore, outboxStore } from './persistence.js';
 import { Mail } from './switches.js';
 
 import type { App } from '@nestlingjs/app';
@@ -20,8 +20,8 @@ import {
   IdempotencyKey,
   makeApp,
 } from '@nestlingjs/app';
-import { outbox } from '@nestlingjs/outbox';
-import { http, httpProbes } from '@nestlingjs/transport.http';
+import { makeOutbox } from '@nestlingjs/outbox';
+import { http, makeHttpProbes } from '@nestlingjs/transport.http';
 import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
 import { nats } from '@nestlingjs/transport.nats';
 
@@ -40,7 +40,7 @@ export interface DeclareOptions {
  * Плагин создаётся один раз: рецепт семейства регистрируется однажды.
  * Раздел записи плагин не назначает — его называет место вызова `emit`.
  */
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: db.tx,
   store: outboxStore.token,
   operations: [UserRegistered],
@@ -63,14 +63,14 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
     plugins: [
       db,
       outboxStore,
-      appOutbox,
+      outbox,
       inboxStore,
-      appInbox,
+      inbox,
       metricsPlugin(exporter),
       // Пробы `GET /healthz` и `GET /readyz` поверх узла ядра `Health$`:
       // правило готовности принадлежит ядру, плагину — только адреса и
       // коды
-      httpProbes(),
+      makeHttpProbes(),
     ],
     switches: [Mail],
     // Шина приложения — обычный транспорт. `intercom:` назначает ему роль
@@ -85,7 +85,7 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
       // готов увидеть сообщение дважды. Без слоя это относилось бы к
       // обязанностям подписчика соглашением, а здесь проверяется на
       // сборке — нарушение видно до фазы INIT
-      appInbox.requiresInbox(
+      inbox.requiresInbox(
         { transport: BusTransport$, pattern: /^users\.registered/ },
         'inbox',
       ),

@@ -44,7 +44,7 @@ export class AuditOutcome {
  * Слой — значение. Endpoint подключает его через `pipeline:`, а политика
  * в `app.ts` проверяет по ссылке, что слой есть у каждого endpoint'а.
  */
-export const observability = makePipeline()
+export const traced = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(AuditOutcome);

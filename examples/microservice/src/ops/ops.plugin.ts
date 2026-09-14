@@ -6,8 +6,8 @@ import {
 } from './subscriptions.endpoint.js';
 
 import { makePlugin, RequestId } from '@nestlingjs/app';
-import { subscriptions } from '@nestlingjs/subscriptions';
-import { httpProbes } from '@nestlingjs/transport.http';
+import { makeSubscriptions } from '@nestlingjs/subscriptions';
+import { makeHttpProbes } from '@nestlingjs/transport.http';
 
 /**
  * Реестр подписок из пакета `@nestlingjs/subscriptions`.
@@ -21,7 +21,7 @@ import { httpProbes } from '@nestlingjs/transport.http';
  * один, и реестр этого процесса виден целиком через
  * `GET /ops/subscriptions`.
  */
-export const appSubscriptions = subscriptions({
+export const subscriptions = makeSubscriptions({
   identity: RequestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
   publish: false,
@@ -31,7 +31,7 @@ export const appSubscriptions = subscriptions({
  * Плагин эксплуатации: служебные endpoint'ы, которые есть в каждом
  * процессе. Плагин подключён всегда и в выборе фич не участвует.
  *
- * Пробы живости и готовности он не пишет сам: их даёт `httpProbes()`
+ * Пробы живости и готовности он не пишет сам: их даёт `makeHttpProbes()`
  * поверх узла ядра `Health$`. Реестр подписок приходит тем же способом —
  * плагином, от которого зависит этот.
  */
@@ -43,5 +43,5 @@ export const ops = makePlugin({
     KillSubscription,
     WatchSubscriptions,
   ],
-  dependsOn: [httpProbes(), appSubscriptions],
+  dependsOn: [makeHttpProbes(), subscriptions],
 });

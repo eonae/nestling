@@ -10,14 +10,14 @@
  * процесс открывает свой пул к той же базе.
  */
 
-import { base } from './base.js';
+import { traced } from './base.js';
 import { schema } from './schema.js';
 
 import { compose } from '@nestlingjs/app';
-import { drizzlePg } from '@nestlingjs/drizzle.pg';
-import { pgInboxStore } from '@nestlingjs/drizzle.pg/inbox';
-import { pgOutboxStore } from '@nestlingjs/drizzle.pg/outbox';
-import { inbox } from '@nestlingjs/inbox';
+import { makeDrizzlePg } from '@nestlingjs/drizzle.pg';
+import { makePgInboxStore } from '@nestlingjs/drizzle.pg/inbox';
+import { makePgOutboxStore } from '@nestlingjs/drizzle.pg/outbox';
+import { makeInbox } from '@nestlingjs/inbox';
 
 /**
  * Соединение с базой.
@@ -27,13 +27,13 @@ import { inbox } from '@nestlingjs/inbox';
  * называется `tx`. Второе соединение объявлялось бы вторым вызовом с
  * полем `name`.
  */
-export const db = drizzlePg({ schema });
+export const db = makeDrizzlePg({ schema });
 
 /** Хранилище outbox'а на том же соединении, что и таблица пользователей */
-export const outboxStore = pgOutboxStore(db);
+export const outboxStore = makePgOutboxStore(db);
 
 /** Хранилище отметок приёма — там же: отметка коммитится с изменением */
-export const inboxStore = pgInboxStore(db);
+export const inboxStore = makePgInboxStore(db);
 
 /**
  * Транзакционный приём: повтор доставки не доходит до хендлера.
@@ -41,7 +41,7 @@ export const inboxStore = pgInboxStore(db);
  * Плагин объявлен здесь, а не в корне: его поле `layer` нужно декларации
  * подписчика, а корень импортирует фичу, в которой эта декларация лежит.
  */
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 
 /**
  * Слой транзакции поверх базового.
@@ -51,4 +51,4 @@ export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
  * её прочитать. Слой коммитит на успехе, откатывает на отказе и
  * возвращает соединение в пул на любом исходе.
  */
-export const transactional = compose(base, db.transaction());
+export const transactional = compose(traced, db.transaction());
