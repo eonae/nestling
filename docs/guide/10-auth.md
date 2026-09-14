@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `92353887`.
+> Гайд по текущему API; сверено с кодом `2f5689e5`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
