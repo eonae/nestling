@@ -121,8 +121,7 @@ SHALL оставаться экспортированным типом резу�
 ### Requirement: Корень перечисляет фичи, плагины и транспорты
 
 `makeApp` SHALL принимать `features`, `endpoints`, `modules`, `plugins`,
-`providers`, `switches`, `transports`, `intercom`, `config`, `policies` и
-`logger`.
+`providers`, `switches`, `transports`, `intercom`, `policies` и `logger`.
 
 Аргумент сборки SHALL передаваться в `build(args?)` и `check(args?)` в
 трёх формах: строка (`'all'`, `'orders,billing'`), массив имён фич и
@@ -153,7 +152,7 @@ SHALL оставаться экспортированным типом резу�
 
 - **WHEN** написано `makeApp({ features: [UsersFeature], transports: [http()], logger: pinoAdapter })`
 - **THEN** записи всех фаз, включая предупреждения сборки, уходят в
-  `pinoAdapter`, а токены семейства `Logger$(scope)` строятся от него
+  `pinoAdapter`, а члены `Logger$(scope)` строятся от него
 
 #### Scenario: Без опции работает умолчание ядра
 
@@ -220,36 +219,12 @@ SHALL оставаться экспортированным типом резу�
 - **THEN** сборка падает на фазе BUILD с диагностикой о коллизии имён;
   «первый выиграл» SHALL NOT происходить
 
-### Requirement: Привязки конфига объявляются в `makeApp`
-
-Поле `config: [[source, target | target[]], …]` SHALL приниматься `makeApp`
-и SHALL передаваться kernel-машинерии конфига. Привязка источников — поле
-декларации, а не аргумент сборки: различия окружений SHALL выражаться
-координатами самих источников, которые они читают из `process.env` в
-`init()`. Kernel-модуль конфига SHALL регистрироваться всегда, поэтому
-приложению, которому хватает `process.env`, поле `config` SHALL NOT
-требоваться.
-
-#### Scenario: Привязка источника в декларации
-
-- **WHEN** `makeApp({ features: [OrdersFeature], config: [[fileSource, [OrdersConfig.keys]]] })`
-- **THEN** ключи секции `orders` читаются сперва из `fileSource`, затем из
-  `process.env`
-
-#### Scenario: Только env
-
-- **WHEN** поле `config` отсутствует
-- **THEN** секции читаются из `process.env`, и приложение собирается штатно
-
-#### Scenario: Привязку нельзя передать в `build`
-
-- **WHEN** написано `app.build({ select: 'orders', config: [[fileSource, ['*']]] })`
-- **THEN** это ошибка компиляции: `build` принимает только выбор фич
-
 ### Requirement: `run()` и `close()` — публичная поверхность запуска
 
-`BuiltApp.run()` SHALL проводить приложение по фазам 0–5 и устанавливать
-обработчики `SIGTERM`/`SIGINT`, переводящие приложение в SHUTDOWN.
+`BuiltApp.run(options?: { config? })` SHALL проводить приложение по
+фазам 0–5 и устанавливать обработчики `SIGTERM`/`SIGINT`, переводящие
+приложение в SHUTDOWN. Опция `config` SHALL принимать список привязок,
+заменяющий `defaultSources` целиком (capability `config-sources-binding`).
 `BuiltApp.close()` SHALL выполнять фазу SHUTDOWN. Оба метода SHALL быть
 идемпотентны: повторный вызов SHALL NOT приводить ни к повторному старту,
 ни к повторному разрушению.

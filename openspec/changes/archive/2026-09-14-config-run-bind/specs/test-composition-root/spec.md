@@ -3,7 +3,7 @@
 ### Requirement: `testApp.run()` доводит приложение до RUN
 
 `TestApp` SHALL экспонировать `run(): Promise<void>`, продолжающий фазы
-после `3 WIRE`, на которых останавливается `assembleTest`, — `4 START` и
+после `3 WIRE`, на которых останавливается `buildTest`, — `4 START` и
 `5 RUN`: `@OnStart` выполняется, `serve` каждого объявленного транспорта
 вызывается, слушатели открывают сокеты. Тестовый прогон SHALL NOT
 устанавливать обработчики `SIGTERM`/`SIGINT` и SHALL NOT печатать строку
@@ -16,7 +16,7 @@
 
 #### Scenario: `run()` открывает сокет
 
-- **WHEN** `const testApp = await assembleTest(app); await testApp.run()`,
+- **WHEN** `const testApp = await buildTest(app); await testApp.run()`,
   где `app` объявляет `transports: [http()]`
 - **THEN** `@OnStart` выполнен, `serve` HTTP-транспорта вызван, и сервер
   принимает соединения на выданном порту
@@ -29,7 +29,7 @@
 
 #### Scenario: Закрытие после `run()` дренирует сокет
 
-- **WHEN** `await using testApp = await assembleTest(app)`, вызван
+- **WHEN** `await using testApp = await buildTest(app)`, вызван
   `await testApp.run()`, и блок теста завершился
 - **THEN** слушатель прошёл `drain()` до разрушения ресурсов графа, сокет
   закрыт
@@ -71,24 +71,24 @@
 
 #### Scenario: До `run()` адреса нет
 
-- **WHEN** `testApp.baseUrl()` вызван сразу после `assembleTest`, без
+- **WHEN** `testApp.baseUrl()` вызван сразу после `buildTest`, без
   `run()`
 - **THEN** вызов отказывает: сокет не открыт
 
 ## MODIFIED Requirements
 
-### Requirement: `assembleTest` — тестовый composition root
+### Requirement: `buildTest` — тестовый composition root
 
 `@nestlingjs/testing` SHALL экспортировать
-`assembleTest(app, options?): Promise<TestApp>`, принимающую декларацию
+`buildTest(app, options?): Promise<TestApp>`, принимающую декларацию
 приложения `makeApp` первым аргументом и словарь опций вторым: `args`,
 `overrides`, `stubs`, `config`, `contextValue`. Функция SHALL проводить
-приложение по фазам `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE` и
+приложение по фазам `0 BOOTSTRAP → 1 BUILD → 2 INIT → 3 WIRE` и
 остановиться; `testApp.run()` продолжает до `RUN` (требование «`testApp.run()`
 доводит приложение до RUN» выше).
 
 Опция `args` SHALL принимать аргумент сборки в тех же формах, что
-`app.assemble(args?)`: строку, массив имён фич и объект с `features`,
+`app.build(args?)`: строку, массив имён фич и объект с `features`,
 `includeDeps` и значениями переключателей (capability
 `composition-switches`). Опции `select` SHALL NOT существовать: топология
 теста описывается тем же значением, что топология процесса.
@@ -101,15 +101,15 @@
 `config` источники SHALL NOT подниматься: тест изолирован и от
 `process.env`, и от любых умолчаний.
 
-Тестовый прогон SHALL выполнять те же проверки фазы ASSEMBLE, что и боевой:
+Тестовый прогон SHALL выполнять те же проверки фазы BUILD, что и боевой:
 раскрытие веток переключателей, сверку требуемых транспортов с графом,
 проверку форм io против способностей объявленных транспортов, проверку
 ацикличности и проверку объявленных политик (capability
-`assembly-policies`). Тестовый корень SHALL NOT ослаблять инварианты.
+`build-policies`). Тестовый корень SHALL NOT ослаблять инварианты.
 
 #### Scenario: Приложение собрано, но запросов не принимает
 
-- **WHEN** `await assembleTest(app)`, где `app = makeApp({ features: [UsersFeature], transports: [http()] })`
+- **WHEN** `await buildTest(app)`, где `app = makeApp({ features: [UsersFeature], transports: [http()] })`
 - **THEN** экземпляры созданы, ресурсы захвачены, `dispatch` построен,
   `@OnStart` не выполнен, `serve` ни на одном транспорте не вызван и сокет
   не открыт
@@ -124,13 +124,13 @@
 
 - **WHEN** выбранная фича объявляет HTTP-endpoint, а `transports:`
   декларации пуст
-- **THEN** `assembleTest` отклоняется той же ошибкой, что и боевая сборка,
+- **THEN** `buildTest` отклоняется той же ошибкой, что и боевая сборка,
   и ни один конструктор не выполняется
 
 #### Scenario: Инвариант проверяется и в тесте
 
 - **WHEN** декларация несёт `policies: [everyEndpoint().hasLayer(authedBase)]`,
-  а `assembleTest(app, …)` собирает приложение с endpoint'ом без требуемого
+  а `buildTest(app, …)` собирает приложение с endpoint'ом без требуемого
   слоя
 - **THEN** вызов отклоняется тем же нарушением политики, что и боевая
   сборка
@@ -138,25 +138,25 @@
 #### Scenario: Та же декларация, что у `main.ts`
 
 - **WHEN** тест импортирует `app` из `app.ts` и вызывает
-  `assembleTest(app, { overrides: [[UsersRepository$, fake]] })`
+  `buildTest(app, { overrides: [[UsersRepository$, fake]] })`
 - **THEN** словарь сборки не копируется и не спредится; состав совпадает с
   боевым
 
 #### Scenario: Без опции `config` источников нет
 
 - **WHEN** декларация объявляет секцию с обязательным ключом без
-  умолчания, а `assembleTest(app)` вызван без опции `config`
+  умолчания, а `buildTest(app)` вызван без опции `config`
 - **THEN** сборка отказывает валидацией секции: источника для значения нет,
   `process.env` не читается
 
 #### Scenario: Выбор фич в тесте
 
-- **WHEN** `assembleTest(app, { args: 'orders' })`
-- **THEN** собрана только фича `orders`, как при `app.assemble('orders')`
+- **WHEN** `buildTest(app, { args: 'orders' })`
+- **THEN** собрана только фича `orders`, как при `app.build('orders')`
 
 #### Scenario: Ветка переключателя в тесте
 
-- **WHEN** `assembleTest(app, { args: { storage: 'local' } })`
+- **WHEN** `buildTest(app, { args: { storage: 'local' } })`
 - **THEN** в графе провайдеры ветки `local`, и ни один провайдер ветки
   `s3` не создан
 

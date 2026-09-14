@@ -5,7 +5,7 @@
 `makeApp` SHALL принимать `features`, `endpoints`, `modules`, `plugins`,
 `providers`, `switches`, `transports`, `intercom`, `policies` и `logger`.
 
-Аргумент сборки SHALL передаваться в `assemble(args?)` и `check(args?)` в
+Аргумент сборки SHALL передаваться в `build(args?)` и `check(args?)` в
 трёх формах: строка (`'all'`, `'orders,billing'`), массив имён фич и
 объект `{ features?, includeDeps?, …значения переключателей }`. Тип
 объектной формы SHALL выводиться из `switches:` (capability
@@ -63,24 +63,24 @@
 #### Scenario: Выбор — аргумент сборки
 
 - **WHEN** декларация объявляет `features: [OrdersFeature, BillingFeature]`,
-  а процесс вызывает `app.assemble('orders').run()`
+  а процесс вызывает `app.build('orders').run()`
 - **THEN** собрана только фича `orders`, а декларация не изменилась и
-  пригодна для `app.assemble('all')` в другом процессе
+  пригодна для `app.build('all')` в другом процессе
 
 #### Scenario: Значения переключателей идут тем же аргументом
 
 - **WHEN** декларация объявляет `switches: [Storage]`, а процесс вызывает
-  `app.assemble({ features: 'all', storage: 'local' })`
+  `app.build({ features: 'all', storage: 'local' })`
 - **THEN** собраны все фичи, а из ветки `Storage.pick({ … })` в граф вошли
   провайдеры `local`
 
 ### Requirement: `run()` и `close()` — публичная поверхность запуска
 
-`AssembledApp.run(options?: { config? })` SHALL проводить приложение по
+`BuiltApp.run(options?: { config? })` SHALL проводить приложение по
 фазам 0–5 и устанавливать обработчики `SIGTERM`/`SIGINT`, переводящие
 приложение в SHUTDOWN. Опция `config` SHALL принимать список привязок,
 заменяющий `defaultSources` целиком (capability `config-sources-binding`).
-`AssembledApp.close()` SHALL выполнять фазу SHUTDOWN. Оба метода SHALL быть
+`BuiltApp.close()` SHALL выполнять фазу SHUTDOWN. Оба метода SHALL быть
 идемпотентны: повторный вызов SHALL NOT приводить ни к повторному старту,
 ни к повторному разрушению.
 
@@ -91,27 +91,27 @@ SHALL писаться записью `info` с полем `signal`.
 
 #### Scenario: Повторный `run()`
 
-- **WHEN** `assembled.run()` вызван дважды
+- **WHEN** `built.run()` вызван дважды
 - **THEN** второй вызов не строит контейнер заново и не поднимает транспорты
   повторно
 
 #### Scenario: Повторный `close()`
 
-- **WHEN** `assembled.close()` вызван дважды
+- **WHEN** `built.close()` вызван дважды
 - **THEN** второй вызов завершается без ошибки, `release` ресурсов
   выполняются один раз
 
 #### Scenario: Состав сборки виден в логе
 
-- **WHEN** приложение поднято через `app.assemble('orders').run()` с
+- **WHEN** приложение поднято через `app.build('orders').run()` с
   HTTP-транспортом и подменой `RootLogger$`
 - **THEN** среди записей есть `info` с полями `features` и `transports`,
   называющая выбранные фичи и поднятые транспорты
 
 #### Scenario: Две сборки одной декларации независимы
 
-- **WHEN** из одной декларации получены `app.assemble('orders')` и
-  `app.assemble('billing')`
+- **WHEN** из одной декларации получены `app.build('orders')` и
+  `app.build('billing')`
 - **THEN** каждая собирает свой граф; `close()` одной не влияет на другую
 
 ## REMOVED Requirements
@@ -124,7 +124,7 @@ SHALL писаться записью `info` с полем `signal`.
 топологиями одной декларации.
 
 **Migration**: привязки передаются опцией `config` методов `run()`,
-`check()` и `assembleTest()` — capability `config-sources-binding`,
-требование «Привязка передаётся `run()`, `check()` и `assembleTest()`
+`check()` и `buildTest()` — capability `config-sources-binding`,
+требование «Привязка передаётся `run()`, `check()` и `buildTest()`
 списком `bind()`». Приложению, которому было достаточно поля `config` без
 указания, достаточно и умолчания `defaultSources` без опции.
