@@ -1,4 +1,4 @@
-import { observability } from './pipeline.js';
+import { traced } from './pipeline.js';
 
 import { Ok } from '@nestlingjs/operations';
 import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
@@ -22,7 +22,7 @@ export const CreateSession = httpEndpoint.post('/sessions', {
   input: z.object({ email: z.email() }),
   output: Session,
   status: 'created',
-  pipeline: observability,
+  pipeline: traced,
   detached: 'a session issues the token that the authed layer checks',
   doc: { summary: 'Open a session', tags: ['users'] },
   handler: async () => {

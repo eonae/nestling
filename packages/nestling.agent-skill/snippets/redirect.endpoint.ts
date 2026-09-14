@@ -1,4 +1,4 @@
-import { observability } from './pipeline.js';
+import { traced } from './pipeline.js';
 
 import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 import { z } from 'zod';
@@ -14,7 +14,7 @@ import { z } from 'zod';
 export const GetAvatar = httpEndpoint.get('/users/:id/avatar', {
   input: z.object({ id: z.string() }),
   redirect: 302,
-  pipeline: observability,
+  pipeline: traced,
   handler: async ({ id }) =>
     HttpResponse.redirect(`https://cdn.example.com/avatars/${id}.png`),
 });

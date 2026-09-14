@@ -34,7 +34,7 @@ does not do it instead.
 
 <!-- snippet: create-session.endpoint.ts -->
 ```typescript
-import { observability } from './pipeline.js';
+import { traced } from './pipeline.js';
 
 import { Ok } from '@nestlingjs/operations';
 import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
@@ -58,7 +58,7 @@ export const CreateSession = httpEndpoint.post('/sessions', {
   input: z.object({ email: z.email() }),
   output: Session,
   status: 'created',
-  pipeline: observability,
+  pipeline: traced,
   detached: 'a session issues the token that the authed layer checks',
   doc: { summary: 'Open a session', tags: ['users'] },
   handler: async () => {
@@ -113,7 +113,7 @@ field instead.
 
 <!-- snippet: redirect.endpoint.ts -->
 ```typescript
-import { observability } from './pipeline.js';
+import { traced } from './pipeline.js';
 
 import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 import { z } from 'zod';
@@ -129,7 +129,7 @@ import { z } from 'zod';
 export const GetAvatar = httpEndpoint.get('/users/:id/avatar', {
   input: z.object({ id: z.string() }),
   redirect: 302,
-  pipeline: observability,
+  pipeline: traced,
   handler: async ({ id }) =>
     HttpResponse.redirect(`https://cdn.example.com/avatars/${id}.png`),
 });

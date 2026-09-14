@@ -53,18 +53,16 @@ export class AuditOutcome {
 }
 
 /** A layer is a value: endpoints reference it, policies compare it by identity */
-export const observability = makePipeline()
-  .pre(withRequestId())
-  .finally(AuditOutcome);
+export const traced = makePipeline().pre(withRequestId()).finally(AuditOutcome);
 
 /** `compose` stacks layers; the failure declared here joins `errors:` */
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 
 /** Step classes are providers: without registration the layer does not build */
-export const appPipeline = makePlugin({
+export const pipeline = makePlugin({
   name: 'app-pipeline',
   providers: [Authenticate, AuditOutcome],
 });
