@@ -40,6 +40,7 @@ export const app = makeApp({
 });
 
 // main.ts — что запускает этот процесс; флаги разбирает декларация
+// Маркер владеет процессом: отказ уходит в stderr, код выхода 1
 await app.build(argv(process.argv)).run();
 ```
 

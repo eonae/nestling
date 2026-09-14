@@ -75,6 +75,7 @@ import { makeDispatch } from '../transport/index.js';
 import type { BuildArgs } from './args.js';
 import { undeclaredSwitch } from './args.js';
 import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
+import { underArgv, underArgvAsync } from './command-exit.js';
 import { resolveComposition } from './composition.js';
 import type { EndpointDiscovery } from './discovery.js';
 import { discoverEndpoints, Discovery$ } from './discovery.js';
@@ -321,6 +322,9 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * (неизвестное имя фичи, пустой выбор, значение переключателя не из
    * словаря) — ошибки фазы BUILD, их бросает `run()`.
    *
+   * Маркер `argv(…)` в аргументе меняет исход отказа: `run()` печатает
+   * сообщение в `stderr` и завершает процесс кодом `1`.
+   *
    * @param args - Аргумент сборки: объект
    * `{ features, includeDeps, …значения переключателей }` либо маркер
    * `argv(process.argv)`. Отсутствует — выбраны все фичи и умолчания
@@ -347,6 +351,10 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * зависимость, нарушенная политика, форма io вне способностей
    * транспорта и отсутствие требуемого транспорта — исходы `check()`.
    *
+   * Аргумент является маркером `argv(…)` — отказ завершает процесс:
+   * сообщение уходит в `stderr`, код выхода `1`. Объектная форма отдаёт
+   * отказ вызывающему броском.
+   *
    * @param args - Аргумент сборки в тех же формах, что у `build`
    * @returns Endpoint'ы с атрибуцией к единице и карта требуемых
    * транспортов — то же значение, что сборка кладёт под `Discovery$`
@@ -355,7 +363,7 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * фичи, значение переключателя вне словаря, ветка на необъявленном
    * переключателе, элемент `endpoints:` не является декларацией, две
    * разные единицы под одним именем, дубликат паттерна на экземпляре
-   * транспорта
+   * транспорта. Под маркером отказ не бросается: он завершает процесс
    *
    * @example
    * ```typescript
@@ -363,7 +371,9 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * ```
    */
   discover(args?: BuildArgs<S>): EndpointDiscovery {
-    return discoverEndpoints(resolveComposition(this.spec, args).bundles);
+    return underArgv(args, () =>
+      discoverEndpoints(resolveComposition(this.spec, args).bundles),
+    );
   }
 
   /**
@@ -383,12 +393,18 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * последующий `build()` той же декларации вызов не влияет, и гонять
    * его можно по матрице топологий.
    *
+   * Аргумент является маркером `argv(…)` — отказ завершает процесс:
+   * сообщение уходит в `stderr`, код выхода `1`. Объектная форма отдаёт
+   * отказ вызывающему отклонённым промисом, и матрица топологий гоняет
+   * проверку ею.
+   *
    * @param args - Аргумент сборки в тех же формах, что у `build`
    * @param options - Конвертеры схем для дескрипторов операций и конфиг
    * проверки
    * @returns Отчёт о составе: фичи, значения переключателей, endpoint'ы с
    * транспортами, транспорты и дескрипторы опубликованных операций
-   * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
+   * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах.
+   * Под маркером отказ не бросается: он завершает процесс
    *
    * @example
    * ```typescript
@@ -401,7 +417,9 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
     args?: BuildArgs<S>,
     options: CheckOptions = {},
   ): Promise<CheckReport> {
-    return await new BuiltApp(makePlan(this.spec, args))[CHECK_SEAM](options);
+    return await underArgvAsync(args, () =>
+      new BuiltApp(makePlan(this.spec, args))[CHECK_SEAM](options),
+    );
   }
 }
 
@@ -632,10 +650,24 @@ export class BuiltApp {
    * SHUTDOWN; `signals: false` их не ставит. Идемпотентен: повторный
    * вызов ничего не пересобирает.
    *
+   * Сборка получила маркер `argv(…)` — отказ любой фазы завершает
+   * процесс: сообщение уходит в `stderr`, код выхода `1`. Объектная
+   * форма аргумента отдаёт отказ вызывающему отклонённым промисом.
+   *
    * @param options - Опции подъёма: обработчики сигналов и привязки
    * источников конфига; без привязок — {@link defaultSources}
    */
   async run(options: RunOptions = {}): Promise<void> {
+    await underArgvAsync(this.#plan.args, () => this.#runPhases(options));
+  }
+
+  /**
+   * Проводит приложение по фазам 0–5: тело `run()` без правила маркера.
+   *
+   * Идемпотентность живёт здесь: повторный вызов не выполняет фаз и
+   * процесс не завершает.
+   */
+  async #runPhases(options: RunOptions): Promise<void> {
     if (this.#started) {
       return;
     }

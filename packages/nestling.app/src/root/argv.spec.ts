@@ -10,6 +10,7 @@ import { objectSource } from '../config/__fixtures__/object-source.js';
 import type { ConfigSource } from '../config/index.js';
 import { bind, makeConfig } from '../config/index.js';
 import { Ok } from '../pipeline/index.js';
+import type { Port } from '../ports/index.js';
 import { transportValue } from '../transport/index.js';
 
 import {
@@ -22,7 +23,13 @@ import { argv, isArgv } from './argv.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { makeSwitch, makeToken, valueProvider } from '@nestlingjs/container';
+import {
+  Component,
+  makeSwitch,
+  makeToken,
+  valueProvider,
+} from '@nestlingjs/container';
+import { makeRequest } from '@nestlingjs/operations';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
@@ -72,6 +79,74 @@ const line = (...flags: string[]) => [
   ...flags,
 ];
 
+/** Операция без реализации в сборке: вызыватель есть, владельца нет */
+const LonelyOperation = makeRequest({
+  name: 'app.lonely.request',
+  output: z.object({ ok: z.boolean() }),
+});
+
+const LonelyToken = makeToken<{ port: Port<typeof LonelyOperation> }>('Lonely');
+
+/** Приложение, отказывающее на WIRE: вызов операции доставлять нечем */
+const unreachable = makeApp({
+  features: [
+    makeFeature({
+      name: 'lonely',
+      providers: [
+        {
+          provide: LonelyToken,
+          useFactory: (port: Port<typeof LonelyOperation>) => ({ port }),
+          deps: [LonelyOperation.caller],
+        },
+      ],
+    }),
+  ],
+  transports: [asTransport()],
+});
+
+@Component([])
+class Refused {
+  constructor() {
+    throw new Error('Connection refused by the database.');
+  }
+}
+
+/** Приложение, отказывающее на INIT: конструктор провайдера бросает */
+const refusing = makeApp({
+  features: [makeFeature({ name: 'refused', providers: [Refused] })],
+  transports: [asTransport()],
+});
+
+/**
+ * Гоняет вход под маркером и возвращает напечатанное с кодом выхода.
+ *
+ * `process.exit` подменён броском: продолжать после выхода в тесте
+ * нечему, а в бою следующей строки уже не будет.
+ */
+const asCommand = async (run: () => unknown) => {
+  const printed: string[] = [];
+  const write = vi
+    .spyOn(process.stderr, 'write')
+    .mockImplementation((chunk: unknown) => {
+      printed.push(String(chunk));
+
+      return true;
+    });
+
+  const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    throw new Error('exited');
+  }) as never);
+
+  try {
+    await expect(async () => await run()).rejects.toThrow('exited');
+
+    return { printed: printed.join(''), code: exit.mock.calls[0]?.[0] };
+  } finally {
+    write.mockRestore();
+    exit.mockRestore();
+  }
+};
+
 /** Паттерны состава — по ним сверяются формы аргумента */
 const patterns = (...args: Parameters<typeof app.discover>) =>
   app
@@ -94,7 +169,10 @@ describe('маркер командной строки', () => {
     expect(Object.isFrozen(marker.strings)).toBe(true);
   });
 
-  it('срезанный список отвергается с правильной формой в сообщении', () => {
+  it('срезанный список остаётся броском `TypeError`', () => {
+    // Маркера ещё нет: владеть процессом нечему, и ошибка называет дефект
+    // кода точки входа, а не ввод пользователя
+    expect(() => argv(['--features', 'users'])).toThrow(TypeError);
     expect(() => argv(['--features', 'users'])).toThrow(
       /argv\(process\.argv\)/,
     );
@@ -143,20 +221,43 @@ describe('состав по маркеру', () => {
   });
 });
 
-describe('отказ разбора — до фазы 0', () => {
-  it('неизвестный флаг роняет `discover`', () => {
-    expect(() => app.discover(argv(line('--featurs', 'users')))).toThrow(
-      /Unknown flag '--featurs'/,
+describe('отказ под маркером — отказ команды', () => {
+  it('отказ разбора у `run()` печатает сообщение и завершает процесс кодом 1', async () => {
+    const failure = await asCommand(() =>
+      app.build(argv(line('--mail', 'carrier-pigeon'))).run(),
     );
+
+    expect(failure.code).toBe(1);
+    expect(failure.printed).toBe(
+      `Error: Switch 'mail' has no value 'carrier-pigeon'. ` +
+        `Allowed values: 'log', 'smtp'.\n`,
+    );
+
+    // Кадры стека адресованы автору фреймворка, а текст читает автор
+    // приложения
+    expect(failure.printed).not.toMatch(/\n\s+at /);
   });
 
-  it('неизвестное имя фичи ловит разрешение выбора', () => {
-    expect(() => app.discover(argv(line('--features', 'userz')))).toThrow(
-      /Unknown feature 'userz'/,
+  it('неизвестный флаг завершает `discover` тем же исходом', async () => {
+    const failure = await asCommand(() =>
+      app.discover(argv(line('--featurs', 'users'))),
     );
+
+    expect(failure.code).toBe(1);
+    expect(failure.printed).toContain("Unknown flag '--featurs'");
+    expect(failure.printed).not.toMatch(/\n\s+at /);
   });
 
-  it('источники конфига при отказе не поднимаются', async () => {
+  it('неизвестное имя фичи завершает `check` тем же исходом', async () => {
+    const failure = await asCommand(() =>
+      app.check(argv(line('--features', 'userz'))),
+    );
+
+    expect(failure.code).toBe(1);
+    expect(failure.printed).toContain("Unknown feature 'userz'");
+  });
+
+  it('источники конфига при отказе разбора не поднимаются', async () => {
     makeConfig('argvprobe', { value: z.string().default('unset') });
 
     let inited = false;
@@ -167,13 +268,63 @@ describe('отказ разбора — до фазы 0', () => {
       },
     };
 
-    await expect(
+    const failure = await asCommand(() =>
       app.check(argv(line('--mail', 'carrier-pigeon')), {
         config: [bind(probe)],
       }),
-    ).rejects.toThrow(/Switch 'mail' has no value 'carrier-pigeon'/);
+    );
 
+    expect(failure.printed).toContain("Switch 'mail' has no value");
     expect(inited).toBe(false);
+  });
+
+  it('отказ фазы WIRE завершает процесс: вызов операции доставлять нечем', async () => {
+    const failure = await asCommand(() =>
+      unreachable.build(argv(line())).run({ config: [] }),
+    );
+
+    expect(failure.code).toBe(1);
+    expect(failure.printed).toContain(
+      "Operation 'app.lonely.request' (kind 'request') is injected",
+    );
+  });
+
+  it('отказ фазы INIT завершает процесс: конструктор провайдера бросает', async () => {
+    const failure = await asCommand(() =>
+      refusing.build(argv(line())).run({ config: [] }),
+    );
+
+    expect(failure.code).toBe(1);
+    expect(failure.printed).toContain('Connection refused by the database.');
+  });
+});
+
+describe('объектная форма аргумента', () => {
+  it('отдаёт отказ вызывающему: процесс жив, в stderr ничего нет', async () => {
+    const printed: string[] = [];
+    const write = vi
+      .spyOn(process.stderr, 'write')
+      .mockImplementation((chunk: unknown) => {
+        printed.push(String(chunk));
+
+        return true;
+      });
+
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exited');
+    }) as never);
+
+    try {
+      await expect(
+        app.build({ mail: 'carrier-pigeon' } as never).run(),
+      ).rejects.toThrow(/Switch 'mail' has no value "carrier-pigeon"/);
+
+      expect(exit).not.toHaveBeenCalled();
+      expect(printed).toEqual([]);
+    } finally {
+      write.mockRestore();
+      exit.mockRestore();
+    }
   });
 });
 
