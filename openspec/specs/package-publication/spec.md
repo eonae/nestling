@@ -21,7 +21,7 @@
 - **WHEN** для публикуемого пакета выполняется упаковка
 - **THEN** тарбол содержит `dist`, `README.md`, `LICENSE` и `package.json`
   и не содержит ни `src`, ни `tsconfig*.json`, ни `eslint.config.js`, ни
-  `jest.config.js`
+  `vitest.config.js`
 
 ### Requirement: Манифест публикуемого пакета отвечает на вопросы страницы реестра
 
