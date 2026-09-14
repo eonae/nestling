@@ -225,12 +225,17 @@ I/O. The reader takes a section named by `needs` from sources already
 brought up. A dependent source does not serve its own `needs` keys,
 and after it comes up the section is not reprojected. A section not
 covered by the sources brought up is a phase 0 failure listing the
-missing keys.
+missing keys; a binding with `optional` skips the source instead of
+failing. A `needs` section declared with `makeConfig.reloadable`, or not
+declared at all, fails unconditionally: coordinates are never
+reprojected, and a section that does not exist means an unimported
+module.
 
 The behavior of the source itself is set by its options, not by the
-binding: `vault({ retries: 3, watch: false })`. A failure of `init()`
-stops the start with an error naming the source, unless the binding is
-`optional`. Exactly the I/O listed in `config` happens on phase 0. The
+binding: `vault(VaultConfig, { retries: 3 })`. A source with network
+access does not watch: the value is read once on phase 0 and lives in
+the snapshot. A failure of `init()` stops the start with an error naming
+the source, unless the binding is `optional`. Exactly the I/O listed in `config` happens on phase 0. The
 reader lives for the duration of `run()`: `close()` of the sources is
 called as an explicit step of SHUTDOWN, after the container is
 destroyed, and a structural check closes them right after the report.
@@ -254,7 +259,9 @@ there is no field for it in `makeApp`.
 A glob that matched no declared key gives a warning at start, not an
 error: the warning catches a typo like `'*_UR'`, while a glob can also
 be aimed at the unbound keys of families. The warnings go to the
-kernel logger `Logger$('nestling:config')` at the `warn` level. The
+kernel logger `Logger$('nestling:config')` at the `warn` level, and the
+order in which sources are raised goes there at the `debug` level: it
+follows from `needs` and is no longer read off the list by eye. The
 reader is created before the logger and cannot depend on it: the
 implementation of the logger reads the configuration section. So
 warnings accumulate before `build()`; right after it, the build

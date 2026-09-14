@@ -50,6 +50,23 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # Vault для прогона сетевого источника конфигурации. Режим dev:
+      # хранилище в памяти, корневой токен задан переменной. Без адреса
+      # каталог `e2e` пакета пропускается, поэтому здесь адрес задан —
+      # расхождение с настоящим API ловится прогоном, а не пользователем
+      vault:
+        image: hashicorp/vault:1.18
+        env:
+          VAULT_DEV_ROOT_TOKEN_ID: nestling-root
+        ports:
+          - 8200:8200
+        options: >-
+          --cap-add IPC_LOCK
+          --health-cmd "wget --spider -q http://127.0.0.1:8200/v1/sys/health"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       # Тесты гейтятся своей переменной: боевой ключ `DATABASE_URL` в
       # окружении прогона ломал бы спеки, которые проверяют поведение
@@ -57,6 +74,10 @@ jobs:
       # есть у обоих примеров, а миграции у них разные
       TEST_DATABASE_URL: postgresql://nestling:nestling@localhost:5432/nestling
       MODULAR_TEST_DATABASE_URL: postgresql://nestling:nestling@localhost:5432/modular
+      # Тот же приём у Vault: спеки конфига проверяют и поведение при
+      # незаданном `VAULT_ADDR`, поэтому боевых имён в окружении прогона нет
+      TEST_VAULT_ADDR: http://127.0.0.1:8200
+      TEST_VAULT_TOKEN: nestling-root
 
     steps:
       # Полная история: плашка главы называет коммит, с которым текст

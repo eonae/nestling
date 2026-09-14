@@ -11,6 +11,7 @@ import {
   secretFieldsOf,
   toFieldFailure,
 } from './redact.js';
+import { presentValue } from './source.js';
 
 import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
 import { Topic } from '@nestlingjs/operations';
@@ -65,21 +66,6 @@ export const applyDerived = (
     }
   }
 };
-
-/**
- * Пустое значение ключа — то же, что незаданный ключ.
- *
- * `KEY=` в окружении или в файле означает «ключ не задан», и решает дальше
- * схема поля: `default` даёт умолчание, обязательное поле даёт отказ. Ядро
- * сводит пустую строку к `undefined` **до** схемы, поэтому схемам полей
- * знать об этом правиле не нужно — ни своим, ни пользовательским.
- *
- * Правило живёт здесь одно на оба пути чтения: проекцию секции из графа и
- * первичное чтение фазы 0 (`load`). Порядок поиска значения оно не трогает
- * — значение уже взято у первой привязки, которая ключ покрывает.
- */
-export const presentValue = (raw: unknown): unknown =>
-  raw === '' ? undefined : raw;
 
 /**
  * Читает и валидирует все поля секции.

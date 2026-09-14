@@ -1,6 +1,6 @@
 # Configuration from a file and without a restart
 
-> Guide to the current API; verified against `f4a5c7e5`.
+> Guide to the current API; verified against `50b68295`.
 > Target description: [design/config.md](../design/config.md), sections 2–8.
 > Rationale: the entries [ideas.md](../../decisions/ideas.md)
 > `Конфиг: keys-capability вместо configs:-владения` [2026-07-10],
@@ -51,10 +51,12 @@ await app.close();
 
 The `config` option of `run()` accepts a list of `bind(source, options?)`
 bindings. A source is an object with the `ConfigSource` interface: the
-required `get(key)` method and the optional `name`, `init()`,
-`watch(notify)` and `close()`. `options.keys` is a section's `.keys` or a
-glob of the form `'*_URL'`, `'*'` by default. In the example, `defaults`
-and `runtime` serve as the sources — plain objects over a record. A file
+required `get(key)` method and the optional `name`, `needs`,
+`init(values)`, `watch(notify)` and `close()`. `options.keys` is a
+section's `.keys` or a glob of the form `'*_URL'`, `'*'` by default. In
+the example, `defaults` and `runtime` serve as the sources — plain objects
+over a record; they have nowhere to take coordinates from, so they declare
+no `needs`, and their `init` is written without a parameter. A file
 or Vault source implements the same interface in a separate package; the
 kernel ships no ready-made sources with network access.
 
@@ -130,6 +132,75 @@ branches, and the value map is empty. `registerHealth` connects the
 probes: the `Health$` node is built even without `makeApp`, and
 the calling code names its phase for it (the recipe [Who is connected
 right now and how to disconnect them](./ops.md)).
+
+## A source that takes its coordinates from another source
+
+```typescript
+// src/main.ts
+import { bind, defaultSources } from '@nestlingjs/app';
+import { vault, VaultConfig } from '@nestlingjs/config.vault';
+
+await app.build(argv(process.argv)).run({
+  config: [
+    bind(vault(VaultConfig, { retries: 2 }), { timeout: 3000 }),
+    ...defaultSources,
+  ],
+});
+```
+
+Locally the keys live in `.env`, on a stand they live in Vault, and the
+root does not have to be rewritten per environment: `defaultSources`
+stays in the list and Vault goes in front of it. The address and the
+token of Vault itself come from `.env` or from the environment — they
+are named by the `VaultConfig` section, which the source declared as its
+`needs`.
+
+The two orders here are different, and they should not be confused:
+
+- **the order of the list is the priority of key resolution.** Vault
+  stands higher, so a key known both to it and to `.env` resolves to the
+  value from Vault;
+- **the order of raising follows from `needs`.** Vault is raised
+  **after** `env()` and `dotenv('.env')`, because they cover the keys of
+  its section of coordinates. The order of raising goes to the kernel
+  logger at the `debug` level.
+
+The section of coordinates is projected from the sources raised earlier,
+and its values are fixed in the snapshot. That is why Vault itself is
+never asked about `VAULT_ADDR`, even when it is bound without `keys`:
+otherwise the coordinates of Vault would be looked up in Vault. For the
+same reason a source raised later does not change the coordinates.
+
+The failures of phase 0 name the source:
+
+- no raised source holds the coordinates — a failure listing the missing
+  keys; `bind(vault(VaultConfig), { optional: true })` skips the source
+  instead of failing;
+- the bindings point at each other through `needs` — a failure before
+  the first request, with the chain of source names; `optional` does not
+  swallow it;
+- the `needs` section is declared with `makeConfig.reloadable`, or is
+  not declared at all — an unconditional failure: coordinates are never
+  reprojected, and a section that does not exist means an unimported
+  module.
+
+An application with two storages cannot use the `VaultConfig` section —
+its keys are one set for both. Such an application declares its own
+section of the same shape and passes it as the same argument:
+
+```typescript
+const BillingVault = makeConfig('billingVault', {
+  addr: z.url(),
+  token: secret(z.string()),
+  mount: z.string().default('secret'),
+  path: z.string(),
+});
+
+bind(vault(BillingVault)); // BILLING_VAULT_ADDR, BILLING_VAULT_TOKEN, …
+```
+
+The source does not watch: the secret is read once on phase 0 and lives
+in the snapshot, so a rotated secret reaches the process on a restart.
 
 ## One `.env` file for several services
 
@@ -319,7 +390,7 @@ differences from the start:
 
 - an invalid value at the start stops the application. An invalid
   update is dropped, the last valid snapshot remains, and the reader
-  writes a warning with the `[nestling/config]` prefix;
+  writes a warning to the `nestling:config` kernel logger;
 - a reloadable section whose keys are covered only by sources without
   `watch()` starts up and warns at start: there will be no updates.
 

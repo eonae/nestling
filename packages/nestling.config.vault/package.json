@@ -1,0 +1,57 @@
+{
+  "name": "@nestlingjs/config.vault",
+  "version": "0.3.0",
+  "description": "Источник конфигурации поверх HashiCorp Vault: секрет KV v2 читается на фазе 0 по координатам из другой секции",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "config",
+    "vault",
+    "secrets"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.config.vault"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.config.vault#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "vault:up": "docker compose up -d --wait",
+    "vault:down": "docker compose down -v",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "node ../../scripts/build-package.mjs",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "run -T vitest run"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3"
+  }
+}
