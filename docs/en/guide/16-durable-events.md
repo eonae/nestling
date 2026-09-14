@@ -1,6 +1,6 @@
 # 16. Do not lose an event when the process falls
 
-> Guide to the current API; verified against `0f401ce1`.
+> Guide to the current API; verified against `5e9f05b0`.
 > Target description: [design/persistence.md](../design/persistence.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-07] Транзакционный outbox: точка врезки, предпосылка транзакции и результат замера границы`
