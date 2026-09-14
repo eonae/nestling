@@ -1,6 +1,6 @@
 # 11. Write to the database in the request transaction
 
-> Guide to the current API; verified against `f4a5c7e5`.
+> Guide to the current API; verified against `7e698779`.
 > Target description: [design/persistence.md](../design/persistence.md). Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-09-11] Соединение с базой: сателлит drizzle.pg`.
