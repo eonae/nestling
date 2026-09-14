@@ -211,6 +211,7 @@ export class CliTransport implements ITransport {
       return;
     }
 
+    // eslint-disable-next-line @nestlingjs/no-process-globals -- транспорт и есть шов с процессом: командную строку читает он
     const argv = this.options.argv ?? process.argv.slice(2);
     if (argv.length > 0) {
       await this.#runOnce(parseArgv(argv));
@@ -366,6 +367,7 @@ export class CliTransport implements ITransport {
       return this.options.interactive;
     }
 
+    // eslint-disable-next-line @nestlingjs/no-process-globals -- транспорт и есть шов с процессом: режим прогона определяет он
     const ci = process.env.CI;
 
     return this.#input.isTTY === true && (ci === undefined || ci === '');

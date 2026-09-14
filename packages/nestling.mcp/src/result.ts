@@ -34,12 +34,13 @@ export function successResult(
   value: unknown,
   structured: boolean,
 ): McpCallToolResult {
-  const body = JSON.stringify(value ?? null);
+  const content = text(JSON.stringify(value ?? null));
 
-  return {
-    content: text(body),
-    ...(structured && isRecord(value) ? { structuredContent: value } : {}),
-  };
+  // Условие составное, и примесью его не записать: вызов предиката
+  // синтаксически небулев, а `conditional-spread` читает форму, не тип
+  return structured && isRecord(value)
+    ? { content, structuredContent: value }
+    : { content };
 }
 
 /**

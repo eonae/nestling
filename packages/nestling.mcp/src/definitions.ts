@@ -241,11 +241,9 @@ export function buildToolDefinitions(
         name: route.pattern,
         inputSchema:
           input.outcome === 'object' ? input.schema : emptyObjectSchema(),
-        ...(description === undefined ? {} : { description }),
-        ...(output.outcome === 'object' ? { outputSchema: output.schema } : {}),
-        ...(annotations === undefined
-          ? {}
-          : { annotations: { ...annotations } }),
+        ...(description !== undefined && { description }),
+        ...(output.outcome === 'object' && { outputSchema: output.schema }),
+        ...(annotations !== undefined && { annotations: { ...annotations } }),
       },
     });
   }

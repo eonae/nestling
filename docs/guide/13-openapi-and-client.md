@@ -81,16 +81,19 @@ import { writeFileSync } from 'node:fs';
 
 import { app, openapi } from './app.js';
 
-/** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
-const args = process.argv[2];
+import { argv } from '@nestlingjs/app';
 
-const document = openapi.document(app.discover(args));
+// Аргумент сборки — командная строка скрипта: флаги те же, что у `main.ts`
+const document = openapi.document(app.discover(argv(process.argv)));
 
 // `file` — `openapi.json` в корне пакета примера
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
 ```
 
-`app.discover(args)` выполняет фазу 0 и останавливается: разбирает
+Маркер `argv(process.argv)` несёт список целиком, как в точке входа:
+единственная форма, которой командная строка доходит до приложения.
+
+`app.discover(…)` выполняет фазу 0 и останавливается: разбирает
 аргумент сборки, раскрывает ветки переключателей, разрешает выбор фич и
 проходит discovery. Дальше он не идёт — источники конфига не
 поднимаются, граф не строится, транспорты не создаются. Поэтому вызов
@@ -159,15 +162,19 @@ endpoint реализует операцию, иначе из метода и п
 Служебный endpoint убирается из документа полем `hidden` с причиной:
 
 ```typescript
-// src/ops.plugin.ts
+// src/ops/build-info.endpoint.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
   doc: { hidden: 'служебный endpoint, не часть публичного API' },
-  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
+  handler: BuildInfoHandler,
 });
 ```
+
+Версию сборки хендлер берёт из секции `AppConfig`, а не из окружения
+напрямую: правило `no-process-globals` запрещает читать глобали процесса
+в исходниках, и значение доходит до приложения источником `env()`.
 
 Формы `hidden: true` нет: причина обязательна, как у `detached`, и
 скрыть endpoint из документа можно только с ней. Список скрытых
@@ -264,6 +271,8 @@ export const GetUser = httpEndpoint.implement(GetUserOperation, {
 
 ```typescript
 // src/api/client.ts
+/* eslint-disable @nestlingjs/no-process-globals -- клиент сервиса вне контейнера: адрес и токен приходят окружением напрямую */
+
 import { makeClient } from '@nestlingjs/client';
 
 /** Имена методов задаёт потребитель: ключи объекта */
@@ -300,6 +309,10 @@ async function main(): Promise<void> {
 
 await main();
 ```
+
+Клиент живёт вне контейнера, поэтому секций конфига у него нет, и
+окружение он читает напрямую. Правило `no-process-globals` такое чтение
+запрещает, а директива с причиной называет, почему здесь оно законно.
 
 `makeClient(record, config)` возвращает объект с методом на каждую
 операцию. Имена методов задают ключи записи. Клиент раскладывает payload

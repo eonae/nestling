@@ -129,7 +129,7 @@ export function makeHttpProbes(options: HttpProbesOptions = {}): Plugin {
     name: '@nestlingjs/transport.http/probes',
     endpoints: [
       httpEndpoint.get(liveness, {
-        ...(on === undefined ? {} : { on }),
+        ...(on !== undefined && { on }),
         // Тело пробы — отчёт: выход объявлен схемой, которая пропускает
         // его как есть
         output: livenessSchema,
@@ -138,7 +138,7 @@ export function makeHttpProbes(options: HttpProbesOptions = {}): Plugin {
         handler: LivenessHandler,
       }),
       httpEndpoint.get(readiness, {
-        ...(on === undefined ? {} : { on }),
+        ...(on !== undefined && { on }),
         output: reportSchema,
         errors: [NotReady],
         detached: REASON,

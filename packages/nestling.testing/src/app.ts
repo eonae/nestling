@@ -648,7 +648,7 @@ export async function buildTest<
   );
 
   const wired = await wireApp(app, {
-    ...(options.args === undefined ? {} : { args: options.args }),
+    ...(options.args !== undefined && { args: options.args }),
     // Стаб — поставка недостающего, а не подмена: обычный провайдер
     providers: (options.stubs ?? []).map(([token, value]) =>
       valueProvider(token, value),

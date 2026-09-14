@@ -91,7 +91,7 @@ export class OpenSpan implements OtelSpan {
     this.#events.push({
       name,
       time: now(),
-      ...(attributes === undefined ? {} : { attributes }),
+      ...(attributes !== undefined && { attributes }),
     });
   }
 
@@ -117,15 +117,13 @@ export class OpenSpan implements OtelSpan {
       name: this.#endpoint.pattern,
       kind: SpanKind.SERVER,
       spanContext: () => spanContext,
-      ...(this.#trace.parentSpanId === undefined
-        ? {}
-        : {
-            parentSpanContext: {
-              traceId: this.#trace.traceId,
-              spanId: this.#trace.parentSpanId,
-              traceFlags: flags,
-            },
-          }),
+      ...(this.#trace.parentSpanId !== undefined && {
+        parentSpanContext: {
+          traceId: this.#trace.traceId,
+          spanId: this.#trace.parentSpanId,
+          traceFlags: flags,
+        },
+      }),
       startTime: this.#start,
       endTime: end,
       duration: since(this.#start, end),

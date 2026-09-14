@@ -21,6 +21,7 @@ import { serverKeys } from '@nestlingjs/transport.http';
 import { describe } from 'vitest';
 
 /** Адрес базы; без него набор пропускается */
+// eslint-disable-next-line @nestlingjs/no-process-globals -- оснастка теста: конфиг прогона задаётся объектом, а адрес базы решает, идёт ли набор
 export const TEST_DATABASE_URL = process.env.MODULAR_TEST_DATABASE_URL;
 
 /** `describe`, который молчит без базы */

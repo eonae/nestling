@@ -380,7 +380,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
         budget.signal,
         {
           deadline: meta?.deadline,
-          ...(context === undefined ? {} : { context }),
+          ...(context !== undefined && { context }),
         },
       );
 
@@ -471,7 +471,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
           bus.request(operation.name, input.value, {
             signal: budget.signal,
             timeoutMs,
-            ...(context === undefined ? {} : { context }),
+            ...(context !== undefined && { context }),
           }),
           budget.signal,
         );
@@ -538,7 +538,7 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
       const profile: CallProfile = {
         deadline: meta?.deadline,
         idempotencyKey: idempotencyKeyOf(operation, meta),
-        ...(context === undefined ? {} : { context }),
+        ...(context !== undefined && { context }),
       };
 
       for (const pattern of patterns) {
@@ -592,12 +592,10 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
       await bus.publish(operation.name, input, {
         timeoutMs: remainingMs(meta?.deadline),
         idempotencyKey: idempotencyKeyOf(operation, meta),
-        ...(context === undefined ? {} : { context }),
+        ...(context !== undefined && { context }),
         // Долговечность берётся из операции: обе стороны знают о ней из
         // одного значения, и вызыватель лишь кладёт признак в конверт
-        ...(operation.durable === undefined
-          ? {}
-          : { durable: operation.durable }),
+        ...(operation.durable !== undefined && { durable: operation.durable }),
       });
     },
   };

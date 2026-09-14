@@ -260,15 +260,19 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 каждый опрос. Endpoint выводится из-под политик полем `detached`:
 
 ```typescript
-// src/ops.plugin.ts
+// src/ops/build-info.endpoint.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
   doc: { hidden: 'служебный endpoint, не часть публичного API' },
-  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
+  handler: BuildInfoHandler,
 });
 ```
+
+Версию сборки хендлер берёт из секции `AppConfig`, а не из окружения
+напрямую: правило `no-process-globals` запрещает читать глобали процесса
+в исходниках, и значение доходит до приложения источником `env()`.
 
 `detached` принимает только непустую строку с причиной; формы `detached:
 true` нет. Причина видна в диффе, печатается при старте и попадает в

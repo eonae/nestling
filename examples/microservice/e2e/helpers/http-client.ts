@@ -17,8 +17,10 @@ export class HttpClient {
     return fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-        ...(options.auth ? { authorization: `Bearer ${E2E_TOKEN}` } : {}),
+        ...(body !== undefined && { 'content-type': 'application/json' }),
+        ...(options.auth === true && {
+          authorization: `Bearer ${E2E_TOKEN}`,
+        }),
         ...options.headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -35,7 +37,7 @@ export class HttpClient {
     return fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
-        ...(auth ? { authorization: `Bearer ${E2E_TOKEN}` } : {}),
+        ...(auth === true && { authorization: `Bearer ${E2E_TOKEN}` }),
         ...headers,
       },
       body,

@@ -329,7 +329,7 @@ function planBody(
   return body(mediaType, {
     ...remaining.rest,
     properties: remaining.properties,
-    ...(remaining.required.length > 0 ? { required: remaining.required } : {}),
+    ...(remaining.required.length > 0 && { required: remaining.required }),
   });
 }
 
@@ -371,7 +371,7 @@ function multipartSchema(
   return {
     type: 'object',
     properties,
-    ...(required.length > 0 ? { required } : {}),
+    ...(required.length > 0 && { required }),
   };
 }
 

@@ -91,8 +91,8 @@ function seriesOf(
   const described = {
     name: metric.name,
     attributes,
-    ...(metric.help === undefined ? {} : { help: metric.help }),
-    ...(metric.unit === undefined ? {} : { unit: metric.unit }),
+    ...(metric.help !== undefined && { help: metric.help }),
+    ...(metric.unit !== undefined && { unit: metric.unit }),
   };
 
   if (metric.kind === 'counter') {
@@ -242,9 +242,9 @@ export class MetricsStore {
       series = {
         attributes: { ...attributes },
         value: 0,
-        ...(metric.kind === 'histogram'
-          ? { cell: emptyCell((metric.buckets ?? []).length) }
-          : {}),
+        ...(metric.kind === 'histogram' && {
+          cell: emptyCell((metric.buckets ?? []).length),
+        }),
       };
       rows.set(key, series);
     }

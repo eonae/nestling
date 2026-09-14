@@ -18,6 +18,7 @@ import { CliTransport } from '@nestlingjs/transport.cli';
  * Контейнер здесь не нужен: команды зависят только от клиента сервиса, а
  * он — обычное значение.
  */
+// eslint-disable-next-line @nestlingjs/no-process-globals -- CLI без `build()`: аргументы уходят транспорту, а не аргументу сборки
 const commandLine = process.argv.slice(2);
 
 /**

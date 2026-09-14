@@ -177,6 +177,7 @@ export interface EnvSourceOptions {
  */
 export const env = (options: EnvSourceOptions = {}): ConfigSource => {
   const prefix = options.prefix ?? '';
+  // eslint-disable-next-line @nestlingjs/no-process-globals -- источник и есть шов с окружением
   const values = process.env;
 
   return {

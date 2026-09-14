@@ -256,7 +256,10 @@ export class NatsBus implements IMessageBus, ITransport {
     void this.#connection
       .closed()
       .then((error) =>
-        this.#report({ state: 'closed', ...(error ? { error } : {}) }),
+        this.#report({
+          state: 'closed',
+          ...(error !== undefined && { error }),
+        }),
       )
       .catch((error: unknown) => this.#report({ state: 'closed', error }));
   }
@@ -465,7 +468,7 @@ export class NatsBus implements IMessageBus, ITransport {
     const connection = this.#requireConnection();
 
     const subscription = connection.subscribe(address, {
-      ...(group === undefined ? {} : { queue: group }),
+      ...(group !== undefined && { queue: group }),
       callback: (error, msg) => {
         if (error) {
           this.#reportDelivery({ subject: address, error });
@@ -635,9 +638,7 @@ export class NatsBus implements IMessageBus, ITransport {
       subjects: [address],
       // Ноль выключает дедупликацию: поле не задаётся вовсе, и поток
       // берёт умолчание сервера
-      ...(windowMs > 0
-        ? { duplicate_window: windowMs * NANOSECONDS_PER_MS }
-        : {}),
+      ...(windowMs > 0 && { duplicate_window: windowMs * NANOSECONDS_PER_MS }),
     });
 
     return name;
@@ -736,13 +737,13 @@ export class NatsBus implements IMessageBus, ITransport {
     return {
       subject,
       signal: this.#closing.signal,
-      ...(envelope.timeoutMs === undefined
-        ? {}
-        : { deadline: deadlineFromTimeout(envelope.timeoutMs) }),
-      ...(envelope.idempotencyKey === undefined
-        ? {}
-        : { idempotencyKey: envelope.idempotencyKey }),
-      ...(envelope.context === undefined ? {} : { context: envelope.context }),
+      ...(envelope.timeoutMs !== undefined && {
+        deadline: deadlineFromTimeout(envelope.timeoutMs),
+      }),
+      ...(envelope.idempotencyKey !== undefined && {
+        idempotencyKey: envelope.idempotencyKey,
+      }),
+      ...(envelope.context !== undefined && { context: envelope.context }),
     };
   }
 
@@ -811,18 +812,16 @@ export class NatsBus implements IMessageBus, ITransport {
     options: RequestOptions | PublishOptions,
   ): ReturnType<NatsLike['headers']> {
     return encodeEnvelope(connection.headers(), address, {
-      ...(options.timeoutMs === undefined
-        ? {}
-        : { timeoutMs: options.timeoutMs }),
-      ...('idempotencyKey' in options && options.idempotencyKey !== undefined
-        ? { idempotencyKey: options.idempotencyKey }
-        : {}),
-      ...(options.context === undefined ? {} : { context: options.context }),
+      ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
+      ...('idempotencyKey' in options &&
+        options.idempotencyKey !== undefined && {
+          idempotencyKey: options.idempotencyKey,
+        }),
+      ...(options.context !== undefined && { context: options.context }),
       // Публикация через поток несёт вдобавок заголовок брокера: конверт
       // долговечной публикации отличается от core-публикации только им
-      ...('durable' in options && options.durable === true
-        ? { durable: true }
-        : {}),
+      ...('durable' in options &&
+        options.durable === true && { durable: true }),
     });
   }
 
@@ -850,7 +849,7 @@ export class NatsBus implements IMessageBus, ITransport {
   #reportDelivery(info: NatsDeliveryFailure): void {
     this.#logger.error('nats delivery failed', {
       subject: info.subject,
-      ...(info.terminated === undefined ? {} : { terminated: info.terminated }),
+      ...(info.terminated !== undefined && { terminated: info.terminated }),
       err: info.error,
     });
   }

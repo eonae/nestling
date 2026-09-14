@@ -671,13 +671,13 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
 
   return {
     features: [...(spec.features ?? [])],
-    ...(root ? { root } : {}),
+    ...(root !== undefined && { root }),
     plugins: [...(spec.plugins ?? [])],
     switches: normalizeSwitches(spec.switches),
     transports,
-    ...(intercom ? { intercom } : {}),
+    ...(intercom !== undefined && { intercom }),
     policies: [...(spec.policies ?? [])],
-    ...(spec.logging ? { logging: spec.logging } : {}),
+    ...(spec.logging !== undefined && { logging: spec.logging }),
     metrics: [...(spec.metrics ?? [])],
   };
 }
@@ -697,13 +697,13 @@ export function makePlan(
 ): BuildPlan {
   return {
     spec,
-    ...(args === undefined ? {} : { args }),
+    ...(args !== undefined && { args }),
     overrides: [...(substitutions.overrides ?? [])],
     familyOverrides: [...(substitutions.familyOverrides ?? [])],
     extraProviders: [...(substitutions.providers ?? [])],
-    ...(substitutions.config === undefined
-      ? {}
-      : { config: [...substitutions.config] }),
+    ...(substitutions.config !== undefined && {
+      config: [...substitutions.config],
+    }),
   };
 }
 

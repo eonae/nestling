@@ -10,6 +10,8 @@
  * удаление — тот же вызов с `--forget`.
  */
 
+/* eslint-disable @nestlingjs/no-process-globals -- внешний отправитель вне контейнера: ни сборки, ни секций конфига здесь нет */
+
 import { ForgetUser, RegisterUser } from './operations.js';
 
 import { makeConsoleLogger } from '@nestlingjs/app';

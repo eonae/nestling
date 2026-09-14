@@ -238,7 +238,7 @@ export async function openConnection<S extends PgSchema>(
     max: config.poolMax,
     connectionTimeoutMillis: config.connectTimeoutMs,
     idleTimeoutMillis: config.idleTimeoutMs,
-    ...(config.ssl ? { ssl: true } : {}),
+    ...(config.ssl === true && { ssl: true }),
   });
 
   try {

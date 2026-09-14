@@ -38,7 +38,7 @@ function capturing(sink: Captured[]): typeof globalThis.fetch {
   return ((input: string | URL | Request, init: RequestInit = {}) => {
     sink.push({
       url: String(input),
-      ...(typeof init.body === 'string' ? { body: init.body } : {}),
+      ...(typeof init.body === 'string' && { body: init.body }),
     });
     return Promise.resolve(
       new Response(JSON.stringify({ ok: true }), {

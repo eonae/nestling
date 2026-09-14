@@ -264,15 +264,20 @@ poll. An endpoint is taken out from under the policies by the `detached`
 field:
 
 ```typescript
-// src/ops.plugin.ts
+// src/ops/build-info.endpoint.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
   doc: { hidden: 'служебный endpoint, не часть публичного API' },
-  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
+  handler: BuildInfoHandler,
 });
 ```
+
+The handler takes the build version from the `AppConfig` section rather
+than from the environment directly: the `no-process-globals` rule bans
+reading the process globals in the source, and the value reaches the
+application through an `env()` source.
 
 `detached` accepts only a nonempty string with the reason; there is no
 `detached: true` form. The reason is visible in the diff, is printed at

@@ -557,9 +557,9 @@ export function buildHttpBinding(
     fields: Object.freeze(fields),
     rest: METHODS_WITHOUT_BODY.has(method.toUpperCase()) ? 'query' : 'body',
     rawBody: Boolean(rawBody),
-    ...(sse === undefined ? {} : { sse: Object.freeze({ ...sse }) }),
-    ...(redirect === undefined ? {} : { redirect }),
-    ...(operation === undefined ? {} : { operation }),
+    ...(sse !== undefined && { sse: Object.freeze({ ...sse }) }),
+    ...(redirect !== undefined && { redirect }),
+    ...(operation !== undefined && { operation }),
   };
 
   Object.defineProperty(binding, HTTP_BINDING, {

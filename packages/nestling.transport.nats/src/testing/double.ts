@@ -324,7 +324,7 @@ export class NatsDouble implements NatsLike {
   ): void {
     this.published.push({
       subject,
-      ...(options.headers ? { headers: options.headers } : {}),
+      ...(options.headers !== undefined && { headers: options.headers }),
     });
 
     this.#deliver(subject, data, options.headers);
@@ -337,7 +337,7 @@ export class NatsDouble implements NatsLike {
   ): Promise<NatsMsgLike> {
     this.published.push({
       subject,
-      ...(options.headers ? { headers: options.headers } : {}),
+      ...(options.headers !== undefined && { headers: options.headers }),
     });
 
     return await new Promise<NatsMsgLike>((resolve, reject) => {
@@ -525,7 +525,10 @@ export class NatsDouble implements NatsLike {
     data: Uint8Array,
     headers: NatsHeadersLike | undefined,
   ): NatsPubAckLike {
-    this.published.push({ subject, ...(headers ? { headers } : {}) });
+    this.published.push({
+      subject,
+      ...(headers !== undefined && { headers }),
+    });
 
     const stream = [...this.#streams.values()].find((candidate) =>
       candidate.config.subjects.some((pattern) =>
@@ -562,7 +565,7 @@ export class NatsDouble implements NatsLike {
     const seq = stream.messages.push({
       subject,
       data,
-      ...(headers ? { headers } : {}),
+      ...(headers !== undefined && { headers }),
     });
 
     if (msgId !== undefined) {

@@ -41,7 +41,7 @@ export function zodConverter(
     toJsonSchema: (schema, hint) =>
       z.toJSONSchema(schema as z.ZodType, {
         ...options,
-        ...(hint?.io === undefined ? {} : { io: hint.io }),
+        ...(hint?.io !== undefined && { io: hint.io }),
       }),
   };
 }

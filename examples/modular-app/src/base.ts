@@ -32,6 +32,7 @@ import { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
  * приложения от выбора экспортёра не меняется.
  */
 export const traces: SpanExporter =
+  // eslint-disable-next-line @nestlingjs/no-process-globals -- сателлит телеметрии вне контейнера: экспортёр выбирается до сборки
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT === undefined
     ? new InMemorySpanExporter()
     : new OTLPTraceExporter();

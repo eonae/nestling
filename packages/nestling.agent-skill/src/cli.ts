@@ -12,6 +12,7 @@ import { installSkill } from './index.js';
 
 const USAGE = 'Usage: npx @nestlingjs/agent-skill [--dir <path>] [--force]';
 
+// eslint-disable-next-line @nestlingjs/no-process-globals -- команда `npx`, а не приложение Nestling: маркеру `argv()` передавать некуда
 const args = process.argv.slice(2);
 
 let dir: string | undefined;

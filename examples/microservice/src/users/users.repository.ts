@@ -31,7 +31,7 @@ const toUser = (row: typeof users.$inferSelect): User => ({
   id: row.id,
   name: row.name,
   email: row.email,
-  ...(row.avatarUrl === null ? {} : { avatarUrl: row.avatarUrl }),
+  ...(row.avatarUrl !== null && { avatarUrl: row.avatarUrl }),
 });
 
 /**

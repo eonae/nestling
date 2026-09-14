@@ -277,10 +277,8 @@ function adapt(
         const hdrs = toMsgHdrs(options?.headers);
 
         return js.publish(subject, data, {
-          ...(hdrs === undefined ? {} : { headers: hdrs }),
-          ...(options?.timeout === undefined
-            ? {}
-            : { timeout: options.timeout }),
+          ...(hdrs !== undefined && { headers: hdrs }),
+          ...(options?.timeout !== undefined && { timeout: options.timeout }),
         });
       },
 
@@ -313,7 +311,7 @@ function adapt(
 
       return connection.request(subject, data, {
         timeout,
-        ...(hdrs === undefined ? {} : { headers: hdrs }),
+        ...(hdrs !== undefined && { headers: hdrs }),
       });
     },
 
@@ -346,9 +344,9 @@ function adapt(
             return {
               durable_name: created.durable_name ?? config.durable_name,
               ack_policy: 'explicit',
-              ...(created.filter_subject === undefined
-                ? {}
-                : { filter_subject: created.filter_subject }),
+              ...(created.filter_subject !== undefined && {
+                filter_subject: created.filter_subject,
+              }),
               max_deliver: created.max_deliver,
             };
           },

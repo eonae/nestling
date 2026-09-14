@@ -75,10 +75,10 @@ function makeTransport(
   const server = new HttpServer({
     port: 0,
     host: '127.0.0.1',
-    ...(requestTimeout === undefined ? {} : { requestTimeout }),
-    ...(headersTimeout === undefined ? {} : { headersTimeout }),
-    ...(keepAliveTimeout === undefined ? {} : { keepAliveTimeout }),
-    ...(closeTimeout === undefined ? {} : { closeTimeout }),
+    ...(requestTimeout !== undefined && { requestTimeout }),
+    ...(headersTimeout !== undefined && { headersTimeout }),
+    ...(keepAliveTimeout !== undefined && { keepAliveTimeout }),
+    ...(closeTimeout !== undefined && { closeTimeout }),
   });
 
   const transport = new HttpTransport(server, transportOptions);

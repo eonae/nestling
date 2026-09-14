@@ -217,9 +217,7 @@ export function cliEndpoint(
     pattern: command,
     // Умолчание поля не добавляет: декларация без политики остаётся тем
     // же значением, каким была до появления `missing`
-    ...(missing === 'prompt'
-      ? { binding: { missing } satisfies CliBinding }
-      : {}),
+    ...(missing === 'prompt' && { binding: { missing } satisfies CliBinding }),
   });
 }
 

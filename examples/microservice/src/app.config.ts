@@ -18,6 +18,14 @@ import { z } from 'zod';
  * `db.keys`.
  */
 export const AppConfig = makeConfig('app', {
+  buildVersion: from(
+    'BUILD_VERSION',
+    z
+      .string()
+      .min(1)
+      .default('dev')
+      .describe('Версия сборки, которую отдаёт служебный endpoint'),
+  ),
   pageSize: z.coerce
     .number()
     .int()

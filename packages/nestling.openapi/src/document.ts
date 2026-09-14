@@ -95,14 +95,14 @@ export function buildDocument(
   return {
     openapi: '3.1.0',
     info: options.info,
-    ...(options.servers === undefined ? {} : { servers: options.servers }),
-    ...(options.security === undefined ? {} : { security: options.security }),
-    ...(options.securitySchemes === undefined
-      ? {}
-      : { components: { securitySchemes: options.securitySchemes } }),
-    ...(options.externalDocs === undefined
-      ? {}
-      : { externalDocs: options.externalDocs }),
+    ...(options.servers !== undefined && { servers: options.servers }),
+    ...(options.security !== undefined && { security: options.security }),
+    ...(options.securitySchemes !== undefined && {
+      components: { securitySchemes: options.securitySchemes },
+    }),
+    ...(options.externalDocs !== undefined && {
+      externalDocs: options.externalDocs,
+    }),
     paths: paths as Readonly<Record<string, OpenApiPathItem>>,
   };
 }
@@ -232,19 +232,19 @@ function operationOf(
       errors: endpoint.errors,
       doc,
       hasInputSchema: describeForm(endpoint.input).leaf !== undefined,
-      ...(binding.redirect === undefined ? {} : { redirect: binding.redirect }),
+      ...(binding.redirect !== undefined && { redirect: binding.redirect }),
     },
     context,
   );
 
   return {
     operationId: operationIdOf(endpoint, binding),
-    ...(doc?.summary === undefined ? {} : { summary: doc.summary }),
-    ...(doc?.description === undefined ? {} : { description: doc.description }),
-    ...(doc?.tags === undefined ? {} : { tags: doc.tags }),
-    ...(doc?.deprecated === undefined ? {} : { deprecated: doc.deprecated }),
-    ...(parameters.length > 0 ? { parameters } : {}),
-    ...(requestBody === undefined ? {} : { requestBody }),
+    ...(doc?.summary !== undefined && { summary: doc.summary }),
+    ...(doc?.description !== undefined && { description: doc.description }),
+    ...(doc?.tags !== undefined && { tags: doc.tags }),
+    ...(doc?.deprecated !== undefined && { deprecated: doc.deprecated }),
+    ...(parameters.length > 0 && { parameters }),
+    ...(requestBody !== undefined && { requestBody }),
     responses,
   };
 }

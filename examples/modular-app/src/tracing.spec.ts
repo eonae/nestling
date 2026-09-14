@@ -33,7 +33,10 @@ const probe = makeApp({
 
 /** Конверт вызывателя: арендатор и трасса приходят из-за границы */
 const envelope = (traceparent?: string) => ({
-  attributes: { tenantId: 'acme', ...(traceparent ? { traceparent } : {}) },
+  attributes: {
+    tenantId: 'acme',
+    ...(traceparent !== undefined && { traceparent }),
+  },
 });
 
 beforeEach(() => {

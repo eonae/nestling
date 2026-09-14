@@ -235,7 +235,7 @@ function reportUnknownFail(
   logger.error(`undeclared fail normalized to ${InternalError.code}`, {
     transport: endpoint.transport,
     pattern: endpoint.pattern,
-    ...(code === undefined ? {} : { code }),
+    ...(code !== undefined && { code }),
     err: error,
   });
 }
