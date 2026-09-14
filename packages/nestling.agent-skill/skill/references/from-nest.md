@@ -66,7 +66,7 @@ behind each replacement, read the README of the package that owns it —
 | NestJS | Nestling | Difference |
 |---|---|---|
 | `ConfigModule.forRoot()`, `ConfigService.get('X')` | `makeConfig(prefix, fields)` and injecting the section | the section is typed by schema and validated at start; nothing to register |
-| `ConfigModule` with `load` and `validationSchema` | `config: [[source, Section.keys]]` in the root | a source is bound to keys, not to a module |
+| `ConfigModule` with sources and `validationSchema` | `run({ config: [bind(source, { keys: Section.keys })] })` | a source is bound to keys, not to a module, and the binding belongs to the run |
 | `Test.createTestingModule()`, `overrideProvider()` | `buildTest(app, { overrides })` | the test builds the same application through the same phases |
 | `supertest` against `app.getHttpServer()` | `testApp.call(Endpoint, payload)` | the request goes through the whole pipeline without a network |
 | mocking a service of a neighbouring module | `stubs: [stub(Operation, impl)]` | the answer of the stub is validated against the operation schema |

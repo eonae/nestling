@@ -25,21 +25,70 @@ a number.
 | `Ok.accepted(value)` | `accepted` | 202 |
 | `Ok.noContent()` | `no_content` | 204 |
 
-`doc: { status: 'created' }` in the declaration or in the operation is the
-documented status: it goes into the OpenAPI document. The handler still has
-to return `Ok.created(value)` — the field describes what the code does and
-does not do it instead.
+`status: 'created'` is a field of the declaration or of the operation, not
+of `doc:`: the status is a contract of the answer, and one default serves
+the runtime, the document and the client — `ok` with an `output`,
+`no_content` without one. A bare value from the handler gets the declared
+status.
+
+Several outcomes with different bodies are declared by a fork in the
+`output` slot: `outputs({ ok: User, created: User, no_content: none() })`.
+A handler with a fork picks its outcome by returning `Ok.created(user)` or
+`new Ok(user)`; a bare value no longer compiles.
+
+## The server and the transport
+
+A server is a declaration of its own and is **not** listed in
+`transports:`. A transport names it in `server:`, and the build creates it
+once for however many transports point at it; a server nobody names is
+never created. A server put into `transports:` is rejected on the BUILD
+phase, with the replacement in the message.
+
+<!-- snippet: embedding.ts#server -->
+```typescript
+export const api = server();
+
+export const served = makeApp({
+  features: [UsersFeature],
+  transports: [http({ server: api })],
+});
+```
+
+The default instance name is `'default'`, and the config section is the
+family `http` — `HTTP_PORT`, `HTTP_HOST`. `serverKeys()` gives the right to
+bind a source to those keys.
+
+## Inside a foreign process
+
+`adapter()` is the transport without a socket: the `httpEndpoint`
+declarations move over unchanged, and Next.js, Hono, Express or Fastify
+owns the listening.
+
+<!-- snippet: embedding.ts#embedded -->
+```typescript
+const embedded = makeApp({
+  features: [UsersFeature],
+  transports: [adapter()],
+}).build();
+
+await embedded.run({ signals: false });
+
+const handler = toFetchHandler(embedded);
+
+export const GET = handler;
+export const POST = handler;
+```
+
+`toFetchHandler(app, { name })` gives `(Request) => Promise<Response>`;
+`toNodeHandler(app, { name })` gives `(req, res) => Promise<boolean>`,
+where `false` means the route is not the application's. `signals: false`
+leaves `SIGTERM` and `SIGINT` to the owner of the process. Every io form
+works either way: `value`, `stream`, `events`, `multipart`, `rawBody`.
 
 ## Headers and cookies
 
-<!-- snippet: create-session.endpoint.ts -->
+<!-- snippet: create-session.endpoint.ts#cookies -->
 ```typescript
-import { traced } from './pipeline.js';
-
-import { Ok } from '@nestlingjs/operations';
-import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
-import { z } from 'zod';
-
 const Session = z.object({ id: z.string(), expiresAt: z.string() });
 
 /** How long a session cookie lives, in seconds */
@@ -97,10 +146,12 @@ There is no API for reading cookies and no decorator for a header. What the
 request brought is in the second parameter of the handler, typed
 `HttpHandlerMeta`:
 
-```
+<!-- snippet: request-meta.ts#meta -->
+```typescript
 async handle(input: Credentials, meta: HttpHandlerMeta) {
   const forwarded = meta.http.headers['x-forwarded-proto'];
-  …
+
+  return { email: input.email, secure: forwarded === 'https' };
 }
 ```
 

@@ -191,6 +191,7 @@ export const UsersModule = makeModule({
 | 2 INIT | instances are created and resources acquired, in graph order |
 | 3 WIRE | handlers and steps are resolved, the dispatch table is built |
 | 4 START | `@OnStart()` runs, transports are served, sockets open last |
+| 5 RUN | the application answers requests until a signal or `close()` |
 | 6 SHUTDOWN | the reverse: transports close, `release` runs backwards |
 
 Anything that fails on BUILD fails before a single request is served.

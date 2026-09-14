@@ -10,6 +10,13 @@ matters. Habits from Nest produce code here that either does not compile or
 stops the BUILD phase. Read parts 1 and 4 before writing anything; the
 rest is reference.
 
+This skill describes Nestling 0.3.0. Before writing code, compare that
+number with the version of `@nestlingjs/app` in the `package.json` of the
+project. If they differ, say so to the user and offer to reinstall the
+skill with `npx @nestlingjs/agent-skill`: the skill is a copy inside the
+project and nothing updates it on its own, so a stale copy teaches an API
+the project does not have.
+
 ## What is different from NestJS
 
 - **A declaration is a value.** An endpoint, a module, a feature, a config
@@ -43,9 +50,9 @@ rest is reference.
 One endpoint per file, one folder per feature. Names come from the
 framework conventions, and the linter and the guide follow them.
 
-```
+```text
 src/
-├── main.ts                — reads the root config and runs `app.build(…).run()`
+├── main.ts                — `app.build(argv(process.argv)).run({ config })`
 ├── app.ts                 — `makeApp({ features, plugins, transports, policies })`
 ├── app.config.ts          — `makeConfig('app', { … })`
 ├── errors.ts              — failures shared by the whole service
@@ -172,22 +179,13 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 | define a failure, return it, read it, map it to a status | `references/errors.md` |
 | config sections, secrets, derived fields, sources | `references/config.md` |
 | features, operations, callers, emitters, subscribers, split | `references/features.md` |
+| logging fields, declared metrics, spans | `references/observability.md` |
+| a database, the request transaction, outbox and inbox | `references/storage.md` |
 | build an app in a test, override, stub, check topologies | `references/testing.md` |
 | the NestJS name for a thing and its Nestling counterpart | `references/from-nest.md` |
 | read a diagnostic the compiler or BUILD printed | `references/diagnostics.md` |
+| which package answers a problem you have | `references/packages.md` |
 
 Every reference points at the README of the package that owns the names it
 mentions. Read that README for the full list of exports; the reference only
 shows the shape of the code.
-
-Beyond the core and a transport, the framework publishes six more packages.
-Take one when its line describes the problem at hand:
-
-| Package | When you need it |
-|---|---|
-| `@nestlingjs/outbox` | an event must leave even if the process dies right after the commit: the record goes into the transaction that changed the data, and the send happens after it. The first thing asked for once a service has both a database and a bus |
-| `@nestlingjs/client` | a browser or another service calls these operations: `makeClient(record, config)` turns the declarations into a typed API. The other first request, and the reason an operation file imports nothing but schemas |
-| `@nestlingjs/subscriptions` | streams and SSE are open and someone has to list them, close one, or watch the list change |
-| `@nestlingjs/schema.zod` | the TypeScript type exists already — generated from proto, GraphQL or OpenAPI — and a schema has to describe exactly it; or the schemas are written in a validator other than the one the framework uses, and its converter has to be passed to `converters` |
-| `@nestlingjs/transport.cli` | the same endpoints and layers are wanted as commands, with stdin as the stream |
-| `@nestlingjs/eslint-plugin` | the three rules an editor can check: an import past a barrel, a declaration without the required layer, and a dependency list that does not match the constructor; the last one fills an empty `@Component()` in with `--fix` |

@@ -4,6 +4,7 @@ import { Ok } from '@nestlingjs/operations';
 import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
+// #region cookies
 const Session = z.object({ id: z.string(), expiresAt: z.string() });
 
 /** How long a session cookie lives, in seconds */
@@ -43,3 +44,4 @@ export const CreateSession = httpEndpoint.post('/sessions', {
     });
   },
 });
+// #endregion

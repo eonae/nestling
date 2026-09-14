@@ -4,9 +4,9 @@
 /**
  * Команда установки скилла: `npx @nestlingjs/agent-skill`.
  *
- * Разбирает `--dir` и `--force`, печатает итог тремя числами и называет
- * расходящиеся файлы. Расхождение без `--force` — код выхода 1: правки
- * пользователя молча не теряются.
+ * Разбирает `--dir` и `--force`, печатает итог четырьмя числами и называет
+ * расходящиеся файлы. Расхождение с манифестом без `--force` — код выхода
+ * 1: правки пользователя молча не теряются.
  */
 import { installSkill } from './index.js';
 
@@ -37,9 +37,10 @@ for (let index = 0; index < args.length; index++) {
 
 const report = await installSkill({ dir, force });
 
-console.log(`Nestling skill → ${report.dir}`);
+console.log(`Nestling skill ${report.version} → ${report.dir}`);
 console.log(
   `created ${report.created.length}, ` +
+    `updated ${report.updated.length}, ` +
     `unchanged ${report.unchanged.length}, ` +
     `diverged ${report.diverged.length}`,
 );
@@ -47,7 +48,7 @@ console.log(
 if (report.diverged.length > 0) {
   const what = report.forced ? 'overwritten' : 'left as is';
 
-  console.log(`Diverged from the packaged skill (${what}):`);
+  console.log(`Diverged from the manifest (${what}):`);
 
   for (const name of report.diverged) {
     console.log(`  ${name}`);

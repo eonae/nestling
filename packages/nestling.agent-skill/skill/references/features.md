@@ -6,22 +6,8 @@ other only through operations. Names live in the READMEs of
 [`@nestlingjs/app`](https://www.npmjs.com/package/@nestlingjs/app) and
 [`@nestlingjs/operations`](https://www.npmjs.com/package/@nestlingjs/operations).
 
-<!-- snippet: users.feature.ts -->
+<!-- snippet: users.feature.ts#features -->
 ```typescript
-import {
-  ClaimQuotaImpl,
-  QuotaService,
-  UserRegisteredInQuotas,
-} from './claim-quota.endpoint.js';
-import { CreateSession } from './create-session.endpoint.js';
-import { CreateUser } from './create-user.endpoint.js';
-import { GetUser } from './get-user.endpoint.js';
-import { ListUsers } from './list-users.endpoint.js';
-import { GetAvatar } from './redirect.endpoint.js';
-import { UsersModule } from './users.module.js';
-
-import { makeFeature } from '@nestlingjs/app';
-
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
@@ -90,19 +76,11 @@ export const SignupRecorded = makeCommand({
 
 The owner implements an operation. The endpoint it produces is the same
 kind of value as an HTTP one and takes part in policies and tests.
+`implement` and `Logger$` come from `@nestlingjs/app`, `@Component` and
+`@Handler` from `@nestlingjs/container`.
 
-<!-- snippet: claim-quota.endpoint.ts -->
+<!-- snippet: claim-quota.endpoint.ts#implement -->
 ```typescript
-import {
-  ClaimQuota,
-  QuotaExceeded,
-  UserRegistered,
-} from './intercom-operations.js';
-
-import type { Logger } from '@nestlingjs/app';
-import { implement, Logger$ } from '@nestlingjs/app';
-import { Component, Handler } from '@nestlingjs/container';
-
 @Component([])
 export class QuotaService {
   readonly limit = 5;
@@ -183,13 +161,34 @@ export class SignUp {
 
 A call has no default timeout: pass `deadline` when the caller has a budget
 for the answer. `emit` resolves on delivery, and subscriber failures do not
-travel back.
+travel back. For an event that must leave even if the process dies right
+after the commit, read `references/storage.md`.
+
+## Failures of a neighbour
+
+A caller answers with the failures of the operation it calls, so it lists
+them in its own `errors:`. `errorsOf(operation)` reads that list off the
+declaration instead of copying it, so a failure added to `ClaimQuota`
+arrives without an edit here and the type keeps the union of concrete
+definitions:
+
+<!-- snippet: errors-of.ts#errors-of -->
+```typescript
+export const CreateOrder = makeRequest({
+  name: 'orders.create',
+  input: z.object({ userId: z.string() }),
+  output: z.object({ id: z.string() }),
+  errors: [UserNotFound, ...errorsOf(ClaimQuota)],
+});
+```
 
 ## Choosing what to run
 
-- `app.build('users')` starts only that feature, and
+- `app.build({ features: 'users' })` starts only that feature, and
   `{ features: 'users', includeDeps: true }` adds the features whose
-  operations it calls. The selection comes from the root config, so one
+  operations it calls. `app.build(argv(process.argv))` takes the same
+  argument from the command line — `--features users --include-deps` — with
+  the flags derived from the declaration. Config has no say in it, so one
   image serves every role.
 - `makeSwitch('docs', { default: 'on' })` declares a switch: `Docs.when(x)`
   keeps a plugin in one branch only, `Switch.pick({ … })` chooses between

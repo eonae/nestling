@@ -121,19 +121,54 @@ without mentioning HTTP; the transport maps it.
 
 A port call, a stub and a client all return `Ok | Fail`:
 
-```
+<!-- snippet: read-failure.ts#reading -->
+```typescript
 const claimed = await this.quotas.call(input);
 
 if (claimed.isFail) {
-  return claimed;          // pass it on, if it is declared in errors:
+  return claimed; // pass it on, if it is declared in errors:
 }
 
-claimed.value;             // typed by the output schema of the operation
+return claimed.value; // typed by the output schema of the operation
 ```
 
 `QuotaExceeded.is(claimed)` tells one declared failure from another.
 `instanceof` is not used: a failure that crossed a process boundary is
 rebuilt from its code, and the class it once had is gone.
+
+## On the wire over HTTP
+
+The HTTP boundary answers a failure with a Problem Details document,
+RFC 9457, under the media type `application/problem+json`:
+
+```json
+{
+  "type": "urn:error:not_found:user",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "User 9 not found",
+  "details": { "id": "9" }
+}
+```
+
+| Member | What it carries |
+|---|---|
+| `type` | the code of the failure behind the prefix `urn:error:` |
+| `title` | the phrase of the HTTP status |
+| `status` | the HTTP status as a number |
+| `detail` | the message of the failure |
+| `details` | the details by the schema of the definition |
+| `stack` | an extension, only under `exposeErrorDetails` |
+
+**There is no `code` member**: the code lives inside `type`. A test written
+against a body of `{ error, code, details }` fails — that shape is gone.
+One document serves all three places the boundary writes a failure: the
+answer of a handler, an error before the pipeline (a broken JSON body, an
+exceeded `maxBodySize`) and an `event: error` frame in SSE. The NATS, CLI
+and MCP transports serialise a failure their own way.
+
+`@nestlingjs/client` rebuilds the failure from the document, so the calling
+code branches on `UserNotFound.is(result)` and never parses a body.
 
 ## Failures nobody declares
 

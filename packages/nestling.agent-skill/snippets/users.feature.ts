@@ -12,6 +12,7 @@ import { UsersModule } from './users.module.js';
 
 import { makeFeature } from '@nestlingjs/app';
 
+// #region features
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
@@ -23,3 +24,4 @@ export const QuotasFeature = makeFeature({
   providers: [QuotaService],
   endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas],
 });
+// #endregion

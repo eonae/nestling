@@ -11,7 +11,7 @@ with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Vitest and jest take it as a field,
 `node --test` as the flag `--conditions=testing`; all three are in
 `references/setup.md`.
 
-```
+```javascript
 // vitest.config.js
 resolve: {
   conditions: ['testing', 'node', 'node-addons', 'import', 'default'],
@@ -144,9 +144,9 @@ compiling them, and a decorator is syntax it cannot parse.
 |---|---|
 | `overrides: [[Token, value]]` | a provider; anything only it needed is pruned from the graph |
 | `stubs: [stub(Operation, fn)]` | the owner of an operation this build does not implement |
-| `config: vars({ … })` | the config binding of the whole declaration, so `process.env` is not read |
+| `config: [bind(vars({ … }))]` | the whole binding list, so neither the environment nor a file is read |
 | `contextValue(Var, value)` | a context variable in the test root |
-| `args: 'users'` | the selection of features, as `build` would receive it |
+| `args: { features: 'users' }` | the selection of features, as `build` would receive it |
 
 The answer of a stub is validated against the schema of the operation, so a
 stub cannot promise something the real owner could not return.
@@ -155,8 +155,9 @@ a useful assertion that a fake really did replace a connection.
 
 ## Topologies
 
-`checkTopologies(app, ['all', { features: 'users', includeDeps: true }])`
-builds every deployment variant structurally and reports the features,
+`checkTopologies(app, [{ features: 'all' }, { features: 'users',
+includeDeps: true }])` builds every deployment variant structurally and
+reports the features,
 the endpoints and the operations of each. It opens nothing. Run it once per
 application: it is what turns "we also deploy it split" into a test.
 

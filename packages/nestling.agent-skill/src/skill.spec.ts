@@ -7,6 +7,7 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { SKILL_DIR, SNIPPETS_DIR } from '../scripts/snippets.mjs';
 
@@ -23,8 +24,11 @@ const REFERENCES = [
   'features.md',
   'from-nest.md',
   'http.md',
+  'observability.md',
+  'packages.md',
   'pipeline.md',
   'setup.md',
+  'storage.md',
   'testing.md',
 ];
 
@@ -38,6 +42,11 @@ const PARTS = [
 ];
 
 const LIMITS = { skill: 250, reference: 200 };
+
+/** Каталог пакетов репозитория: источник перечня публикуемых имён */
+const PACKAGES_DIR = fileURLToPath(
+  new URL('../../../packages/', import.meta.url),
+);
 
 const read = (...path: string[]): string =>
   readFileSync(join(SKILL_DIR, ...path), 'utf8');
@@ -56,7 +65,7 @@ describe('состав скилла', () => {
     ]);
   });
 
-  it('references/ содержит ровно одиннадцать файлов перечня', () => {
+  it('references/ содержит ровно четырнадцать файлов перечня', () => {
     expect(readdirSync(join(SKILL_DIR, 'references')).sort()).toEqual(
       REFERENCES,
     );
@@ -72,6 +81,37 @@ describe('состав скилла', () => {
     ].sort();
 
     expect(linked).toEqual(REFERENCES);
+  });
+});
+
+describe('каталог пакетов', () => {
+  it('называет каждый публикуемый пакет репозитория, и только его', () => {
+    const named = [
+      ...new Set(
+        [
+          ...read('references', 'packages.md').matchAll(
+            /`(@nestlingjs\/[\w.-]+)`/g,
+          ),
+        ].map(([, name]) => name),
+      ),
+    ].sort();
+
+    expect(named).toEqual(publishedPackages());
+  });
+
+  it('таблицы пакетов в SKILL.md нет', () => {
+    expect(skill).not.toMatch(/^\| `@nestlingjs\//m);
+  });
+});
+
+describe('таблица фаз', () => {
+  it('перечисляет номера фаз подряд, без пропусков', () => {
+    const numbers = [
+      ...read('references', 'container.md').matchAll(/^\| (\d+) [A-Z]+ \|/gm),
+    ].map(([, number]) => Number(number));
+
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers).toEqual(numbers.map((_, index) => index));
   });
 });
 
@@ -129,6 +169,23 @@ describe('язык', () => {
     expect(found).toEqual([]);
   });
 });
+
+/** Имена публикуемых пакетов репозитория по алфавиту */
+function publishedPackages(): string[] {
+  return readdirSync(PACKAGES_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(PACKAGES_DIR, entry.name, 'package.json'))
+    .map(
+      (path) =>
+        JSON.parse(readFileSync(path, 'utf8')) as {
+          name: string;
+          private?: boolean;
+        },
+    )
+    .filter((manifest) => manifest.private !== true)
+    .map((manifest) => manifest.name)
+    .sort();
+}
 
 /** Число строк файла скилла */
 function lines(...path: string[]): number {
