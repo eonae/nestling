@@ -1,6 +1,6 @@
 # Приложение внутри чужого процесса
 
-> Гайд по текущему API; сверено с кодом `a2535b50` (2026-09-14).
+> Гайд по текущему API; сверено с кодом `8dfc73b4` (2026-09-14).
 > Целевое описание: [design/transports.md](../design/transports.md) §4.3,
 > [design/composition.md](../design/composition.md) §1. Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Разбор обзоров d/10 и d/13»
