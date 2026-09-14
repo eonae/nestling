@@ -1,6 +1,6 @@
 # 2. What an application consists of
 
-> Guide to the current API; verified against `61c0a878`.
+> Guide to the current API; verified against `5383a51c`.
 > Target description: [design/composition.md](../design/composition.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,

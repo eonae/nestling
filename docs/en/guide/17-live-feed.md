@@ -1,6 +1,6 @@
 # 17. A live feed for the client
 
-> Guide to the current API; verified against `61c0a878`.
+> Guide to the current API; verified against `5383a51c`.
 > Target description: [design/streaming.md](../design/streaming.md), the
 > "`stream(T)` and `events(T)` " and "Event sources" sections. Why: entry
 > [ideas.md](../../decisions/ideas.md)

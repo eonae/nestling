@@ -1,6 +1,6 @@
 # 4. Tell the client what went wrong
 
-> Guide to the current API; verified against `61c0a878`.
+> Guide to the current API; verified against `5383a51c`.
 > Target description: [design/errors.md](../design/errors.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)
 > `[2026-07-10] Модель ошибок: Fail — значение, code-идентичность, makeFail, ошибки в контракте`,

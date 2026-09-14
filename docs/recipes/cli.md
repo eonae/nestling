@@ -1,6 +1,6 @@
 # CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `61c0a878`.
+> Гайд по текущему API; сверено с кодом `5383a51c`.
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
