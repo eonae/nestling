@@ -2,8 +2,8 @@
 /**
  * Оглавление docs/decisions/ideas.md: дата, заголовок и статус каждой записи.
  * Блок стоит в шапке файла между маркерами <!-- ideas-toc:start --> и
- * <!-- ideas-toc:end -->; статус берётся из первой цитаты под заголовком
- * (пометка «РЕАЛИЗОВАНО» или «СУПЕРСИД»).
+ * <!-- ideas-toc:end -->; статус даёт пометка «РЕАЛИЗОВАНО» или «СУПЕРСИД»
+ * в любом месте записи — цитатой под заголовком или разделом в конце.
  *
  * Запуск из корня репозитория:
  *   node .claude/skills/docs-audit/scripts/ideas-toc.mjs           перезаписать блок
@@ -25,14 +25,12 @@ export function buildIdeasToc(text) {
     const m = /^## \[(\d{4}-\d{2}-\d{2})\] (.+)$/.exec(lines[i]);
     if (!m) continue;
     let status = '';
-    for (let j = i + 1; j < lines.length; j++) {
+    for (let j = i + 1; j < lines.length && !/^## \[\d{4}-\d{2}-\d{2}\]/.test(lines[j]); j++) {
       const l = lines[j];
-      if (!l.trim()) continue;
-      if (l.startsWith('>')) {
-        if (/РЕАЛИЗОВАНО/.test(l)) status = 'реализовано';
-        else if (/СУПЕРСИД|superseded/i.test(l)) status = 'заменено';
-      }
-      break;
+      if (!l.startsWith('>') && !l.startsWith('###')) continue;
+      if (/СУПЕРСИД|superseded/i.test(l)) status = 'заменено';
+      else if (/РЕАЛИЗОВАНО/.test(l)) status = 'реализовано';
+      if (status) break;
     }
     items.push(`- ${m[1]} · ${m[2]}${status ? ` · ${status}` : ''}`);
   }
