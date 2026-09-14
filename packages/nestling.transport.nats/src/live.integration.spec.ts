@@ -9,9 +9,10 @@
  * пакета. Включается переменной `NATS_TEST_SERVERS`; без неё suite
  * пропускается целиком, поэтому `yarn verify` остаётся зелёным офлайн.
  *
+ * Брокер, переменную и остановку службы берёт на себя команда репозитория:
+ *
  * ```bash
- * docker run --rm -p 4222:4222 nats:2 -js
- * NATS_TEST_SERVERS=nats://127.0.0.1:4222 yarn workspace @nestlingjs/transport.nats test
+ * yarn test:live
  * ```
  */
 
