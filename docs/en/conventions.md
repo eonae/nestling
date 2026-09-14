@@ -89,24 +89,37 @@
   string name matches the flag of the build argument:
   `--storage s3`.
 - A two-position switch is named as a predicate:
-  `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapiPlugin)`.
+  `AuditEnabled = makeSwitch('audit')`, `DocsEnabled.when(openapi)`.
   Its string name stays a noun: `'audit'`.
 - There is no `Switch` suffix: the `when` or `pick` method at the point
   of use names the kind of value.
 
 ## Plugins
 
-- A plugin instance is a value in lowerCamelCase with the `Plugin`
-  suffix: `authPlugin = makePlugin({ … })`, `openapiPlugin =
-  openapi({ … })`. An inline call in `plugins:` gets no suffix:
-  `httpProbes()`.
+- A plugin instance is named with a noun in lowerCamelCase, without a
+  prefix and without a suffix: `openapi`, `inbox`, `outbox`,
+  `subscriptions`, `db`, `ops`. The `plugins:` field already names the
+  kind of value, so the name does not repeat it.
+- A factory that returns a plugin is named `make<Name>`: `makeOpenapi`,
+  `makeInbox`, `makeOutbox`, `makeSubscriptions`, `makeDrizzlePg`,
+  `makeHttpProbes`. The noun stays free for the instance:
+  `const openapi = makeOpenapi({ info })`.
+- A factory of a transport or a server stays a noun: `http()`, `nats()`,
+  `mcp()`, `cli()`, `server()`. A transport is declared right inside
+  `transports:` and takes no variable for the instance.
+- An inline call in `plugins:` takes no variable either:
+  `makeHttpProbes()`.
 - The string name of a plugin (`name: 'app-auth'`) does not depend on
-  the suffix.
+  the name of the value.
 
 ## Pipeline
 
-- A layer is a value in lowerCamelCase with the `Layer` suffix. Its
-  base is a noun: `authLayer`, `observabilityLayer`.
+- A layer is named with a participle in lowerCamelCase: `traced`,
+  `authed`, `transactional`, `signed`, `tracked`, `outboxed`. The
+  participle says what the layer has already done to the request by the
+  time the handler runs.
+- There is no `Layer` suffix: the `pipeline:` field and the argument of
+  `compose` name the kind of value.
 - A step class is named after the action: `Authenticate`,
   `AuditOutcome`.
 

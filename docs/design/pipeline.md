@@ -135,15 +135,15 @@ thenable, и `await pipeline` попытался бы его разрешить.
 констант:
 
 ```typescript
-export const base = makePipeline()
+export const traced = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(audit);
-export const withIdempotency = compose(
-  base,
+export const idempotent = compose(
+  traced,
   makePipeline().pre(withIdempotencyKey()),
 );
-// у endpoint'а: pipeline: compose(withIdempotency, makePipeline<{ idempotencyKey: string }>().pre(...))
+// у endpoint'а: pipeline: compose(idempotent, makePipeline<{ idempotencyKey: string }>().pre(...))
 ```
 
 - `compose(outer, ..., inner)` принимает список слоёв. Он читается сверху
@@ -196,7 +196,7 @@ interface TraceContext {
 
 ```typescript
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 ```
@@ -348,7 +348,7 @@ Policy-check проверяет сквозные инварианты на со�
 ```typescript
 makeApp({
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authed, 'authed'),
   ],
   /* ... */
 })
@@ -372,7 +372,7 @@ makeApp({
   пайплайн хранит провенанс композиции — ссылки на значения, из которых он
   получен (`compose` хранит свои аргументы, деривация билдера и `bind` —
   предшественника). `hasLayer` обходит этот DAG и сравнивает ссылки.
-  Поэтому `compose(base, authed)` содержит оба слоя, вложенная композиция
+  Поэтому `compose(traced, authed)` содержит оба слоя, вложенная композиция
   транзитивна, а `authed.pre(x)` по-прежнему содержит `authed`.
 - Метка слоя — второй, необязательный аргумент `hasLayer(layer, label)`.
   Она используется только в тексте нарушения. Автоматически имя не

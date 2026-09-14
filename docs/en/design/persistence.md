@@ -25,8 +25,8 @@ names the implementation.
 ## 1. The connection is declared as a value
 
 ```typescript
-export const db = drizzlePg({ schema });
-export const analytics = drizzlePg({ name: 'analytics', schema: reports });
+export const db = makeDrizzlePg({ schema });
+export const analytics = makeDrizzlePg({ name: 'analytics', schema: reports });
 
 export const app = makeApp({
   features: [UsersFeature],
@@ -142,9 +142,9 @@ The adapter lives at the subpath `@nestlingjs/drizzle.pg/outbox`, and
 `@nestlingjs/outbox` is declared as an optional peer dependency:
 
 ```typescript
-export const outboxStore = pgOutboxStore(db);
+export const outboxStore = makePgOutboxStore(db);
 
-export const appOutbox = outbox({
+export const outbox = makeOutbox({
   transaction: db.tx,
   store: outboxStore.token,
   operations: [UserCreated],
@@ -179,9 +179,9 @@ The adapter lives at the subpath `@nestlingjs/drizzle.pg/inbox`, and
 `@nestlingjs/inbox` is a second optional peer next to the outbox:
 
 ```typescript
-export const inboxStore = pgInboxStore(db);
+export const inboxStore = makePgInboxStore(db);
 
-export const appInbox = inbox({ transaction: db.tx, store: inboxStore.token });
+export const inbox = makeInbox({ transaction: db.tx, store: inboxStore.token });
 ```
 
 The mark is put by the caller's transaction, so it and the writes of

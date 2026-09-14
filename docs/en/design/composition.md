@@ -382,7 +382,7 @@ export const RootConfig = makeConfig('app', {
 // app.ts — the composition of the application does not depend on what this process selects
 export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
-  plugins: [appLogging],         // infrastructure is connected always
+  plugins: [logging],            // infrastructure is connected always
   transports: [http()],
 });
 
@@ -430,8 +430,8 @@ root import it, like a configuration section.
 ```typescript
 // switches.ts
 export const Storage = makeSwitch('storage', ['s3', 'local']);   // an enumeration
-export const Audit   = makeSwitch('audit');                      // 'on' | 'off'
-export const Debug   = makeSwitch('debug', { default: 'off' });
+export const AuditEnabled = makeSwitch('audit');                 // 'on' | 'off'
+export const DebugEnabled = makeSwitch('debug', { default: 'off' });
 
 // storage.module.ts — both branches are listed as a table
 export const StorageModule = makeModule({
@@ -439,7 +439,7 @@ export const StorageModule = makeModule({
   providers: [
     UploadsService,
     Storage.pick({ s3: [S3Client, S3Storage], local: [LocalStorage] }),
-    Audit.when(StorageAudit),              // the same as pick({ on: StorageAudit, off: [] })
+    AuditEnabled.when(StorageAudit),       // the same as pick({ on: StorageAudit, off: [] })
   ],
 });
 
@@ -447,23 +447,23 @@ export const StorageModule = makeModule({
 export const UploadsFeature = makeFeature({
   name: 'uploads',
   modules: [StorageModule],
-  endpoints: [UploadFile, Debug.when([DumpUploads, ResetUploads])],
+  endpoints: [UploadFile, DebugEnabled.when([DumpUploads, ResetUploads])],
 });
 
 // app.ts — the dictionary of switches is declared next to the features
 export const app = makeApp({
   features: [UsersFeature, UploadsFeature],
-  plugins: [appLogging, Audit.when(appAudit)],
-  transports: [http(), Debug.when(http({ name: 'admin' }))],
-  switches: [Storage, Audit, Debug],
+  plugins: [logging, AuditEnabled.when(audit)],
+  transports: [http(), DebugEnabled.when(http({ name: 'admin' }))],
+  switches: [Storage, AuditEnabled, DebugEnabled],
 });
 
 // config.ts — a switch has a schema for its values, with a default
 export const RootConfig = makeConfig('app', {
   features: z.string().default('all'),   // APP_FEATURES
   storage: Storage.schema,               // APP_STORAGE: 's3' | 'local', required
-  audit: Audit.schema,                   // APP_AUDIT: 'on' | 'off', required
-  debug: Debug.schema,                   // APP_DEBUG, defaults to 'off'
+  audit: AuditEnabled.schema,            // APP_AUDIT: 'on' | 'off', required
+  debug: DebugEnabled.schema,            // APP_DEBUG, defaults to 'off'
 });
 
 // main.ts — the fields are named like the switches, so cfg fits as a whole
@@ -653,7 +653,7 @@ middleware, no registry of the infrastructure raised so far:
 | Part of a plugin | Nestling mechanism |
 |---|---|
 | connection in the root | `plugins:` — the unit exists in every process and takes no part in the feature selection |
-| plugin parameters | a function that returns a value: `logging({ … })`; the value is created once and imported ([container.md](./container.md)) |
+| plugin parameters | a function that returns a value: `makeLogging({ … })`; the value is created once and imported ([container.md](./container.md)) |
 | plugin configuration | a `makeConfig` section, declared by the plugin itself; only its `.keys` is exported ([config.md](./config.md)) |
 | dependency on another plugin | `dependsOn:` with references **only to plugins**; a parametrized dependency is expressed by a DI token |
 | "only for these transports" | an ordinary dependency on the DI token of a transport; a missing instance drops the build on BUILD |
@@ -717,7 +717,7 @@ the graph; only someone who imported the DI token can inject it.
 
 A plugin does not depend on a feature, and this rule is symmetric to
 the main one. It gets application data through two ordinary paths: a
-parameter at declaration (`logging({ service: 'orders-api' })`), or a DI
+parameter at declaration (`makeLogging({ service: 'orders-api' })`), or a DI
 token declared by the plugin itself and implemented by anyone.
 
 ### Cross-cutting behavior: a layer plus a policy
@@ -728,16 +728,16 @@ that the layer is everywhere:
 
 ```typescript
 // infrastructure.ts — the value is created once and listed in the root
-export const appLogging = logging({ service: 'orders-api' });
+export const logging = makeLogging({ service: 'orders-api' });
 
 // app.ts
 export const app = makeApp({
   features: [OrdersFeature, OpsFeature],
-  plugins: [appLogging],
+  plugins: [logging],
   transports: [http()],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
+      traced,
     ),
   ],
 });
@@ -802,7 +802,7 @@ a failure; there is no error message or stack in it, the original goes
 into `Logger$('nestling:health')`.
 
 The transport gives out the probes as a thin layer over `Health$`. The
-HTTP package exports the `httpProbes()` plugin, with two endpoints,
+HTTP package exports the `makeHttpProbes()` plugin, with two endpoints,
 `GET /healthz` and `GET /readyz`: with no pipeline, `detached`, `hidden`
 ([transports.md §4](./transports.md)). There is no separate start
 state: a failed INIT ends the process.

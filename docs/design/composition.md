@@ -355,7 +355,7 @@ export const RootConfig = makeConfig('app', {
 // app.ts — состав приложения не зависит от того, что выбрано в этом процессе
 export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
-  plugins: [appLogging],         // инфраструктура подключена всегда
+  plugins: [logging],            // инфраструктура подключена всегда
   transports: [http()],
 });
 
@@ -400,8 +400,8 @@ endpoint'ы не регистрируются (discovery видит только
 ```typescript
 // switches.ts
 export const Storage = makeSwitch('storage', ['s3', 'local']);   // перечисление
-export const Audit   = makeSwitch('audit');                      // 'on' | 'off'
-export const Debug   = makeSwitch('debug', { default: 'off' });
+export const AuditEnabled = makeSwitch('audit');                 // 'on' | 'off'
+export const DebugEnabled = makeSwitch('debug', { default: 'off' });
 
 // storage.module.ts — обе ветки перечислены таблицей
 export const StorageModule = makeModule({
@@ -409,7 +409,7 @@ export const StorageModule = makeModule({
   providers: [
     UploadsService,
     Storage.pick({ s3: [S3Client, S3Storage], local: [LocalStorage] }),
-    Audit.when(StorageAudit),              // то же, что pick({ on: StorageAudit, off: [] })
+    AuditEnabled.when(StorageAudit),       // то же, что pick({ on: StorageAudit, off: [] })
   ],
 });
 
@@ -417,23 +417,23 @@ export const StorageModule = makeModule({
 export const UploadsFeature = makeFeature({
   name: 'uploads',
   modules: [StorageModule],
-  endpoints: [UploadFile, Debug.when([DumpUploads, ResetUploads])],
+  endpoints: [UploadFile, DebugEnabled.when([DumpUploads, ResetUploads])],
 });
 
 // app.ts — словарь переключателей объявлен рядом с фичами
 export const app = makeApp({
   features: [UsersFeature, UploadsFeature],
-  plugins: [appLogging, Audit.when(appAudit)],
-  transports: [http(), Debug.when(http({ name: 'admin' }))],
-  switches: [Storage, Audit, Debug],
+  plugins: [logging, AuditEnabled.when(audit)],
+  transports: [http(), DebugEnabled.when(http({ name: 'admin' }))],
+  switches: [Storage, AuditEnabled, DebugEnabled],
 });
 
 // config.ts — у переключателя есть схема его значений с умолчанием
 export const RootConfig = makeConfig('app', {
   features: z.string().default('all'),   // APP_FEATURES
   storage: Storage.schema,               // APP_STORAGE: 's3' | 'local', обязательна
-  audit: Audit.schema,                   // APP_AUDIT: 'on' | 'off', обязательна
-  debug: Debug.schema,                   // APP_DEBUG, по умолчанию 'off'
+  audit: AuditEnabled.schema,            // APP_AUDIT: 'on' | 'off', обязательна
+  debug: DebugEnabled.schema,            // APP_DEBUG, по умолчанию 'off'
 });
 
 // main.ts — поля названы как переключатели, поэтому cfg подходит целиком
@@ -611,7 +611,7 @@ const admin = server({ name: 'admin' });               // HTTP_ADMIN_PORT, HTTP_
 | Часть плагина | Механизм Nestling |
 |---|---|
 | подключение в корне | `plugins:` — единица есть в каждом процессе и в выбор фич не входит |
-| параметры плагина | функция, возвращающая значение: `logging({ … })`; значение создаётся один раз и импортируется ([container.md](./container.md)) |
+| параметры плагина | функция, возвращающая значение: `makeLogging({ … })`; значение создаётся один раз и импортируется ([container.md](./container.md)) |
 | конфиг плагина | секция `makeConfig`, объявленная самим плагином; наружу экспортируется только `.keys` ([config.md](./config.md)) |
 | зависимость от другого плагина | `dependsOn:` со ссылками **только на плагины**; параметризованная зависимость выражается DI-токеном |
 | «только для этих транспортов» | обычная зависимость от DI-токена транспорта; отсутствие экземпляра роняет сборку на BUILD |
@@ -668,7 +668,7 @@ DI-токеном `Discovery$` — всегда, без условий. Это �
 
 Плагин не зависит от фичи, и это правило симметрично основному. Данные
 приложения он получает двумя обычными путями: параметром при объявлении
-(`logging({ service: 'orders-api' })`) либо через DI-токен, объявленный самим
+(`makeLogging({ service: 'orders-api' })`) либо через DI-токен, объявленный самим
 плагином и реализованный кем угодно.
 
 ### Сквозное поведение: слой плюс политика
@@ -678,16 +678,16 @@ DI-токеном `Discovery$` — всегда, без условий. Это �
 
 ```typescript
 // infrastructure.ts — значение создаётся один раз и перечисляется в корне
-export const appLogging = logging({ service: 'orders-api' });
+export const logging = makeLogging({ service: 'orders-api' });
 
 // app.ts
 export const app = makeApp({
   features: [OrdersFeature, OpsFeature],
-  plugins: [appLogging],
+  plugins: [logging],
   transports: [http()],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-      observability,
+      traced,
     ),
   ],
 });
@@ -746,7 +746,7 @@ DI-токена фазы нет: инъекция текущей фазы — п
 `Logger$('nestling:health')`.
 
 Транспорт отдаёт пробы тонким слоем над `Health$`. HTTP-пакет
-экспортирует плагин `httpProbes()` с двумя endpoint'ами, `GET /healthz` и
+экспортирует плагин `makeHttpProbes()` с двумя endpoint'ами, `GET /healthz` и
 `GET /readyz`: без пайплайна, `detached`, `hidden`
 ([transports.md §4](./transports.md)). Отдельного состояния старта нет:
 провал INIT завершает процесс.

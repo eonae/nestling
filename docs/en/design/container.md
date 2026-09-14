@@ -311,7 +311,7 @@ export const OrdersModule = makeModule({
 - The `providers` of a module can be a synchronous factory; it is
   called in `build()`. A composition branch by a value known before
   build is not a factory, it is a switch:
-  `Storage.pick({ … })` and `Audit.when(…)` in `providers` and
+  `Storage.pick({ … })` and `AuditEnabled.when(…)` in `providers` and
   `dependsOn` ([composition.md §3](./composition.md)).
 - The container is used standalone too, with no `App`: grouping
   providers under a label is useful on its own there.

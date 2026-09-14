@@ -179,7 +179,7 @@ empty list and no list at all give the same result.
 ### 2.1. OpenAPI: an opt-in module
 
 ```typescript
-openapi({ info: { title: 'My API', version: '1.0.0' }, pipeline: observability })
+makeOpenapi({ info: { title: 'My API', version: '1.0.0' }, pipeline: traced })
 ```
 
 The document is needed in two modes — served by an endpoint, and
@@ -190,7 +190,7 @@ gets the composition of the application.
 
 | Surface | What it does |
 |---|---|
-| `openapi(options)` | the publisher plugin: it builds the document on phase 1 BUILD and serves it through an endpoint (`GET /openapi.json`). Its own `document(discovery)` method builds the document from the result of `app.discover(args)` — with no container, no transports and no running application |
+| `makeOpenapi(options)` | the publisher plugin: it builds the document on phase 1 BUILD and serves it through an endpoint (`GET /openapi.json`). Its own `document(discovery)` method builds the document from the result of `app.discover(args)` — with no container, no transports and no running application |
 | `OpenApiDocument$` | the DI token of the ready document; the endpoint is a way to serve it, not the place where it comes into being |
 | `app.discover(args?)` | the input of the generator: phase 0 of the declaration gives out the composition by value, with no graph and no sources. The document for the artifacts is built with the same build argument that starts the process ([composition.md](./composition.md)) |
 
@@ -205,7 +205,7 @@ gets the composition of the application.
   diagnostic fails the build before INIT and before the socket
   opens. There is no lazy build. The check is exhaustive: the
   violations of every endpoint are gathered into one message.
-- `openapi(...)` returns an ordinary plugin value with parameters; the
+- `makeOpenapi(...)` returns an ordinary plugin value with parameters; the
   plugin role brings in no new primitives. The `path`, `pipeline` and
   `detached` options let you apply the same root policies to the
   document endpoint as to the other HTTP endpoints.
@@ -213,7 +213,7 @@ gets the composition of the application.
   document from the build artifacts and the document served by
   `GET /openapi.json` coincide by construction. The method works even
   when the plugin never made it into the composition: the value lives in
-  the declaration, and the switch branch (`Docs.when(…)`) decides only
+  the declaration, and the switch branch (`DocsEnabled.when(…)`) decides only
   the fate of the endpoint. The document for a contour with the
   documentation turned off is built by the same call.
 - The module reads the composition of the application from

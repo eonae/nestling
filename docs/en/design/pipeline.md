@@ -148,15 +148,15 @@ The pipeline of an endpoint is a stack of layers, built by the
 `compose` function from constants:
 
 ```typescript
-export const base = makePipeline()
+export const traced = makePipeline()
   .pre(withRequestId())
   .pre(withTracing())
   .finally(audit);
-export const withIdempotency = compose(
-  base,
+export const idempotent = compose(
+  traced,
   makePipeline().pre(withIdempotencyKey()),
 );
-// on the endpoint: pipeline: compose(withIdempotency, makePipeline<{ idempotencyKey: string }>().pre(...))
+// on the endpoint: pipeline: compose(idempotent, makePipeline<{ idempotencyKey: string }>().pre(...))
 ```
 
 - `compose(outer, ..., inner)` accepts a list of layers. It reads top
@@ -215,7 +215,7 @@ connected:
 
 ```typescript
 export const authed = compose(
-  observability,
+  traced,
   makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
 );
 ```
@@ -385,7 +385,7 @@ checked on the BUILD phase, when every value already exists:
 ```typescript
 makeApp({
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authed, 'authed'),
   ],
   /* ... */
 })
@@ -412,7 +412,7 @@ makeApp({
   references to the values it was built from (`compose` keeps its
   arguments, the builder's derivation and `bind` keep the predecessor).
   `hasLayer` walks this DAG and compares references. So
-  `compose(base, authed)` contains both layers, a nested composition is
+  `compose(traced, authed)` contains both layers, a nested composition is
   transitive, and `authed.pre(x)` still contains `authed`.
 - The layer label is the second, optional argument of `hasLayer(layer,
   label)`. It is used only in the violation text. The name is never
