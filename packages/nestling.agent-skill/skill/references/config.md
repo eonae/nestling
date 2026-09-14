@@ -66,7 +66,8 @@ dependencies.
 
 A section is a DI token. Inject it and read fields off it:
 
-```
+<!-- snippet: pager.ts#reading -->
+```typescript
 @Component([AppConfig])
 export class Pager {
   constructor(private readonly config: Config<typeof AppConfig>) {}
@@ -80,30 +81,46 @@ export class Pager {
 `Config<typeof Section>` is the type of the read side. There is no
 `ConfigService` and no `get('some.key')`: a typo is a compile error.
 
-Outside the container — in `main.ts`, to pick features or switches before
-build — the choice goes into `build()`: values by hand, or the
-`argv(process.argv)` marker.
+Config never decides what the process runs. The features and the switches
+come from the build argument — `app.build(argv(process.argv))` — and the
+section is read only inside the container.
 
 ## Sources
 
-By default a section reads the environment. `config:` in `run()` binds a
-source to the keys of a section instead:
+Where values come from is an option of `run()`, not a field of the
+declaration. `bind(source, { keys })` binds a source to the keys of a
+section:
 
-```
-config: [
-  bind({ name: 'defaults', get: (key) => ({ APP_PAGE_SIZE: '50' })[key] },
-    { keys: appConfigKeys }),
-  bind(env({ prefix: 'SERVICE_1_' })),
-]
+<!-- snippet: main.ts#sources -->
+```typescript
+await app.build(argv(process.argv)).run({
+  config: [
+    bind(dotenv('config/local.env'), {
+      keys: appConfigKeys,
+      optional: true,
+    }),
+    ...defaultSources,
+  ],
+});
 ```
 
-- The target is `keys` of the binding — `Section.keys`, the right to bind,
-  which does not grant the right to read — or `'*'` for every key, the default.
-- Sources are tried in order; the first one that answers wins.
+- `keys` is `Section.keys` — the right to bind, which does not grant the
+  right to read — or a glob, `'*'` by default.
+- `optional: true` skips a source that did not come up; `timeout` bounds
+  its `init()`, ten seconds by default.
+- Bindings are tried in order; the first one that answers wins.
+- Without the option `run()` takes `defaultSources`, the pair
+  `[bind(env()), bind(dotenv('.env'), { optional: true })]`. A list of its
+  own replaces that default whole, which is why a source of the
+  application is written next to it.
 - A source is any object implementing `ConfigSource`: `get(key)` is
   required, `watch()` is what makes a section reloadable.
-- In a test, `vars({ API_TOKEN: 'test' })` replaces the binding of the
-  whole declaration, so the test never touches `process.env`.
+- In a test, `bind(vars({ API_TOKEN: 'test' }))` is the whole list, so the
+  test reads neither the environment nor a file.
+
+A constant of the application is not a source. A value that does not
+change between deployments belongs in `.default()` of the field schema,
+where the compiler sees it.
 
 `makeConfig.reloadable(prefix, fields)` declares a section whose values are
 updated at run time. Read such a section through its accessor on every use;

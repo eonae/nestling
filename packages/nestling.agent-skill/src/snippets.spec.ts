@@ -7,7 +7,11 @@
  * проверяет каждый файл по отдельности; сборка проверяет их как одно
  * приложение — политику корня, слои endpoint'ов, рёбра между фичами.
  */
-import { checkSnippets } from '../scripts/snippets.mjs';
+import {
+  checkSnippets,
+  regionsOf,
+  writeSnippets,
+} from '../scripts/snippets.mjs';
 import { app } from '../snippets/app.js';
 
 import { bind, RootLogger$ } from '@nestlingjs/app';
@@ -34,5 +38,53 @@ describe('сниппеты скилла', () => {
     });
 
     expect(built).toBeDefined();
+  });
+
+  it('перезапись на сошедшихся файлах не меняет ни одного байта', () => {
+    expect(writeSnippets()).toEqual([]);
+  });
+});
+
+describe('участки сниппетов', () => {
+  it('отдают тело со снятым общим отступом', () => {
+    const { regions, problems } = regionsOf(
+      [
+        'class A {',
+        '  // #region reading',
+        '  size(): number {',
+        '    return 1;',
+        '  }',
+        '  // #endregion',
+        '}',
+      ].join('\n'),
+      'a.ts',
+    );
+
+    expect(problems).toEqual([]);
+    expect(regions.get('reading')).toBe('size(): number {\n  return 1;\n}');
+  });
+
+  it('отвергают вложенный участок', () => {
+    const { problems } = regionsOf(
+      '// #region outer\n// #region inner\n// #endregion\n',
+      'a.ts',
+    );
+
+    expect(problems[0]?.message).toBe('участок #inner открыт внутри #outer');
+  });
+
+  it('отвергают повтор имени участка', () => {
+    const { problems } = regionsOf(
+      '// #region one\n// #endregion\n// #region one\n// #endregion\n',
+      'a.ts',
+    );
+
+    expect(problems[0]?.message).toBe('участок #one объявлен второй раз');
+  });
+
+  it('отвергают незакрытый участок', () => {
+    const { problems } = regionsOf('// #region one\nconst a = 1;\n', 'a.ts');
+
+    expect(problems[0]?.message).toBe('участок #one не закрыт // #endregion');
   });
 });

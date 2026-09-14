@@ -130,11 +130,9 @@ OpenAPI document, built from the same declarations that validate requests.
 
 ## Two forms of handler
 
-A function handler is enough while nothing has to be injected.
-
-```
-handler: async ({ id }) => ({ id, name: 'Alice' })
-```
+A function handler is enough while nothing has to be injected: `ListUsers`
+above is one — the handler is a field of the declaration and receives the
+input already validated.
 
 A class handler is used as soon as a dependency appears. The class is
 marked `@Handler([…])`, the method is always `handle`, and the endpoint

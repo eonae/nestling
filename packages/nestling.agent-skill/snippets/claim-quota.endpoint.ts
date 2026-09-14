@@ -8,6 +8,7 @@ import type { Logger } from '@nestlingjs/app';
 import { implement, Logger$ } from '@nestlingjs/app';
 import { Component, Handler } from '@nestlingjs/container';
 
+// #region implement
 @Component([])
 export class QuotaService {
   readonly limit = 5;
@@ -48,3 +49,4 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
   subscriber: 'quotas',
   handler: UserRegisteredInQuotasHandler,
 });
+// #endregion
