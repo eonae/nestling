@@ -575,8 +575,16 @@ rests on). The remaining types of the seam are parts of `NatsLike`,
 and a substitute for your own client does not need to name them. The
 in-memory double of the broker is exported by the `./testing`
 convention: the tests of the application and the package pass with no
-network, and a separate integration run checks compatibility with the
-real broker.
+network.
+
+The default connector assembles `NatsLike` from the client with an
+explicit adapter. There is no cast of the client type through
+`unknown` in it: a divergence from the client is shown by the
+typecheck, not by a failure in production. The double confirms our
+code, not the compatibility with the broker, so the compatibility is
+confirmed by a live run — a single repository command that starts the
+broker, runs the package tests against it and stops the service. The
+run is a release step, before the version bump.
 
 ## 8. MCP (`@nestlingjs/mcp`)
 

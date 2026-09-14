@@ -64,6 +64,13 @@ The package does not start a broker and does not create streams beyond
 those the operations need. The codec sets the message format, and
 `docs/en/design/transports.md` sets the delivery semantics.
 
+The double from `./testing` checks **our code**, not the compatibility
+with the broker: it behaves the way we understood NATS. The
+compatibility is confirmed by a run against a real broker —
+`yarn test:live` from the repository root. The command starts `nats:2`
+from `compose.yaml`, runs the package tests against it and stops the
+service; the host port is set by `NATS_LIVE_PORT`, the default is 4222.
+
 A stream created by the package carries a deduplication window: a
 repeat of a durable publication with the same idempotency key inside
 the window is removed by the broker itself. The default is 5 minutes,
