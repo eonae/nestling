@@ -10,7 +10,7 @@ matters. Habits from Nest produce code here that either does not compile or
 stops the BUILD phase. Read parts 1 and 4 before writing anything; the
 rest is reference.
 
-This skill describes Nestling 0.3.0. Before writing code, compare that
+This skill describes Nestling 0.4.0. Before writing code, compare that
 number with the version of `@nestlingjs/app` in the `package.json` of the
 project. If they differ, say so to the user and offer to reinstall the
 skill with `npx @nestlingjs/agent-skill`: the skill is a copy inside the
