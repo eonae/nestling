@@ -1,10 +1,9 @@
-# A backend put together from values
+# A backend written by agents
 
-Nestling is a TypeScript backend framework: smaller, more modern and
-stricter than NestJS. An application is put together from declarations
-that are values: an endpoint, an operation, a pipeline, a feature and a
-module are ordinary constants. The container checks the whole dependency
-graph at startup.
+Nestling serves an agent and a human alike: for both it shortens the time
+between "the code is written" and "the code is known to be correct". The
+whole application comes up in one process. The compiler shows the error. The
+build fails before the socket opens.
 
 [Start in five minutes](./guide/01-first-service.md)
 [npm i @nestlingjs/app](https://www.npmjs.com/package/@nestlingjs/app)
@@ -24,21 +23,27 @@ await app.build().run();
 ```
 
 ::::cards
-:::card No runtime magic
-Dependencies are listed as DI tokens on standard decorators. There is no
-`reflect-metadata` and there are no hidden conventions about names.
+:::card The whole application in one process
+A feature calls its neighbour through an [operation](./guide/14-features.md)
+rather than over the network. Behaviour is checked without a broker, without
+containers and without a deployment, and the same declaration is
+[spread across processes](./guide/20-split.md) when that becomes necessary.
 :::
-:::card Guarantee over convention
-A cycle in the graph, a missing dependency or an endpoint without a
-required layer stop the build, not the request.
+:::card An error at compile time
+The `output` schema types the handler, the list of
+[failures](./guide/04-errors.md) in the endpoint declaration closes the
+return of an undeclared error, and the requirements of a layer to the
+context are checked at the `compose` point.
 :::
-:::card Schema-first
-The `input`, `output` and `errors` schemas define the validation, the
-types of the handler, the typed client and the OpenAPI document.
+:::card The build fails before the socket
+A cycle in the graph, a missing dependency, an endpoint without a required
+layer and a config key that is not found stop the start. The whole list is
+the [table of checks](./guarantees.md).
 :::
-:::card Declarations are values
-A module is an object, not a class with a decorator. A value can be built
-by a function, put into an array and passed on.
+:::card A check without a server
+The test build `buildTest` runs the same declaration through the phases up
+to `WIRE` and [stops](./guide/08-testing.md). An endpoint is called through
+the same pipeline, and no socket is opened.
 :::
 ::::
 
@@ -74,6 +79,16 @@ each one rests on the code of the previous one.
   of an application.
 - [Releases](./releases/README.md) — what changed in every version: the
   code before and after, where to read more.
+
+## When Nestling is not needed
+
+A service that runs in one process, that is called by no typed client and
+whose documentation nobody reads gets nothing back from its declarations.
+There they stay a cost, and such a service is cheaper to write on Fastify.
+Nestling starts paying off where a feature has to survive a move to another
+process, where the caller wants a client generated from the contract, and
+where the OpenAPI document has to follow the code rather than trail behind
+it.
 
 ## Status
 
