@@ -1,5 +1,6 @@
 import { ForgetUserImpl } from './forget-user.endpoint.js';
 import { RegisterUserImpl } from './register-user.endpoint.js';
+import { UsersMetrics } from './users.metrics.js';
 import { DbUsersRepository, UsersRepository$ } from './users.repository.js';
 
 import { makeFeature } from '@nestlingjs/app';
@@ -16,6 +17,7 @@ import { classProvider } from '@nestlingjs/container';
  */
 export const UsersFeature = makeFeature({
   name: 'users',
+  metrics: [UsersMetrics],
   providers: [classProvider(UsersRepository$, DbUsersRepository)],
   endpoints: [RegisterUserImpl, ForgetUserImpl],
 });

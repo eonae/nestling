@@ -8,9 +8,11 @@
  * догфудит, потому что предлагать пользователю конвенцию, которой сам не
  * следуешь, нечестно.
  *
- * Наружу шов отдаёт ровно одно: прохождение фаз 0–3 по декларации
- * `makeApp` с подстановками и доступ к контейнеру, карте endpoint'ов и
- * общему `AbortController`. Всё остальное — дело `@nestlingjs/testing`.
+ * Наружу шов отдаёт прохождение фаз 0–3 по декларации `makeApp` с
+ * подстановками и доступ к контейнеру, карте endpoint'ов и общему
+ * `AbortController`. Здесь же — сборка каталога метрик и писателя группы
+ * для теста класса без графа: в бою их зовёт только сборка, и прод-API
+ * пакета ими не расширяется. Всё остальное — дело `@nestlingjs/testing`.
  */
 
 import type { App } from '../root/app.js';
@@ -26,6 +28,13 @@ export type {
   WiredApp,
   WiredEndpoint,
 } from '../root/plan.js';
+export type { MetricsContribution } from '../metrics/index.js';
+export {
+  findSeries,
+  findSeriesOne,
+  makeCatalog,
+  makeWriter,
+} from '../metrics/index.js';
 
 /**
  * Опции тестового прогона: аргумент сборки и подстановки.

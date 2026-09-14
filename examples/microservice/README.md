@@ -20,7 +20,7 @@
 | Живая лента по SSE и реестр подписок | [`src/users/activity.hub.ts`](./src/users/activity.hub.ts), [`src/ops/`](./src/ops) |
 | Инструменты агента по MCP на том же сокете | [`src/users/tools/`](./src/users/tools) |
 | Webhook с проверкой HMAC-подписи | [`src/users/endpoints/user-webhook.endpoint.ts`](./src/users/endpoints/user-webhook.endpoint.ts) |
-| Метрики в формате Prometheus | [`src/metrics.ts`](./src/metrics.ts) |
+| Метрики группой и экспозиция пакетом | [`src/users/users.metrics.ts`](./src/users/users.metrics.ts), [`src/app.ts`](./src/app.ts) |
 | Пробы `/healthz` и `/readyz`, версия сборки | [`src/ops/ops.plugin.ts`](./src/ops/ops.plugin.ts) |
 
 ## Как поднять

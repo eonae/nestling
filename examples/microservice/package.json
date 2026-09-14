@@ -33,6 +33,7 @@
     "@nestlingjs/mcp": "workspace:*",
     "@nestlingjs/openapi": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/prometheus": "workspace:*",
     "@nestlingjs/schema.zod": "workspace:*",
     "@nestlingjs/subscriptions": "workspace:*",
     "@nestlingjs/transport.http": "workspace:*",

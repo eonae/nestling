@@ -8,7 +8,6 @@
 
 import { NotificationsFeature } from './features/notifications/notifications.feature.js';
 import { UsersFeature } from './features/users/users.feature.js';
-import { metricsPlugin, prometheusExporter } from './metrics.js';
 import { UserRegistered } from './operations.js';
 import { db, inbox, inboxStore, outboxStore } from './persistence.js';
 import { Mail } from './switches.js';
@@ -21,6 +20,7 @@ import {
   makeApp,
 } from '@nestlingjs/app';
 import { makeOutbox } from '@nestlingjs/outbox';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, makeHttpProbes } from '@nestlingjs/transport.http';
 import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
 import { nats } from '@nestlingjs/transport.nats';
@@ -49,15 +49,12 @@ export const outbox = makeOutbox({
 /**
  * Объявляет приложение.
  *
- * Адаптер метрик создаётся здесь и уходит в два места сразу: опцией
- * `metrics` он становится корнем, под которым ядро считает запросы и
- * вызовы портов, и узлом графа — его читает endpoint `GET /metrics`.
+ * Экспозиция метрик подключается плагином: накопленное держит ядро, а
+ * плагин читает его снимок и отдаёт по `GET /metrics`.
  *
  * @param options - Опции брокера
  */
 export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
-  const exporter = prometheusExporter();
-
   return makeApp({
     features: [UsersFeature, NotificationsFeature],
     plugins: [
@@ -66,7 +63,7 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
       outbox,
       inboxStore,
       inbox,
-      metricsPlugin(exporter),
+      makePrometheus(),
       // Пробы `GET /healthz` и `GET /readyz` поверх узла ядра `Health$`:
       // правило готовности принадлежит ядру, плагину — только адреса и
       // коды
@@ -78,7 +75,6 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
     // которой не выбран в этой сборке, уходит через этот транспорт
     transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
-    metrics: exporter,
     policies: [
       // Дедуплицирует тот, кому доставку могут повторить: под
       // durable-событием лежит поток JetStream, и подписчик обязан быть

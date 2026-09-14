@@ -1,13 +1,66 @@
 /**
- * Метрики ядра: интерфейс, DI-токены, kernel-модуль и имена метрик,
- * которые пишет само ядро.
+ * Метрики: объявление группой, каталог сборки и store ядра.
  *
- * Пустая реализация наружу не идёт: приложение задаёт корень опцией
- * `makeApp({ metrics })`, а её отсутствие и означает умолчание.
+ * Метрика — декларация-значение, а не строка в точке записи: состав
+ * известен сборке целиком, поэтому экспозиция отдаёт нули до первой
+ * записи, а незадекларированная запись невыразима в типах.
  */
 
-export type { MetricAttributes, Metrics } from './interface.js';
+export type {
+  CatalogMetric,
+  MetricsCatalog,
+  MetricsContribution,
+  SeriesResolutions,
+} from './catalog.js';
+export { makeCatalog, seriesIndex, seriesKey } from './catalog.js';
+export type {
+  AnyMember,
+  AnyMetricsGroup,
+  AttributesOf,
+  AttributesSpec,
+  AttributeSpec,
+  CounterDeclaration,
+  CounterWriter,
+  HistogramDeclaration,
+  HistogramOptions,
+  HistogramWriter,
+  Member,
+  MembersOf,
+  MetricDeclaration,
+  MetricOptions,
+  MetricsGroup,
+  MetricsMembers,
+  MetricsOf,
+  MetricsWriter,
+  NoAttributes,
+  Open,
+} from './declaration.js';
+export {
+  counter,
+  histogram,
+  isMetricsGroup,
+  makeMetrics,
+  metricName,
+  open,
+} from './declaration.js';
+export type {
+  CallAttributes,
+  KernelMetricsWriter,
+  MetricEndpoint,
+  MetricOperation,
+  RequestAttributes,
+} from './kernel-group.js';
+export { KernelMetrics, kernelSeries } from './kernel-group.js';
 export { metricsKernel } from './kernel.js';
-export { configuredMetrics, noopMetrics } from './noop.js';
-export { KERNEL_METRICS } from './names.js';
-export { Metrics$, RootMetrics$ } from './tokens.js';
+export { findSeries, findSeriesOne } from './lookup.js';
+export { defaultMetrics } from './standalone.js';
+export type {
+  CounterSeries,
+  HistogramBucket,
+  HistogramSeries,
+  MetricAttributes,
+  MetricSeries,
+  MetricsSnapshot,
+} from './snapshot.js';
+export { MetricsStore, MetricsStore$ } from './store.js';
+export { makeWriter } from './writer.js';

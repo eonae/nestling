@@ -1,84 +1,56 @@
 /**
- * Адаптер метрик: сложение записей, формат экспозиции и метрики ядра.
+ * Метрики примера: своя группа, store ядра и экспозиция плагином.
  *
- * Проверяется то, ради чего адаптер живёт в примере: публичной границы
- * ядра хватает стороннему экспортёру — он получает и записи приложения, и
- * счётчики, которые ядро пишет само.
+ * Проверяется то, ради чего метрики в примере вообще есть: приложение
+ * объявляет свои метрики значением, ядро копит их вместе со своими, а
+ * формат экспозиции приходит пакетом — писать его в примере не нужно.
  */
 
+import { UsersMetrics } from './features/users/users.metrics.js';
 import { declareApp } from './app.js';
-import type { MetricsExporter } from './metrics.js';
-import { metricsPlugin, prometheusExporter } from './metrics.js';
 import { RegisterUser } from './operations.js';
 import { describeWithDatabase, testConfig } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
-import { makeApp } from '@nestlingjs/app';
+import { KernelMetrics, makeApp, makeFeature } from '@nestlingjs/app';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { buildTest } from '@nestlingjs/testing';
 import { http } from '@nestlingjs/transport.http';
 
-describe('адаптер Prometheus', () => {
-  it('складывает счётчики по имени и меткам', () => {
-    const exporter = prometheusExporter();
+/** Текст экспозиции по endpoint'у плагина */
+const scrape = async (
+  testApp: Awaited<ReturnType<typeof buildTest>>,
+  endpoint: AnyEndpointDefinition,
+): Promise<string> => {
+  const response = await testApp.call(endpoint as never);
 
-    exporter.counter('orders.created');
-    exporter.counter('orders.created', 2);
-    exporter.counter('orders.created', 1, { tenant: 'acme' });
+  return String(response.value);
+};
 
-    const text = exporter.render();
-
-    expect(text).toContain('orders_created 3');
-    expect(text).toContain('orders_created{tenant="acme"} 1');
-  });
-
-  it('гистограмма даёт число наблюдений и сумму', () => {
-    const exporter = prometheusExporter();
-
-    exporter.histogram('db.query', 10, { table: 'users' });
-    exporter.histogram('db.query', 5, { table: 'users' });
-
-    const text = exporter.render();
-
-    expect(text).toContain('db_query_count{table="users"} 2');
-    expect(text).toContain('db_query_sum{table="users"} 15.000');
-  });
-
-  it('метки печатаются в одном порядке независимо от порядка записи', () => {
-    const exporter = prometheusExporter();
-
-    exporter.counter('x', 1, { b: '2', a: '1' });
-    exporter.counter('x', 1, { a: '1', b: '2' });
-
-    expect(exporter.render()).toContain('x{a="1",b="2"} 2');
-  });
-
-  it('endpoint /metrics отдаёт накопленный текст', async () => {
-    const exporter = prometheusExporter();
-    const plugin = metricsPlugin(exporter);
-
+describe('экспозиция метрик примера', () => {
+  it('свежее приложение отдаёт нули по объявленным рядам', async () => {
+    const plugin = makePrometheus();
     // Приложение без фич: endpoint приносит плагин, и базы ему не нужно
     const observed = makeApp({
-      features: [],
+      features: [makeFeature({ name: 'users', metrics: [UsersMetrics] })],
       plugins: [plugin],
       transports: [http()],
-      metrics: exporter,
     });
-
-    exporter.counter('orders.created', 7);
 
     await using testApp = await buildTest(observed);
 
     const [endpoint] = plugin.endpoints as readonly AnyEndpointDefinition[];
-    const response = await testApp.call(endpoint);
+    const text = await scrape(testApp, endpoint as AnyEndpointDefinition);
 
-    expect(response.isSuccess).toBe(true);
-    expect(String(response.value)).toContain('orders_created 7');
+    expect(text).toContain('# TYPE users_registrations counter');
+    expect(text).toContain('users_registrations{outcome="registered"} 0');
+    expect(text).toContain('users_registrations{outcome="duplicate"} 0');
   });
 });
 
-describeWithDatabase('метрики ядра в экспорте примера', () => {
-  it('обработка операции попадает в экспорт счётчиком и длительностью', async () => {
+describeWithDatabase('метрики ядра и приложения в одном store', () => {
+  it('обработка команды даёт запись фичи и записи ядра', async () => {
     // Шины в этой сборке нет: обе фичи выбраны, и вызов
     // `notifications.check-address` идёт через `dispatch` — метрика порта
     // при этом пишется та же
@@ -94,10 +66,23 @@ describeWithDatabase('метрики ядра в экспорте примера
       email: 'alice@example.com',
     });
 
-    const text = (declared.spec.metrics as MetricsExporter).render();
+    // Ряд прикладной метрики адресуется членом группы, а не строкой
+    expect(
+      testApp.metrics.counter(UsersMetrics.members.registrations, {
+        outcome: 'registered',
+      }),
+    ).toBe(1);
 
-    expect(text).toContain('nestling_requests{');
-    expect(text).toContain('nestling_request_duration_count{');
-    expect(text).toMatch(/nestling_port_calls{[^}]*binding="local"/);
+    // Метрики ядра лежат в том же store
+    expect(
+      testApp.metrics.counter(KernelMetrics.members.requests, {
+        outcome: 'completed',
+      }),
+    ).toBeGreaterThan(0);
+    expect(
+      testApp.metrics.counter(KernelMetrics.members['port.calls'], {
+        binding: 'local',
+      }),
+    ).toBeGreaterThan(0);
   });
 });

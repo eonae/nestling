@@ -1,6 +1,6 @@
 import { defaultLogger } from '../../logger/standalone.js';
-import type { Metrics } from '../../metrics/interface.js';
-import { KERNEL_METRICS } from '../../metrics/names.js';
+import type { KernelMetricsWriter } from '../../metrics/kernel-group.js';
+import { defaultMetrics } from '../../metrics/standalone.js';
 
 import type { RequestCell } from './context/store.js';
 import {
@@ -192,11 +192,11 @@ export interface ExecuteOptions {
   logger?: Logger;
 
   /**
-   * Метрики обработки запроса. Поле заполняется только тогда, когда
-   * приложение задало реализацию опцией `makeApp({ metrics })`: без неё
-   * рантайм не снимает время и не вызывает ни одного метода записи.
+   * Писатель метрик ядра. Без него запись уходит в standalone-store — как
+   * запись логгера уходит в логгер ядра: инструментовка условной не
+   * бывает.
    */
-  metrics?: Metrics;
+  metrics?: KernelMetricsWriter;
 }
 
 /**
@@ -206,7 +206,7 @@ export interface ExecuteOptions {
  * шаблон маршрута, поэтому количество рядов у экспортёра конечно.
  */
 function recordRequest(
-  metrics: Metrics,
+  metrics: KernelMetricsWriter,
   endpoint: EndpointMeta,
   outcome: Outcome,
   durationMs: number,
@@ -217,8 +217,8 @@ function recordRequest(
     outcome,
   };
 
-  metrics.counter(KERNEL_METRICS.requests, 1, attributes);
-  metrics.histogram(KERNEL_METRICS.requestDuration, durationMs, attributes);
+  metrics.requests.add(1, attributes);
+  metrics['request.duration'].record(durationMs, attributes);
 }
 
 /**
@@ -1098,11 +1098,11 @@ class PipelineImpl {
 
     const exposeErrorDetails = options.exposeErrorDetails ?? false;
     const logger = options.logger ?? defaultLogger;
-    const { metrics } = options;
+    const metrics = options.metrics ?? defaultMetrics();
 
-    // Часы заводятся только под настроенные метрики: приложение без них
-    // не платит за наблюдаемость ни одним вызовом
-    const startedAt = metrics ? performance.now() : 0;
+    // Часы заводятся всегда: цена записи объявленного ряда — прибавка по
+    // индексу, вычисленному на сборке, и выключателя у неё нет
+    const startedAt = performance.now();
 
     let response: ResponseContext<unknown>;
 
@@ -1306,14 +1306,12 @@ class PipelineImpl {
       outcome: Outcome,
       settled: ResponseContext<unknown>,
     ): Promise<void> => {
-      if (metrics) {
-        recordRequest(
-          metrics,
-          ctx.endpoint,
-          outcome,
-          performance.now() - startedAt,
-        );
-      }
+      recordRequest(
+        metrics,
+        ctx.endpoint,
+        outcome,
+        performance.now() - startedAt,
+      );
 
       if (this.hasFinals) {
         await runFinals(outcome, settled);
@@ -1371,9 +1369,7 @@ class PipelineImpl {
 
     setPhase(cell, 'finally');
 
-    if (this.hasFinals || metrics) {
-      await settle(computeOutcome(ctx.signal, response), response);
-    }
+    await settle(computeOutcome(ctx.signal, response), response);
 
     return response;
   }

@@ -63,8 +63,8 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 - **Подстановки** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`, `ObjectSource`.
-- **Логгер и метрики** — `spyLogger`, `SpyLogger`, `LogEntry`, `spyMetrics`,
-  `SpyMetrics`, `MetricRecord`.
+- **Логгер и метрики** — `spyLogger`, `SpyLogger`, `LogEntry`,
+  `TestMetrics`, `metricsFor`, `GroupMetrics`.
 - **Топологии и единицы** — `checkTopologies`, `TopologyReport`,
   `testBundle`, `TestBundleOptions`.
 - **Реэкспорт [`@nestlingjs/app`](../nestling.app/)** — имена ядра, чтобы тест

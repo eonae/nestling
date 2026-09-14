@@ -18,6 +18,7 @@ import {
   GetUserTool,
   SearchUsersTool,
 } from './users/tools/index.js';
+import { UsersMetrics } from './users/users.metrics.js';
 import {
   DbUsersRepository,
   UsersRepository$,
@@ -43,6 +44,9 @@ import { classProvider } from '@nestlingjs/container';
  */
 export const UsersFeature = makeFeature({
   name: 'users',
+  // Метрики фичи — такой же вклад, как endpoint'ы и провайдеры: сборка
+  // без этой фичи не заводит ни одного их ряда
+  metrics: [UsersMetrics],
   providers: [
     classProvider(UsersRepository$, DbUsersRepository),
     ActivityHub,

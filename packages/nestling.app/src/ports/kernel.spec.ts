@@ -7,13 +7,12 @@ import { bind, bootstrapConfig, configKernel } from '../config/index.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 import { loggerKernel } from '../logger/kernel.js';
 import { RootLogger$ } from '../logger/tokens.js';
-import { spyMetrics } from '../metrics/__fixtures__/spy.js';
-import type { Metrics } from '../metrics/index.js';
+import type { MetricsProbe } from '../metrics/__fixtures__/probe.js';
+import { probeMetrics } from '../metrics/__fixtures__/probe.js';
 import {
-  KERNEL_METRICS,
+  KernelMetrics,
   metricsKernel,
-  noopMetrics,
-  RootMetrics$,
+  MetricsStore$,
 } from '../metrics/index.js';
 import { contextKernel } from '../pipeline/core/context/index.js';
 import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
@@ -161,6 +160,7 @@ class FakeRemoteBus extends InProcessBusClass {
 
 interface Built {
   container: BuiltContainer;
+  metrics: MetricsProbe;
   bus?: InProcessBus;
   close: () => Promise<void>;
 }
@@ -176,8 +176,6 @@ async function build(options: {
   wire?: boolean;
   /** Корень поставил remote-шину — то же, что `nats()` в `transports:` */
   rootBus?: FakeRemoteBus;
-  /** Метрики корня; без них инструментовка выключена, как в бою */
-  metrics?: Metrics;
 }): Promise<Built> {
   const declarations = options.declarations ?? [];
   const source = objectSource(
@@ -187,9 +185,10 @@ async function build(options: {
   );
 
   // Записи логгера здесь не наблюдаются: отказы вызывателей и доставки
-  // проверяются отдельными тестами, а тест смотрит на биндинг. Корни
-  // логгера и метрик живут вне графа, поэтому регистрируются значениями —
-  // так же, как это делает сборка приложения
+  // проверяются отдельными тестами, а тест смотрит на биндинг. Корневой
+  // логгер и store метрик живут вне графа, поэтому регистрируются
+  // значениями — так же, как это делает сборка приложения
+  const metrics = probeMetrics();
   const builder = new ContainerBuilder();
   builder.register(
     configKernel(
@@ -200,8 +199,8 @@ async function build(options: {
     contextKernel(),
     loggerKernel(),
     valueProvider(RootLogger$, spyLogger().logger),
-    metricsKernel(),
-    valueProvider(RootMetrics$, options.metrics ?? noopMetrics),
+    valueProvider(MetricsStore$, metrics.store),
+    metricsKernel([KernelMetrics]),
   );
   builder.register(
     portsKernel({
@@ -234,6 +233,7 @@ async function build(options: {
   if (options.wire === false) {
     return {
       container,
+      metrics,
       ...(bus === null ? {} : { bus }),
       close: async () => bus?.close(),
     };
@@ -243,7 +243,7 @@ async function build(options: {
     declarations.map((declaration) =>
       declaration.resolve((token) => container.get(token) ?? undefined),
     ),
-    options.metrics === undefined ? {} : { metrics: options.metrics },
+    { metrics: metrics.kernel },
   );
 
   const dispatches = new Map<TransportRef, Dispatch>([
@@ -256,16 +256,16 @@ async function build(options: {
 
   return {
     container,
+    metrics,
     ...(bus === null ? {} : { bus }),
     close: async () => bus?.close(),
   };
 }
 
 /** Записи счётчика вызовов порта */
-const counters = (
-  spy: ReturnType<typeof spyMetrics>,
-): ReturnType<typeof spyMetrics>['records'] =>
-  spy.records.filter(({ name }) => name === KERNEL_METRICS.portCalls);
+const { requests } = KernelMetrics.members;
+const portCalls = KernelMetrics.members['port.calls'];
+const portDuration = KernelMetrics.members['port.duration'];
 
 const portConsumer = factoryProvider(
   Consumer,
@@ -561,11 +561,9 @@ describe('portsKernel — метрики вызова', () => {
   ] as const)(
     'политика %s даёт тот же набор метрик, различая биндинг',
     async (dispatch, binding) => {
-      const spy = spyMetrics();
       const app = await build({
         declarations: [EchoImpl],
         consumers: [portConsumer],
-        metrics: spy.metrics,
         dispatch,
       });
 
@@ -579,22 +577,20 @@ describe('portsKernel — метрики вызова', () => {
         outcome: 'completed',
       };
 
-      expect(counters(spy)).toContainEqual({
+      expect(app.metrics.of(portCalls, attributes)).toMatchObject({
         kind: 'counter',
-        name: KERNEL_METRICS.portCalls,
         value: 1,
-        attributes,
       });
-      expect(
-        spy.records.filter(({ name }) => name === KERNEL_METRICS.portDuration),
-      ).toContainEqual(expect.objectContaining({ attributes }));
+      expect(app.metrics.of(portDuration, attributes)).toMatchObject({
+        kind: 'histogram',
+        count: 1,
+      });
 
       await app.close();
     },
   );
 
   it('emit события учитывается', async () => {
-    const spy = spyMetrics();
     const eventConsumer = factoryProvider(
       EventConsumer,
       (emitter: Emitter<any>) => ({ emitter }),
@@ -604,74 +600,58 @@ describe('portsKernel — метрики вызова', () => {
     const app = await build({
       declarations: [PlacedImpl],
       consumers: [eventConsumer],
-      metrics: spy.metrics,
     });
 
     const { emitter } = app.container.getOrThrow(EventConsumer);
     await emitter.emit({ id: 'o-1' });
 
-    expect(counters(spy)).toContainEqual(
-      expect.objectContaining({
-        attributes: expect.objectContaining({
-          operation: 'kernel.placed',
-          kind: 'event',
-          outcome: 'completed',
-        }),
+    expect(
+      app.metrics.of(portCalls, {
+        operation: 'kernel.placed',
+        kind: 'event',
+        outcome: 'completed',
       }),
-    );
+    ).toMatchObject({ value: 1 });
 
     await app.close();
   });
 
   it('объявленный отказ реализации даёт outcome failed', async () => {
-    const spy = spyMetrics();
     const app = await build({
       declarations: [FailingImpl],
       consumers: [failingConsumer],
-      metrics: spy.metrics,
     });
 
     const { port } = app.container.getOrThrow(Consumer);
     await port.call();
 
-    expect(counters(spy)).toContainEqual(
-      expect.objectContaining({
-        attributes: expect.objectContaining({
-          operation: 'kernel.failing',
-          outcome: 'failed',
-        }),
+    expect(
+      app.metrics.of(portCalls, {
+        operation: 'kernel.failing',
+        outcome: 'failed',
       }),
-    );
+    ).toMatchObject({ value: 1 });
 
     await app.close();
   });
 
   it('локальный вызов даёт и метрику порта, и метрику endpoint’а', async () => {
-    const spy = spyMetrics();
     const app = await build({
       declarations: [EchoImpl],
       consumers: [portConsumer],
-      metrics: spy.metrics,
       dispatch: 'local-first',
     });
 
     const { port } = app.container.getOrThrow(Consumer);
     await port.call({ items: [1] });
 
-    expect(counters(spy)).toContainEqual(
-      expect.objectContaining({
-        attributes: expect.objectContaining({ binding: 'local' }),
-      }),
-    );
-    expect(
-      spy.records.filter(({ name }) => name === KERNEL_METRICS.requests),
-    ).toHaveLength(1);
+    expect(app.metrics.all(portCalls, { binding: 'local' })).toHaveLength(1);
+    expect(app.metrics.all(requests)).toHaveLength(1);
 
     await app.close();
   });
 
-  it('без метрик корня ни один метод не вызван', async () => {
-    const spy = spyMetrics();
+  it('обёртка вызывателя ставится без единой настройки', async () => {
     const app = await build({
       declarations: [EchoImpl],
       consumers: [portConsumer],
@@ -680,7 +660,7 @@ describe('portsKernel — метрики вызова', () => {
     const { port } = app.container.getOrThrow(Consumer);
     await port.call({ items: [1] });
 
-    expect(spy.records).toEqual([]);
+    expect(app.metrics.all(portCalls)).not.toEqual([]);
 
     await app.close();
   });

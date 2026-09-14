@@ -143,7 +143,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Двадцать три каталога `packages/`. Ядро — три из них: `@nestlingjs/container`,
+Двадцать четыре каталога `packages/`. Ядро — три из них: `@nestlingjs/container`,
 `@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -172,6 +172,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/agent-skill`](../packages/nestling.agent-skill/) | Скилл Claude Code про Nestling и команда, которая кладёт его в проект |
 | [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
+| [`@nestlingjs/prometheus`](../packages/nestling.prometheus/) | Экспозиция метрик в формате Prometheus: endpoint `/metrics` читает снимок store ядра |
 | [`@nestlingjs/logging.pino`](../packages/nestling.logging.pino/) | pino под интерфейсом `Logger`: redaction и сериализаторы библиотеки при формате строки, общем со штатным логгером |
 | [`@nestlingjs/schema.zod`](../packages/nestling.schema.zod/) | Всё, что фреймворк делает с zod: конвертер схем в JSON Schema, билдеры полей секций и модели со сверкой с TypeScript-типом |
 | [`@nestlingjs/drizzle.pg`](../packages/nestling.drizzle.pg/) | PostgreSQL на drizzle-orm: соединение, транзакция запроса и адаптеры хранилищ outbox'а и приёма |
@@ -238,8 +239,8 @@ design-доки описывают **только целевое V1** (как б
     `## Границы пакета`. Других заголовков второго уровня нет: обучение
     живёт в `guide/` и `recipes/`, семантика — в `design/`, README отвечает на вопрос
     «что в пакете сегодня и как называется». Файл занимает не больше
-    120 строк, раздел «Экспорты» — не больше 60, то есть не больше половины
-    файла. «Минимальный пример»
+    130 строк, раздел «Экспорты» — не больше 75, то есть не больше
+    половины файла. «Минимальный пример»
     содержит один блок кода: README открывают на странице npm, где ни
     гайда, ни `design/` рядом нет. Плашка публичного пакета называет
     статус разработки и ведёт на design-док и на главу гайда или рецепт, не

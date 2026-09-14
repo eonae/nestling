@@ -6,10 +6,11 @@ import {
 } from '../../operations.js';
 import { transactional } from '../../persistence.js';
 
+import { UsersMetrics } from './users.metrics.js';
 import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
-import type { Logger, Port } from '@nestlingjs/app';
+import type { Logger, MetricsOf, Port } from '@nestlingjs/app';
 import { deadlineIn, implement, Logger$ } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 import type { OutboxEmitter } from '@nestlingjs/outbox';
@@ -34,6 +35,7 @@ const CHECK_BUDGET_MS = 500;
   CheckAddress.caller,
   outboxed(UserRegistered),
   Logger$.auto,
+  UsersMetrics,
 ])
 export class RegisterUserHandler {
   constructor(
@@ -41,6 +43,9 @@ export class RegisterUserHandler {
     private readonly addresses: Port<typeof CheckAddress>,
     private readonly registered: OutboxEmitter<typeof UserRegistered>,
     private readonly logger: Logger,
+    // Группа метрик — такой же DI-токен, как порт и логгер: метрика
+    // выбирается полем писателя, а не называется строкой
+    private readonly metrics: MetricsOf<typeof UsersMetrics>,
   ) {}
 
   async handle(payload: RegisterUserInput): Promise<void> {
@@ -50,6 +55,7 @@ export class RegisterUserHandler {
 
     if (await this.users.byEmail(payload.email)) {
       this.logger.info('already registered', { email: payload.email });
+      this.metrics.registrations.add({ outcome: 'duplicate' });
 
       return;
     }
@@ -66,6 +72,7 @@ export class RegisterUserHandler {
       // Отказ соседа объявлен в `errors:` операции и приходит `Fail` того
       // же определения и из соседнего процесса, и из этого
       this.logger.info('address rejected', { code: checked.code });
+      this.metrics.registrations.add({ outcome: 'address_rejected' });
 
       return;
     }
@@ -76,6 +83,8 @@ export class RegisterUserHandler {
     // процесс сразу после коммита, событие всё равно уйдёт. Раздел —
     // идентификатор пользователя: его события доставляются по порядку
     await this.registered.emit(user, { partitionKey: user.id });
+
+    this.metrics.registrations.add({ outcome: 'registered' });
   }
 }
 

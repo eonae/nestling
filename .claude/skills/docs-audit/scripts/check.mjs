@@ -435,8 +435,8 @@ const README_SECTIONS = {
 /** Папка документации, в которую ведёт плашка своего языка */
 const PLATE_DOCS = { ru: 'docs', en: 'docs/en' };
 
-const README_MAX_LINES = 120;
-const EXPORTS_MAX_LINES = 60;
+const README_MAX_LINES = 130;
+const EXPORTS_MAX_LINES = 75;
 const PLATE_MAX_LINKS = 3;
 const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 

@@ -30,6 +30,7 @@
     "@nestlingjs/inbox": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "@nestlingjs/outbox": "workspace:*",
+    "@nestlingjs/prometheus": "workspace:*",
     "@nestlingjs/schema.zod": "workspace:*",
     "@nestlingjs/transport.http": "workspace:*",
     "@nestlingjs/transport.nats": "workspace:*",

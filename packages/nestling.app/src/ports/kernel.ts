@@ -11,8 +11,8 @@
  */
 
 import { Logger$ } from '../logger/tokens.js';
-import type { Metrics } from '../metrics/index.js';
-import { configuredMetrics, RootMetrics$ } from '../metrics/index.js';
+import type { KernelMetricsWriter } from '../metrics/index.js';
+import { KernelMetrics } from '../metrics/index.js';
 import type { TransportRef } from '../pipeline/index.js';
 import type { Dispatch, ITransport } from '../transport/index.js';
 
@@ -185,7 +185,7 @@ function buildPort(
   runtime: PortRuntime,
   policy: DispatchPolicy,
   remote: boolean,
-  metrics?: Metrics,
+  metrics: KernelMetricsWriter,
 ): Port<any> {
   const operation = requireOperation(name);
 
@@ -209,9 +209,9 @@ function buildPort(
   const port =
     binding === 'remote' ? makeRemotePort(context) : makeLocalPort(context);
 
-  // Обёртка тоже выбирается один раз: приложение без настроенных метрик
-  // получает исходный вызыватель и не платит за наблюдаемость
-  return metrics ? observePort(port, operation, binding, metrics) : port;
+  // Обёртка ставится всегда: запись идёт в store ядра, который есть у
+  // любого приложения, и условия «метрики настроены» больше нет
+  return observePort(port, operation, binding, metrics);
 }
 
 /** Строит эмиттер `command`/`event`-операции по топологии, шине и политике */
@@ -221,7 +221,7 @@ function buildEmitter(
   runtime: PortRuntime,
   policy: DispatchPolicy,
   remote: boolean,
-  metrics?: Metrics,
+  metrics: KernelMetricsWriter,
 ): Emitter<any> {
   const operation = requireOperation(name);
 
@@ -245,9 +245,7 @@ function buildEmitter(
       ? makeRemoteEmitter(context)
       : makeLocalEmitter(context);
 
-  return metrics
-    ? observeEmitter(emitter, operation, binding, metrics)
-    : emitter;
+  return observeEmitter(emitter, operation, binding, metrics);
 }
 
 /**
@@ -278,8 +276,8 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
    * и биндинг ведёт себя так же, как до появления удалённой стороны.
    */
   const invokerDeps = busInGraph
-    ? [PortRuntimeToken, NestlingPortsConfig, RootMetrics$, MessageBus$]
-    : [PortRuntimeToken, NestlingPortsConfig, RootMetrics$];
+    ? [PortRuntimeToken, NestlingPortsConfig, KernelMetrics, MessageBus$]
+    : [PortRuntimeToken, NestlingPortsConfig, KernelMetrics];
 
   const providers: ModuleProvider[] = [
     factoryProvider(
@@ -292,7 +290,7 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
       useFactory: (
         runtime: PortRuntime,
         config: PortsConfig,
-        metrics: Metrics,
+        metrics: KernelMetricsWriter,
         bus?: IMessageBus,
       ) =>
         buildPort(
@@ -301,7 +299,7 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
           runtime,
           config.dispatch,
           isRemote(bus),
-          configuredMetrics(metrics),
+          metrics,
         ),
       deps: invokerDeps,
     })),
@@ -310,7 +308,7 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
       useFactory: (
         runtime: PortRuntime,
         config: PortsConfig,
-        metrics: Metrics,
+        metrics: KernelMetricsWriter,
         bus?: IMessageBus,
       ) =>
         buildEmitter(
@@ -319,7 +317,7 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
           runtime,
           config.dispatch,
           isRemote(bus),
-          configuredMetrics(metrics),
+          metrics,
         ),
       deps: invokerDeps,
     })),

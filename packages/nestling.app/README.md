@@ -93,15 +93,27 @@ await app.build().run();
   `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
   `TransportDeclaration`, `transportValue`.
 - **Observability and probes** ([design](../../docs/en/design/container.md)) —
-  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`, `HealthStatus`,
-  `LivenessReport`, `logConfigKeys`, `logField`, `LogField`, `LogFieldSpec`,
-  `Logger$`, `loggerKernel`, `makeKernelLogger`, `MetricAttributes`, `Metrics`,
-  `Metrics$`, `registerHealth`, `RootLogger$`, `RootMetrics$`.
+  `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
+  `HealthStatus`, `LivenessReport`, `logConfigKeys`, `logField`, `LogField`,
+  `LogFieldSpec`, `Logger$`, `loggerKernel`, `makeKernelLogger`,
+  `registerHealth`, `RootLogger$`.
+- **Metrics** ([design](../../docs/en/design/container.md)) — `counter`,
+  `histogram`, `makeMetrics`, `open`, `KernelMetrics`, `MetricsStore`,
+  `MetricsStore$`; types `AnyMember`, `AnyMetricsGroup`, `AttributesOf`,
+  `AttributeSpec`, `AttributesSpec`, `CatalogMetric`, `CounterDeclaration`,
+  `CounterSeries`, `CounterWriter`, `HistogramBucket`,
+  `HistogramDeclaration`, `HistogramOptions`, `HistogramSeries`,
+  `HistogramWriter`, `Member`, `MembersOf`, `MetricAttributes`,
+  `MetricDeclaration`, `MetricOptions`, `MetricSeries`, `MetricsCatalog`,
+  `MetricsGroup`, `MetricsMembers`, `MetricsOf`, `MetricsSnapshot`,
+  `MetricsWriter`, `NoAttributes`, `Open`.
 - **Re-export of neighbours** — [`@nestlingjs/operations`](../nestling.operations/)
   (45 names), [`@nestlingjs/logging`](../nestling.logging/) (6) and
   [`@nestlingjs/common.misc`](../common.misc/) (8); the lists are in their README.
 - **Subpath `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
-  `WiredEndpoint`, `WireOptions`.
+  `WiredEndpoint`, `WireOptions`; building the catalog and reading the
+  snapshot for a test: `findSeries`, `findSeriesOne`, `makeCatalog`,
+  `makeWriter`, `MetricsContribution`.
 
 ## Package boundaries
 

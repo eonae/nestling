@@ -1,14 +1,15 @@
 /**
- * Метрики обработки запроса: четыре исхода, источник атрибутов и цена
- * приложения, которое метрики не включало.
+ * Метрики обработки запроса: четыре исхода, источник атрибутов и нули до
+ * первого запроса.
  *
  * Проверяется рантайм пайплайна напрямую: запись стоит там же, где
  * вычислен `outcome`, и от транспорта не зависит.
  */
 
 import { spyLogger } from '../../logger/__fixtures__/spy.js';
-import { spyMetrics } from '../../metrics/__fixtures__/spy.js';
-import { KERNEL_METRICS } from '../../metrics/names.js';
+import type { MetricsProbe } from '../../metrics/__fixtures__/probe.js';
+import { probeMetrics } from '../../metrics/__fixtures__/probe.js';
+import { KernelMetrics } from '../../metrics/index.js';
 
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
@@ -23,6 +24,13 @@ import { Fail, Ok, stream } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const PATTERN = 'GET /users/:id';
+
+const { requests } = KernelMetrics.members;
+const duration = KernelMetrics.members['request.duration'];
+
+/** Проба с рядами одного endpoint'а — тем же, что исполняет спека */
+const probe = (): MetricsProbe =>
+  probeMetrics({ endpoints: [{ transport: 'http', pattern: PATTERN }] });
 
 const ctxOf = (
   signal?: AbortSignal,
@@ -65,19 +73,17 @@ async function* rows(): AsyncIterableIterator<{ id: string }> {
 
 /** Собирает поток целиком: предмет проверки — момент записи, не элементы */
 const drain = async (value: unknown): Promise<void> => {
-  const items: unknown[] = [];
-
   for await (const item of value as AsyncIterable<unknown>) {
-    items.push(item);
+    void item;
   }
 };
 
 describe('метрики запроса — исходы', () => {
   it('успех даёт счётчик и длительность с одними атрибутами', async () => {
-    const spy = spyMetrics();
+    const metrics = probe();
 
     await run(makePipeline(), async () => new Ok({ ok: true }), {
-      metrics: spy.metrics,
+      metrics: metrics.kernel,
     });
 
     const attributes = {
@@ -86,36 +92,34 @@ describe('метрики запроса — исходы', () => {
       outcome: 'completed',
     };
 
-    expect(spy.records).toContainEqual({
+    expect(metrics.of(requests, attributes)).toMatchObject({
       kind: 'counter',
-      name: KERNEL_METRICS.requests,
       value: 1,
-      attributes,
     });
 
-    const duration = spy.records.find(
-      ({ name }) => name === KERNEL_METRICS.requestDuration,
-    );
-
-    expect(duration).toMatchObject({ kind: 'histogram', attributes });
-    expect(duration?.value).toBeGreaterThanOrEqual(0);
+    expect(metrics.of(duration, attributes)).toMatchObject({
+      kind: 'histogram',
+      count: 1,
+    });
   });
 
   it('отказ учитывается отдельно', async () => {
-    const spy = spyMetrics();
+    const metrics = probe();
 
     // Логгер заглушён шпионом: незадекларированный отказ пишется в
     // `stderr`, а предмет проверки здесь — исход, а не диагностика
     await run(makePipeline(), async () => Fail.notFound('nope'), {
-      metrics: spy.metrics,
+      metrics: metrics.kernel,
       logger: spyLogger().logger,
     });
 
-    expect(spy.records[0].attributes.outcome).toBe('failed');
+    expect(metrics.of(requests, { outcome: 'failed' })).toMatchObject({
+      value: 1,
+    });
   });
 
   it('разрыв соединения учитывается отдельно', async () => {
-    const spy = spyMetrics();
+    const metrics = probe();
     const controller = new AbortController();
 
     await run(
@@ -125,15 +129,17 @@ describe('метрики запроса — исходы', () => {
 
         return new Ok({ ok: true });
       },
-      { metrics: spy.metrics },
+      { metrics: metrics.kernel },
       controller.signal,
     );
 
-    expect(spy.records[0].attributes.outcome).toBe('disconnected');
+    expect(metrics.of(requests, { outcome: 'disconnected' })).toMatchObject({
+      value: 1,
+    });
   });
 
   it('отмена учитывается отдельно', async () => {
-    const spy = spyMetrics();
+    const metrics = probe();
     const controller = new AbortController();
 
     await run(
@@ -143,11 +149,23 @@ describe('метрики запроса — исходы', () => {
 
         return new Ok({ ok: true });
       },
-      { metrics: spy.metrics },
+      { metrics: metrics.kernel },
       controller.signal,
     );
 
-    expect(spy.records[0].attributes.outcome).toBe('aborted');
+    expect(metrics.of(requests, { outcome: 'aborted' })).toMatchObject({
+      value: 1,
+    });
+  });
+
+  it('адрес запроса в атрибуты не попадает', async () => {
+    const metrics = probe();
+
+    await run(makePipeline(), async () => new Ok({ ok: true }), {
+      metrics: metrics.kernel,
+    });
+
+    expect(metrics.all(requests, { pattern: 'GET /users/42' })).toEqual([]);
   });
 });
 
@@ -155,32 +173,41 @@ describe('метрики запроса — поток', () => {
   const Row = z.object({ id: z.string() });
 
   it('запись появляется после закрытия итератора', async () => {
-    const spy = spyMetrics();
+    const metrics = probe();
     const output = stream(Row);
 
     const response = (await run(
       makePipeline(),
       async () => new Ok(rows()),
-      { metrics: spy.metrics },
+      { metrics: metrics.kernel },
       undefined,
       output,
     )) as { value: unknown };
 
-    expect(spy.records).toEqual([]);
+    expect(metrics.of(requests, { outcome: 'completed' })).toMatchObject({
+      value: 0,
+    });
 
     await drain(response.value);
 
-    expect(spy.records).toHaveLength(2);
-    expect(spy.records[0].attributes.outcome).toBe('completed');
+    expect(metrics.of(requests, { outcome: 'completed' })).toMatchObject({
+      value: 1,
+    });
   });
 });
 
-describe('метрики запроса — цена выключенной наблюдаемости', () => {
-  it('без опции metrics ни один метод не вызван', async () => {
-    const spy = spyMetrics();
+describe('метрики запроса — ряды до первого запроса', () => {
+  it('каждый исход endpoint’а есть в снимке со значением ноль', () => {
+    const metrics = probe();
 
-    await run(makePipeline(), async () => new Ok({ ok: true }), {});
+    expect(
+      metrics.all(requests).map(({ attributes }) => attributes.outcome),
+    ).toEqual(['completed', 'disconnected', 'aborted', 'failed']);
 
-    expect(spy.records).toEqual([]);
+    expect(
+      metrics
+        .all(requests)
+        .every((series) => series.kind === 'counter' && series.value === 0),
+    ).toBe(true);
   });
 });

@@ -67,7 +67,7 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`, `ObjectSource`.
 - **Logger and metrics** — `spyLogger`, `SpyLogger`, `LogEntry`,
-  `spyMetrics`, `SpyMetrics`, `MetricRecord`.
+  `TestMetrics`, `metricsFor`, `GroupMetrics`.
 - **Topologies and bundles** — `checkTopologies`, `TopologyReport`,
   `testBundle`, `TestBundleOptions`.
 - **Re-export of [`@nestlingjs/app`](../nestling.app/)** — the core
