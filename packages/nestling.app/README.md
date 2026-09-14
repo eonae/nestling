@@ -41,6 +41,7 @@ export const app = makeApp({
 });
 
 // main.ts — what starts this process
+// The marker owns the process: a failure goes to stderr, exit code 1
 await app.build(argv(process.argv)).run();
 ```
 

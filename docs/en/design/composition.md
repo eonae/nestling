@@ -245,10 +245,19 @@ switches: }`. The entry point passes the command-line arguments
 through the `argv(process.argv)` marker: the build parses them by
 the same schema. `--features` accepts `all` or a list of names,
 `--include-deps` is a flag, every switch is a flag under its own name
-with the values from `makeSwitch`; `--help` prints the schema and ends
-the process. The parsing is strict: an unknown flag, an unknown
-feature or a foreign switch value is a failure before phase 0. The
-kernel does not read `process.argv` itself.
+with the values from `makeSwitch`; `--help` prints the schema. The
+parsing is strict: an unknown flag, an unknown feature or a foreign
+switch value is a failure before phase 0. The kernel does not read
+`process.argv` itself.
+
+The marker owns the process: an entry that receives it ends the process
+itself. `--help` prints the schema to `stdout` and ends the process with
+code `0`. A failure is printed to `stderr` and ends the process with
+code `1`. The failure text carries the message with its chain of causes
+and no stack. The rule holds for all three entries that accept the
+marker, and it covers a failure of any phase, not only a parsing
+failure. The object shape of the argument does not own the process:
+`run()` rejects its promise, while `discover()` and `check()` throw.
 
 The declaration and the built application provide four methods:
 

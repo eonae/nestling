@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `0f401ce1`.
+> Guide to the current API; verified against `951b4afd`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)
@@ -62,6 +62,15 @@ The schema is derived from the declaration whole:
 A value is written in two ways: `--docs off` and `--docs=off`. There
 are no short flags, no flag grouping and no positional arguments.
 
+The marker owns the process: an entry that receives `argv(process.argv)`
+ends the process itself. The help text goes to `stdout` with exit code
+`0`, and a failure goes to `stderr` with exit code `1`. The message of
+the failure is printed with its chain of causes under it, and no stack.
+The rule holds for all three entries that accept the marker, and it
+covers a failure of any phase of the startup. The object shape does not
+own the process: `run()` rejects its promise, `discover()` and `check()`
+throw, and the caller catches the failure.
+
 The second shape of the argument is an object; it is used by tests and
 by an application with its own command-line parsing:
 
@@ -120,8 +129,8 @@ arrives only by an explicit selection.
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
-A build with the `'users'` selection and no `includeDeps` stops on
-the BUILD phase:
+A build with the `'users'` selection and no `includeDeps` stops on the
+WIRE phase, where callers are bound to the owners of the operations:
 
 ```
 Operation 'notifications.check-address' (kind 'request') is injected as '.caller', but no
@@ -135,7 +144,9 @@ to a bus transport ('transports: [nats({ name: "events" })]' with
 
 The error names the operation, the caller and two ways to fix it:
 include the owner in the selection, or assign the intercom when the
-owner works in another process.
+owner works in another process. The entry point passed the marker, so
+the message arrives in `stderr` with no stack, and the process exits
+with code `1`.
 
 ## Switches: the second dimension of composition
 

@@ -1,6 +1,6 @@
 # 2. What an application consists of
 
-> Guide to the current API; verified against `0f401ce1`.
+> Guide to the current API; verified against `951b4afd`.
 > Target description: [design/composition.md](../design/composition.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,
@@ -125,6 +125,11 @@ await app.build(argv(process.argv)).run();
 // node main.js --features all --storage s3
 // node main.js --help   — the schema: features, flags, values and defaults
 ```
+
+The marker owns the process: the help text goes to `stdout` with exit
+code `0`, and a build failure goes to `stderr` with exit code `1`. The
+object shape hands the failure to the caller, and tests use it
+([chapter 19](./19-select.md)).
 
 Configuration does not set the composition: the environment affects neither
 the feature selection nor the switch values.
