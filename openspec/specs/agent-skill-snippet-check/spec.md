@@ -115,7 +115,7 @@ SHALL NOT трогать остальной текст. Запуск коман�
 
 #### Scenario: Endpoint не проходит политику корня
 
-- **WHEN** `snippets/app.ts` объявляет `everyEndpoint(…).hasLayer(observability)`,
+- **WHEN** `snippets/app.ts` объявляет `everyEndpoint(…).hasLayer(traced)`,
   а один из сниппетов-endpoint'ов идёт без `pipeline:`
 - **THEN** `yarn verify` падает с сообщением BUILD, которое называет этот
   endpoint

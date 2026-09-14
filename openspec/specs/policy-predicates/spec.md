@@ -70,14 +70,14 @@ SHALL NOT существовать.
 
 #### Scenario: Композированный слой найден
 
-- **WHEN** ручка объявлена с `pipeline: compose(observability, authedBase)`
-  и политика требует `hasLayer(authedBase)`
+- **WHEN** ручка объявлена с `pipeline: compose(traced, authed)`
+  и политика требует `hasLayer(authed)`
 - **THEN** политика удовлетворена
 
 #### Scenario: Слой не тот
 
-- **WHEN** ручка объявлена с `pipeline: compose(observability, validation)`,
-  а политика требует `hasLayer(authedBase)`
+- **WHEN** ручка объявлена с `pipeline: compose(traced, validation)`,
+  а политика требует `hasLayer(authed)`
 - **THEN** политика нарушена, и нарушение называет паттерн ручки и модуль
 
 #### Scenario: Одноимённая копия слоя не проходит
@@ -88,14 +88,14 @@ SHALL NOT существовать.
 
 #### Scenario: Производный слой удовлетворяет политике
 
-- **WHEN** ручка объявлена с `pipeline: compose(base, authedBase.pre(withTenant()))`
-- **THEN** политика `hasLayer(authedBase)` удовлетворена
+- **WHEN** ручка объявлена с `pipeline: compose(base, authed.pre(withTenant()))`
+- **THEN** политика `hasLayer(authed)` удовлетворена
 
 #### Scenario: Метка попадает в диагностику
 
-- **WHEN** политика объявлена как `hasLayer(authedBase, 'authedBase')` и
+- **WHEN** политика объявлена как `hasLayer(authed, 'authed')` и
   нарушена
-- **THEN** текст нарушения называет слой меткой `authedBase`
+- **THEN** текст нарушения называет слой меткой `authed`
 
 ### Requirement: Ручка без пайплайна нарушает `hasLayer`
 

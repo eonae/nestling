@@ -168,14 +168,14 @@ discovery по выбранным единицам.
 
 #### Scenario: Невыбранная ветка переключателя не участвует
 
-- **WHEN** плагин документации объявлен веткой `Docs.when(appOpenapi)`, и
+- **WHEN** плагин документации объявлен веткой `DocsEnabled.when(openapi)`, и
   вызван `app.discover({ docs: 'off' })`
 - **THEN** endpoint `GET /openapi.json` в результате отсутствует
 
 #### Scenario: Документ CI собирается без поднятия приложения
 
 - **WHEN** скрипт вызывает
-  `appOpenapi.document(app.discover(args))`
+  `openapi.document(app.discover(args))`
 - **THEN** документ получен без `await`, без чтения источников конфига и
   без построения контейнера
 

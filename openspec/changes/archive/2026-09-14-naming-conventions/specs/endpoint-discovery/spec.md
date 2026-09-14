@@ -46,7 +46,7 @@ discovery по выбранным единицам.
 #### Scenario: Документ CI собирается без поднятия приложения
 
 - **WHEN** скрипт вызывает
-  `appOpenapi.document(app.discover(args))`
+  `openapi.document(app.discover(args))`
 - **THEN** документ получен без `await`, без чтения источников конфига и
   без построения контейнера
 

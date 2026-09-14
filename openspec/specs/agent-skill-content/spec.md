@@ -142,7 +142,7 @@ README пакета за перечнем имён.
 #### Scenario: Политика корня и endpoint без слоя
 
 - **WHEN** агент пишет приложение, корень которого объявил
-  `everyEndpoint(…).hasLayer(observability)`
+  `everyEndpoint(…).hasLayer(traced)`
 - **THEN** список правил `SKILL.md` называет обязанность каждого endpoint'а
   объявить `pipeline:` или `detached:`, и агент не узнаёт об этом от BUILD
 
