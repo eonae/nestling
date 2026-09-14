@@ -51,10 +51,12 @@ await app.close();
 
 The `config` option of `run()` accepts a list of `bind(source, options?)`
 bindings. A source is an object with the `ConfigSource` interface: the
-required `get(key)` method and the optional `name`, `init()`,
-`watch(notify)` and `close()`. `options.keys` is a section's `.keys` or a
-glob of the form `'*_URL'`, `'*'` by default. In the example, `defaults`
-and `runtime` serve as the sources — plain objects over a record. A file
+required `get(key)` method and the optional `name`, `needs`,
+`init(values)`, `watch(notify)` and `close()`. `options.keys` is a
+section's `.keys` or a glob of the form `'*_URL'`, `'*'` by default. In
+the example, `defaults` and `runtime` serve as the sources — plain objects
+over a record; they have nowhere to take coordinates from, so they declare
+no `needs`, and their `init` is written without a parameter. A file
 or Vault source implements the same interface in a separate package; the
 kernel ships no ready-made sources with network access.
 
@@ -388,7 +390,7 @@ differences from the start:
 
 - an invalid value at the start stops the application. An invalid
   update is dropped, the last valid snapshot remains, and the reader
-  writes a warning with the `[nestling/config]` prefix;
+  writes a warning to the `nestling:config` kernel logger;
 - a reloadable section whose keys are covered only by sources without
   `watch()` starts up and warns at start: there will be no updates.
 
