@@ -1,6 +1,6 @@
 # 9. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `4a206018`.
+> Гайд по текущему API; сверено с кодом `92353887`.
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
