@@ -1,0 +1,11 @@
+{
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета — спеки и `e2e` в том числе, иначе у них нет типов
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Сборка идёт по `tsconfig.build.json`
+    "noEmit": true
+  },
+  "include": ["src", "e2e"],
+  "exclude": ["dist", "node_modules"]
+}

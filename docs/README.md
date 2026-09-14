@@ -164,7 +164,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Двадцать четыре каталога `packages/`. Ядро — три из них: `@nestlingjs/container`,
+Двадцать шесть каталогов `packages/`. Ядро — три из них: `@nestlingjs/container`,
 `@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -196,6 +196,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/prometheus`](../packages/nestling.prometheus/) | Экспозиция метрик в формате Prometheus: endpoint `/metrics` читает снимок store ядра |
 | [`@nestlingjs/otel`](../packages/nestling.otel/) | Экспорт телеметрии по OpenTelemetry: слой участков трассы и push метрик по OTLP поверх store ядра |
 | [`@nestlingjs/logging.pino`](../packages/nestling.logging.pino/) | pino под интерфейсом `Logger`: redaction и сериализаторы библиотеки при формате строки, общем со штатным логгером |
+| [`@nestlingjs/config.vault`](../packages/nestling.config.vault/) | Источник конфигурации поверх HashiCorp Vault: секрет KV v2 на фазе 0 по координатам из другого источника |
 | [`@nestlingjs/schema.zod`](../packages/nestling.schema.zod/) | Всё, что фреймворк делает с zod: конвертер схем в JSON Schema, билдеры полей секций и модели со сверкой с TypeScript-типом |
 | [`@nestlingjs/drizzle.pg`](../packages/nestling.drizzle.pg/) | PostgreSQL на drizzle-orm: соединение, транзакция запроса и адаптеры хранилищ outbox'а и приёма |
 | [`@nestlingjs/inbox`](../packages/nestling.inbox/) | Транзакционный приём: отметка «обработано» коммитится с бизнес-изменением, повтор доставки не доходит до хендлера |

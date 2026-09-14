@@ -48,38 +48,38 @@
 
 ## 4. Пакет `@nestlingjs/config.vault`
 
-- [ ] 4.1 Завести `packages/nestling.config.vault` по общему набору файлов
+- [x] 4.1 Завести `packages/nestling.config.vault` по общему набору файлов
   (`package.json`, `tsconfig.json`, `tsconfig.build.json`,
   `eslint.config.js`, `vitest.config.js`, `LICENSE`)
-- [ ] 4.2 Объявить секцию `VaultConfig` (`vault`): `addr`, `token`
+- [x] 4.2 Объявить секцию `VaultConfig` (`vault`): `addr`, `token`
   (`secret()`), `mount` с умолчанием `secret`, `path`
-- [ ] 4.3 Реализовать `vault(section, options?)`: `needs` — переданная
+- [x] 4.3 Реализовать `vault(section, options?)`: `needs` — переданная
   секция, тип аргумента ограничен `VaultCoordinates`
-- [ ] 4.4 `init(values)` — один запрос `GET {addr}/v1/{mount}/data/{path}`
+- [x] 4.4 `init(values)` — один запрос `GET {addr}/v1/{mount}/data/{path}`
   штатным `fetch` с заголовком `X-Vault-Token`; рекорд `data.data`
   запоминается, `get(key)` читает из него синхронно
-- [ ] 4.5 Повторы по опции `retries` (умолчание `0`): сетевой отказ и
+- [x] 4.5 Повторы по опции `retries` (умолчание `0`): сетевой отказ и
   `5xx` повторяются с паузой от 250 мс с удвоением, `401`, `403` и `404` —
   нет
-- [ ] 4.6 Отказы называют адрес, точку монтирования и путь; значение
+- [x] 4.6 Отказы называют адрес, точку монтирования и путь; значение
   `VAULT_TOKEN` не попадает ни в сообщение, ни в `cause`
-- [ ] 4.7 Спеки пакета на подставном `fetch`: успешное чтение, форма
+- [x] 4.7 Спеки пакета на подставном `fetch`: успешное чтение, форма
   запроса, повторы, отказы прав и отсутствия секрета
 
 ## 5. Прогон против живого Vault
 
-- [ ] 5.1 `docker-compose.yml` пакета: Vault в dev-режиме на нестандартном
+- [x] 5.1 `docker-compose.yml` пакета: Vault в dev-режиме на нестандартном
   порту, `healthcheck`, скрипты `vault:up` и `vault:down` в `package.json`
-- [ ] 5.2 Каталог `e2e`: обвязка с пропуском без `TEST_VAULT_ADDR`, запись
+- [x] 5.2 Каталог `e2e`: обвязка с пропуском без `TEST_VAULT_ADDR`, запись
   секрета через HTTP API, чтение источником, секрет без ключа
-- [ ] 5.3 Сервис Vault и переменные `TEST_VAULT_ADDR`, `TEST_VAULT_TOKEN`
+- [x] 5.3 Сервис Vault и переменные `TEST_VAULT_ADDR`, `TEST_VAULT_TOKEN`
   в `.github/workflows/ci.yml`
 
 ## 6. Документация
 
-- [ ] 6.1 README пара нового пакета (`README.ru.md` и `README.md`) с
+- [x] 6.1 README пара нового пакета (`README.ru.md` и `README.md`) с
   плашкой статуса по правилам `docs-package-readme`
-- [ ] 6.2 Строка `@nestlingjs/config.vault` в таблице пакетов
+- [x] 6.2 Строка `@nestlingjs/config.vault` в таблице пакетов
   `docs/README.md` и счёт каталогов там же
 - [ ] 6.3 Раздел рецепта `docs/recipes/config-sources.md` про источник,
   берущий координаты из другого источника, и его английская пара

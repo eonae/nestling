@@ -1,0 +1,24 @@
+# Vault для тестов пакета, которым нужен настоящий сервер.
+#
+# `yarn vault:up` поднимает сервер, `yarn vault:down` убирает его вместе с
+# томом. Режим dev: хранилище в памяти, корневой токен задан переменной,
+# распечатывать нечего. Порт нестандартный — 8200 может быть занят рабочим
+# Vault, и обе машины должны подниматься рядом.
+#
+#   yarn vault:up
+#   TEST_VAULT_ADDR=http://127.0.0.1:58200 TEST_VAULT_TOKEN=nestling-root yarn test
+services:
+  vault:
+    image: hashicorp/vault:1.18
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: nestling-root
+      VAULT_DEV_LISTEN_ADDRESS: '0.0.0.0:8200'
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - '58200:8200'
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:8200/v1/sys/health']
+      interval: 2s
+      timeout: 2s
+      retries: 15
