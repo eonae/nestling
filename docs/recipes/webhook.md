@@ -1,6 +1,6 @@
 # Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `86c47c0a`.
+> Гайд по текущему API; сверено с кодом `6717ebad`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:

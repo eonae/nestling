@@ -1,6 +1,6 @@
 # 19. Start only a part of the features
 
-> Guide to the current API; verified against `86c47c0a`.
+> Guide to the current API; verified against `6717ebad`.
 > Target description: [design/composition.md](../design/composition.md), the
 > "L2 — features, selection and switches" and "`check()`" sections. Why:
 > entries [ideas.md](../../decisions/ideas.md)

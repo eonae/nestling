@@ -1,7 +1,7 @@
 # Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `86c47c0a`
-> и `container` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `6717ebad`
+> и `container` (2026-09-14).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Почему так: записи

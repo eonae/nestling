@@ -1,6 +1,6 @@
 # 22. Count requests and calls between processes
 
-> Guide to the current API; verified against `86c47c0a`.
+> Guide to the current API; verified against `6717ebad`.
 > Target description: [design/container.md](../design/container.md), the
 > "Kernel metrics" section, [design/pipeline.md](../design/pipeline.md) §2
 > and [design/operations.md](../design/operations.md) §2.3. Why: entry
