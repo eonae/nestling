@@ -24,7 +24,7 @@ exports; this table only says when the package is the answer.
 | `@nestlingjs/testing` | any test: `buildTest`, `testBundle`, `checkTopologies`, `stub`, `vars`, `unwrap` |
 | `@nestlingjs/client` | a browser or another service calls these operations: `makeClient(record, config)` turns the declarations into a typed API and rebuilds failures by code |
 | `@nestlingjs/openapi` | the document has to exist: `makeOpenapi()` builds it from the declarations that already validate requests |
-| `@nestlingjs/eslint-plugin` | the three rules an editor can check: an import past a barrel, a declaration without the required layer, and a dependency list that does not match the constructor; the last one fills an empty `@Component()` in with `--fix` |
+| `@nestlingjs/eslint-plugin` | the rules an editor can check: an import past a barrel, a conditional spread written the long way, a read of `process.env` or `process.argv`, a declaration without the required layer, and a dependency list that does not match the constructor; the last one fills an empty `@Component()` in with `--fix` |
 | `@nestlingjs/schema.zod` | the TypeScript type exists already — generated from proto, GraphQL or OpenAPI — and a schema has to describe exactly it; or a schema written for a vendor other than the framework's needs a converter |
 | `@nestlingjs/subscriptions` | streams and SSE are open and someone has to list them, close one, or watch the list change |
 | `@nestlingjs/config.vault` | a secret comes from HashiCorp Vault and has to be read on phase 0 |

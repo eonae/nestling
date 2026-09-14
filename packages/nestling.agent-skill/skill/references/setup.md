@@ -1,6 +1,6 @@
 # Project setup
 
-What builds and runs a Nestling service: one `tsconfig.json`, four scripts
+What builds and runs a Nestling service: one `tsconfig.json`, five scripts
 and one ESLint plugin. There is no template and no generator — the
 framework owns the code, not the build.
 
