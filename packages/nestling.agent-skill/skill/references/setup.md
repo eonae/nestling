@@ -107,6 +107,8 @@ export default [
       // resource is a contract, and a parameter it does not read stays
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@nestlingjs/import-through-barrel': 'error',
+      '@nestlingjs/conditional-spread': 'error',
+      '@nestlingjs/no-process-globals': 'error',
       '@nestlingjs/endpoint-has-layer': [
         'warn',
         { layer: 'traced', constructorName: 'httpEndpoint' },
@@ -121,6 +123,22 @@ export default [
   module past its `index.ts`. A folder without an `index.ts` is not a
   boundary and the rule says nothing about it. The check is complete, so
   the level is `error`.
+- `conditional-spread` catches a conditional spread into an object literal
+  written the long way: `...(port !== undefined ? { port } : {})`. The
+  short form is `...(port !== undefined && { port })` — spreading a falsy
+  value into an object literal adds nothing. `--fix` rewrites it, but only
+  when the test is boolean by shape; otherwise the choice of comparison
+  stays with you. The rule also catches the trap in `...(port && { port })`:
+  zero and the empty string drop the field although the value is set. The
+  check is complete for the shape it parses, so the level is `error`.
+- `no-process-globals` catches a read of `process.env` or `process.argv` in
+  the source. The environment reaches the application through an `env()`
+  source in the config binding, the command line through the `argv()`
+  marker in the build argument, and `argv(process.argv)` is the one form
+  the rule allows. A seam that legitimately reads the process — an
+  adapter, a script, a client outside the container — silences the rule
+  with an `eslint-disable` that states the reason. The check is complete
+  for the direct form, so the level is `error`.
 - `endpoint-has-layer` catches a declaration that does not compose the
   named layer. A pipeline is a value and can travel through a factory, so
   the check is incomplete by design and the level is `warn`. The guarantee

@@ -122,6 +122,14 @@ A constant of the application is not a source. A value that does not
 change between deployments belongs in `.default()` of the field schema,
 where the compiler sees it.
 
+**Do not read `process.env` or `process.argv` in the source.** These are
+the two seams, and they are the only ones: a key of the environment is
+declared in a config section and reaches the handler through the section,
+the command line reaches `build()` through the `argv(process.argv)` marker
+at the entry point. The `no-process-globals` rule holds this; a seam that
+legitimately reads the process silences it with an `eslint-disable` that
+states the reason.
+
 `makeConfig.reloadable(prefix, fields)` declares a section whose values are
 updated at run time. Read such a section through its accessor on every use;
 a value copied into a constructor field will not change.

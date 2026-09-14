@@ -84,16 +84,20 @@ import { writeFileSync } from 'node:fs';
 
 import { app, openapi } from './app.js';
 
-/** The build argument is a command-line argument; without it every feature is selected */
-const args = process.argv[2];
+import { argv } from '@nestlingjs/app';
 
-const document = openapi.document(app.discover(args));
+// The build argument is the command line of the script: the same flags as in `main.ts`
+const document = openapi.document(app.discover(argv(process.argv)));
 
 // `file` is `openapi.json` in the root of the example package
 writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
 ```
 
-`app.discover(args)` runs phase 0 and stops there: it parses the build
+The `argv(process.argv)` marker carries the list whole, the same way the
+entry point does: the single form in which the command line reaches the
+application.
+
+`app.discover(…)` runs phase 0 and stops there: it parses the build
 argument, expands the switch branches, resolves the feature selection and
 runs discovery. It goes no further — the config sources are not brought
 up, the graph is not built, the transports are not created. So the call is
@@ -166,15 +170,20 @@ A service endpoint is removed from the document with the `hidden` field
 and a reason:
 
 ```typescript
-// src/ops.plugin.ts
+// src/ops/build-info.endpoint.ts
 export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
   doc: { hidden: 'служебный endpoint, не часть публичного API' },
-  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
+  handler: BuildInfoHandler,
 });
 ```
+
+The handler takes the build version from the `AppConfig` section rather
+than from the environment directly: the `no-process-globals` rule bans
+reading the process globals in the source, and the value reaches the
+application through an `env()` source.
 
 There is no `hidden: true` form: the reason is required, as with
 `detached`, and an endpoint can be hidden from the document only with one.
@@ -276,6 +285,8 @@ What remains is `pipeline` and `handler`. `CreateUser` in
 
 ```typescript
 // src/api/client.ts
+/* eslint-disable @nestlingjs/no-process-globals -- клиент сервиса вне контейнера: адрес и токен приходят окружением напрямую */
+
 import { makeClient } from '@nestlingjs/client';
 
 /** The consumer sets the method names: the keys of the object */
@@ -312,6 +323,10 @@ async function main(): Promise<void> {
 
 await main();
 ```
+
+The client lives outside the container, so it has no config sections and
+reads the environment directly. The `no-process-globals` rule bans such a
+read, and the directive states why it is legitimate here.
 
 `makeClient(record, config)` returns an object with one method per
 operation. The method names are set by the keys of the record. The client

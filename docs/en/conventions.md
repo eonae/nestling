@@ -1,7 +1,8 @@
 # Naming conventions
 
 > Rules for the code of an application on Nestling: the names of declarations,
-> schemas, failures, DI tokens, handlers and files. The guide and the examples
+> schemas, failures, DI tokens, handlers and files, and the forms of writing
+> that the linter holds. The guide and the examples
 > (`examples/*`) follow these rules; the linter rules are written by this
 > document. The terms come from the [glossary](./glossary.md).
 
@@ -122,6 +123,24 @@
   `compose` name the kind of value.
 - A step class is named after the action: `Authenticate`,
   `AuditOutcome`.
+
+## Forms of writing
+
+- A conditional spread of a field into an object literal is written with
+  `&&` and an explicit comparison: `...(port !== undefined && { port })`.
+  The ternary with an empty literal is a longer way to say the same
+  thing: spreading a falsy value into an object literal adds nothing.
+  The short form `...(port && { port })` drops the field on zero and on
+  an empty string, so the comparison is written out. Held by the
+  `conditional-spread` rule in `@nestlingjs/eslint-plugin`.
+- The process globals are not read in the source: the environment
+  reaches the application through an `env()` source in the config
+  binding, the command line through the `argv()` marker in the build
+  argument. One form is allowed — `argv(process.argv)` at the entry
+  point. A legitimate read — an adapter seam, a script, a client outside
+  the container — silences the rule with an `eslint-disable` that states
+  the reason in the file itself. Held by the `no-process-globals` rule
+  there too.
 
 ## Files
 
