@@ -5,10 +5,10 @@
 > mechanisms that implement them. Implementation status:
 > [roadmap](../../decisions/roadmap.md).
 
-Nestling is a TypeScript framework: smaller, more modern and
-architecturally better than NestJS. The principles below are the
-criteria a decision is checked against. Each one comes with the
-framework mechanism where it shows up.
+Nestling is a TypeScript backend framework written by agents: it shortens
+the time between "the code is written" and "the code is known to be
+correct". The principles below are the criteria a decision is checked
+against. Each one comes with the framework mechanism where it shows up.
 
 ## No runtime magic
 

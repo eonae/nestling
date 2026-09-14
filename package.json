@@ -1,7 +1,7 @@
 {
   "name": "nestling",
   "version": "0.1.0",
-  "description": "Lightweight replacement for Nest.js with ECMAScript decorators and other nice simplifications",
+  "description": "A TypeScript backend framework written by agents: it shortens the time between the code being written and the code being known to be correct",
   "repository": {
     "type": "git",
     "url": "https://github.com/eonae/nestling"

@@ -1,57 +1,81 @@
 # Nestling
 
-> A TypeScript backend framework: smaller, more modern and stricter than NestJS.
+> A TypeScript backend framework written by agents. It serves an agent and a
+> human alike: for both it shortens the time between "the code is written"
+> and "the code is known to be correct".
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 **[🇷🇺 Русская версия](./README.ru.md)**
+
+## What it is
+
+Nestling builds an application from declarations that are values: an
+endpoint, an operation, a pipeline, a feature and a module are ordinary
+constants. The compiler reads a declaration and the build reads it next, so
+the answer "the code is correct" arrives before the first request. The
+feedback loop is short in three places.
+
+- **The whole application comes up in one process.** A feature calls its
+  neighbour through an [operation](./docs/en/guide/14-features.md) rather
+  than over the network: behaviour is checked without a broker, without
+  containers and without a deployment. The same declaration is
+  [spread across processes](./docs/en/guide/20-split.md) when that becomes
+  necessary.
+- **An error shows up at compile time.** The `output` schema types the
+  handler, the list of [failures](./docs/en/guide/04-errors.md) in the
+  endpoint declaration closes the return of an undeclared error, and the
+  requirements of a layer to the context are checked at the `compose` point.
+- **The build fails before the socket opens.** A cycle in the graph, a
+  missing dependency, an endpoint without a required layer and a config key
+  that is not found stop the start. What is checked and when is named by the
+  [table of checks](./docs/en/guarantees.md).
+- **A feature is checked without a server.** The test build `buildTest` runs
+  the same declaration through the phases up to `WIRE` and
+  [stops](./docs/en/guide/08-testing.md): an endpoint is called through the
+  same pipeline, and no socket is opened.
+
+The principles behind the design are described in
+[docs/en/design/principles.md](./docs/en/design/principles.md).
+
+## Who it is for
+
+The framework answers the questions an application meets in production:
+where the boundary of a feature runs, how a transaction is laid out, what to
+do with a failure in a contract, how to spread features across processes. It
+answers them with declarations, and those are written before the question
+becomes urgent. To a developer who has not met these questions yet, the
+declarations will look like extra work.
+
+The concepts are familiar from other frameworks: a module, a provider, an
+endpoint, a pipeline and a layer around a handler carry the same names here.
+Only the form of the record is new: a declaration lies in a value instead of
+being assembled from decorators at startup.
+
+Nestling is not needed by a service that runs in one process, that is called
+by no typed client and whose documentation nobody reads. There a declaration
+stays a cost, and such a service is cheaper to write on Fastify. Nestling
+starts paying off where a feature has to survive a move to another process,
+where the caller wants a client generated from the contract, and where the
+OpenAPI document has to follow the code rather than trail behind it.
 
 ## Status
 
 Nestling is under active development towards V1; APIs change. Use in
 production at your own risk. Requires Node 24.
 
-## What it is
+## Working with an agent
 
-Nestling builds an application from declarative values: endpoints,
-operations, pipelines, features and modules are plain constants, and the
-dependency container verifies the whole graph at startup.
+```bash
+npx @nestlingjs/agent-skill
+```
 
-- **A container with no magic.** Dependencies are declared as an explicit
-  token list on standard ES decorators, without `reflect-metadata`. The
-  graph is built eagerly: a cycle or a missing dependency stops the
-  build, not a request.
-- **Schema-first.** The `input`, `output` and `errors` schemas of an endpoint
-  drive validation, handler types, the typed client and the OpenAPI
-  document. Any validator that implements
-  [Standard Schema](https://standardschema.dev) works: zod, valibot, arktype.
-- **A pipeline without `next()`.** Request handling is a flat sequence of
-  `.pre`, `.ok`, `.catch` and `.finally` phases; layers are combined with
-  `compose`, and a build policy verifies that every endpoint carries the
-  required layer.
-- **Errors as values.** A handler returns `Ok` or `Fail`; the list of
-  possible failures is part of the endpoint declaration and reaches the
-  client.
-- **Operations between features.** A feature calls its neighbour through an
-  operation, not through its service. The same code runs in one process and
-  in several, over NATS.
-- **One composition root.** `makeApp({ features, plugins, transports,
-  config, policies })` declares the application; `build(select)` builds what
-  this process runs and `run()` drives it through the lifecycle phases.
-
-The principles behind the design are described in
-[docs/en/design/principles.md](./docs/en/design/principles.md).
-
-## When Nestling is not the tool
-
-The guarantees above are paid for up front, in declarations. A service
-that will never be split across processes, that is called by no typed
-client, and whose documentation nobody reads is cheaper to write on
-Fastify: the container, the operations and the schemas buy nothing there,
-and the declaration stays a cost. Nestling starts paying off where a
-feature has to survive a move to another process, where the caller wants
-a client generated from the contract, and where the OpenAPI document has
-to follow the code rather than trail behind it.
+The command writes a Claude Code skill into `.claude/skills/nestling/` of
+the current project. The skill tells an agent the shape of Nestling code and
+the rules it cannot guess from NestJS habits — declarations as values, an
+explicit dependency list, failures returned instead of thrown, neighbouring
+features reached through operations. Details in
+[`@nestlingjs/agent-skill`](./packages/nestling.agent-skill/).
 
 ## Quick start
 
@@ -88,19 +112,6 @@ against it on receipt. Continue with the
 [guide](./docs/en/guide/README.md): it grows this file into an application of
 several features running in several processes.
 
-## Working with an agent
-
-```bash
-npx @nestlingjs/agent-skill
-```
-
-The command writes a Claude Code skill into `.claude/skills/nestling/` of
-the current project. The skill tells an agent the shape of Nestling code and
-the rules it cannot guess from NestJS habits — declarations as values, an
-explicit dependency list, failures returned instead of thrown, neighbouring
-features reached through operations. Details in
-[`@nestlingjs/agent-skill`](./packages/nestling.agent-skill/).
-
 ## Documentation
 
 The site is **<https://eonae.github.io/nestling>**; it is published on the
@@ -113,6 +124,9 @@ next to it. The folder defines the status of a document:
   the example each chapter is verified against;
 - [`docs/en/design/`](./docs/en/design/README.md) — the target V1 state, the
   full API description;
+- [`docs/en/guarantees.md`](./docs/en/guarantees.md) — what is checked
+  before the first request: a table of the checks, the moment each one fires
+  and the chapter that introduces it;
 - [`docs/en/glossary.md`](./docs/en/glossary.md) — terms and how they are
   written; next to every English term stands its Russian original;
 - [`docs/en/releases/`](./docs/en/releases/README.md) — release notes: what

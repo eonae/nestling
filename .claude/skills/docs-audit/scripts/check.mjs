@@ -802,6 +802,74 @@ if (tracked) {
     `вывод сборки отслеживается git (${files.length}): ${files.slice(0, 3).join(', ')}`);
 }
 
+// ── 11a. Лид стартовой страницы: ровно один абзац прозы ────────────────────
+// Шаблон первого экрана кладёт под лид первый абзац до первого `##`. Второму
+// места на странице нет: `homeParts` в scripts/site/build.mjs его молча
+// выбрасывает. Файл берётся из источника вида `home` — второго списка нет.
+
+/** Ссылка Markdown: абзац из одних ссылок даёт кнопки первого экрана, не лид */
+const MD_LINK = /\[[^\]]+\]\([^)]+\)/g;
+
+const homeSource = SECTIONS.find((source) => source.kind === 'home');
+
+for (const { code } of LANGUAGES) {
+  const file = join(ROOT, sourcePath(homeSource.path, code));
+
+  if (!existsSync(file)) {
+    continue; // пропавший источник называет site-source
+  }
+
+  const lines = readFileSync(file, 'utf8').split('\n');
+  const title = lines.findIndex((line) => /^#\s/.test(line));
+
+  if (title === -1) {
+    add('ERROR', 'landing-lead', file, 'нет заголовка первого уровня');
+    continue;
+  }
+
+  /** Номера строк, с которых начинается абзац прозы до первого `##` */
+  const leads = [];
+
+  for (let i = title + 1; i < lines.length && !/^##\s/.test(lines[i]); i += 1) {
+    if (lines[i].trim() === '') {
+      continue;
+    }
+
+    if (lines[i].startsWith('```')) {
+      i += 1;
+      while (i < lines.length && !lines[i].startsWith('```')) i += 1;
+      continue;
+    }
+
+    if (lines[i].startsWith('::::')) {
+      i += 1;
+      while (i < lines.length && lines[i].trim() !== '::::') i += 1;
+      continue;
+    }
+
+    const from = i;
+    const paragraph = [];
+
+    while (i < lines.length && lines[i].trim() !== '' && !/^##\s/.test(lines[i])) {
+      paragraph.push(lines[i]);
+      i += 1;
+    }
+
+    i -= 1;
+
+    if (paragraph.join(' ').replace(MD_LINK, '').trim() !== '') {
+      leads.push(from + 1);
+    }
+  }
+
+  if (leads.length > 1) {
+    add('ERROR', 'landing-lead', file,
+      `абзац на строке ${leads[1]} не попадёт на страницу: под лид уходит ` +
+      'первый абзац до «##», остальные выбрасывает `homeParts` ' +
+      '(scripts/site/build.mjs)');
+  }
+}
+
 // ── 12. Языки: паритет пар, оглавления, ссылки, кириллица, словарь ──────────
 // Публикуемый текст существует парой: английский основной, русский парный.
 // Состав публикуемого задают источники scripts/site/sections.mjs — паритету
