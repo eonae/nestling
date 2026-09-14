@@ -1,12 +1,13 @@
-## 0. Сверка с `main`
+## 0. База
 
-- [ ] 0.1 `git rebase main`; если `config-run-bind` или `terminology` уже
-      влиты — сверить дельты `specs/` с новым текстом main-спек и
-      переписать затронутые блоки (`config-sources-binding`,
-      имена `assemble`/`AssembleArgs`)
-- [ ] 0.2 Сверить имена методов и типов в задачах ниже с тем, что в `main`:
-      при влитом `terminology` читать `assemble` как `build`,
-      `AssembleArgs` как `BuildArgs`
+Соседи `terminology` и `config-run-bind` влиты в `main` 2026-09-14, ветка
+перебазирована, дельты `specs/` сверены с новым текстом main-спек
+(2026-09-14). В коде уже `build()`, `BuildArgs`, `BuiltApp`, `buildTest`,
+фаза BUILD; привязки конфига приходят списком `bind()` на `run()`,
+`check()` и `buildTest()`, умолчание — `defaultSources`.
+
+- [ ] 0.1 `git rebase main` перед началом работы; если в `main` приехало
+      что-то ещё по этим файлам — сверить дельты `specs/` заново
 
 ## 1. Маркер и разбор командной строки
 
@@ -30,7 +31,7 @@
 
 ## 2. Аргумент сборки: две формы
 
-- [ ] 2.1 `AssembleArgs` = `AssembleObject<S> | ArgvArgs`; строковая форма
+- [ ] 2.1 `BuildArgs` = `BuildObject<S> | ArgvArgs`; строковая форма
       и массив имён удалены из типа и из `parseArgs`
 - [ ] 2.2 `parseArgs` принимает маркер и разбирает его в тот же
       `ParsedArgs`; сигнатуре добавлены имена фич для справки
@@ -38,8 +39,8 @@
       `include-deps`, `help`) — отказ при создании декларации в
       `root/plan.ts`, сообщение называет причину
 - [ ] 2.4 `argv` экспортирован из `@nestlingjs/app`; тип `ArgvArgs`
-      экспортирован рядом с `AssembleArgs`
-- [ ] 2.5 Спеки и type-тесты: маркер принимают `assemble`, `discover` и
+      экспортирован рядом с `BuildArgs`
+- [ ] 2.5 Спеки и type-тесты: маркер принимают `build`, `discover` и
       `check`; строковая форма не проходит по типам; `argv` в матрице
       `checkTopologies` не принимается
 
@@ -63,12 +64,14 @@
 - [ ] 4.3 Убрать вызовы `load()` из `derived.spec.ts`, `blank.spec.ts`,
       `secrets.spec.ts`, `section.spec.ts`, `switches.spec.ts`
 - [ ] 4.4 Проверить, что `process.env` в `@nestlingjs/app` остался только
-      в читалке и в источнике окружения
+      в читалке и в источнике `env()`
+- [ ] 4.5 JSDoc с `load(RootConfig)`: `root/args.ts` и
+      `packages/nestling.transport.nats/src/transport.ts`
 
 ## 5. Примеры
 
 - [ ] 5.1 `examples/microservice/src/main.ts`: `RootConfig` и `load()`
-      удалены, точка входа — `app.assemble(argv(process.argv))`
+      удалены, точка входа — `app.build(argv(process.argv))`
 - [ ] 5.2 `examples/modular-app/src/main.ts`: то же; `includeDeps`
       приходит флагом `--include-deps`
 - [ ] 5.3 `examples/microservice/src/openapi.ts` и

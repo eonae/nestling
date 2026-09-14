@@ -13,7 +13,7 @@ discovery по выбранным единицам.
 конфига не поднимаются, граф не строится, экземпляры транспортов не
 создаются.
 
-`args` SHALL принимать те же две формы, что `assemble(args?)` и
+`args` SHALL принимать те же две формы, что `build(args?)` и
 `check(args?)`: объект со значениями переключателей (capability
 `composition-switches`) и маркер `argv(process.argv)` (capability
 `build-argument`). Без аргумента SHALL разрешаться все фичи и умолчания

@@ -3,7 +3,7 @@
 ### Requirement: Словарь `switches:` объявлен корнем, значения приходят аргументом сборки
 
 `makeApp` SHALL принимать поле `switches:` — список переключателей
-приложения. Тип объектной формы аргумента `assemble` и `check` SHALL
+приложения. Тип объектной формы аргумента `build` и `check` SHALL
 выводиться из этого списка: поле переключателя с умолчанием SHALL быть
 необязательным, без умолчания — обязательным.
 
@@ -11,7 +11,7 @@
 аргументом сборки: переключатель с таким именем SHALL отвергаться при
 создании декларации (capability `build-argument`).
 
-Сборка SHALL падать на фазе ASSEMBLE в четырёх случаях:
+Сборка SHALL падать на фазе BUILD в четырёх случаях:
 
 | Случай | Сообщение называет |
 |---|---|
@@ -30,7 +30,7 @@
 
 #### Scenario: Аргумент сборки со значениями
 
-- **WHEN** вызвано `app.assemble({ features: 'uploads', storage: 'local', metrics: 'off' })`
+- **WHEN** вызвано `app.build({ features: 'uploads', storage: 'local', metrics: 'off' })`
 - **THEN** собрана фича `uploads`, в графе `LocalStorage`, и провайдеры
   метрик отсутствуют
 
@@ -38,13 +38,13 @@
 
 - **WHEN** процесс запущен как
   `node main.js --features uploads --storage local --metrics off`, и
-  вызвано `app.assemble(argv(process.argv))`
+  вызвано `app.build(argv(process.argv))`
 - **THEN** состав тот же, что у объектной формы с теми же значениями
 
 #### Scenario: Значение не из словаря
 
-- **WHEN** вызвано `app.assemble({ storage: 'gcs' })`
-- **THEN** сборка падает на ASSEMBLE, и сообщение перечисляет `'s3'` и
+- **WHEN** вызвано `app.build({ storage: 'gcs' })`
+- **THEN** сборка падает на BUILD, и сообщение перечисляет `'s3'` и
   `'local'`
 
 #### Scenario: Переключатель не объявлен в корне
@@ -57,13 +57,13 @@
 #### Scenario: Значение без умолчания не передано
 
 - **WHEN** объявлен `makeSwitch('storage', ['s3', 'local'])` без
-  умолчания, а вызвано `app.assemble({ features: 'all' })`
+  умолчания, а вызвано `app.build({ features: 'all' })`
 - **THEN** сборка падает, и сообщение называет переключатель и поле
   аргумента
 
 #### Scenario: Опечатка в имени поля
 
-- **WHEN** вызвано `app.assemble({ storag: 's3' })`
+- **WHEN** вызвано `app.build({ storag: 's3' })`
 - **THEN** сборка падает, и сообщение перечисляет известные поля
 
 #### Scenario: Два переключателя с одним именем

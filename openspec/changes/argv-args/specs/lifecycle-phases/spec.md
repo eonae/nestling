@@ -11,7 +11,7 @@
 
 **Migration**: Секция вида `RootConfig` с ключами `APP_FEATURES` и
 `APP_DOCS` удаляется вместе с вызовом `load()`; точка входа передаёт
-`app.assemble(argv(process.argv))`, а выбор приходит флагами
+`app.build(argv(process.argv))`, а выбор приходит флагами
 `--features`, `--include-deps` и флагами переключателей.
 
 ## ADDED Requirements

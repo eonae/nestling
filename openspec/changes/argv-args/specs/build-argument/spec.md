@@ -17,32 +17,32 @@
 операциям и значения переключателей ведут себя одинаково.
 
 Формы SHALL приниматься тремя входами декларации одинаково:
-`assemble(args?)`, `discover(args?)` и `check(args?, options?)`.
+`build(args?)`, `discover(args?)` и `check(args?, options?)`.
 
 #### Scenario: Объектная форма
 
-- **WHEN** вызвано `app.assemble({ features: 'users', mail: 'smtp' })`
+- **WHEN** вызвано `app.build({ features: 'users', mail: 'smtp' })`
 - **THEN** собрана фича `users`, переключатель `mail` взял значение `smtp`
 
 #### Scenario: Маркер командной строки
 
 - **WHEN** процесс запущен как `node main.js --features users --mail smtp`
-  и вызвано `app.assemble(argv(process.argv))`
+  и вызвано `app.build(argv(process.argv))`
 - **THEN** состав тот же, что у объектной формы с теми же значениями
 
 #### Scenario: Строковой формы нет
 
-- **WHEN** написано `app.assemble('users')`
+- **WHEN** написано `app.build('users')`
 - **THEN** вызов не проходит по типам
 
 #### Scenario: Маркер принимают все три входа
 
 - **WHEN** одному и тому же маркеру переданы `discover`, `check` и
-  `assemble`
+  `build`
 - **THEN** все три вызова разбирают его одинаково и дают согласованный
   состав
 
-### Requirement: `argv(strings)` — маркер, несущий командную строку целиком
+### Requirement: `argv(strings)` — маркер с командной строкой целиком
 
 `@nestlingjs/app` SHALL экспортировать `argv(strings)`, возвращающую
 замороженное брендированное значение. Маркер SHALL нести переданный список
@@ -79,7 +79,7 @@
 #### Scenario: Пустая командная строка
 
 - **WHEN** процесс запущен без флагов и вызвано
-  `app.assemble(argv(process.argv))`
+  `app.build(argv(process.argv))`
 - **THEN** выбраны все фичи и умолчания переключателей — как при вызове
   без аргумента
 
@@ -204,7 +204,7 @@ SHALL быть отказом, называющим её.
 Построение текста SHALL быть отделено от печати и выхода: текст SHALL
 строиться чистой функцией, проверяемой тестом без завершения процесса.
 
-`--help` SHALL действовать одинаково у `assemble`, `discover` и `check`.
+`--help` SHALL действовать одинаково у `build`, `discover` и `check`.
 
 #### Scenario: Справка вместо запуска
 
