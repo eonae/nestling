@@ -129,6 +129,7 @@ keeping the documentation live in [`docs/README.md`](./docs/README.md).
 ```bash
 yarn install
 yarn verify          # build + typecheck + lint + test across all packages
+yarn verify:strict   # checks the built declarations; run before a release
 yarn docs:audit      # documentation consistency check
 yarn docs:build      # build the HTML documentation site
 yarn bench:http      # HTTP transport against Fastify; a reference point, not a gate
