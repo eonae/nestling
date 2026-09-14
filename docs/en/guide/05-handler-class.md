@@ -1,6 +1,6 @@
 # 5. A handler as a class
 
-> Guide to the current API; verified against `61c0a878`.
+> Guide to the current API; verified against `5383a51c`.
 > Target description: [design/endpoints.md](../design/endpoints.md) §3. Why:
 > entry [ideas.md](../../decisions/ideas.md)
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`.
