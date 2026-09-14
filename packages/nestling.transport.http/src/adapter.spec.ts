@@ -18,13 +18,8 @@ import { HttpTransport$ } from './token.js';
 import { http, HTTP_CAPABILITIES } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import {
-  makeApp,
-  makeFeature,
-  makePipeline,
-  objectSource,
-  Ok,
-} from '@nestlingjs/app';
+import type { ConfigSource } from '@nestlingjs/app';
+import { bind, makeApp, makeFeature, makePipeline, Ok } from '@nestlingjs/app';
 import { z } from 'zod';
 
 /** Endpoint-заглушка: одна и та же декларация обслуживается обеими формами */
@@ -37,10 +32,14 @@ const Ping = httpEndpoint.get('/ping', {
 const Pings = makeFeature({ name: 'pings', endpoints: [Ping] });
 
 /** Порт выбирает ОС, адрес — loopback: сокет теста никуда не смотрит */
-const socket = objectSource(
-  { HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' },
-  'test-socket',
-);
+const socketValues: Record<string, string> = {
+  HTTP_PORT: '0',
+  HTTP_HOST: '127.0.0.1',
+};
+const socket: ConfigSource = {
+  name: 'test-socket',
+  get: (key) => socketValues[key],
+};
 
 describe('adapter() — объявление экземпляра', () => {
   it('объявляет транспорт без сервера', () => {
@@ -74,7 +73,6 @@ describe('adapter() — объявление экземпляра', () => {
     const withSocket = makeApp({
       features: [Pings],
       transports: [http()],
-      config: [[socket, serverKeys()]],
     }).build();
 
     const withAdapter = makeApp({
@@ -82,7 +80,10 @@ describe('adapter() — объявление экземпляра', () => {
       transports: [adapter()],
     }).build();
 
-    await withSocket.run({ signals: false });
+    await withSocket.run({
+      signals: false,
+      config: [bind(socket, { keys: serverKeys() })],
+    });
     await withAdapter.run({ signals: false });
 
     // Обе сборки прошли BUILD на одной декларации, без правок в ней
@@ -97,10 +98,12 @@ describe('adapter() — объявление экземпляра', () => {
     const app = makeApp({
       features: [Pings],
       transports: [http(), adapter({ name: 'edge' })],
-      config: [[socket, serverKeys()]],
     }).build();
 
-    await app.run({ signals: false });
+    await app.run({
+      signals: false,
+      config: [bind(socket, { keys: serverKeys() })],
+    });
 
     expect(app.servers.size).toBe(1);
     expect(app.transports.get('edge')).toBeInstanceOf(HttpAdapter);
@@ -112,13 +115,15 @@ describe('adapter() — объявление экземпляра', () => {
     const app = makeApp({
       features: [Pings],
       transports: [http(), adapter()],
-      config: [[socket, serverKeys()]],
     }).build();
 
     // Отдельной проверки не нужно: DI-токен у обоих один
-    await expect(app.run({ signals: false })).rejects.toThrow(
-      /transport:http:default/,
-    );
+    await expect(
+      app.run({
+        signals: false,
+        config: [bind(socket, { keys: serverKeys() })],
+      }),
+    ).rejects.toThrow(/transport:http:default/);
 
     await app.close();
   });
@@ -160,10 +165,12 @@ describe('обработчик существует только у запуще
     const app = makeApp({
       features: [Pings],
       transports: [http()],
-      config: [[socket, serverKeys()]],
     }).build();
 
-    await app.run({ signals: false });
+    await app.run({
+      signals: false,
+      config: [bind(socket, { keys: serverKeys() })],
+    });
 
     expect(() => toNodeHandler(app)).toThrow(/adapter\(/);
 

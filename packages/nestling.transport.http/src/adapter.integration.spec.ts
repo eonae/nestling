@@ -19,8 +19,9 @@ import type { HttpServer } from './server.js';
 import { http } from './transport.js';
 
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import type { BuiltApp, FilePart } from '@nestlingjs/app';
+import type { BuiltApp, ConfigSource, FilePart } from '@nestlingjs/app';
 import {
+  bind,
   ClientDisconnectedError,
   events,
   makeApp,
@@ -28,7 +29,6 @@ import {
   makeFeature,
   makePipeline,
   multipart,
-  objectSource,
   Ok,
   stream,
   upload,
@@ -173,10 +173,14 @@ const Api = makeFeature({
 });
 
 /** Порт выбирает ОС, адрес — loopback: сокет теста никуда не смотрит */
-const socketConfig = objectSource(
-  { HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' },
-  'test-socket',
-);
+const socketValues: Record<string, string> = {
+  HTTP_PORT: '0',
+  HTTP_HOST: '127.0.0.1',
+};
+const socketConfig: ConfigSource = {
+  name: 'test-socket',
+  get: (key) => socketValues[key],
+};
 
 /** Ответ в сравнимом виде: то, что клиент видит на любом из трёх путей */
 interface Probe {
@@ -236,7 +240,6 @@ beforeAll(async () => {
   socketApp = makeApp({
     features: [Api],
     transports: [http()],
-    config: [[socketConfig, serverKeys()]],
   }).build();
 
   embeddedApp = makeApp({
@@ -244,7 +247,10 @@ beforeAll(async () => {
     transports: [adapter()],
   }).build();
 
-  await socketApp.run({ signals: false });
+  await socketApp.run({
+    signals: false,
+    config: [bind(socketConfig, { keys: serverKeys() })],
+  });
   await embeddedApp.run({ signals: false });
 
   const server = socketApp.servers.get('default') as HttpServer;
