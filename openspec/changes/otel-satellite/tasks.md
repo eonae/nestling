@@ -100,23 +100,23 @@
 
 ## 6. Документация
 
-- [ ] 6.1 Новая глава `docs/guide/23-tracing.md` и пара
+- [x] 6.1 Новая глава `docs/guide/23-tracing.md` и пара
   `docs/en/guide/23-tracing.md`: слой, политика `hasVar(Span)`, `Ctx(Span)`,
   просмотр дерева в Jaeger
-- [ ] 6.2 Оглавления `docs/guide/README.md` и `docs/en/guide/README.md`:
+- [x] 6.2 Оглавления `docs/guide/README.md` и `docs/en/guide/README.md`:
   строка главы 23
 - [x] 6.3 `docs/guide/22-metrics.md` и пара: абзац про push по OTLP рядом с
   экспозицией. Саму главу ведёт `declared-metrics` — дописывать поверх
   результата, а не переписывать; плашка «сверено с кодом» с новой датой
 - [x] 6.4 `docs/design/container.md` и пара: строка про экспорт участков
   рядом с разделом «Метрики ядра»
-- [ ] 6.5 README пакета: `packages/nestling.otel/README.md` и `README.ru.md`
+- [x] 6.5 README пакета: `packages/nestling.otel/README.md` и `README.ru.md`
   с плашкой статуса и разделами по шаблону
 - [x] 6.6 `docs/README.md`: строка `@nestlingjs/otel` в таблице пакетов
 - [x] 6.7 `docs/compatibility.md` и пара: строка про экспорт телеметрии
 - [x] 6.8 `docs/glossary.md` и пара: термин «участок трассы» уже есть —
   сверить формулировку с реализацией
-- [ ] 6.9 `node .claude/skills/docs-style/scripts/lint.mjs` на все изменённые
+- [x] 6.9 `node .claude/skills/docs-style/scripts/lint.mjs` на все изменённые
   тексты — 0 запрещённых слов
 
 ## 7. Роадмап и журнал решений

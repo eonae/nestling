@@ -1,6 +1,6 @@
 # 22. Count requests and calls between processes
 
-> Guide to the current API; verified against `92353887`.
+> Guide to the current API; verified against `61988252`.
 > Target description: [design/container.md](../design/container.md), the
 > "Kernel metrics" section, [design/pipeline.md](../design/pipeline.md) §2
 > and [design/operations.md](../design/operations.md) §2.3. Why: entry
@@ -211,6 +211,41 @@ are scraped by the collector, not by a client.
 A histogram is written as `_bucket` series, a `_sum` and a `_count`. The
 bucket boundaries come from the declaration of the metric, so the
 exporter does not compute them.
+
+## A push over OTLP is a second reader of the same store
+
+A deployment that gathers telemetry with an OpenTelemetry collector,
+not by scraping, sends the numbers itself. The satellite plugin
+`@nestlingjs/otel` does this:
+
+```typescript
+// src/app.ts
+import { otel } from '@nestlingjs/otel';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+
+export const telemetry = otel({
+  service: 'orders',
+  metrics: new OTLPMetricExporter(),
+  intervalMs: 60_000,
+});
+
+export const app = makeApp({
+  features: [OrdersFeature],
+  plugins: [telemetry.plugin, makePrometheus()],
+  transports: [http({ server: api })],
+});
+```
+
+The plugin reads `snapshot()` once every `intervalMs` and sends it to
+the exporter; when the application stops, the last snapshot goes out,
+so the entries of the last interval are not lost. The satellite keeps
+no instruments of its own: the store has already computed the
+aggregate, and the buckets, `help` and `unit` come from the declaration
+of the metric. So the push and the exposition show the same thing.
+
+There can be two plugins, as above: they read one store and know
+nothing about each other. The same satellite hands out the spans of the
+trace as a layer — [chapter 23](./23-tracing.md).
 
 ## The check
 

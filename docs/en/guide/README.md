@@ -110,4 +110,5 @@ introduces are not in the map — the map describes the reading order.
 | [19. Start only a part of the features](./19-select.md) | `build(args)`, `argv(process.argv)`, `includeDeps`, composition switches, `check()` |
 | [20. Spread the features across processes](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
 | [21. Do not break the neighbours when an operation changes](./21-compatibility.md) | the version in the name, the snapshot of operations, `diffOperations` |
-| [22. Count requests and calls between processes](./22-metrics.md) | `Metrics`, the `metrics` option, `Metrics$.auto`, kernel metrics, the adapter and `/metrics` |
+| [22. Count requests and calls between processes](./22-metrics.md) | `makeMetrics`, the `metrics:` contribution, `MetricsStore$`, kernel metrics, the exposition as a package |
+| [23. See where the request spent time](./23-tracing.md) | `otel()`, the span layer, `hasVar(Span)`, `Ctx(Span)`, the tree in Jaeger |
