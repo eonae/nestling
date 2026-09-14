@@ -20,9 +20,11 @@ import type { z } from 'zod';
  * );
  * ```
  */
-export function fromScratch() {
+export function fromScratch(): {
+  makeModel: <S extends z.ZodTypeAny>(schema: S) => S;
+} {
   return {
-    makeModel: <S extends z.ZodTypeAny>(schema: S) => {
+    makeModel: <S extends z.ZodTypeAny>(schema: S): S => {
       return schema;
     },
   };
@@ -34,6 +36,6 @@ export function fromScratch() {
  * @param schema - Схема модели
  * @returns Та же схема
  */
-export function makeModel<S extends z.ZodTypeAny>(schema: S) {
+export function makeModel<S extends z.ZodTypeAny>(schema: S): S {
   return schema;
 }

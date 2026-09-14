@@ -14,11 +14,14 @@ import type { OutboxPublished, OutboxStuck } from './operations.js';
 import type { ClaimedRecord, OutboxSettlement, OutboxStore } from './types.js';
 
 import type { IMessageBus, Logger } from '@nestlingjs/app';
+import type { Token } from '@nestlingjs/container';
 import { makeToken, OnStart } from '@nestlingjs/container';
 import type { Emitter } from '@nestlingjs/operations';
 
 /** DI-токен relay: тест берёт по нему `drain()`, приложение — ничего */
-export const OutboxRelay$ = makeToken<OutboxRelay>('@nestlingjs/outbox:relay');
+export const OutboxRelay$: Token<OutboxRelay> = makeToken<OutboxRelay>(
+  '@nestlingjs/outbox:relay',
+);
 
 /** Итог одного прохода по партии */
 export interface OutboxDrainReport {

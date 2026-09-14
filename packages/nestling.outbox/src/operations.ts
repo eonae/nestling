@@ -9,6 +9,7 @@
  */
 
 import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import type { EventOperation } from '@nestlingjs/operations';
 import { makeEvent } from '@nestlingjs/operations';
 import { z } from 'zod';
 
@@ -87,7 +88,11 @@ const stuckSchema: StandardSchemaV1<unknown, OutboxStuckFact> = z.object({
  * которую платит приложение за то, что событие переживает падение
  * процесса.
  */
-export const OutboxPublished = makeEvent({
+export const OutboxPublished: EventOperation<
+  StandardSchemaV1<unknown, OutboxPublishedFact>,
+  undefined,
+  []
+> = makeEvent({
   name: 'outbox.published',
   input: publishedSchema,
   doc: {
@@ -104,7 +109,11 @@ export const OutboxPublished = makeEvent({
  * Попытки исчерпаны, и сама по себе запись больше не поедет. Это точка
  * вмешательства: подписчик поднимает алерт, а разбирается человек.
  */
-export const OutboxStuck = makeEvent({
+export const OutboxStuck: EventOperation<
+  StandardSchemaV1<unknown, OutboxStuckFact>,
+  undefined,
+  []
+> = makeEvent({
   name: 'outbox.stuck',
   input: stuckSchema,
   doc: {

@@ -8,6 +8,7 @@
 
 import type { ITransport } from '@nestlingjs/app';
 import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
+import type { TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
@@ -17,11 +18,10 @@ import { makeTokenFamily } from '@nestlingjs/container';
  * нему инстанс из графа. Декларация выбирает экземпляр через `on:`; без
  * него это `'default'`.
  */
-export const CliTransport$ = makeTokenFamily<ITransport, [instance: string]>(
-  'transport:cli',
-);
+export const CliTransport$: TokenFamily<ITransport, [instance: string]> =
+  makeTokenFamily<ITransport, [instance: string]>('transport:cli');
 
 /** Короткое имя транспорта (`'cli'`) — то же, что читают слои пайплайна */
-export const CLI_TRANSPORT_NAME = transportNameOf(
+export const CLI_TRANSPORT_NAME: string = transportNameOf(
   CliTransport$(DEFAULT_INSTANCE),
 );

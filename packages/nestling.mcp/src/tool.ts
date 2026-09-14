@@ -59,8 +59,11 @@ export type AnyRequestOperation = RequestOperation<any, any, any>;
  * уходит в текст ошибки, и автор декларации читает там ту же запись,
  * какой требование записано в спецификации протокола.
  */
-// eslint-disable-next-line unicorn/better-regex -- текст ошибки цитирует source
-export const TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
+/* eslint-disable-next-line unicorn/better-regex,@typescript-eslint/no-inferrable-types --
+   текст ошибки цитирует source; аннотация `RegExp` выглядит лишней, но её
+   требует `isolatedDeclarations`: тип литерала-объекта декларация из одного
+   файла не выводит */
+export const TOOL_NAME_PATTERN: RegExp = /^[a-zA-Z0-9_-]{1,128}$/;
 
 /**
  * Данные инструмента, которых нет в проекции маршрута.

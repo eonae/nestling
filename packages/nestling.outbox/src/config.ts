@@ -6,8 +6,14 @@
  * транспортов.
  */
 
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+} from '@nestlingjs/app';
 import { makeConfig } from '@nestlingjs/app';
 import { flag, int } from '@nestlingjs/schema.zod';
+import type { z } from 'zod';
 
 /**
  * Секция relay.
@@ -18,7 +24,24 @@ import { flag, int } from '@nestlingjs/schema.zod';
  *
  * @internal Инжектируется relay; наружу отдаётся `outboxConfigKeys`
  */
-export const OutboxConfig = makeConfig('outbox', {
+export const OutboxConfig: ConfigSectionToken<
+  ConfigValues<
+    {
+      pollIntervalMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      batchSize: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      backoffMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      backoffMaxMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      maxAttempts: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      relay: z.ZodDefault<
+        z.ZodUnion<
+          readonly [z.ZodBoolean, z.ZodCodec<z.ZodString, z.ZodBoolean>]
+        >
+      >;
+    },
+    Record<never, never>
+  >,
+  'outbox'
+> = makeConfig('outbox', {
   /** Пауза между проходами, когда прошлая партия была пуста */
   pollIntervalMs: int().min(0).default(1000),
 
@@ -45,7 +68,7 @@ export const OutboxConfig = makeConfig('outbox', {
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */
-export const outboxConfigKeys = OutboxConfig.keys;
+export const outboxConfigKeys: ConfigKeys<'outbox'> = OutboxConfig.keys;
 
 /** Проекция секции */
 export interface OutboxConfigValues {

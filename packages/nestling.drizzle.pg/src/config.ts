@@ -11,7 +11,13 @@
 
 import { DEFAULT_CONNECTION } from './naming.js';
 
-import type { ConfigKeys } from '@nestlingjs/app';
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+  DerivedField,
+  SecretField,
+} from '@nestlingjs/app';
 import { makeConfig, secret } from '@nestlingjs/app';
 import { flag, int } from '@nestlingjs/schema.zod';
 import { z } from 'zod';
@@ -28,7 +34,24 @@ import { z } from 'zod';
  *
  * @internal Инжектируется ресурсом соединения; наружу отдаётся `.keys`
  */
-export const DatabaseConfig = makeConfig.family(
+export const DatabaseConfig: (instance: string) => ConfigSectionToken<
+  ConfigValues<
+    {
+      url: SecretField<z.ZodString>;
+      poolMax: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      connectTimeoutMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      idleTimeoutMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      statementTimeoutMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      ssl: z.ZodDefault<
+        z.ZodUnion<
+          readonly [z.ZodBoolean, z.ZodCodec<z.ZodString, z.ZodBoolean>]
+        >
+      >;
+    },
+    { host: DerivedField<readonly ['url'], string> }
+  >,
+  string
+> = makeConfig.family(
   'database',
   {
     /** Адрес базы целиком, вместе с пользователем и паролем */

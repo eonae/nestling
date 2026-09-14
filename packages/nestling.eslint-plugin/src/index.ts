@@ -38,11 +38,20 @@ import { dependencyList } from './dependency-list.js';
 import { endpointHasLayer } from './endpoint-has-layer.js';
 import { importThroughBarrel } from './import-through-barrel.js';
 
+import type { Rule } from 'eslint';
+
 export { dependencyList } from './dependency-list.js';
 export { endpointHasLayer } from './endpoint-has-layer.js';
 export { importThroughBarrel } from './import-through-barrel.js';
 
-const plugin = {
+const plugin: {
+  meta: { name: string; version: string };
+  rules: {
+    'dependency-list': Rule.RuleModule;
+    'endpoint-has-layer': Rule.RuleModule;
+    'import-through-barrel': Rule.RuleModule;
+  };
+} = {
   meta: {
     name: '@nestlingjs/eslint-plugin',
     version: '0.1.0',

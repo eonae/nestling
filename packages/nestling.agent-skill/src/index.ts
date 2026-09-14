@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const SOURCE = fileURLToPath(new URL('../skill/', import.meta.url));
 
 /** Куда команда кладёт скилл внутри проекта */
-export const SKILL_PATH = join('.claude', 'skills', 'nestling');
+export const SKILL_PATH: string = join('.claude', 'skills', 'nestling');
 
 export interface InstallOptions {
   /** Каталог проекта. По умолчанию текущий */
