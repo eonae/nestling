@@ -35,7 +35,7 @@
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
-    "build": "yarn run typecheck && yarn run clear && yarn run build:cli && yarn run build:web",
+    "build": "yarn run clear && yarn run build:cli && yarn run build:web",
     "build:cli": "node esbuild.config.js",
     "build:web": "run -T vite build",
     "dev": "run -T vite",

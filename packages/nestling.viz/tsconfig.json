@@ -6,7 +6,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "skipLibCheck": true,
 
     // Веб-часть: React и браузерное окружение
     "jsx": "react-jsx",

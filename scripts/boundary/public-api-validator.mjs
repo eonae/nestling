@@ -12,6 +12,10 @@
  * их объявлений вместе с выведенным типом. Комментарии под проверку не
  * попадают — они не типы.
  *
+ * Программа компилятора одна на все пакеты. Каждый `dist/index.d.ts` тянет
+ * за собой декларации зависимостей, а зависимости у пакетов общие: программа
+ * на пакет означала бы, что один и тот же `lib.d.ts` читается двадцать раз.
+ *
  * Исключение ровно одно и названо именем пакета: `@nestlingjs/schema.zod`
  * называет zod в типах своих опций, потому что это пакет вендора.
  *
@@ -41,16 +45,7 @@ const VALIDATORS = [
 const pattern = new RegExp(`\\b(${VALIDATORS.join('|')})\\b`, 'i');
 
 /** Экспорты барреля: имя, текст объявления и выведенный тип */
-function publicSurface(entry) {
-  const program = ts.createProgram([entry], {
-    noEmit: true,
-    skipLibCheck: true,
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-  });
-
-  const checker = program.getTypeChecker();
+function publicSurface(program, checker, entry) {
   const source = program.getSourceFile(entry);
   const moduleSymbol = source && checker.getSymbolAtLocation(source);
 
@@ -78,19 +73,27 @@ function publicSurface(entry) {
   });
 }
 
+/** Публикуемые пакеты, чья сборка на месте */
+const targets = publishablePackages()
+  .map(({ name, dir }) => ({ name, entry: join(dir, 'dist', 'index.d.ts') }))
+  .filter(({ name, entry }) => !EXEMPT.has(name) && existsSync(entry));
+
+const program = ts.createProgram(
+  targets.map(({ entry }) => entry),
+  {
+    noEmit: true,
+    skipLibCheck: true,
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+  },
+);
+
+const checker = program.getTypeChecker();
 const violations = [];
-let checked = 0;
 
-for (const { name, dir } of publishablePackages()) {
-  const entry = join(dir, 'dist', 'index.d.ts');
-
-  if (EXEMPT.has(name) || !existsSync(entry)) {
-    continue;
-  }
-
-  checked += 1;
-
-  for (const exported of publicSurface(entry)) {
+for (const { name, entry } of targets) {
+  for (const exported of publicSurface(program, checker, entry)) {
     const found = pattern.exec(exported.text);
 
     if (found) {
@@ -115,4 +118,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`[public-api] ${checked} package(s) name no validator: ok`);
+console.log(`[public-api] ${targets.length} package(s) name no validator: ok`);

@@ -23,7 +23,7 @@ import type { OperationKind } from '@nestlingjs/operations';
 export const BusTransport$: TransportToken = makeToken('transport:bus');
 
 /** Короткое имя транспорта (`'bus'`) — то же, что читают слои пайплайна */
-export const BUS_TRANSPORT_NAME = transportNameOf(BusTransport$);
+export const BUS_TRANSPORT_NAME: string = transportNameOf(BusTransport$);
 
 /** Бренд биндинга: случайный объект с полем `subject` биндингом не считается */
 const BUS_BINDING = Symbol.for('nestling:bus-binding');

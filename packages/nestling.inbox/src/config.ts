@@ -6,8 +6,14 @@
  * транспортов.
  */
 
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+} from '@nestlingjs/app';
 import { makeConfig } from '@nestlingjs/app';
 import { flag, int } from '@nestlingjs/schema.zod';
+import type { z } from 'zod';
 
 /** Срок хранения отметки по умолчанию: семь суток */
 const DEFAULT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -21,7 +27,22 @@ const DEFAULT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
  *
  * @internal Инжектируется уборщиком; наружу отдаётся `inboxConfigKeys`
  */
-export const InboxConfig = makeConfig('inbox', {
+export const InboxConfig: ConfigSectionToken<
+  ConfigValues<
+    {
+      retentionMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      sweepIntervalMs: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      batchSize: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      sweep: z.ZodDefault<
+        z.ZodUnion<
+          readonly [z.ZodBoolean, z.ZodCodec<z.ZodString, z.ZodBoolean>]
+        >
+      >;
+    },
+    Record<never, never>
+  >,
+  'inbox'
+> = makeConfig('inbox', {
   /**
    * Сколько отметка живёт до уборки.
    *
@@ -50,7 +71,7 @@ export const InboxConfig = makeConfig('inbox', {
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */
-export const inboxConfigKeys = InboxConfig.keys;
+export const inboxConfigKeys: ConfigKeys<'inbox'> = InboxConfig.keys;
 
 /** Проекция секции */
 export interface InboxConfigValues {

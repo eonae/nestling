@@ -90,12 +90,16 @@ describe('потоковый вход через stdin', () => {
   it('NDJSON-строки передаются в хендлер валидированными, счётчики растут', async () => {
     const summaries: { itemsIn: number }[] = [];
 
+    // Пайплайн собирается отдельной строкой: внутри объектного литерала у
+    // шага свой контекстный тип, и параметры шага перестают выводиться
+    const counting = makePipeline().finally((_outcome, _res, ctx) => {
+      summaries.push({ itemsIn: ctx.summary.itemsIn });
+    });
+
     const Import = cliEndpoint('import', {
       input: stream(Row),
       output: z.object({ imported: z.number() }),
-      pipeline: makePipeline().finally((_outcome, _res, ctx) => {
-        summaries.push({ itemsIn: ctx.summary.itemsIn });
-      }),
+      pipeline: counting,
       handler: async (source: AsyncIterableIterator<Row>) => {
         const ids: string[] = [];
         for await (const row of source) {

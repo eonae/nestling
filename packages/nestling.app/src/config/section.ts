@@ -184,41 +184,8 @@ const declare = <
   return token as unknown as ConfigSectionToken<Values, P>;
 };
 
-/**
- * Объявляет секцию конфигурации.
- *
- * @param prefix - Префикс имён ключей (`'orders'` → `ORDERS_*`)
- * @param record - Рекорд полей; лист — любая Standard Schema v1 или `from()`
- * @param derive - Рекорд вычисляемых полей, собранный конструктором `derived`
- * @returns DI-токен секции; наружу из пакета отдают только `.keys`
- *
- * @example
- * ```typescript
- * const OrdersConfig = makeConfig('orders', {
- *   maxItems: z.coerce.number().default(100),
- *   databaseUrl: from('DATABASE_URL', z.url()),
- * });
- * export const ordersKeys = OrdersConfig.keys;
- *
- * @Component([OrdersConfig])
- * class OrdersService {
- *   constructor(private cfg: Config<typeof OrdersConfig>) {}
- * }
- * ```
- *
- * @example Вычисляемое поле
- * ```typescript
- * const PgConfig = makeConfig('pg', {
- *   host: z.string().default('localhost'),
- *   port: z.coerce.number().int().default(5432),
- *   password: secret(z.string()),
- * }, (derived) => ({
- *   url: derived(['host', 'port', 'password'],
- *     (host, port, password) => `postgresql://app:${password}@${host}:${port}/app`),
- * }));
- * ```
- */
-export const makeConfig = <
+/** Реализация обычной секции; договор — у `makeConfig` в конце файла */
+const declareSection = <
   R extends ConfigRecord,
   P extends string,
   D extends DerivedRecord = Record<never, never>,
@@ -241,7 +208,7 @@ export const makeConfig = <
  * остаётся ответственностью потребителя: значение, скопированное в
  * конструкторе, не обновится.
  */
-makeConfig.reloadable = <
+const declareReloadable = <
   R extends ConfigRecord,
   P extends string,
   D extends DerivedRecord = Record<never, never>,
@@ -287,7 +254,7 @@ makeConfig.reloadable = <
  * HttpServerConfig('admin').keys;   // HTTP_ADMIN_PORT, HTTP_ADMIN_HOST
  * ```
  */
-makeConfig.family = <
+const declareFamily = <
   R extends ConfigRecord,
   P extends string,
   D extends DerivedRecord = Record<never, never>,
@@ -320,3 +287,72 @@ makeConfig.family = <
     return token;
   };
 };
+
+/**
+ * Объявляет секцию конфигурации.
+ *
+ * @param prefix - Префикс имён ключей (`'orders'` → `ORDERS_*`)
+ * @param record - Рекорд полей; лист — любая Standard Schema v1 или `from()`
+ * @param derive - Рекорд вычисляемых полей, собранный конструктором `derived`
+ * @returns DI-токен секции; наружу из пакета отдают только `.keys`
+ *
+ * @example
+ * ```typescript
+ * const OrdersConfig = makeConfig('orders', {
+ *   maxItems: z.coerce.number().default(100),
+ *   databaseUrl: from('DATABASE_URL', z.url()),
+ * });
+ * export const ordersKeys = OrdersConfig.keys;
+ *
+ * @Component([OrdersConfig])
+ * class OrdersService {
+ *   constructor(private cfg: Config<typeof OrdersConfig>) {}
+ * }
+ * ```
+ *
+ * @example Вычисляемое поле
+ * ```typescript
+ * const PgConfig = makeConfig('pg', {
+ *   host: z.string().default('localhost'),
+ *   port: z.coerce.number().int().default(5432),
+ *   password: secret(z.string()),
+ * }, (derived) => ({
+ *   url: derived(['host', 'port', 'password'],
+ *     (host, port, password) => `postgresql://app:${password}@${host}:${port}/app`),
+ * }));
+ * ```
+ */
+export const makeConfig: {
+  <
+    R extends ConfigRecord,
+    P extends string,
+    D extends DerivedRecord = Record<never, never>,
+  >(
+    prefix: P,
+    record: R,
+    derive?: DeriveFn<R, D>,
+  ): ConfigSectionToken<ConfigValues<R, D>, P>;
+
+  reloadable<
+    R extends ConfigRecord,
+    P extends string,
+    D extends DerivedRecord = Record<never, never>,
+  >(
+    prefix: P,
+    record: R,
+    derive?: DeriveFn<R, D>,
+  ): ConfigSectionToken<ConfigValues<R, D> & ReloadableConfig<R, D>, P>;
+
+  family<
+    R extends ConfigRecord,
+    P extends string,
+    D extends DerivedRecord = Record<never, never>,
+  >(
+    prefix: P,
+    record: R,
+    derive?: DeriveFn<R, D>,
+  ): (instance: string) => ConfigSectionToken<ConfigValues<R, D>, string>;
+} = Object.assign(declareSection, {
+  reloadable: declareReloadable,
+  family: declareFamily,
+});

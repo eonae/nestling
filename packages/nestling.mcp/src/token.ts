@@ -9,6 +9,7 @@
 
 import type { ITransport } from '@nestlingjs/app';
 import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
+import type { TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
@@ -18,11 +19,10 @@ import { makeTokenFamily } from '@nestlingjs/container';
  * нему экземпляр из графа. Декларация выбирает экземпляр через `on:`; без
  * него это `'default'`.
  */
-export const McpTransport$ = makeTokenFamily<ITransport, [instance: string]>(
-  'transport:mcp',
-);
+export const McpTransport$: TokenFamily<ITransport, [instance: string]> =
+  makeTokenFamily<ITransport, [instance: string]>('transport:mcp');
 
 /** Короткое имя транспорта (`'mcp'`) — то же, что читают слои пайплайна */
-export const MCP_TRANSPORT_NAME = transportNameOf(
+export const MCP_TRANSPORT_NAME: string = transportNameOf(
   McpTransport$(DEFAULT_INSTANCE),
 );

@@ -13,10 +13,11 @@ import type { InboxConfigValues } from './config.js';
 import type { InboxStore } from './types.js';
 
 import type { Logger } from '@nestlingjs/app';
+import type { Token } from '@nestlingjs/container';
 import { makeToken, OnStart } from '@nestlingjs/container';
 
 /** DI-токен уборщика: тест берёт по нему `sweepOnce()`, приложение — ничего */
-export const InboxSweeper$ = makeToken<InboxSweeper>(
+export const InboxSweeper$: Token<InboxSweeper> = makeToken<InboxSweeper>(
   '@nestlingjs/inbox:sweeper',
 );
 

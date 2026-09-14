@@ -1,5 +1,6 @@
 import type { ITransport } from '@nestlingjs/app';
 import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
+import type { TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
@@ -15,11 +16,10 @@ import { makeTokenFamily } from '@nestlingjs/container';
  * HttpTransport$('admin');   // второй экземпляр
  * ```
  */
-export const HttpTransport$ = makeTokenFamily<ITransport, [instance: string]>(
-  'transport:http',
-);
+export const HttpTransport$: TokenFamily<ITransport, [instance: string]> =
+  makeTokenFamily<ITransport, [instance: string]>('transport:http');
 
 /** Короткое имя транспорта по умолчанию (`'http'`); его же видят слои пайплайна */
-export const HTTP_TRANSPORT_NAME = transportNameOf(
+export const HTTP_TRANSPORT_NAME: string = transportNameOf(
   HttpTransport$(DEFAULT_INSTANCE),
 );

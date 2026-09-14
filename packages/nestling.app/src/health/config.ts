@@ -9,6 +9,11 @@
  * видимостью ES-модулей, снаружи доступен только `.keys`.
  */
 
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+} from '../config/index.js';
 import { makeConfig } from '../config/index.js';
 
 import { z } from 'zod';
@@ -24,13 +29,23 @@ import { z } from 'zod';
  *
  * @internal Инжектится узлом проб; наружу отдаётся только `.keys`
  */
-export const NestlingHealthConfig = makeConfig('nestlingHealth', {
+export const NestlingHealthConfig: ConfigSectionToken<
+  ConfigValues<
+    {
+      timeout: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      cache: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+    },
+    Record<never, never>
+  >,
+  'nestlingHealth'
+> = makeConfig('nestlingHealth', {
   timeout: z.coerce.number().int().min(0).default(2000),
   cache: z.coerce.number().int().min(0).default(1000),
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */
-export const healthConfigKeys = NestlingHealthConfig.keys;
+export const healthConfigKeys: ConfigKeys<'nestlingHealth'> =
+  NestlingHealthConfig.keys;
 
 /** Проекция секции проб */
 export interface HealthConfig {

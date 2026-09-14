@@ -11,9 +11,10 @@ import type { SubscriptionContext } from './registry.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { TrackedSubscription } from './types.js';
 
-import type { Outcome, ResponseContext } from '@nestlingjs/app';
+import type { Outcome, PhasedPipeline, ResponseContext } from '@nestlingjs/app';
 import { makePipeline } from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
+import type { EmptyInput } from '@nestlingjs/operations';
 
 /**
  * Регистрация подписки перед вызовом хендлера.
@@ -68,6 +69,9 @@ export class UntrackSubscription {
  * `everyEndpoint({ … }).hasLayer(tracked)` — идентичность слоя ссылочная,
  * поэтому политика адресует именно это значение.
  */
-export const tracked = makePipeline()
-  .pre(TrackSubscription)
-  .finally(UntrackSubscription);
+export const tracked: PhasedPipeline<
+  EmptyInput,
+  EmptyInput & { subscription: TrackedSubscription },
+  typeof TrackSubscription | typeof UntrackSubscription,
+  never
+> = makePipeline().pre(TrackSubscription).finally(UntrackSubscription);

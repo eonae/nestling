@@ -28,7 +28,7 @@ export const DEFAULT_SESSION_LIMIT = 100;
  * между вызовами инструментов думает секунды, а не минуты, поэтому пять
  * минут переживают паузу в диалоге и не держат запись сутки.
  */
-export const DEFAULT_SESSION_IDLE_MS = 5 * 60 * 1000;
+export const DEFAULT_SESSION_IDLE_MS: number = 5 * 60 * 1000;
 
 /** Опции транспорта после нормализации: умолчания уже подставлены */
 export interface McpRuntimeOptions {

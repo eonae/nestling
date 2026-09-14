@@ -116,6 +116,7 @@ README пакета — в `README.md` рядом с русским `README.ru.m
 ```bash
 yarn install
 yarn verify          # build + typecheck + lint + test по всем пакетам
+yarn verify:strict   # проверка собранных деклараций; перед выпуском
 yarn docs:audit      # проверка консистентности документации
 yarn docs:build      # сборка HTML-сайта документации
 yarn docs:dev        # локальный сервер сайта с пересборкой при правке

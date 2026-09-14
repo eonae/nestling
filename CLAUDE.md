@@ -61,7 +61,7 @@ Nestling — TypeScript-фреймворк («меньше, современне
 | Файл | Роль |
 | --- | --- |
 | `tsconfig.json` | Проект пакета: редактор и ESLint. Покрывает весь TypeScript пакета — `src`, спеки, `e2e`, `type-tests`. `noEmit` |
-| `tsconfig.build.json` | Сборка: эмитит `src` в `dist` без тестового кода. Только у пакетов, которые собирает tsc |
+| `tsconfig.build.json` | Сборка: эмитит `src` в `dist` без тестового кода; здесь же стоит `isolatedDeclarations`. Только у пакетов, которые выпускают декларации |
 | `eslint.config.js` | `createEslintConfig(import.meta.url)` из `.config/eslint.config.js` |
 | `vitest.config.js` | `createVitestConfig(import.meta.url)` из `vitest.config.base.js` |
 
@@ -71,7 +71,21 @@ Nestling — TypeScript-фреймворк («меньше, современне
 
 Скрипты в `package.json` тоже одинаковые: `clear`, `typecheck`, `build`,
 `lint`, `lint:fix`, `test`. Библиотека собирается через
-`tsc -p tsconfig.build.json`, пример — через `esbuild.config.js`.
+`node ../../scripts/build-package.mjs`, пример — через `esbuild.config.js`.
+
+**Сборка не проверяет типы.** JavaScript выпускает swc, декларации —
+пофайловый эмиттер TypeScript: он читает один файл и ничего не резолвит.
+Поэтому публичный экспорт обязан нести явную аннотацию — иначе сборка
+падает с `TS90xx`. Ошибку типов находит `typecheck`, он за прогон один.
+
+Исключение одно: `drizzle.pg` собирает `tsc`. Объявления его таблиц отдают
+наружу тип drizzle в сотни строк, и написать такой тип аннотацией нельзя
+без того, чтобы он поехал на первом обновлении библиотеки.
+
+Содержимое чужих `.d.ts` повседневный прогон не проверяет (`skipLibCheck` в
+базе). Проверку возвращает `yarn verify:strict` — проход по собранному
+`dist`, где на кону уже декларации репозитория. Он же ловит дефект
+генератора деклараций.
 
 Два правила, которые легко нарушить:
 

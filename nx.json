@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "parallel": 6,
   "namedInputs": {
     "tsconfigs": [
       "{projectRoot}/tsconfig.json",
@@ -60,7 +61,8 @@
         "check"
       ],
       "dependsOn": [
-        "^build"
+        "^build",
+        "build"
       ],
       "cache": true
     },
@@ -69,7 +71,9 @@
         "check"
       ],
       "dependsOn": [
-        "@nestlingjs/eslint-plugin:build"
+        "@nestlingjs/eslint-plugin:build",
+        "^build",
+        "build"
       ],
       "cache": true
     },
@@ -78,7 +82,8 @@
         "test"
       ],
       "dependsOn": [
-        "^build"
+        "^build",
+        "build"
       ],
       "cache": true
     },

@@ -75,7 +75,10 @@ const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
  * }
  * ```
  */
-export function OnStart() {
+export function OnStart(): <T extends Hook>(
+  _target: T,
+  context: ClassMethodDecoratorContext<object, T>,
+) => void {
   return function <T extends Hook>(
     _target: T,
     context: ClassMethodDecoratorContext<object, T>,

@@ -19,7 +19,7 @@ import {
 } from '@nestlingjs/app';
 import type { Schema } from '@nestlingjs/common.misc';
 import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
-import type { Token } from '@nestlingjs/container';
+import type { Token, TokenFamily } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
 import type {
   AnyOperation,
@@ -66,9 +66,10 @@ export type OutboxEmitter<C extends OutboxableOperation> = Emitter<
  *
  * @internal Рецепт регистрирует плагин `makeOutbox(...)`
  */
-export const OutboxedFamily = makeTokenFamily<Emitter<any>, [name: string]>(
-  'Outboxed',
-);
+export const OutboxedFamily: TokenFamily<
+  Emitter<any>,
+  [name: string]
+> = makeTokenFamily<Emitter<any>, [name: string]>('Outboxed');
 
 /**
  * DI-токен транзакционного эмиттера операции.

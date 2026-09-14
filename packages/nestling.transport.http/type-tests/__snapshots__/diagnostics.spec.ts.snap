@@ -43,8 +43,9 @@ exports[`httpEndpoint type diagnostics > class-wrong-output 1`] = `
           Type 'Promise<Ok<{ unexpected: boolean; }, "ok">>' is not assignable to type 'HttpDeclaredResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyFail, never> | Promise<HttpDeclaredResult<ZodObject<...>, AnyFail, never>>'.
             Type 'Promise<Ok<{ unexpected: boolean; }, "ok">>' is not assignable to type 'Promise<HttpDeclaredResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyFail, never>>'.
               Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type 'HttpDeclaredResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyFail, never>'.
-                Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type 'Ok<{ id: string; email: string; }, "ok">'.
-                  Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email"
+                Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type '{ id: string; email: string; } | Ok<{ id: string; email: string; }, "ok"> | HttpResponse<{ id: string; email: string; }, "ok">'.
+                  Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type 'Ok<{ id: string; email: string; }, "ok">'.
+                    Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email"
 `;
 
 exports[`httpEndpoint type diagnostics > function-undeclared-fail 1`] = `
@@ -63,8 +64,9 @@ exports[`httpEndpoint type diagnostics > function-wrong-output 1`] = `
     Type 'Promise<Ok<{ unexpected: boolean; }, "ok">>' is not assignable to type 'AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>, never>'.
       Type 'Promise<Ok<{ unexpected: boolean; }, "ok">>' is not assignable to type 'Promise<HttpDeclaredResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyFail, never>>'.
         Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type 'HttpDeclaredResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyFail, never>'.
-          Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type 'Ok<{ id: string; email: string; }, "ok">'.
-            Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email
+          Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type '{ id: string; email: string; } | Ok<{ id: string; email: string; }, "ok"> | HttpResponse<{ id: string; email: string; }, "ok">'.
+            Type 'Ok<{ unexpected: boolean; }, "ok">' is not assignable to type 'Ok<{ id: string; email: string; }, "ok">'.
+              Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email
   Overload 2 of 2, '(path: "/users/:id", declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 6 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type '() => Promise<Ok<{ unexpected: boolean; }, "ok">>' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail, never>'.
       Type '() => Promise<Ok<{ unexpected: boolean; }, "ok">>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail, never>; }'."
@@ -104,7 +106,7 @@ exports[`httpEndpoint type diagnostics > operation-key-removed 1`] = `
     Type 'Promise<Ok<{ id: string; email: string; }, "ok">>' is not assignable to type 'AnyHttpResult<undefined, never>'.
       Type 'Promise<Ok<{ id: string; email: string; }, "ok">>' is not assignable to type 'Promise<HttpDeclaredResult<undefined, AnyFail, never>>'.
         Type 'Ok<{ id: string; email: string; }, "ok">' is not assignable to type 'HttpDeclaredResult<undefined, AnyFail, never>'.
-          Type 'Ok<{ id: string; email: string; }, "ok">' is not assignable to type 'Ok<null, "no_content"> | Ok<void, "no_content">'.
+          Type 'Ok<{ id: string; email: string; }, "ok">' is not assignable to type 'Ok<null, "no_content"> | Ok<void, "no_content"> | HttpResponse<void, "no_content">'.
             Type 'Ok<{ id: string; email: string; }, "ok">' is not assignable to type 'Ok<null, "no_content">'.
               Type '{ id: string; email: string; }' is not assignable to type 'null'.
   Overload 2 of 2, '(path: "/users", declaration: HttpEndpointDictionary<"/users", AnyPayload, undefined, AnyInput, never, undefined, EmptyInput, [], never, never> & { ...; }): EndpointDefinition<...>', gave the following error.

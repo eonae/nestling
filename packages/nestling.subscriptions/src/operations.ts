@@ -12,6 +12,7 @@
  */
 
 import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import type { EventOperation } from '@nestlingjs/operations';
 import { makeEvent } from '@nestlingjs/operations';
 import { z } from 'zod';
 
@@ -82,7 +83,11 @@ const closedSchema: StandardSchemaV1<unknown, SubscriptionClosedFact> =
  *
  * Публикуется **до** вызова хендлера, тем же порядком, что и событие ленты.
  */
-export const SubscriptionOpened = makeEvent({
+export const SubscriptionOpened: EventOperation<
+  StandardSchemaV1<unknown, SubscriptionOpenedFact>,
+  undefined,
+  []
+> = makeEvent({
   name: 'subscriptions.opened',
   input: openedSchema,
   doc: {
@@ -101,7 +106,11 @@ export const SubscriptionOpened = makeEvent({
  * административное завершение отличимо от дисконнекта и от нормального
  * конца потока.
  */
-export const SubscriptionClosed = makeEvent({
+export const SubscriptionClosed: EventOperation<
+  StandardSchemaV1<unknown, SubscriptionClosedFact>,
+  undefined,
+  []
+> = makeEvent({
   name: 'subscriptions.closed',
   input: closedSchema,
   doc: {

@@ -3,7 +3,7 @@
   // TypeScript пакета, спеки в том числе, — иначе у них нет типов
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // Сборка идёт по `tsconfig.build.json`
+    // Сборку делает esbuild
     "noEmit": true
   },
   "include": ["src"],

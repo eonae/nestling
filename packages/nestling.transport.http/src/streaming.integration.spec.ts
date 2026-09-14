@@ -774,7 +774,9 @@ describe('приём потокового входа и multipart', () => {
     const response = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
       headers: { 'content-type': contentType },
-      body,
+      // `BodyInit` принимает представление только над обычным `ArrayBuffer`,
+      // а тип `Buffer` допускает и разделяемый
+      body: typeof body === 'string' ? body : (body as Uint8Array<ArrayBuffer>),
     });
     return { status: response.status, body: await response.text() };
   };

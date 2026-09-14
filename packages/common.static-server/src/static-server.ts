@@ -148,7 +148,13 @@ export class StaticServer {
   /**
    * Получает информацию о сервере
    */
-  getInfo() {
+  getInfo(): {
+    port: number;
+    staticDir: string;
+    isListening: boolean;
+    activeConnections: number;
+    isShuttingDown: boolean;
+  } {
     return {
       port: this.options.port,
       staticDir: this.options.staticDir,

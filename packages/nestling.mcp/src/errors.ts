@@ -9,6 +9,7 @@
  */
 
 import { makeFail } from '@nestlingjs/app';
+import type { FailDefinitionWithDetails } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /**
@@ -16,7 +17,10 @@ import { z } from 'zod';
  *
  * Клиент открывает новую сообщением `initialize`.
  */
-export const McpSessionNotFound = makeFail('not_found:mcp_session', {
+export const McpSessionNotFound: FailDefinitionWithDetails<
+  'not_found:mcp_session',
+  { sessionId: string }
+> = makeFail('not_found:mcp_session', {
   details: z.object({ sessionId: z.string() }),
   message: (d) =>
     `MCP session '${d.sessionId}' is closed or unknown. Send 'initialize' ` +
@@ -24,13 +28,13 @@ export const McpSessionNotFound = makeFail('not_found:mcp_session', {
 });
 
 /** Открытых сессий столько же, сколько разрешено опцией `sessionLimit` */
-export const McpSessionLimitReached = makeFail(
+export const McpSessionLimitReached: FailDefinitionWithDetails<
   'too_many_requests:mcp_sessions',
-  {
-    details: z.object({ limit: z.number() }),
-    message: (d) =>
-      `The server already holds ${d.limit} open MCP session(s), which is ` +
-      `the declared limit. Close a session with DELETE on the transport ` +
-      `path, or raise 'sessionLimit' in the mcp(...) options.`,
-  },
-);
+  { limit: number }
+> = makeFail('too_many_requests:mcp_sessions', {
+  details: z.object({ limit: z.number() }),
+  message: (d) =>
+    `The server already holds ${d.limit} open MCP session(s), which is ` +
+    `the declared limit. Close a session with DELETE on the transport ` +
+    `path, or raise 'sessionLimit' in the mcp(...) options.`,
+});

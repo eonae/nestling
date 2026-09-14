@@ -14,7 +14,7 @@
  *   сборке.
  */
 
-import type { EmptyInput, PreStepFn } from '../pipeline/index.js';
+import type { ContextVar, EmptyInput, PreStepFn } from '../pipeline/index.js';
 import { contextVar } from '../pipeline/index.js';
 
 import { followSignal } from './signal.js';
@@ -233,7 +233,9 @@ export function startBudget(
  * }
  * ```
  */
-export const Deadline = contextVar<Date | undefined>()('deadline');
+export const Deadline: ContextVar<Date | undefined, 'deadline'> = contextVar<
+  Date | undefined
+>()('deadline');
 
 /**
  * Ключ идемпотентности доставленного сообщения.
@@ -243,7 +245,8 @@ export const Deadline = contextVar<Date | undefined>()('deadline');
  * сам писатель, если ключа не прислали, — ровно как {@link withRequestId}
  * чеканит `requestId`.
  */
-export const IdempotencyKey = contextVar<string>()('idempotencyKey');
+export const IdempotencyKey: ContextVar<string, 'idempotencyKey'> =
+  contextVar<string>()('idempotencyKey');
 
 /**
  * Штатный писатель {@link Deadline}: кладёт бюджет из транспортных

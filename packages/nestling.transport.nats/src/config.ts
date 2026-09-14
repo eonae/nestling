@@ -11,6 +11,11 @@
  * а про сборку.
  */
 
+import type {
+  ConfigKeys,
+  ConfigSectionToken,
+  ConfigValues,
+} from '@nestlingjs/app';
 import { makeConfig } from '@nestlingjs/app';
 import { z } from 'zod';
 
@@ -32,7 +37,20 @@ const serversSchema = z
  *
  * @internal Инжектится фабрикой транспорта; наружу отдаётся только `.keys`
  */
-export const NatsConfig = makeConfig('nats', {
+export const NatsConfig: ConfigSectionToken<
+  ConfigValues<
+    {
+      servers: z.ZodPipe<
+        z.ZodPipe<z.ZodDefault<z.ZodString>, z.ZodTransform<string[], string>>,
+        z.ZodArray<z.ZodString>
+      >;
+      requestTimeout: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+      subjectPrefix: z.ZodDefault<z.ZodString>;
+    },
+    Record<never, never>
+  >,
+  'nats'
+> = makeConfig('nats', {
   servers: serversSchema,
 
   /**
@@ -50,4 +68,4 @@ export const NatsConfig = makeConfig('nats', {
 });
 
 /** Ключи секции — то, что пакет отдаёт наружу для `config:` в корне */
-export const natsConfigKeys = NatsConfig.keys;
+export const natsConfigKeys: ConfigKeys<'nats'> = NatsConfig.keys;

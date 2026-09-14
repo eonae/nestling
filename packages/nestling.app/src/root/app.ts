@@ -487,11 +487,45 @@ export interface RunOptions {
 }
 
 /**
+ * Шовные методы `BuiltApp`: контракт объявлен отдельно от класса.
+ *
+ * Имя каждому даёт символ, а декларация пакета выводится из одного файла и
+ * вычисляемого имени не выражает. Поэтому сигнатуры живут здесь, а
+ * реализации — на прототипе, в статических блоках класса.
+ */
+// Слияние класса и интерфейса: правило запрещает его потому, что интерфейс
+// обещает члены, которых у класса нет. Здесь они есть — их вешает на
+// прототип статический блок ниже, и `testing` зовёт шов в каждом прогоне
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export interface BuiltApp {
+  /**
+   * Структурная проверка: фазы 0–1 и отчёт о составе.
+   *
+   * Ключ — символ из непубличного модуля: снаружи проверку зовут через
+   * `App.check()`, у собранного приложения такого метода нет.
+   *
+   * @internal
+   */
+  [CHECK_SEAM](options: CheckOptions): Promise<CheckReport>;
+
+  /**
+   * Внутренний шов тестового корня: фазы 0–3 и остановка.
+   *
+   * Ключ — символ из непубличного модуля, поэтому назвать этот метод из
+   * прод-кода нечем. Единственный его вызыватель — `@nestlingjs/app/testing`.
+   *
+   * @internal
+   */
+  [TEST_SEAM](): Promise<WiredApp>;
+}
+
+/**
  * Приложение, собранное для этого процесса: результат `app.build()`.
  *
  * Публичная поверхность — `run()` и `close()`. Конструктор принимает
  * внутренний план сборки, тип которого пакет не экспортирует.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class BuiltApp {
   readonly #plan: BuildPlan;
 
@@ -687,30 +721,33 @@ export class BuiltApp {
   }
 
   /**
-   * Структурная проверка: фазы 0–1 и отчёт о составе.
+   * Реализация структурной проверки; сигнатура — в интерфейсе `BuiltApp`.
    *
-   * Ключ — символ из непубличного модуля: снаружи проверку зовут через
-   * `App.check()`, у собранного приложения такого метода нет.
-   *
-   * @internal
+   * Шов вешается на прототип, а не объявляется методом класса: имя ему
+   * даёт символ, и в декларации такое имя не выражается.
    */
-  async [CHECK_SEAM](options: CheckOptions): Promise<CheckReport> {
-    // Без опции проверка поднимает те же привязки, что и `run()` —
-    // у декларации своих источников больше нет
-    const { reader, root, logFields } = await this.#bootstrap(
-      options.config ?? defaultSources,
-    );
-
-    try {
-      return this.#report(
-        this.#build(reader, root, logFields).discovery,
-        options,
+  static {
+    BuiltApp.prototype[CHECK_SEAM] = async function (
+      this: BuiltApp,
+      options: CheckOptions,
+    ): Promise<CheckReport> {
+      // Без опции проверка поднимает те же привязки, что и `run()` —
+      // у декларации своих источников больше нет
+      const { reader, root, logFields } = await this.#bootstrap(
+        options.config ?? defaultSources,
       );
-    } finally {
-      // Контейнер проверка не разрушает, поэтому источники закрываются
-      // сразу после отчёта — иначе они остались бы открытыми
-      await reader.close();
-    }
+
+      try {
+        return this.#report(
+          this.#build(reader, root, logFields).discovery,
+          options,
+        );
+      } finally {
+        // Контейнер проверка не разрушает, поэтому источники закрываются
+        // сразу после отчёта — иначе они остались бы открытыми
+        await reader.close();
+      }
+    };
   }
 
   /** Отчёт о составе по результату discovery */
@@ -740,63 +777,64 @@ export class BuiltApp {
   }
 
   /**
-   * Внутренний шов тестового корня: фазы 0–3 и остановка.
+   * Реализация тестового шва; сигнатура — в интерфейсе `BuiltApp`.
    *
-   * Ключ — символ из непубличного модуля, поэтому назвать этот метод из
-   * прод-кода нечем. Единственный его вызыватель — `@nestlingjs/app/testing`.
-   *
-   * @internal
+   * На прототипе по той же причине, что и проверка выше: ключ — символ.
    */
-  async [TEST_SEAM](): Promise<WiredApp> {
-    if (this.#started) {
-      throw new Error('Application is already running');
-    }
-    this.#started = true;
+  static {
+    BuiltApp.prototype[TEST_SEAM] = async function (
+      this: BuiltApp,
+    ): Promise<WiredApp> {
+      if (this.#started) {
+        throw new Error('Application is already running');
+      }
+      this.#started = true;
 
-    // 0 BOOTSTRAP — привязки прогона уже в плане; без опции `config`
-    // источники не поднимаются вовсе: тест изолирован от `process.env` и
-    // от любых умолчаний
-    const { reader, root, logFields } = await this.#bootstrap(
-      this.#plan.config ?? [],
-    );
-    this.#reader = reader;
+      // 0 BOOTSTRAP — привязки прогона уже в плане; без опции `config`
+      // источники не поднимаются вовсе: тест изолирован от `process.env` и
+      // от любых умолчаний
+      const { reader, root, logFields } = await this.#bootstrap(
+        this.#plan.config ?? [],
+      );
+      this.#reader = reader;
 
-    // 1 BUILD — те же fail-fast'ы, что и в бою
-    const { container, discovery } = this.#build(reader, root, logFields);
-    this.#container = container;
+      // 1 BUILD — те же fail-fast'ы, что и в бою
+      const { container, discovery } = this.#build(reader, root, logFields);
+      this.#container = container;
 
-    this.#shutdown = new AbortController();
-    const { signal } = this.#shutdown;
+      this.#shutdown = new AbortController();
+      const { signal } = this.#shutdown;
 
-    // 2 INIT
-    await container.init(signal);
-    this.#collectInstances(container);
+      // 2 INIT
+      await container.init(signal);
+      this.#collectInstances(container);
 
-    // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
-    // выполняются, поэтому тест не начинает принимать запросы и не
-    // трогает процесс. `dispatches` запоминается: `testApp.run()` достроит
-    // START отдельным вызовом
-    const { dispatches, wired } = this.#wire(
-      container,
-      discovery,
-      container.getOrThrow(Logger$('nestling')),
-      container.getOrThrow(KernelMetrics),
-    );
-    this.#dispatches = dispatches;
+      // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
+      // выполняются, поэтому тест не начинает принимать запросы и не
+      // трогает процесс. `dispatches` запоминается: `testApp.run()` достроит
+      // START отдельным вызовом
+      const { dispatches, wired } = this.#wire(
+        container,
+        discovery,
+        container.getOrThrow(Logger$('nestling')),
+        container.getOrThrow(KernelMetrics),
+      );
+      this.#dispatches = dispatches;
 
-    // Шов останавливается после WIRE, но `testApp.call` — это и есть приём
-    // запроса. Поэтому в тестовом прогоне фаза RUN: без этого проба
-    // готовности в app-тесте всегда отвечала бы `not_ready`
-    this.#phase = 'RUN';
+      // Шов останавливается после WIRE, но `testApp.call` — это и есть приём
+      // запроса. Поэтому в тестовом прогоне фаза RUN: без этого проба
+      // готовности в app-тесте всегда отвечала бы `not_ready`
+      this.#phase = 'RUN';
 
-    return {
-      container,
-      endpoints: wired,
-      features: this.#selectedFeatures(),
-      servers: this.#servers,
-      signal,
-      run: () => this.#testRun(signal),
-      close: () => this.close(),
+      return {
+        container,
+        endpoints: wired,
+        features: this.#selectedFeatures(),
+        servers: this.#servers,
+        signal,
+        run: () => this.#testRun(signal),
+        close: () => this.close(),
+      };
     };
   }
 

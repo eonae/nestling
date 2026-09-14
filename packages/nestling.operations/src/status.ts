@@ -40,7 +40,10 @@ export const categories = [
 ] as const;
 
 /** Все статусы контекста ответа: успех либо категория отказа */
-export const statuses = [...successStatuses, ...categories] as const;
+export const statuses: readonly [
+  ...typeof successStatuses,
+  ...typeof categories,
+] = [...successStatuses, ...categories];
 
 export type SuccessStatus = (typeof successStatuses)[number];
 export type Category = (typeof categories)[number];

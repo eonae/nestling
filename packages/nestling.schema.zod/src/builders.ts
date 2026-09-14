@@ -26,7 +26,7 @@ import { z } from 'zod';
  * makeConfig('outbox', { batchSize: int().min(1).default(100) });
  * ```
  */
-export const int = () => z.coerce.number().int();
+export const int = (): z.ZodCoercedNumber<unknown> => z.coerce.number().int();
 
 /**
  * Булево значение; строковая запись принимается наравне с ним.
@@ -41,4 +41,6 @@ export const int = () => z.coerce.number().int();
  * makeConfig('outbox', { relay: flag().default(true) });
  * ```
  */
-export const flag = () => z.union([z.boolean(), z.stringbool()]);
+export const flag = (): z.ZodUnion<
+  readonly [z.ZodBoolean, z.ZodCodec<z.ZodString, z.ZodBoolean>]
+> => z.union([z.boolean(), z.stringbool()]);

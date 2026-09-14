@@ -16,8 +16,10 @@
     "examples/*"
   ],
   "scripts": {
-    "verify": "nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
-    "verify:fresh": "nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
+    "nx": "NX_CACHE_DIRECTORY=\"${HOME}/.cache/nestling/nx\" nx",
+    "verify": "yarn nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
+    "verify:fresh": "yarn nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs && node scripts/boundary/public-api-validator.mjs",
+    "verify:strict": "yarn nx run-many -t build && tsc -p tsconfig.strict.json",
     "bench:http": "tsx scripts/bench/http.ts",
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs",
     "docs:build": "node scripts/site/build.mjs",
@@ -68,7 +70,7 @@
     "prettier": "^3.3.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
-    "typescript": "5.7.3",
+    "typescript": "5.9.3",
     "typescript-eslint": "^8.5.0",
     "unplugin-swc": "^1.6.0",
     "vite": "^7",

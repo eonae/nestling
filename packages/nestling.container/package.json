@@ -44,7 +44,7 @@
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
-    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "build": "node ../../scripts/build-package.mjs",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "run -T vitest run"
