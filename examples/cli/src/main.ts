@@ -18,7 +18,7 @@ import { CliTransport } from '@nestlingjs/transport.cli';
  * Контейнер здесь не нужен: команды зависят только от клиента сервиса, а
  * он — обычное значение.
  */
-const argv = process.argv.slice(2);
+const commandLine = process.argv.slice(2);
 
 /**
  * Логгер входа: подсказка и фатальная ошибка — записи, а не результат
@@ -28,8 +28,8 @@ const argv = process.argv.slice(2);
 const logger = makeConsoleLogger();
 
 const cli = new CliTransport({
-  mode: argv.length > 0 ? 'argv' : 'repl',
-  argv,
+  mode: commandLine.length > 0 ? 'argv' : 'repl',
+  argv: commandLine,
 });
 
 const dispatch = makeDispatch(
@@ -41,7 +41,7 @@ const dispatch = makeDispatch(
 const shutdown = new AbortController();
 
 async function main(): Promise<void> {
-  if (argv.length === 0) {
+  if (commandLine.length === 0) {
     logger.info('REPL mode: type a command or "exit"');
   }
 

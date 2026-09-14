@@ -14,7 +14,6 @@ x-app: &app
   environment: &app-env
     DATABASE_URL: postgresql://modular:modular@postgres:5432/modular
     NATS_SERVERS: nats://nats:4222
-    APP_MAIL: log
     HTTP_PORT: '3100'
   depends_on:
     postgres:
@@ -51,9 +50,9 @@ services:
   app:
     <<: *app
     profiles: ['mono']
-    environment:
-      <<: *app-env
-      APP_FEATURES: all
+    # Состав процесса задаёт аргумент сборки, а не окружение: флаги читает
+    # `argv(process.argv)` точки входа
+    command: ['node', 'bundle.js', '--features', 'all', '--mail', 'log']
     ports:
       - '3100:3100'
 
@@ -62,17 +61,14 @@ services:
   users:
     <<: *app
     profiles: ['split']
-    environment:
-      <<: *app-env
-      APP_FEATURES: users
+    command: ['node', 'bundle.js', '--features', 'users', '--mail', 'log']
     ports:
       - '3101:3100'
 
   notifications:
     <<: *app
     profiles: ['split']
-    environment:
-      <<: *app-env
-      APP_FEATURES: notifications
+    command:
+      ['node', 'bundle.js', '--features', 'notifications', '--mail', 'log']
     ports:
       - '3102:3100'

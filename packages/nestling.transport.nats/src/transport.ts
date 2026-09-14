@@ -871,13 +871,13 @@ export class NatsBus implements IMessageBus, ITransport {
  *
  * @example
  * ```typescript
- * await build({
+ * const app = makeApp({
  *   features: [OrdersFeature, BillingFeature],
- *   select: load(RootConfig).features,
  *   transports: [http(), nats({ name: 'events' })],
  *   intercom: 'events',
- *   config: [[dotenv('.env'), natsConfigKeys]],
- * }).run();
+ * });
+ *
+ * await app.build(argv(process.argv)).run();
  * ```
  */
 export const nats = <const Name extends string = typeof DEFAULT_INSTANCE>(

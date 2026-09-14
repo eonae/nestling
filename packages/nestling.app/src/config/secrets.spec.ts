@@ -13,10 +13,10 @@ import type { ObjectSource } from './__fixtures__/object-source.js';
 import { objectSource } from './__fixtures__/object-source.js';
 import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
-import { ConfigValidationError, REDACTED } from './errors.js';
+import type { ConfigValidationError } from './errors.js';
+import { REDACTED } from './errors.js';
 import type { Config } from './families.js';
 import { bootstrapConfig, configKernel } from './kernel.js';
-import { load } from './load.js';
 import { projectSection, reloadableOf } from './project.js';
 import { ConfigReader } from './reader.js';
 import { SECRET_MASK } from './redact.js';
@@ -207,27 +207,6 @@ describe('редактирование в ошибке валидации', () =
     expect(failure.section).toBe('strict');
     expect(failure.failures[0]?.redacted).toBe(true);
     expect(failure.failures[0]?.issues[0]?.message).toBe(REDACTED);
-  });
-
-  it('редактирование работает и в первичном `load()`', () => {
-    process.env.VAULT_API_TOKEN = 'plaintext-password';
-
-    try {
-      expect(() => load(VaultConfig)).toThrow(ConfigValidationError);
-
-      let failure: ConfigValidationError | undefined;
-      try {
-        load(VaultConfig);
-      } catch (error) {
-        failure = error as ConfigValidationError;
-      }
-
-      expect(failure?.failures[0]?.redacted).toBe(true);
-      expect(failure?.message).not.toContain('token must start with sk-');
-      expect(failure?.message).toContain(REDACTED);
-    } finally {
-      delete process.env.VAULT_API_TOKEN;
-    }
   });
 
   it('warn о неудачном reload не выносит вендорский текст', async () => {

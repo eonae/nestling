@@ -14,7 +14,6 @@ import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigDerivedError, ConfigValidationError } from './errors.js';
 import type { Config } from './families.js';
-import { load } from './load.js';
 import { projectSection } from './project.js';
 import { ConfigReader } from './reader.js';
 import { SECRET_MASK } from './redact.js';
@@ -164,22 +163,6 @@ describe('момент вычисления', () => {
     expect(failure.message).toContain("section 'broken'");
     expect(failure.message).toContain("'upper'");
     expect(failure.message).toContain('host');
-  });
-
-  it('первичное чтение `load()` считает вычисляемые поля', () => {
-    const BootConfig = makeConfig(
-      'boot',
-      { features: z.string().default('all') },
-      (derived) => ({
-        upper: derived(['features'], (features) => features.toUpperCase()),
-      }),
-    );
-
-    process.env.BOOT_FEATURES = 'users,orders';
-
-    expect(load(BootConfig).upper).toBe('USERS,ORDERS');
-
-    delete process.env.BOOT_FEATURES;
   });
 });
 

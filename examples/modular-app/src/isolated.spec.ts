@@ -61,7 +61,7 @@ describeWithDatabase('фича users в изоляции', () => {
     const registered: { id: string; email: string }[] = [];
 
     await using testApp = await buildTest(isolated, {
-      args: 'users',
+      args: { features: 'users' },
       config: testConfig,
       // Ни владельца `notifications.check-address`, ни подписчика
       // `users.registered` в сборке нет: обе стороны заменены стабами
@@ -107,7 +107,7 @@ describeWithDatabase('фича users в изоляции', () => {
     const registered: unknown[] = [];
 
     await using testApp = await buildTest(isolated, {
-      args: 'users',
+      args: { features: 'users' },
       config: testConfig,
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
@@ -135,7 +135,7 @@ describeWithDatabase('фича users в изоляции', () => {
 
   it('каждая застабанная операция реализована в одной из топологий', async () => {
     await using testApp = await buildTest(isolated, {
-      args: 'users',
+      args: { features: 'users' },
       config: testConfig,
       stubs: [
         stub(CheckAddress, async () => ({ deliverable: true })),

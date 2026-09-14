@@ -150,13 +150,15 @@ describe('словарь switches: корня', () => {
     );
   });
 
-  it('имена features и includeDeps заняты', () => {
-    expect(() => makeApp({ switches: [makeSwitch('features')] })).toThrow(
-      /already has a field with that name/,
-    );
-    expect(() => makeApp({ switches: [makeSwitch('includeDeps')] })).toThrow(
-      /already has a field with that name/,
-    );
+  it('имена полей и флагов аргумента сборки заняты', () => {
+    for (const name of ['features', 'includeDeps', 'include-deps', 'help']) {
+      expect(() => makeApp({ switches: [makeSwitch(name)] })).toThrow(
+        new RegExp(
+          `Switch '${name}' cannot be declared.+build argument already owns`,
+          's',
+        ),
+      );
+    }
   });
 
   it('не переключатель в switches: — ошибка типа', () => {
@@ -331,9 +333,11 @@ describe('ошибки аргумента сборки', () => {
   });
 
   it('значение без умолчания не передано — называет поле аргумента', async () => {
-    await expect(app.check('all')).rejects.toThrow(
-      /Switch 'storage' has no default/,
-    );
+    await expect(
+      // @ts-expect-error компилятор ловит это первым; проверяется текст
+      // отказа, который увидит сборка с маркером `argv`
+      app.check({ features: 'all' }),
+    ).rejects.toThrow(/Switch 'storage' has no default/);
   });
 
   it('опечатка в имени поля перечисляет известные поля', async () => {
@@ -361,27 +365,27 @@ describe('ошибки аргумента сборки', () => {
     );
   });
 
-  it('строковая форма берёт умолчания', async () => {
+  it('выбор без значений переключателей берёт умолчания', async () => {
     const defaults = makeApp({
       features: [makeFeature({ name: 'users', endpoints: [ping()] })],
       switches: [Debug],
       transports: [asTransport()],
     });
 
-    const report = await defaults.check('all');
+    const report = await defaults.check({ features: 'all' });
 
     expect(report.switches).toEqual({ debug: 'off' });
   });
 
-  it('секция конфига подходит аргументом целиком', async () => {
+  it('объект со значениями подходит аргументом целиком', async () => {
     const withFeature = makeApp({
       features: [makeFeature({ name: 'users', endpoints: [ping()] })],
       switches: [Storage, Debug],
       transports: [asTransport()],
     });
 
-    // Именно то, что вернул бы `load(RootConfig)`: поля названы как
-    // переключатели
+    // Приложение со своим разбором командной строки подаёт объект: поля
+    // названы как переключатели
     const cfg: { features: string; storage: 's3' | 'local' } = {
       features: 'all',
       storage: 'local',

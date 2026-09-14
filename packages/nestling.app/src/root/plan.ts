@@ -27,7 +27,7 @@ import type {
 } from '../transport/index.js';
 
 import type { BuildArgs } from './args.js';
-import { RESERVED_ARG_FIELDS } from './args.js';
+import { RESERVED_SWITCH_NAMES } from './args.js';
 import type { AppModule, Feature, Plugin, ResolvedBundle } from './feature.js';
 import { resolveSelection } from './feature.js';
 
@@ -560,10 +560,13 @@ function normalizeSwitches(values: unknown): readonly AnySwitch[] {
       );
     }
 
-    if ((RESERVED_ARG_FIELDS as readonly string[]).includes(declared.name)) {
+    if ((RESERVED_SWITCH_NAMES as readonly string[]).includes(declared.name)) {
       throw new Error(
         `Switch '${declared.name}' cannot be declared: the build argument ` +
-          `already has a field with that name. Rename the switch.`,
+          `already owns that name — it is a field of the object form or a ` +
+          `flag of the command line (${RESERVED_SWITCH_NAMES.map(
+            (name) => `'${name}'`,
+          ).join(', ')}). Rename the switch.`,
       );
     }
 

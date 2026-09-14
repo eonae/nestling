@@ -120,6 +120,8 @@ import type { Logger } from '@nestlingjs/logging';
 
 export type { AppSpec, LoggingOptions, NormalizedAppSpec } from './plan.js';
 export type { BuildArgs, BuildObject, SwitchFields } from './args.js';
+export { argv } from './argv.js';
+export type { ArgvArgs } from './argv.js';
 
 /** Endpoint в отчёте `check()`: чем обслуживается и кем объявлен */
 export interface CheckedEndpoint {
@@ -318,9 +320,9 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * (неизвестное имя фичи, пустой выбор, значение переключателя не из
    * словаря) — ошибки фазы BUILD, их бросает `run()`.
    *
-   * @param args - Аргумент сборки: `'all'`, `'orders,billing'`,
-   * `['orders', 'billing']` или `{ features, includeDeps, …значения
-   * переключателей }`. Отсутствует — выбраны все фичи и умолчания
+   * @param args - Аргумент сборки: объект
+   * `{ features, includeDeps, …значения переключателей }` либо маркер
+   * `argv(process.argv)`. Отсутствует — выбраны все фичи и умолчания
    * @returns Собранное приложение с методами `run()` и `close()`
    */
   build(args?: BuildArgs<S>): BuiltApp {
@@ -348,10 +350,11 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    * @returns Endpoint'ы с атрибуцией к единице и карта требуемых
    * транспортов — то же значение, что сборка кладёт под `Discovery$`
    * @throws {TypeError} Неизвестное поле аргумента сборки
-   * @throws {Error} Неизвестное имя фичи, значение переключателя вне
-   * словаря, ветка на необъявленном переключателе, элемент `endpoints:`
-   * не является декларацией, две разные единицы под одним именем,
-   * дубликат паттерна на экземпляре транспорта
+   * @throws {Error} Неизвестный флаг командной строки, неизвестное имя
+   * фичи, значение переключателя вне словаря, ветка на необъявленном
+   * переключателе, элемент `endpoints:` не является декларацией, две
+   * разные единицы под одним именем, дубликат паттерна на экземпляре
+   * транспорта
    *
    * @example
    * ```typescript
@@ -388,7 +391,7 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    *
    * @example
    * ```typescript
-   * for (const args of ['all', 'users', 'logging'] as const) {
+   * for (const args of [{ features: 'all' }, { features: 'users' }]) {
    *   await app.check(args);
    * }
    * ```

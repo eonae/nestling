@@ -100,7 +100,7 @@ describe('карта операций в отчёте check()', () => {
       features: [OrdersFeature, QuotasFeature],
       transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
-    }).check('orders');
+    }).check({ features: 'orders' });
 
     expect(report.operations).toEqual([
       {

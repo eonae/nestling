@@ -126,7 +126,7 @@ describe('App.check() — фазы 0–1', () => {
     const report = await makeApp({
       features: [Users, Logging],
       transports: [asTransport(new MockTransport())],
-    }).check('users');
+    }).check({ features: 'users' });
 
     // Выбор строгий: `logging` не подтягивается ничем — поля `dependsOn`
     // у фичи нет

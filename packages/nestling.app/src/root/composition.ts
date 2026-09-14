@@ -93,8 +93,8 @@ export interface AppComposition {
  * @returns Состав приложения: единицы, транспорты, серверы и значения
  * переключателей
  * @throws {TypeError} Неизвестное поле аргумента
- * @throws {Error} Неизвестное имя фичи, значение переключателя вне
- * словаря, ветка на необъявленном переключателе
+ * @throws {Error} Неизвестный флаг командной строки, неизвестное имя фичи,
+ * значение переключателя вне словаря, ветка на необъявленном переключателе
  *
  * @internal
  */
@@ -102,7 +102,11 @@ export function resolveComposition(
   spec: NormalizedAppSpec,
   args?: BuildArgs<any>,
 ): AppComposition {
-  const parsed: ParsedArgs = parseArgs(args, spec.switches);
+  const parsed: ParsedArgs = parseArgs(
+    args,
+    spec.switches,
+    spec.features.map(({ name }) => name),
+  );
   const values = resolveSwitchValues(spec.switches, parsed);
 
   const resolve = (bundle: Bundle): ResolvedBundle =>

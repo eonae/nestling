@@ -1,26 +1,24 @@
 /**
  * Пустое значение ключа — то же, что незаданный ключ.
  *
- * Правило живёт в ядре одной точкой, поэтому проверяется на обоих путях
- * чтения: проекции секции из графа и первичном чтении фазы 0.
+ * Правило живёт в ядре одной точкой — проекции секции из графа.
  */
 
 import { objectSource } from './__fixtures__/object-source.js';
 import { ConfigValidationError } from './errors.js';
 import { readSectionSnapshot } from './kernel.js';
-import { load } from './load.js';
 import { ConfigReader } from './reader.js';
 import { makeConfig } from './section.js';
 import { bind } from './source.js';
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
 
-const BlankConfig = makeConfig('blank', {
+makeConfig('blank', {
   port: z.coerce.number().int().min(1).default(3000),
 });
 
-const RequiredConfig = makeConfig('required', {
+makeConfig('required', {
   url: z.string().min(1),
 });
 
@@ -37,11 +35,6 @@ const readerOf = async (
 
   return reader;
 };
-
-beforeEach(() => {
-  delete process.env.BLANK_PORT;
-  delete process.env.REQUIRED_URL;
-});
 
 describe('проекция секции из графа', () => {
   it('пустой ключ даёт умолчание схемы', async () => {
@@ -65,19 +58,5 @@ describe('проекция секции из графа', () => {
     const reader = await readerOf({ BLANK_PORT: '' }, { BLANK_PORT: '8080' });
 
     expect(readSectionSnapshot('blank', reader)).toEqual({ port: 3000 });
-  });
-});
-
-describe('первичное чтение фазы 0', () => {
-  it('ведёт себя так же, как проекция из графа', () => {
-    process.env.BLANK_PORT = '';
-
-    expect(load(BlankConfig)).toEqual({ port: 3000 });
-  });
-
-  it('пустой ключ у обязательного поля даёт тот же отказ', () => {
-    process.env.REQUIRED_URL = '';
-
-    expect(() => load(RequiredConfig)).toThrow(ConfigValidationError);
   });
 });

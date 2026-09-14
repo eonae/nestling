@@ -13,7 +13,7 @@ import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
 
 /**
  * Переключатель состава: документация нужна в dev-контуре и не нужна за
- * периметром. Значение приходит аргументом сборки — `APP_DOCS`.
+ * периметром. Значение приходит аргументом сборки — флагом `--docs`.
  */
 export const DocsEnabled = makeSwitch('docs', { default: 'on' });
 

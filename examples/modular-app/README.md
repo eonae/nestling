@@ -13,7 +13,7 @@
 |---|---|
 | Операции между фичами: запрос, событие, команда | [`src/operations.ts`](./src/operations.ts) |
 | Одна декларация на все процессы, `intercom` и шина NATS | [`src/app.ts`](./src/app.ts) |
-| Выбор фич процесса и `includeDeps` | [`src/main.ts`](./src/main.ts) |
+| Аргумент сборки командной строкой: выбор фич и `--include-deps` | [`src/main.ts`](./src/main.ts) |
 | Переключатель состава: чем отправлять письма | [`src/switches.ts`](./src/switches.ts), [`src/features/notifications/notifications.feature.ts`](./src/features/notifications/notifications.feature.ts) |
 | Транзакционный emit: событие уходит после коммита | [`src/features/users/register-user.endpoint.ts`](./src/features/users/register-user.endpoint.ts) |
 | Транзакционный приём: повтор не доходит до хендлера | [`src/features/notifications/welcome-email.endpoint.ts`](./src/features/notifications/welcome-email.endpoint.ts) |
@@ -48,8 +48,9 @@ yarn workspace @examples/modular-app db:migrate   # миграции drizzle
 yarn workspace @examples/modular-app start:dev
 ```
 
-`APP_FEATURES=users` и `APP_FEATURES=notifications` поднимают половины
-приложения в разных процессах, `APP_FEATURES=all` — обе в одном.
+`--features users` и `--features notifications` поднимают половины
+приложения в разных процессах, `--features all` — обе в одном. Схему
+аргументов целиком печатает `--help`.
 
 ## Что потрогать
 
@@ -85,9 +86,10 @@ yarn workspace @examples/modular-app visualize
 Обязательных ключей нет: `DATABASE_URL` и `NATS_SERVERS` имеют умолчания
 для локального прогона.
 
-`APP_MAIL=smtp` переключает адаптер отправки. Ветка `smtp` в примере
-отказывает всегда — так видно повтор и то, как отказ доходит до отката
-транзакции подписчика.
+Состав процесса конфигурация не задаёт: выбор фич и значения
+переключателей приходят аргументом сборки. Флаг `--mail smtp` переключает
+адаптер отправки; ветка `smtp` в примере отказывает всегда — так видно
+повтор и то, как отказ доходит до отката транзакции подписчика.
 
 ## Тесты
 

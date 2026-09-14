@@ -449,7 +449,7 @@ describe('makeOpenapi(...) — плагин-издатель', () => {
         }),
       ],
       transports: [asHttpTransport(transport)],
-    }).build('module:openapi-users');
+    }).build({ features: 'module:openapi-users' });
 
     await app.run();
 
