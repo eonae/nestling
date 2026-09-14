@@ -1,6 +1,6 @@
 # 12. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `2f5689e5`.
+> Гайд по текущему API; сверено с кодом `86c47c0a`.
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
