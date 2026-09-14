@@ -37,7 +37,7 @@ export type {
   OperationCompatibility,
   OperationSlot,
 } from './compatibility.js';
-export { portsConfigKeys } from './config.js';
+export { portsConfigKeys, readDispatchPolicy } from './config.js';
 export type { DispatchPolicy, PortsConfig } from './config.js';
 export { canonicalizeJson, describeOperation } from './describe.js';
 export type {

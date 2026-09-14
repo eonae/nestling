@@ -483,10 +483,11 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
-  it('объявляет способности значением: ни remote, ни durable', () => {
+  it('объявляет способность значением: долговечности нет', () => {
     const bus = new InProcessBus();
 
-    expect(bus.remote).toBe(false);
+    // Про доставку наружу экземпляр не говорит ничего: это данное
+    // объявления транспорта, и читает его фаза BUILD
     expect(bus.durable).toBe(false);
   });
 

@@ -260,13 +260,16 @@ const CHECK_OPTIONS = { config: [bind(vars(testEnv), { keys: appConfigKeys })] }
 
 The application's `check()` runs phases 0 and 1: parsing the build
 argument, expanding the switch branches, registration, discovery,
-`build()` and checking the policies. No constructor runs, `acquire`,
+`build()`, checking that the called operations are reachable, and
+checking the policies. No constructor runs, `acquire`,
 `@OnStart` and `serve` are not called, and no resource is acquired. It
 throws the same errors that `run()` would throw on phases 0 and 1, and
 it does not affect a later `run()` of the same application.
 `checkTopologies(app, topologies)` from `@nestlingjs/testing` calls
 `check()` for every build argument and collects the errors of every
-variant into one message.
+variant into one message. The failure above — "the call has nowhere to
+go" — arrives in the same phase, so a topology that would not come up is
+visible in the matrix rather than on the first run.
 
 The composition with no graph gives the declaration's third entry
 point: `discover(args)`. It runs only phase 0 and returns the

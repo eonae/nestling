@@ -106,6 +106,37 @@ describe('App.check() — фазы 0–1', () => {
     );
   });
 
+  it('падает на недостижимой операции, а не отдаёт отчёт', async () => {
+    const Charge = makeRequest({
+      name: 'check.unreachable.charge',
+      output: z.object({ ok: z.boolean() }),
+    });
+    const Caller = makeToken<{ port: unknown }>('check:caller');
+
+    // Фича зовёт операцию, которую здесь никто не реализует, и интеркома
+    // в сборке нет: отчёта с записью «вызывается, но не реализована» не
+    // существует — до него сборка падает
+    const app = makeApp({
+      features: [
+        makeFeature({
+          name: 'consumer',
+          providers: [
+            {
+              provide: Caller,
+              useFactory: (port: unknown) => ({ port }),
+              deps: [Charge.caller],
+            },
+          ],
+        }),
+      ],
+      transports: [asTransport(new MockTransport())],
+    });
+
+    await expect(app.check()).rejects.toThrow(
+      /'check\.unreachable\.charge'.*no selected feature implements it/s,
+    );
+  });
+
   it("называет выбранные фичи и обнаруженные endpoint'ы с транспортами", async () => {
     const Logging = makeFeature({
       name: 'logging',

@@ -18,8 +18,7 @@ import type { Dispatch, ITransport } from '../transport/index.js';
 
 import type { IMessageBus, InProcessBusOptions } from './bus.js';
 import { InProcessBus, MessageBus$ } from './bus.js';
-import type { DispatchPolicy, PortsConfig } from './config.js';
-import { NestlingPortsConfig } from './config.js';
+import type { DispatchPolicy } from './config.js';
 import type { InvokerContext } from './invoker.js';
 import {
   makeLocalEmitter,
@@ -85,6 +84,32 @@ export interface PortsKernelOptions {
    * kernel-модуль о словаре сборки не знает.
    */
   rootSuppliesBus?: boolean;
+
+  /**
+   * Шина приложения доставляет за пределы процесса.
+   *
+   * Вопрос другой, чем у `rootSuppliesBus`: тот отвечает, **кто
+   * регистрирует** шину, этот — **куда она доставляет**. Шина, объявленная
+   * транспортом, но живущая в процессе, выразима: корень её поставил, а
+   * наружу она не доставляет.
+   *
+   * Значение приходит из объявления интеркома (`BusDeclaration.remote`), а
+   * не от экземпляра: читает его фаза BUILD, где экземпляров ещё нет.
+   */
+  remote?: boolean;
+
+  /**
+   * Политика диспатча — третий вход биндинга; без опции `local-first`.
+   *
+   * Приходит значением, а не DI-зависимостью, по той же причине, что
+   * топология и природа шины: путь вызывателя выбирает рецепт семейства, а
+   * рецепт узлов графа не резолвит. Значение у корня есть — секция
+   * `nestlingPorts` лежит в снимке фазы 0.
+   *
+   * Способ настройки от этого не меняется: тот же ключ той же секции, те
+   * же источники и `vars()`.
+   */
+  dispatch?: DispatchPolicy;
 }
 
 /** Операция по имени токена семейства или понятная ошибка */
@@ -157,7 +182,8 @@ function assertReachable(
  *    подписан на свой же subject у брокера, и публикация возвращается ему
  *    обычной доставкой, ровно одной копией на группу.
  * 2. **Нет co-located реализации при remote-шине — через шину.** До сюда
- *    доходят только те, кого пропустил `assertReachable`.
+ *    доходят только те, кого пропустила проверка достижимости: она стоит
+ *    в том же рецепте, строкой выше.
  * 3. **Иначе решает политика** — то же правило, что действовало до
  *    появления второго процесса: `always-remote` на in-proc шине ведёт
  *    себя так же, как при split-развёртывании с сетевой шиной.
@@ -175,77 +201,103 @@ function bindsRemote(
   return policy === 'always-remote';
 }
 
-/** Природа шины как вход биндинга: её нет — значит и remote-доставки нет */
-const isRemote = (bus?: IMessageBus): boolean => bus?.remote === true;
+/**
+ * План вызывателя: всё, что решено на сборке.
+ *
+ * Значения в нём нет — только операция, паттерны её co-located реализаций
+ * и выбранный путь. Создать вызыватель по плану может и фабрика: ей
+ * остаётся подставить держатель исполнителей и писателя метрик.
+ */
+interface InvokerPlan {
+  readonly operation: AnyOperation;
+  readonly patterns: readonly string[];
+  readonly binding: 'local' | 'remote';
+}
 
-/** Строит вызыватель `request`-операции по топологии, шине и политике */
-function buildPort(
+/**
+ * Решает всё, что решается на сборке, — тело рецепта семейства.
+ *
+ * Три отказа идут цепочкой и именно в этом порядке: объявление операции
+ * импортировано, вид операции подходит запрошенному вызывателю, операция
+ * достижима. Неимпортированное объявление выглядит как операция без
+ * реализации, и отказ достижимости увёл бы автора не туда.
+ *
+ * Путь выбирается здесь же и замыкается в план: при вызове выбор уже не
+ * повторяется, а при создании значения — тем более.
+ */
+function planInvoker(
   name: string,
-  topology: OperationTopology,
-  runtime: PortRuntime,
-  policy: DispatchPolicy,
-  remote: boolean,
-  metrics: KernelMetricsWriter,
-): Port<any> {
+  invoker: 'caller' | 'emitter',
+  options: Required<Pick<PortsKernelOptions, 'remote' | 'dispatch'>> & {
+    topology: OperationTopology;
+  },
+): InvokerPlan {
   const operation = requireOperation(name);
 
-  if (operation.kind !== 'request') {
+  if (invoker === 'caller' && operation.kind !== 'request') {
     throw new Error(
       `Operation '${name}' is a '${operation.kind}' operation: it has no ` +
         `'.caller', use '.emitter' instead.`,
     );
   }
 
-  const patterns = patternsOf(topology, name);
-  assertReachable(operation, patterns, 'caller', remote);
-
-  const context: InvokerContext = { operation, runtime, patterns };
-
-  // Решение принимается один раз, при создании узла, и замыкается в
-  // константу. При вызове выбор уже не повторяется
-  const binding = bindsRemote(operation, patterns, policy, remote)
-    ? 'remote'
-    : 'local';
-  const port =
-    binding === 'remote' ? makeRemotePort(context) : makeLocalPort(context);
-
-  // Обёртка ставится всегда: запись идёт в store ядра, который есть у
-  // любого приложения, и условия «метрики настроены» больше нет
-  return observePort(port, operation, binding, metrics);
-}
-
-/** Строит эмиттер `command`/`event`-операции по топологии, шине и политике */
-function buildEmitter(
-  name: string,
-  topology: OperationTopology,
-  runtime: PortRuntime,
-  policy: DispatchPolicy,
-  remote: boolean,
-  metrics: KernelMetricsWriter,
-): Emitter<any> {
-  const operation = requireOperation(name);
-
-  if (operation.kind === 'request') {
+  if (invoker === 'emitter' && operation.kind === 'request') {
     throw new Error(
       `Operation '${name}' is a 'request' operation: it has no '.emitter', ` +
         `use '.caller' instead.`,
     );
   }
 
-  const patterns = patternsOf(topology, name);
-  assertReachable(operation, patterns, 'emitter', remote);
+  const patterns = patternsOf(options.topology, name);
+  assertReachable(operation, patterns, invoker, options.remote);
 
-  const context: InvokerContext = { operation, runtime, patterns };
+  return {
+    operation,
+    patterns,
+    binding: bindsRemote(operation, patterns, options.dispatch, options.remote)
+      ? 'remote'
+      : 'local',
+  };
+}
 
-  const binding = bindsRemote(operation, patterns, policy, remote)
-    ? 'remote'
-    : 'local';
+/** Собирает вызыватель `request`-операции по готовому плану */
+function makePort(
+  plan: InvokerPlan,
+  runtime: PortRuntime,
+  metrics: KernelMetricsWriter,
+): Port<any> {
+  const context: InvokerContext = {
+    operation: plan.operation,
+    runtime,
+    patterns: plan.patterns,
+  };
+  const port =
+    plan.binding === 'remote'
+      ? makeRemotePort(context)
+      : makeLocalPort(context);
+
+  // Обёртка ставится всегда: запись идёт в store ядра, который есть у
+  // любого приложения, и условия «метрики настроены» больше нет
+  return observePort(port, plan.operation, plan.binding, metrics);
+}
+
+/** Собирает эмиттер `command`/`event`-операции по готовому плану */
+function makeEmitter(
+  plan: InvokerPlan,
+  runtime: PortRuntime,
+  metrics: KernelMetricsWriter,
+): Emitter<any> {
+  const context: InvokerContext = {
+    operation: plan.operation,
+    runtime,
+    patterns: plan.patterns,
+  };
   const emitter =
-    binding === 'remote'
+    plan.binding === 'remote'
       ? makeRemoteEmitter(context)
       : makeLocalEmitter(context);
 
-  return observeEmitter(emitter, operation, binding, metrics);
+  return observeEmitter(emitter, plan.operation, plan.binding, metrics);
 }
 
 /**
@@ -267,17 +319,23 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
   const rootSuppliesBus = options.rootSuppliesBus === true;
   const busInGraph = rootSuppliesBus || topology.size > 0;
 
+  // Три входа биндинга — одним значением на весь kernel-модуль: топология
+  // от discovery, природа шины от объявления интеркома, политика из снимка
+  // фазы 0. Ни одного из них нет в графе, поэтому решать можно в рецепте
+  const inputs = {
+    topology,
+    remote: options.remote === true,
+    dispatch: options.dispatch ?? 'local-first',
+  } as const;
+
   /**
-   * Зависимости рецепта вызывателя.
+   * Зависимости рецепта вызывателя: только то, чего на сборке нет.
    *
-   * Шина в них появляется только когда она в графе есть: природа шины —
-   * третий вход биндинга, и читать его нужно значением
-   * (`IMessageBus.remote`), а не проверкой класса. Шины нет — читать нечего,
-   * и биндинг ведёт себя так же, как до появления удалённой стороны.
+   * Держатель исполнителей наполняется фазой WIRE, писатель метрик —
+   * экземпляр. Ни шины, ни конфига здесь нет: путь вызывателя выбран
+   * рецептом, и фабрике остаётся собрать значение по готовому плану.
    */
-  const invokerDeps = busInGraph
-    ? [PortRuntimeToken, NestlingPortsConfig, KernelMetrics, MessageBus$]
-    : [PortRuntimeToken, NestlingPortsConfig, KernelMetrics];
+  const invokerDeps = [PortRuntimeToken, KernelMetrics];
 
   const providers: ModuleProvider[] = [
     factoryProvider(
@@ -285,42 +343,28 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
       (logger: Logger) => new PortRuntime(logger),
       [Logger$('nestling:ports')],
     ),
-    familyProvider(PortFamily, (name) => ({
-      provide: PortFamily(name),
-      useFactory: (
-        runtime: PortRuntime,
-        config: PortsConfig,
-        metrics: KernelMetricsWriter,
-        bus?: IMessageBus,
-      ) =>
-        buildPort(
-          name,
-          topology,
-          runtime,
-          config.dispatch,
-          isRemote(bus),
-          metrics,
-        ),
-      deps: invokerDeps,
-    })),
-    familyProvider(EmitterFamily, (name) => ({
-      provide: EmitterFamily(name),
-      useFactory: (
-        runtime: PortRuntime,
-        config: PortsConfig,
-        metrics: KernelMetricsWriter,
-        bus?: IMessageBus,
-      ) =>
-        buildEmitter(
-          name,
-          topology,
-          runtime,
-          config.dispatch,
-          isRemote(bus),
-          metrics,
-        ),
-      deps: invokerDeps,
-    })),
+    familyProvider(PortFamily, (name) => {
+      // Тело рецепта — фаза BUILD: отсюда приходят все отказы вызывателя,
+      // и сюда доходят входы, которые останавливаются до создания значений
+      const plan = planInvoker(name, 'caller', inputs);
+
+      return {
+        provide: PortFamily(name),
+        useFactory: (runtime: PortRuntime, metrics: KernelMetricsWriter) =>
+          makePort(plan, runtime, metrics),
+        deps: invokerDeps,
+      };
+    }),
+    familyProvider(EmitterFamily, (name) => {
+      const plan = planInvoker(name, 'emitter', inputs);
+
+      return {
+        provide: EmitterFamily(name),
+        useFactory: (runtime: PortRuntime, metrics: KernelMetricsWriter) =>
+          makeEmitter(plan, runtime, metrics),
+        deps: invokerDeps,
+      };
+    }),
   ];
 
   if (busInGraph) {

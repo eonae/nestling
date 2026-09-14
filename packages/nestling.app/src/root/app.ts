@@ -59,6 +59,7 @@ import {
   collectImplementations,
   describeOperation,
   portsKernel,
+  readDispatchPolicy,
   undurableOperations,
 } from '../ports/index.js';
 import type {
@@ -1137,6 +1138,14 @@ export class BuiltApp {
         // регистрируется вовсе. Признак даёт роль, а не присутствие
         // провайдера в списке транспортов
         rootSuppliesBus: spec.intercom !== undefined,
+        // Природа шины читается из объявления интеркома, а не у его
+        // экземпляра: она вход биндинга вызывателей, а тот выбирается на
+        // этой же фазе — до создания значений
+        remote: spec.intercom?.remote === true,
+        // Политика — третий вход того же решения, поэтому приходит тем же
+        // путём: значением из снимка фазы 0, а не узлом графа. Секция и
+        // ключ прежние, и настраивается она как настраивалась
+        dispatch: readDispatchPolicy(reader),
       }),
     );
 

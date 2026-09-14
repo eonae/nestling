@@ -22,8 +22,6 @@ export interface PublishedMessage {
 
 /** Шина, которая копит публикации и умеет отказывать по требованию */
 export class FakeBus implements IMessageBus {
-  readonly remote = true;
-
   readonly durable = true;
 
   readonly published: PublishedMessage[] = [];

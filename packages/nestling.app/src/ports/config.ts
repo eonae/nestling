@@ -14,10 +14,11 @@
 
 import type {
   ConfigKeys,
+  ConfigReader,
   ConfigSectionToken,
   ConfigValues,
 } from '../config/index.js';
-import { makeConfig } from '../config/index.js';
+import { makeConfig, readSectionSnapshot } from '../config/index.js';
 
 import { z } from 'zod';
 
@@ -42,10 +43,13 @@ const POLICIES = [
   'always-remote',
 ] as const satisfies readonly DispatchPolicy[];
 
+/** Префикс секции: из него собираются и ключ, и имя в снимке фазы 0 */
+const NESTLING_PORTS_PREFIX = 'nestlingPorts';
+
 /**
  * Секция конфигурации портов: `NESTLING_PORTS_DISPATCH`.
  *
- * @internal Инжектится рецептами вызывателей; наружу отдаётся только `.keys`
+ * @internal Наружу отдаётся только `.keys`
  */
 export const NestlingPortsConfig: ConfigSectionToken<
   ConfigValues<
@@ -60,7 +64,7 @@ export const NestlingPortsConfig: ConfigSectionToken<
     Record<never, never>
   >,
   'nestlingPorts'
-> = makeConfig('nestlingPorts', {
+> = makeConfig(NESTLING_PORTS_PREFIX, {
   dispatch: z.enum(POLICIES).default('local-first'),
 });
 
@@ -72,3 +76,20 @@ export const portsConfigKeys: ConfigKeys<'nestlingPorts'> =
 export interface PortsConfig {
   readonly dispatch: DispatchPolicy;
 }
+
+/**
+ * Читает политику из снимка фазы 0 — мимо графа.
+ *
+ * Зовётся корнем до построения контейнера. Политика — вход биндинга, а
+ * путь вызывателя выбирает рецепт семейства, которому узлы графа
+ * недоступны. Тем же приёмом читает свою секцию корневой логгер.
+ *
+ * Способ настройки от этого не меняется: та же секция, тот же ключ, те же
+ * источники.
+ *
+ * @param reader - Читалка со снимком фазы 0
+ * @returns Политика диспатча этой сборки
+ * @internal
+ */
+export const readDispatchPolicy = (reader: ConfigReader): DispatchPolicy =>
+  readSectionSnapshot<PortsConfig>(NESTLING_PORTS_PREFIX, reader).dispatch;

@@ -160,14 +160,19 @@ const DurableFeature = makeFeature({
 });
 
 /**
- * Шина, объявившая себя remote, — то, чем в бою будет `nats()`.
+ * Объявление шины, доставляющей наружу, — то, чем в бою будет `nats()`.
  *
  * Тест не о брокере, а о композиции: корень поставил транспорт шины, и
  * приложение обязано собраться даже без единой реализации операции.
+ * Признак стоит на объявлении, потому что читает его фаза BUILD.
  */
-class RemoteBus extends InProcessBus {
-  override readonly remote: boolean = true;
-}
+const asRemoteBus = (bus: InProcessBus) =>
+  transportValue(BusTransport$, bus, {
+    name: 'events',
+    bus: true,
+    remote: true,
+    capabilities: VALUE_ONLY,
+  });
 
 const portsConfig = (dispatch?: 'local-first' | 'always-remote') => [
   bind(
@@ -261,17 +266,37 @@ describe('build — порты', () => {
     await built.close();
   });
 
-  it('`select` без фичи-владельца роняет сборку на WIRE', async () => {
-    // Достижимость вызывателя — забота WIRE, а не структурной проверки:
-    // `check()` не доходит до связывания портов, поэтому падает `run()`
-    const app = makeApp({
+  it('`select` без фичи-владельца роняет сборку на BUILD', async () => {
+    // Достижимость — забота сборки графа, поэтому один и тот же отказ
+    // приходит обоим входам: и тому, что создаёт экземпляры, и тому, что
+    // останавливается раньше
+    const spec = {
       features: [LonelyFeature],
       transports: [asTransport(new MockTransport())],
-    }).build();
+    };
+    const message =
+      /'app\.lonely\.request'.*no selected feature implements it/s;
 
-    await expect(app.run({ config: portsConfig() })).rejects.toThrow(
-      /'app\.lonely\.request'.*no selected feature implements it/s,
-    );
+    await expect(
+      makeApp(spec).build().run({ config: portsConfig() }),
+    ).rejects.toThrow(message);
+
+    await expect(makeApp(spec).check()).rejects.toThrow(message);
+  });
+
+  it('вызов без местного владельца при интеркоме проходит check()', async () => {
+    const app = makeApp({
+      features: [LonelyFeature],
+      transports: [
+        asTransport(new MockTransport()),
+        asRemoteBus(new InProcessBus()),
+      ],
+      intercom: 'events',
+    });
+
+    // Владелец живёт в другом процессе: проверка проходит, а вызыватель
+    // биндится на шину
+    await expect(app.check()).resolves.toMatchObject({ features: ['lonely'] });
   });
 
   it('порт связан к моменту `@OnStart` и не связан при захвате ресурса (INIT)', async () => {
@@ -423,17 +448,10 @@ describe('build — порты', () => {
   });
 
   it('корень поставил шину: приложение обслуживается ею, а не in-proc', async () => {
-    const bus = new RemoteBus();
+    const bus = new InProcessBus();
     const app = makeApp({
       features: [BillingFeature],
-      transports: [
-        asTransport(new MockTransport()),
-        transportValue(BusTransport$, bus, {
-          name: 'events',
-          bus: true,
-          capabilities: VALUE_ONLY,
-        }),
-      ],
+      transports: [asTransport(new MockTransport()), asRemoteBus(bus)],
       intercom: 'events',
     }).build();
 
@@ -450,16 +468,11 @@ describe('build — порты', () => {
   });
 
   it('чистый потребитель собирается при корневой remote-шине', async () => {
-    const bus = new RemoteBus();
     const app = makeApp({
       features: [LonelyFeature],
       transports: [
         asTransport(new MockTransport()),
-        transportValue(BusTransport$, bus, {
-          name: 'events',
-          bus: true,
-          capabilities: VALUE_ONLY,
-        }),
+        asRemoteBus(new InProcessBus()),
       ],
       intercom: 'events',
     }).build();

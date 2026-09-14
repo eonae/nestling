@@ -22,7 +22,7 @@ import { makeDispatch } from '../transport/index.js';
 
 import type { InProcessBus } from './bus.js';
 import { InProcessBus as InProcessBusClass, MessageBus$ } from './bus.js';
-import { portsConfigKeys } from './config.js';
+import { portsConfigKeys, readDispatchPolicy } from './config.js';
 import { implement } from './implement.js';
 import { bindPorts, portsKernel, undurableOperations } from './kernel.js';
 import { collectImplementations } from './topology.js';
@@ -137,15 +137,14 @@ const Consumer = makeToken<{ port: Port<any> }>('Consumer');
 const EventConsumer = makeToken<{ emitter: Emitter<any> }>('EventConsumer');
 
 /**
- * Шина, объявившая себя remote.
+ * Шина корня, считающая свои публикации.
  *
- * Наследник in-proc шины, а не второй симулятор: биндинг читает
- * **объявленный** признак, а доставка остаётся настоящей — поэтому на этой
- * же шине проверяется и loopback co-located подписчика.
+ * Наследник in-proc шины, а не второй симулятор: доставка остаётся
+ * настоящей, поэтому на этой же шине проверяется loopback co-located
+ * подписчика. Признака remote у неё нет — его объявляет транспорт, и в
+ * мини-корне он приходит опцией `remote` kernel-модуля.
  */
 class FakeRemoteBus extends InProcessBusClass {
-  override readonly remote: boolean = true;
-
   readonly published: { subject: string; options?: unknown }[] = [];
 
   override async publish(
@@ -166,18 +165,26 @@ interface Built {
   close: () => Promise<void>;
 }
 
-/**
- * Мини-корень: те же шаги, что делает `App` в фазах BUILD и WIRE, но без
- * импорта каталога `root` (стрелка зависимостей идёт оттуда сюда).
- */
-async function build(options: {
+interface BuildOptions {
   declarations?: readonly AnyEndpointDefinition[];
   consumers?: readonly Parameters<ContainerBuilder['register']>[0][];
   dispatch?: 'local-first' | 'always-remote';
   wire?: boolean;
   /** Корень поставил remote-шину — то же, что `nats()` в `transports:` */
   rootBus?: FakeRemoteBus;
-}): Promise<Built> {
+}
+
+/**
+ * Фазы 0–1 мини-корня: источники, kernel-модули и потребители.
+ *
+ * Отдельно от {@link build}, потому что отказы вызывателей приходят на
+ * сборке графа: тест обязан уметь остановиться до `init()` — ровно там,
+ * где останавливается `check()`.
+ */
+async function prepare(options: BuildOptions): Promise<{
+  builder: ContainerBuilder;
+  metrics: MetricsProbe;
+}> {
   const declarations = options.declarations ?? [];
   const source = objectSource(
     options.dispatch === undefined
@@ -191,11 +198,11 @@ async function build(options: {
   // значениями — так же, как это делает сборка приложения
   const metrics = probeMetrics();
   const builder = new ContainerBuilder();
-  builder.register(
-    configKernel(
-      await bootstrapConfig([bind(source, { keys: portsConfigKeys })]),
-    ),
-  );
+  const reader = await bootstrapConfig([
+    bind(source, { keys: portsConfigKeys }),
+  ]);
+
+  builder.register(configKernel(reader));
   builder.register(
     contextKernel(),
     loggerKernel(),
@@ -211,7 +218,12 @@ async function build(options: {
           moduleName: 'module:test',
         })),
       ),
-      ...(options.rootBus === undefined ? {} : { rootSuppliesBus: true }),
+      ...(options.rootBus === undefined
+        ? {}
+        : { rootSuppliesBus: true, remote: true }),
+      // Политику корень читает из снимка фазы 0 — до графа, как и всё
+      // остальное, что решает биндинг
+      dispatch: readDispatchPolicy(reader),
     }),
   );
 
@@ -223,6 +235,17 @@ async function build(options: {
   for (const consumer of options.consumers ?? []) {
     builder.register(consumer);
   }
+
+  return { builder, metrics };
+}
+
+/**
+ * Мини-корень: те же шаги, что делает `App` в фазах BUILD и WIRE, но без
+ * импорта каталога `root` (стрелка зависимостей идёт оттуда сюда).
+ */
+async function build(options: BuildOptions): Promise<Built> {
+  const declarations = options.declarations ?? [];
+  const { builder, metrics } = await prepare(options);
 
   const container = builder.build();
 
@@ -369,6 +392,55 @@ describe('portsKernel', () => {
     await expect(
       build({ declarations: [EchoImpl], consumers: [orphanConsumer] }),
     ).rejects.toThrow(/'kernel\.orphan'.*no selected feature implements it/s);
+  });
+
+  it('отказ приходит на сборке графа — до создания экземпляров', async () => {
+    const orphanConsumer = factoryProvider(
+      Consumer,
+      (port: Port<any>) => ({ port }),
+      [Orphan.caller],
+    );
+
+    const { builder } = await prepare({
+      declarations: [EchoImpl],
+      consumers: [orphanConsumer],
+    });
+
+    // Бросает сам `build()`: до `init()` дело не доходит, поэтому отказ
+    // видит и вход, который экземпляров не создаёт вовсе
+    expect(() => builder.build()).toThrow(
+      /'kernel\.orphan'.*no selected feature implements it/s,
+    );
+  });
+
+  it('вид операции и объявление проверяются там же, в том же порядке', async () => {
+    const wrongInvoker = factoryProvider(
+      EventConsumer,
+      (emitter: Emitter<any>) => ({ emitter }),
+      [EmitterFamily(Echo.name)],
+    );
+
+    const { builder } = await prepare({
+      declarations: [EchoImpl],
+      consumers: [wrongInvoker],
+    });
+
+    expect(() => builder.build()).toThrow(/is a 'request' operation/);
+
+    // Операция, чьё объявление никто не импортировал, называется своей
+    // причиной, а не отказом достижимости
+    const undeclared = factoryProvider(
+      Consumer,
+      (port: Port<any>) => ({ port }),
+      [PortFamily('kernel.never.declared')],
+    );
+
+    const plain = await prepare({
+      declarations: [EchoImpl],
+      consumers: [undeclared],
+    });
+
+    expect(() => plain.builder.build()).toThrow(/is injected but not declared/);
   });
 
   it('эмиттер события без подписчиков не роняет вызов и доставляет ноль раз', async () => {

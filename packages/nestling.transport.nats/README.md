@@ -60,6 +60,13 @@ accepts it with the `--conditions=testing` flag.
 
 ## Package boundaries
 
+`nats()` declares the bus as delivering outside the process — through the
+`remote` field of its declaration. The flag belongs to the declaration, not
+to `NatsBus`: the BUILD phase reads it, and at that point there is no bus
+instance yet, and the path of a caller is picked from it. So a call to an
+operation nobody implements here passes `check()` when `nats()` holds the
+intercom role, and fails the build when it does not.
+
 The package does not start a broker and does not create streams beyond
 those the operations need. The codec sets the message format, and
 `docs/en/design/transports.md` sets the delivery semantics.

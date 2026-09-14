@@ -207,9 +207,6 @@ export interface NatsBusOptions extends NatsTransportOptions {
  * есть уровень L4.
  */
 export class NatsBus implements IMessageBus, ITransport {
-  /** Доставляет за пределы процесса — вход биндинга вызывателей */
-  readonly remote = true;
-
   /** Умеет долговечную доставку: под ней JetStream */
   readonly durable = true;
 
@@ -888,6 +885,10 @@ export const nats = <const Name extends string = typeof DEFAULT_INSTANCE>(
   return makeTransportDeclaration({
     name,
     bus: true,
+    // Шина доставляет за пределы процесса — вход биндинга вызывателей и
+    // проверки достижимости. Признак объявляется здесь, потому что читает
+    // его фаза BUILD, где экземпляра шины ещё нет
+    remote: true,
     token: BusTransport$,
     capabilities: BUS_CAPABILITIES,
     provider: resourceProvider(BusTransport$, {

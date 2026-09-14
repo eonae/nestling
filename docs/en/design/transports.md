@@ -44,6 +44,12 @@ The interface of a transport:
 - `capabilities` — the sets of io shapes the transport accepts and
   gives out (§1.1); a field of the transport declaration, not of the
   instance;
+- `remote` — does the bus deliver outside the process; a required field
+  of the bus declaration. The rule is the same as for `capabilities`:
+  the flag is read by the BUILD phase, where there are no instances —
+  the path of a caller is picked from it, and an unreachable operation
+  is rejected by it ([operations.md](./operations.md), §2). A transport
+  that carries no operations has no such field at all;
 - `serve(dispatch, signal)` — the only way to start serving requests.
   There is no method for registering a single endpoint: everything the
   transport serves arrives through `dispatch`;
