@@ -54,8 +54,8 @@ Vault. Читалка создаётся вне контейнера, `init()` �
 закрывается явным шагом фазы SHUTDOWN, после разрушения контейнера.
 
 Аргумент сборки (выбор фич и значения переключателей, §3) в эту фазу не
-входит: его читает пользовательский код до вызова `build`, синхронно и
-только из `process.env` через `load(RootConfig)`.
+входит: он приходит значением — объектом либо маркером
+`argv(process.argv)`, — и конфига для него не читается.
 
 ### 1 · BUILD
 
@@ -347,11 +347,6 @@ export const app = makeApp({
 export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule] });
 export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
 
-// config.ts — аргумент сборки читается до контейнера
-export const RootConfig = makeConfig('app', {
-  features: z.string().default('all'), // ключ APP_FEATURES: 'all' | 'orders,billing'
-});
-
 // app.ts — состав приложения не зависит от того, что выбрано в этом процессе
 export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
@@ -359,21 +354,21 @@ export const app = makeApp({
   transports: [http()],
 });
 
-// main.ts — load() читает аргумент сборки до контейнера: синхронно и только
-// из process.env; привязанные источники в этом чтении не участвуют.
-const cfg = load(RootConfig);
-await app.build(cfg.features).run();   // 'all' локально, 'orders' в отдельном поде
+// main.ts — аргументы командной строки передаются маркером; схему флагов
+// сборка знает по декларации, и конфига для этого не читается
+await app.build(argv(process.argv)).run();
+// node main.js                      — все фичи
+// node main.js --features orders    — одна фича в отдельном поде
 ```
 
 Невыбранная фича отсутствует целиком: её провайдеры не создаются, её
 endpoint'ы не регистрируются (discovery видит только выбранные единицы).
 Всё работает в одном процессе, интерком не нужен.
 
-Формы выбора фич: `'all'`, `'orders,billing'` (пробелы вокруг имён
-игнорируются), `['orders','billing']` и объектная
-`{ features, includeDeps }`. Если `features` заданы, а выбор нет,
-выбраны все фичи. Строковая форма остаётся, потому что выбор приходит из
-переменной окружения — он строковый по природе.
+Выбор приходит полем `features` объектной формы или флагом
+`--features`. Значения: `'all'`, `'orders,billing'` (пробелы вокруг имён
+игнорируются) и массив `['orders','billing']` у объектной формы. Если
+`features` заданы, а выбор нет, выбраны все фичи.
 
 `includeDeps: true` замыкает выбор по **вызываемым операциям**: фича,
 реализующая вызываемую операцию вида `request` или `command`, подключается
@@ -428,16 +423,10 @@ export const app = makeApp({
   switches: [Storage, AuditEnabled, DebugEnabled],
 });
 
-// config.ts — у переключателя есть схема его значений с умолчанием
-export const RootConfig = makeConfig('app', {
-  features: z.string().default('all'),   // APP_FEATURES
-  storage: Storage.schema,               // APP_STORAGE: 's3' | 'local', обязательна
-  audit: AuditEnabled.schema,            // APP_AUDIT: 'on' | 'off', обязательна
-  debug: DebugEnabled.schema,            // APP_DEBUG, по умолчанию 'off'
-});
-
-// main.ts — поля названы как переключатели, поэтому cfg подходит целиком
-await app.build(load(RootConfig)).run();
+// main.ts — по флагу на переключатель, имя флага равно имени переключателя
+await app.build(argv(process.argv)).run();
+// node main.js --features all --storage s3 --audit on --debug off
+// node main.js --help   — схема: фичи, флаги, значения и умолчания
 ```
 
 - У перечисления единственный метод `pick(table)`. Таблица перечисляет
@@ -448,10 +437,11 @@ await app.build(load(RootConfig)).run();
   фичи, `dependsOn:` модуля, `endpoints:`, `plugins:` и `transports:`
   корня. В `features:` его нет: состав фич выбирает аргумент сборки. В
   `policies:` его нет: инвариант либо есть, либо его нет.
-- `switches:` корня объявляет словарь. Из него выводится тип аргумента
-  `build`; `.schema` переключателя описывает поле `RootConfig`, и
-  `load(RootConfig)` подходит аргументом целиком, если имена полей
-  совпадают с именами переключателей.
+- `switches:` корня объявляет словарь. Из него выводится и тип объектной
+  формы аргумента `build`, и схема флагов командной строки: имя флага
+  равно имени переключателя, значения — словарь `makeSwitch`. Имена
+  `features`, `includeDeps`, `include-deps` и `help` заняты аргументом
+  сборки, и переключателю запрещены.
 - Сборка падает на BUILD, если значение не из словаря (ошибка
   перечисляет допустимые), если `pick` стоит на переключателе, которого
   нет в `switches:`, если два переключателя носят одно имя, если значение
@@ -536,8 +526,8 @@ export const app = makeApp({
 });
 
 // main.ts
-const cfg = load(RootConfig);            // до сборки читается только аргумент сборки
-await app.build(cfg.features).run();  // 'orders' здесь, 'billing' в другом поде
+await app.build(argv(process.argv)).run();
+// node main.js --features orders   — здесь orders, billing в другом поде
 
 // Политика диспатча задаётся конфигом, а не полем корня.
 // NESTLING_PORTS_DISPATCH=local-first (по умолчанию): реализации из этого
@@ -549,11 +539,11 @@ await app.build(cfg.features).run();  // 'orders' здесь, 'billing' в др�
 эту роль не встаёт, и это проверяет компилятор. Объявленная шина без
 назначенной роли — ошибка сборки: соединение занято, а переносить нечего.
 
-При `build('orders')` фича billing в этом процессе не выбрана, и
+При `--features orders` фича billing в этом процессе не выбрана, и
 `ChargeCard.caller` привязывается к удалённому вызывателю поверх NATS:
 невыбранный владелец операции означает, что он работает в другом поде.
 Billing в своём поде обслуживает `billing.charge`; его реплики образуют
-queue-group. Тот же корень с `build('all')` поднимает обе фичи в одном
+queue-group. Тот же корень с `--features all` поднимает обе фичи в одном
 процессе: `request` и `command` вызываются напрямую через `dispatch`, а
 `event` всё равно уходит через интерком, потому что подписчики события
 могут быть и в других подах, и терять их молча нельзя. Без `intercom:`

@@ -1,6 +1,6 @@
 # 21. Do not break the neighbours when an operation changes
 
-> Guide to the current API; verified against `4a206018`.
+> Guide to the current API; verified against `97ff8225`.
 > Target description: [design/operations.md](../design/operations.md) §1.6 and
 > §1.7. Why: entry [ideas.md](../../decisions/ideas.md)
 > `[2026-07-31] Версионирование контрактов: снапшот, вердикт по слоту, третий вердикт unknown`.
@@ -32,9 +32,9 @@ const checked = makeApp({
 
 /** The deployment variants: the snapshot unions what each one publishes */
 const TOPOLOGIES = [
-  'all',
+  { features: 'all' },
   { features: 'users', includeDeps: true },
-  'ops',
+  { features: 'ops' },
 ] as const;
 
 const BASELINE_PATH = new URL('../operations.snapshot.json', import.meta.url);

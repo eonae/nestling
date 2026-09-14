@@ -30,7 +30,7 @@ export const app = makeApp({
 });
 
 // the declarations, the operations and the call code stay the same when nats() is added
-await app.build(load(RootConfig).features).run();
+await app.build(argv(process.argv)).run();
 ```
 
 ## Exports

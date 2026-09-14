@@ -58,9 +58,8 @@ value provider, and it is closed by an explicit step of the SHUTDOWN
 phase, after the container is destroyed.
 
 The build argument (the feature selection and the switch values,
-§3) is not part of this phase: user code reads it before calling
-`build`, synchronously and only from `process.env`, through
-`load(RootConfig)`.
+§3) is not part of this phase: it arrives as a value — an object or the
+`argv(process.argv)` marker — and no configuration is read for it.
 
 ### 1 · BUILD
 
@@ -374,11 +373,6 @@ export const app = makeApp({
 export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule] });
 export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
 
-// config.ts — the build argument is read before the container
-export const RootConfig = makeConfig('app', {
-  features: z.string().default('all'), // key APP_FEATURES: 'all' | 'orders,billing'
-});
-
 // app.ts — the composition of the application does not depend on what this process selects
 export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
@@ -386,11 +380,11 @@ export const app = makeApp({
   transports: [http()],
 });
 
-// main.ts — load() reads the build argument before the container:
-// synchronously and only from process.env; the bound sources do not
-// take part in this read.
-const cfg = load(RootConfig);
-await app.build(cfg.features).run();   // 'all' locally, 'orders' in a separate pod
+// main.ts — the command line is passed as a marker; the build knows the
+// flag schema from the declaration, and reads no configuration for it
+await app.build(argv(process.argv)).run();
+// node main.js                      — every feature
+// node main.js --features orders    — one feature in a separate pod
 ```
 
 An unselected feature is absent entirely: its providers are not
@@ -458,16 +452,10 @@ export const app = makeApp({
   switches: [Storage, AuditEnabled, DebugEnabled],
 });
 
-// config.ts — a switch has a schema for its values, with a default
-export const RootConfig = makeConfig('app', {
-  features: z.string().default('all'),   // APP_FEATURES
-  storage: Storage.schema,               // APP_STORAGE: 's3' | 'local', required
-  audit: AuditEnabled.schema,            // APP_AUDIT: 'on' | 'off', required
-  debug: DebugEnabled.schema,            // APP_DEBUG, defaults to 'off'
-});
-
-// main.ts — the fields are named like the switches, so cfg fits as a whole
-await app.build(load(RootConfig)).run();
+// main.ts — one flag per switch, the flag name equals the switch name
+await app.build(argv(process.argv)).run();
+// node main.js --features all --storage s3 --audit on --debug off
+// node main.js --help   — the schema: features, flags, values and defaults
 ```
 
 - An enumeration has one method, `pick(table)`. The table lists every
@@ -480,10 +468,12 @@ await app.build(load(RootConfig)).run();
   `features:`: the build argument picks the feature composition. It
   has no place in `policies:` either: an invariant either holds or it
   does not.
-- `switches:` of the root declares the dictionary. The type of the
-  `build` argument is derived from it; the `.schema` of a switch
-  describes a field of `RootConfig`, and `load(RootConfig)` fits the
-  argument as a whole, when the field names match the switch names.
+- `switches:` of the root declares the dictionary. Both the type of the
+  object shape of the `build` argument and the command-line flag schema
+  are derived from it: a flag name equals the switch name, its values
+  are the `makeSwitch` dictionary. The names `features`, `includeDeps`,
+  `include-deps` and `help` belong to the build argument and are
+  forbidden to a switch.
 - The build fails on BUILD if a value is not from the dictionary
   (the error lists the allowed ones), if `pick` sits on a switch that
   is not in `switches:`, if two switches carry one name, if a value
@@ -570,8 +560,8 @@ export const app = makeApp({
 });
 
 // main.ts
-const cfg = load(RootConfig);            // only the build argument is read before build
-await app.build(cfg.features).run();  // 'orders' here, 'billing' in another pod
+await app.build(argv(process.argv)).run();
+// node main.js --features orders   — orders here, billing in another pod
 
 // The dispatch policy is set by configuration, not by a field of the root.
 // NESTLING_PORTS_DISPATCH=local-first (the default): implementations from this
@@ -584,11 +574,11 @@ carry operations fit; HTTP does not fit this role, and the compiler
 checks this. A declared bus with no assigned role is a build
 error: the connection is spent, and there is nothing to carry.
 
-With `build('orders')`, the billing feature is not selected in this
+With `--features orders`, the billing feature is not selected in this
 process, and `ChargeCard.caller` binds to a remote caller over NATS: an
 unselected owner of an operation means it runs in another pod. Billing
 serves `billing.charge` in its own pod; its replicas form a queue
-group. The same root with `build('all')` brings up both features in
+group. The same root with `--features all` brings up both features in
 one process: `request` and `command` are called directly through
 `dispatch`, while `event` still goes through the intercom, because the
 subscribers of an event may live in other pods too, and losing them

@@ -2,7 +2,7 @@
 
 Ядро Nestling одним пакетом: пайплайн обработки запроса, конфигурация, порты
 между фичами, абстракция транспорта и композиционный корень. `makeApp(spec)`
-объявляет приложение значением, `app.build(select)` собирает его для этого
+объявляет приложение значением, `app.build(args)` собирает его для этого
 процесса, а `run()` строит контейнер, находит endpoint'ы обходом фич и
 плагинов, проводит приложение по фазам жизненного цикла и останавливает его
 по `SIGTERM` и `SIGINT`.
@@ -39,17 +39,18 @@ export const app = makeApp({
   transports: [http()], // объявление экземпляра, а не экземпляр
 });
 
-// main.ts — что запускает этот процесс
-await app.build().run();
+// main.ts — что запускает этот процесс; флаги разбирает декларация
+await app.build(argv(process.argv)).run();
 ```
 
 ## Экспорты
 
 - **Композиционный корень** ([design](../../docs/design/composition.md)) —
-  `App`, `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`,
-  `CheckReport`, `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`,
-  `Feature`, `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`,
-  `Plugin`, `PluginOptions`, `RunOptions`.
+  `App`, `argv`, `ArgvArgs`, `BuildArgs`, `BuildObject`, `BuiltApp`,
+  `Bundle`, `CheckOptions`, `CheckReport`, `DiscoveredEndpoint`,
+  `Discovery$`, `EndpointDiscovery`, `Feature`, `FeatureOptions`, `isApp`,
+  `makeApp`, `makeFeature`, `makePlugin`, `Plugin`, `PluginOptions`,
+  `RunOptions`.
 - **Конфигурация** ([design](../../docs/design/config.md)) — `bind`,
   `Binding`, `BindOptions`, `bootstrapConfig`, `Config`, `ConfigDerivedError`,
   `ConfigField`, `ConfigGlob`, `configKernel`, `ConfigKeys`,
@@ -57,8 +58,8 @@ await app.build().run();
   `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
   `ConfigValidationError`, `ConfigValues`, `defaultSources`,
   `DerivedConstructor`, `DerivedField`, `DerivedRecord`, `DeriveFn`,
-  `describeConfig`, `dotenv`, `env`, `from`, `FromField`, `load`,
-  `makeConfig`, `ReloadableConfig`, `secret`, `SecretField`.
+  `describeConfig`, `dotenv`, `env`, `from`, `FromField`, `makeConfig`,
+  `ReloadableConfig`, `secret`, `SecretField`.
 - **Пайплайн и endpoint'ы** ([design](../../docs/design/pipeline.md)) —
   `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
   `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,

@@ -1,6 +1,6 @@
 # 20. Spread the features across processes
 
-> Guide to the current API; verified against `4a206018`.
+> Guide to the current API; verified against `97ff8225`.
 > Target description: [design/composition.md](../design/composition.md) "L4",
 > [design/operations.md](../design/operations.md) §3 and §4.4,
 > [design/transports.md](../design/transports.md) §7. Why: entries
@@ -18,7 +18,7 @@ work in two processes, with a broker carrying the messages between
 them.
 
 The opposite direction gives the local run. The same declaration with
-`build('all')` brings up every feature in one process, and the
+`--features all` brings up every feature in one process, and the
 in-process bus delivers the operations between them: the call to
 `notifications.check-address` does not go out to the broker. A broker and several
 processes are needed by a staging environment, not by a developer: the
@@ -70,7 +70,7 @@ owner is not selected stops the build, as in chapter
 [19](./19-select.md).
 
 The process's role is set by the feature selection that `main.ts`
-reads from `APP_FEATURES` before the build, as in chapter
+passes with the `argv(process.argv)` marker, as in chapter
 [19](./19-select.md).
 
 ## Leave the feature's code as is
@@ -281,8 +281,8 @@ The `-js` flag turns on JetStream. Without it the stream under
 `users.registered` is not created, and the build stops.
 
 ```bash
-APP_FEATURES=notifications yarn start:dev
-APP_FEATURES=users yarn start:dev
+yarn start:dev --features notifications
+yarn start:dev --features users
 ```
 
 Start the request's owner first. The broker has no waiting queue for a
@@ -297,7 +297,7 @@ tenant is carried by the context header:
 nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"acme"}'
 ```
 
-The same root with `APP_FEATURES=all` brings up both features as one
+The same root with `--features all` brings up both features as one
 process. Not a single feature file changes for this.
 
 The `NESTLING_PORTS_DISPATCH=always-remote` dispatch policy sends

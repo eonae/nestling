@@ -107,7 +107,7 @@ Nest.
 | [16. Не потерять событие при падении процесса](./16-durable-events.md) | `outboxed(Op)`, relay, отметка приёма, досрочный успех подписчика |
 | [17. Живая лента для клиента](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` |
 | [18. Тестировать фичу без соседей](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` |
-| [19. Запускать только часть фич](./19-select.md) | `build(args)`, `includeDeps`, переключатели состава, `load()` до сборки, `check()` |
+| [19. Запускать только часть фич](./19-select.md) | `build(args)`, `argv(process.argv)`, `includeDeps`, переключатели состава, `check()` |
 | [20. Разнести фичи по процессам](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
 | [21. Не сломать соседей при изменении операции](./21-compatibility.md) | версия в имени, снапшот операций, `diffOperations` |
 | [22. Считать запросы и вызовы между процессами](./22-metrics.md) | `Metrics`, опция `metrics`, `Metrics$.auto`, метрики ядра, адаптер и `/metrics` |

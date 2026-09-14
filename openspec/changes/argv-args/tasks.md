@@ -86,35 +86,35 @@
 
 ## 6. Документация
 
-- [ ] 6.1 `docs/design/composition.md` и `docs/design/config.md` — сверить
+- [x] 6.1 `docs/design/composition.md` и `docs/design/config.md` — сверить
       с реализацией, обновить дату в плашке; пара в `docs/en`
-- [ ] 6.2 Главы гайда 02, 12, 19, 20 и `guide/README.md`: строковая форма
+- [x] 6.2 Главы гайда 02, 12, 19, 20 и `guide/README.md`: строковая форма
       и `load()`; пары в `docs/en/guide`
-- [ ] 6.3 `docs/design/endpoints.md`, `docs/design/transports.md` и их
+- [x] 6.3 `docs/design/endpoints.md`, `docs/design/transports.md` и их
       английские пары
-- [ ] 6.4 `docs/glossary.md` и `docs/en/glossary.md`: статья «Аргумент
+- [x] 6.4 `docs/glossary.md` и `docs/en/glossary.md`: статья «Аргумент
       сборки» — две формы; статьи про `load()` нет
-- [ ] 6.5 `docs/guarantees.md` и `docs/en/guarantees.md`: строка про
+- [x] 6.5 `docs/guarantees.md` и `docs/en/guarantees.md`: строка про
       отказ на неизвестном флаге до фазы 0 и утверждение о независимости
       состава от окружения
-- [ ] 6.6 README пакетов `app`, `testing`, `transport.nats` (обе языковые
+- [x] 6.6 README пакетов `app`, `testing`, `transport.nats` (обе языковые
       половины), включая плашки статуса
-- [ ] 6.7 `node .claude/skills/docs-style/scripts/lint.mjs` на всех
+- [x] 6.7 `node .claude/skills/docs-style/scripts/lint.mjs` на всех
       правленых текстах — 0 запрещённых слов
 
 ## 7. Definition of Done
 
-- [ ] 7.1 Все задачи выше отмечены
-- [ ] 7.2 `yarn verify` зелёный (build + typecheck + lint + test +
+- [x] 7.1 Все задачи выше отмечены
+- [x] 7.2 `yarn verify` зелёный (build + typecheck + lint + test +
       type-budget по всем пакетам)
-- [ ] 7.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 7.4 `design/` и `decisions/` синхронизированы по правилам
+- [x] 7.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 7.4 `design/` и `decisions/` синхронизированы по правилам
       `CLAUDE.md`; запись `ideas.md` «Аргумент сборки: `argv()` по схеме
       декларации» несёт пометку «РЕАЛИЗОВАНО» с тем, что вышло целиком,
       что уехало дальше и чем реализация уточнила решение (открытый
       вопрос про `load()` закрыт удалением)
-- [ ] 7.5 `yarn docs:audit` — 0 ERROR
-- [ ] 7.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с
+- [x] 7.5 `yarn docs:audit` — 0 ERROR
+- [x] 7.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с
       обновлённой датой в плашке «сверено с кодом»
-- [ ] 7.7 Коммиты осмысленные, `main` не тронут: слияние делает Merger
+- [x] 7.7 Коммиты осмысленные, `main` не тронут: слияние делает Merger
       после `/opsx:archive`

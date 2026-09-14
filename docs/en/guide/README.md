@@ -107,7 +107,7 @@ introduces are not in the map — the map describes the reading order.
 | [16. Do not lose an event when the process falls](./16-durable-events.md) | `outboxed(Op)`, the relay, the inbox mark, the early success of a subscriber |
 | [17. A live feed for the client](./17-live-feed.md) | `events(T)`, `sse:`, `Topic`, `AbortSignal` |
 | [18. Test a feature without its neighbours](./18-testing-features.md) | `stubs`, `testApp.emit`, `contextValue`, `checkTopologies` |
-| [19. Start only a part of the features](./19-select.md) | `build(args)`, `includeDeps`, composition switches, `load()` before build, `check()` |
+| [19. Start only a part of the features](./19-select.md) | `build(args)`, `argv(process.argv)`, `includeDeps`, composition switches, `check()` |
 | [20. Spread the features across processes](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` |
 | [21. Do not break the neighbours when an operation changes](./21-compatibility.md) | the version in the name, the snapshot of operations, `diffOperations` |
 | [22. Count requests and calls between processes](./22-metrics.md) | `Metrics`, the `metrics` option, `Metrics$.auto`, kernel metrics, the adapter and `/metrics` |

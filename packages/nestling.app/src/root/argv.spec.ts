@@ -73,9 +73,9 @@ const line = (...flags: string[]) => [
 ];
 
 /** Паттерны состава — по ним сверяются формы аргумента */
-const patterns = (args: Parameters<typeof app.discover>[0]) =>
+const patterns = (...args: Parameters<typeof app.discover>) =>
   app
-    .discover(args)
+    .discover(...args)
     .endpoints.map(({ endpoint }) => endpoint.pattern)
     .sort();
 
@@ -122,7 +122,7 @@ describe('состав по маркеру', () => {
     ).toEqual(patterns({ features: 'users', includeDeps: true }));
   });
 
-  it('значение переключателя доезжает до раскрытия веток', async () => {
+  it('значение переключателя приходит в раскрытие веток', async () => {
     const report = await app.check(argv(line('--mail', 'smtp')));
 
     expect(report.switches).toEqual({ mail: 'smtp' });

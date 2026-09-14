@@ -1,6 +1,6 @@
 # 2. What an application consists of
 
-> Guide to the current API; verified against `4a206018`.
+> Guide to the current API; verified against `97ff8225`.
 > Target description: [design/composition.md](../design/composition.md). Why:
 > entries [ideas.md](../../decisions/ideas.md)
 > `[2026-09-02] Модель композиции: фича, плагин, операция`,
@@ -114,19 +114,20 @@ does not leak into the application code. In detail:
 ## The build argument: what this process builds
 
 The declaration says what the application is. The build argument says what a
-specific process brings up from that. The shapes are `'all'`,
-`'users,uploads'`, `['users', 'uploads']` or an object
-`{ features?, includeDeps?, …switch values }`. The type of the object shape is
-derived from `switches:`, so a typo in a switch name does not compile.
-
-User code reads the argument, usually from a configuration section, before the
-container:
+specific process brings up from that. There are two shapes. The object
+`{ features?, includeDeps?, …switch values }` is derived from `switches:`, so
+a typo in a switch name does not compile. The `argv(process.argv)` marker
+carries the command line: the build knows the flag schema from the
+declaration and parses the flags itself.
 
 ```typescript
-const cfg = load(RootConfig); // { features: 'all', storage: 's3' }
-
-await app.build(cfg).run();
+await app.build(argv(process.argv)).run();
+// node main.js --features all --storage s3
+// node main.js --help   — the schema: features, flags, values and defaults
 ```
+
+Configuration does not set the composition: the environment affects neither
+the feature selection nor the switch values.
 
 ## Split: a consequence, not a separate mechanism
 

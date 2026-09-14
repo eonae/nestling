@@ -291,7 +291,7 @@ implementation.
 
 ```typescript
 const published = new Set(
-  (await checkTopologies(app, ['all', 'orders', 'notifications']))
+  (await checkTopologies(app, [{ features: 'all' }, { features: 'orders' }]))
     .flatMap(({ report }) => report.operations.map((c) => c.name)),
 );
 
@@ -306,9 +306,11 @@ The same reports build a schema compatibility check, with no
 rebuild of the application:
 
 ```typescript
-const reports = await checkTopologies(app, ['all', 'orders'], {
-  converters: [zodConverter()],
-});
+const reports = await checkTopologies(
+  app,
+  [{ features: 'all' }, { features: 'orders' }],
+  { converters: [zodConverter()] },
+);
 
 const report = diffOperations(readBaseline(), snapshotOperations(reports));
 console.log(formatCompatibility(report));

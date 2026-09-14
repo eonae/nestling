@@ -3,7 +3,7 @@
 The core of Nestling in one package: the request pipeline, configuration,
 ports between features, the transport abstraction and the composition
 root. `makeApp(spec)` declares the application as a value,
-`app.build(select)` builds it for this process, and `run()` builds
+`app.build(args)` builds it for this process, and `run()` builds
 the container, finds the endpoints by walking the features and the
 plugins, takes the application through the lifecycle phases and stops it
 on `SIGTERM` and `SIGINT`.
@@ -41,16 +41,16 @@ export const app = makeApp({
 });
 
 // main.ts — what starts this process
-await app.build().run();
+await app.build(argv(process.argv)).run();
 ```
 
 ## Exports
 
 - **Composition root** ([design](../../docs/en/design/composition.md)) — `App`,
-  `BuildArgs`, `BuiltApp`, `Bundle`, `CheckOptions`, `CheckReport`,
-  `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
-  `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
-  `PluginOptions`, `RunOptions`.
+  `argv`, `ArgvArgs`, `BuildArgs`, `BuildObject`, `BuiltApp`, `Bundle`,
+  `CheckOptions`, `CheckReport`, `DiscoveredEndpoint`, `Discovery$`,
+  `EndpointDiscovery`, `Feature`, `FeatureOptions`, `isApp`, `makeApp`,
+  `makeFeature`, `makePlugin`, `Plugin`, `PluginOptions`, `RunOptions`.
 - **Configuration** ([design](../../docs/en/design/config.md)) — `bind`,
   `Binding`, `BindOptions`, `bootstrapConfig`, `Config`, `ConfigDerivedError`,
   `ConfigField`, `ConfigGlob`, `configKernel`, `ConfigKeys`,
@@ -58,8 +58,8 @@ await app.build().run();
   `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
   `ConfigValidationError`, `ConfigValues`, `defaultSources`,
   `DerivedConstructor`, `DerivedField`, `DerivedRecord`, `DeriveFn`,
-  `describeConfig`, `dotenv`, `env`, `from`, `FromField`, `load`,
-  `makeConfig`, `ReloadableConfig`, `secret`, `SecretField`.
+  `describeConfig`, `dotenv`, `env`, `from`, `FromField`, `makeConfig`,
+  `ReloadableConfig`, `secret`, `SecretField`.
 - **Pipeline and endpoints** ([design](../../docs/en/design/pipeline.md)) —
   `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
   `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,

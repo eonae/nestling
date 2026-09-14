@@ -1,6 +1,6 @@
 # 21. Не сломать соседей при изменении операции
 
-> Гайд по текущему API; сверено с кодом `4a206018`.
+> Гайд по текущему API; сверено с кодом `97ff8225`.
 > Целевое описание: [design/operations.md](../design/operations.md) §1.6 и
 > §1.7. Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-31]
 > Версионирование контрактов: снапшот, вердикт по слоту,
@@ -31,9 +31,9 @@ const checked = makeApp({
 
 /** Варианты деплоя: снапшот объединяет то, что публикует каждый */
 const TOPOLOGIES = [
-  'all',
+  { features: 'all' },
   { features: 'users', includeDeps: true },
-  'ops',
+  { features: 'ops' },
 ] as const;
 
 const BASELINE_PATH = new URL('../operations.snapshot.json', import.meta.url);
