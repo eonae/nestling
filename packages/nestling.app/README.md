@@ -120,9 +120,10 @@ await app.build(argv(process.argv)).run();
 The package has no real transport: HTTP, CLI and NATS live in
 `@nestlingjs/transport.*`. It has no schema validator either. Ready-made
 configuration sources implement the `ConfigSource` interface in separate
-packages. Ports do not deduplicate commands by the idempotency key, do not
-store snapshots and do not deliver messages outside the process: this
-needs a broker transport. Test substitutions live in
+packages — Vault lives in
+[`@nestlingjs/config.vault`](../nestling.config.vault/). Ports do not
+deduplicate commands by the idempotency key, do not store snapshots and do
+not deliver messages outside the process: this needs a broker transport. Test substitutions live in
 [`@nestlingjs/testing`](../nestling.testing/). The `./testing` subpath
 resolves only under the `testing` condition: the test runner turns it on
 by itself, and Node accepts it with the `--conditions=testing` flag.
