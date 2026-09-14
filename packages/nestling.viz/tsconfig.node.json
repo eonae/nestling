@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "composite": true,
+    // Проект вне `tsconfig.base.json`: здесь только `vite.config.ts`,
+    // поэтому флаг базы сюда не доезжает и стоит своей строкой
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

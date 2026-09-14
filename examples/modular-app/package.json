@@ -12,7 +12,7 @@
     "db:migrate": "run -T drizzle-kit migrate",
     "db:generate": "run -T drizzle-kit generate",
     "typecheck": "run -T tsc -p tsconfig.json",
-    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "build": "yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
     "start:dev": "run -T tsx src/main.ts",
     "publish:command": "run -T tsx src/publish.ts",

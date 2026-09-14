@@ -8,7 +8,7 @@
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
-    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "build": "yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
     "start:dev": "run -T tsx src/main.ts",
     "lint": "run -T eslint .",

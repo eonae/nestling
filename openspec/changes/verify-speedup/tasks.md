@@ -17,20 +17,20 @@
 
 Осмысленна сама по себе, от части B не зависит.
 
-- [ ] 2.1 Перенести `skipLibCheck: true` в `tsconfig.base.json`, убрать его из
+- [x] 2.1 Перенести `skipLibCheck: true` в `tsconfig.base.json`, убрать его из
       `drizzle.pg`, `viz`, `microservice`, `modular-app`
-- [ ] 2.2 Добавить `"build"` в `dependsOn` таргетов `typecheck`, `lint` и `test`
+- [x] 2.2 Добавить `"build"` в `dependsOn` таргетов `typecheck`, `lint` и `test`
       в `nx.json`
-- [ ] 2.3 Поставить параллелизм шесть по умолчанию
-- [ ] 2.4 Вынести каталог кэша nx из рабочего дерева через
+- [x] 2.3 Поставить параллелизм шесть по умолчанию
+- [x] 2.4 Вынести каталог кэша nx из рабочего дерева через
       `NX_CACHE_DIRECTORY` в скриптах корневого `package.json`
-- [ ] 2.5 Убрать `yarn run typecheck &&` из `build` у `viz`, `cli`,
+- [x] 2.5 Убрать `yarn run typecheck &&` из `build` у `viz`, `cli`,
       `microservice`, `modular-app`; порядок задать графом nx
-- [ ] 2.6 Переписать `scripts/boundary/public-api-validator.mjs` на одну
+- [x] 2.6 Переписать `scripts/boundary/public-api-validator.mjs` на одну
       программу вместо двадцати
-- [ ] 2.7 Добавить скрипт `verify:strict`: `typecheck` без `skipLibCheck` по
+- [x] 2.7 Добавить скрипт `verify:strict`: `typecheck` без `skipLibCheck` по
       собранному `dist`, с явным списком исключённых пакетов
-- [ ] 2.8 Замерить прогон при шести слотах трижды подряд: гонка не
+- [x] 2.8 Замерить прогон при шести слотах трижды подряд: гонка не
       воспроизводится, время около 112 секунд
 
 ## 3. Снимок публичных типов

@@ -8,7 +8,6 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "skipLibCheck": true,
     "types": ["node"],
     // Пакеты резолвятся на исходники: снапшот снимается с той же формы
     // типов, что видит разработчик в редакторе, а не со сборки `dist`.
