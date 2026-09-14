@@ -20,6 +20,7 @@
 | Повтор при отказе почты и порт отправки | [`src/features/notifications/mailer.ts`](./src/features/notifications/mailer.ts) |
 | Ключ идемпотентности у команды | [`src/features/notifications/forget-address.endpoint.ts`](./src/features/notifications/forget-address.endpoint.ts) |
 | Трасса и арендатор через границу процесса | [`src/base.ts`](./src/base.ts), [`src/context.ts`](./src/context.ts) |
+| Экспорт участков трассы сателлитом `@nestlingjs/otel` | [`src/base.ts`](./src/base.ts), [`src/tracing.spec.ts`](./src/tracing.spec.ts) |
 | Снимок операций и сверка совместимости | [`src/compat.ts`](./src/compat.ts), [`operations.snapshot.json`](./operations.snapshot.json) |
 | Изоляция фичи стабами операций | [`src/isolated.spec.ts`](./src/isolated.spec.ts) |
 | Два процесса на двойнике брокера | [`src/split.spec.ts`](./src/split.spec.ts) |

@@ -495,6 +495,17 @@ export const OrdersMetrics = makeMetrics('orders', {
   from a plugin that reads `MetricsStore$` — `@nestlingjs/prometheus`,
   for one; a push export builds its points from the same snapshot.
 
+**The kernel does not record the interval of a span.** The regular step
+`withTracing()` ([pipeline.md §3](./pipeline.md)) puts the `Trace`
+variable there, and the satellite layer `@nestlingjs/otel` collects a
+span with a start, an end and an outcome, and hands it to a
+`SpanExporter`. The span takes its identifiers from `Trace`, so the
+spans of neighboring processes converge into one tree. That every
+endpoint has the layer is asserted by the build policy
+`everyEndpoint(…).hasVar(Span)`: the kernel has no seam for the
+interval, and the guarantee comes from a composition check, not a third
+observability interface.
+
 ## The kernel and user code
 
 The boundary is drawn the way an operating system draws it. The kernel

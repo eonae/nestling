@@ -16,6 +16,7 @@
 | Схема и миграции drizzle | [`src/schema.ts`](./src/schema.ts), [`drizzle/`](./drizzle) |
 | Проверка Bearer-токена слоем пайплайна | [`src/auth.ts`](./src/auth.ts) |
 | Идентификатор запроса, трасса и строка аудита | [`src/observability.ts`](./src/observability.ts) |
+| Экспорт участков трассы сателлитом `@nestlingjs/otel` | [`src/observability.ts`](./src/observability.ts), [`src/app.ts`](./src/app.ts) |
 | Загрузка файла и выгрузка потоком NDJSON | [`src/users/endpoints/`](./src/users/endpoints) |
 | Живая лента по SSE и реестр подписок | [`src/users/activity.hub.ts`](./src/users/activity.hub.ts), [`src/ops/`](./src/ops) |
 | Инструменты агента по MCP на том же сокете | [`src/users/tools/`](./src/users/tools) |

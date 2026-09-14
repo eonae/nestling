@@ -1,6 +1,6 @@
 # 22. Считать запросы и вызовы между процессами
 
-> Гайд по текущему API; сверено с кодом `92353887`.
+> Гайд по текущему API; сверено с кодом `bfacfec4`.
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Метрики ядра», [design/pipeline.md](../design/pipeline.md) §2 и
 > [design/operations.md](../design/operations.md) §2.3. Почему так:
@@ -202,6 +202,40 @@ Endpoint помечен `detached` и скрыт из документа API: м
 Гистограмма выводится корзинами `_bucket`, суммой `_sum` и счётчиком
 `_count`. Границы корзин приходят из объявления метрики, поэтому считать
 их экспортёру не нужно.
+
+## Push по OTLP — второй читатель того же store
+
+Развёртывание, которое собирает телеметрию коллектором OpenTelemetry, а не
+скрейпом, отправляет числа само. Это делает плагин сателлита
+`@nestlingjs/otel`:
+
+```typescript
+// src/app.ts
+import { otel } from '@nestlingjs/otel';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+
+export const telemetry = otel({
+  service: 'orders',
+  metrics: new OTLPMetricExporter(),
+  intervalMs: 60_000,
+});
+
+export const app = makeApp({
+  features: [OrdersFeature],
+  plugins: [telemetry.plugin, makePrometheus()],
+  transports: [http({ server: api })],
+});
+```
+
+Плагин читает `snapshot()` раз в `intervalMs` и отправляет его
+экспортёру; на остановке приложения уходит последний снимок, поэтому
+записи последнего интервала не теряются. Своих инструментов сателлит не
+заводит: агрегат уже посчитан store, и корзины, `help` и `unit` приходят
+из объявления метрики. Поэтому push и экспозиция показывают одно и то же.
+
+Плагинов может быть два, как выше: они читают один store и друг о друге
+не знают. Участки трассы тот же сателлит отдаёт слоем —
+[глава 23](./23-tracing.md).
 
 ## Проверка
 

@@ -1,6 +1,6 @@
 import { ops } from './ops/index.js';
 import { authed } from './auth.js';
-import { traced } from './observability.js';
+import { telemetry, traced } from './observability.js';
 import { db } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
 
@@ -8,6 +8,7 @@ import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
 import { mcp, McpTransport$ } from '@nestlingjs/mcp';
 import { makeOpenapi } from '@nestlingjs/openapi';
+import { Span } from '@nestlingjs/otel';
 import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
 
@@ -49,6 +50,9 @@ export const app = makeApp({
   plugins: [
     ops,
     db,
+    // Сателлит телеметрии: слой участков он отдаёт в `observability.ts`, а
+    // плагином закрывает экспортёр на остановке
+    telemetry.plugin,
     // Экспозиция метрик: плагин читает store ядра и отдаёт текст по
     // `GET /metrics`. Накопленное держит ядро, настраивать нечего
     makePrometheus(),
@@ -96,5 +100,9 @@ export const app = makeApp({
       RequestId,
       'requestId',
     ),
+    // Участок трассы пишет слой сателлита. Политика требует его
+    // переменную: endpoint без слоя пропал бы из трассы молча, а так
+    // сборка падает с его паттерном и модулем
+    everyEndpoint().hasVar(Span, 'span'),
   ],
 });

@@ -280,7 +280,9 @@ there too.
 - **Span** (`участок трассы`, `spanId`) — the processing of the request by
   one process. A span is created for every request, and the span of the
   caller goes into the `parentSpanId` field. The trace builds into a
-  tree from them.
+  tree from them. The interval of a span — its start, its end and its
+  outcome — is recorded by the satellite layer `@nestlingjs/otel` and
+  handed to an exporter; it takes its identifiers from `Trace`.
 - **W3C trace-context** — the format for carrying the trace over HTTP: the
   `traceparent` header of the shape `00-<traceId>-<spanId>-<flags>`. Over
   the bus the trace travels as an envelope field, not a string.

@@ -86,6 +86,7 @@ environment, open sockets and hold resources.
 | PostgreSQL | `@nestlingjs/drizzle.pg` over `drizzle-orm` and `pg` |
 | NATS, including JetStream | `@nestlingjs/transport.nats` |
 | Prometheus | `@nestlingjs/prometheus`: exposition at `GET /metrics` |
+| The OpenTelemetry collector | `@nestlingjs/otel`: spans and a metrics push over OTLP |
 
 The stores of the outbox and of the inbox are declared as interfaces, and
 the adapter to PostgreSQL is a separate package. An adapter to another
@@ -95,3 +96,9 @@ Metrics are accumulated by the kernel, and the exposition format is kept
 apart from it: the format package reads the snapshot of the store. An
 export over another protocol reads the same snapshot on a timer and
 starts no second accumulation.
+
+The kernel carries the trace itself, with the `Trace` variable and the
+`traceparent` header. The satellite collects the span with its interval
+and outcome and hands it to a ready OpenTelemetry exporter: the
+identifiers come from `Trace`, so the spans of neighboring processes
+converge into one tree.

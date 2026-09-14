@@ -1,0 +1,76 @@
+{
+  "name": "@nestlingjs/otel",
+  "version": "0.1.0",
+  "description": "Экспорт телеметрии Nestling по OpenTelemetry: участки трассы слоем пайплайна и push метрик поверх store ядра",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "opentelemetry",
+    "otlp",
+    "tracing",
+    "metrics",
+    "observability"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.otel"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.otel#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/resources": "^2.1.0",
+    "@opentelemetry/sdk-metrics": "^2.1.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
+    "@opentelemetry/semantic-conventions": "^1.37.0"
+  },
+  "devDependencies": {
+    "@nestlingjs/prometheus": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
+    "typescript": "5.7.3"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
+  }
+}
