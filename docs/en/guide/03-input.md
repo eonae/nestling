@@ -1,6 +1,6 @@
 # 3. Accept data and let no rubbish through
 
-> Guide to the current API; verified against `86c47c0a`.
+> Guide to the current API; verified against `6717ebad`.
 > Target description: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Why: entries
 > [ideas.md](../../decisions/ideas.md)

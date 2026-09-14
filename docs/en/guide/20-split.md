@@ -1,6 +1,6 @@
 # 20. Spread the features across processes
 
-> Guide to the current API; verified against `86c47c0a`.
+> Guide to the current API; verified against `6717ebad`.
 > Target description: [design/composition.md](../design/composition.md) "L4",
 > [design/operations.md](../design/operations.md) §3 and §4.4,
 > [design/transports.md](../design/transports.md) §7. Why: entries

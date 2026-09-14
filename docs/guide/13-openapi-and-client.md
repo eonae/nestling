@@ -1,6 +1,6 @@
 # 13. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `86c47c0a`.
+> Гайд по текущему API; сверено с кодом `6717ebad`.
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
