@@ -56,7 +56,7 @@ HTTP bind-картой (`isHttpBinding`). Декларации прочих тр
 
 #### Scenario: Выключенная ветка переключателя не мешает документу
 
-- **WHEN** плагин подключён как `Docs.when(openapi)`, а состав разрешён
+- **WHEN** плагин подключён как `DocsEnabled.when(openapi)`, а состав разрешён
   с `docs=off`
 - **THEN** `openapi.document(app.discover(args))` строит документ, хотя
   endpoint `GET /openapi.json` приложением не обслуживается
@@ -108,7 +108,7 @@ SHALL отсутствовать в документе так же, как он�
 
 #### Scenario: Endpoint документации подчиняется политикам приложения
 
-- **WHEN** корень объявил `everyEndpoint({ transport: HttpTransport$ }).hasLayer(observability)`,
+- **WHEN** корень объявил `everyEndpoint({ transport: HttpTransport$ }).hasLayer(traced)`,
   а модуль подключён с `makeOpenapi({ …, pipeline: traced })`
 - **THEN** сборка проходит; без `pipeline` и без `detached` — падает с
   нарушением политики

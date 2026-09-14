@@ -77,6 +77,15 @@
 - `sql-outbox-store`: хранилища объявляются `makePgOutboxStore(db)` и
   `makePgInboxStore(db)`.
 - `http-probes`: плагин проб объявляется `makeHttpProbes(options)`.
+- `http-transport-boundary`: пакет экспортирует плагин проб
+  `makeHttpProbes()`.
+- `docs-package-readme`: сценарий раздела «Экспорты» называет
+  `makeHttpProbes`.
+- `endpoint-discovery`: ветка переключателя записана как
+  `DocsEnabled.when(openapi)`.
+- `pipeline-composition`, `policy-predicates`, `policy-eslint-feedback`,
+  `agent-skill-content`, `agent-skill-snippet-check`: слой-пример назван
+  `traced`, а не `observability`.
 
 ## Impact
 
@@ -91,3 +100,6 @@
   правятся пометками, `history/` не трогается.
 - Публичный API ломается у восьми фабрик. Пользователей нет, обёрток и
   алиасов не остаётся.
+- Спеки: семь capability описывают переименованные фабрики, ещё восемь
+  называли старое имя в требовании или в сценарии. Дельты правят и их:
+  спека, называющая несуществующий экспорт, описывает не тот код.
