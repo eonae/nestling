@@ -101,7 +101,9 @@ npx @nestlingjs/agent-skill
   описание API;
 - [`docs/decisions/`](./docs/decisions/ideas.md) — журнал решений: что, когда
   и почему;
-- [`docs/glossary.md`](./docs/glossary.md) — термины и правила их написания.
+- [`docs/glossary.md`](./docs/glossary.md) — термины и правила их написания;
+- [`docs/releases/`](./docs/releases/README.md) — заметки о выпусках: что
+  изменилось в версии, код до и после.
 
 Публикуемый текст существует парой: английский перевод лежит в `docs/en/`,
 README пакета — в `README.md` рядом с русским `README.ru.md`. Правило

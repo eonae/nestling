@@ -115,6 +115,8 @@ next to it. The folder defines the status of a document:
   full API description;
 - [`docs/en/glossary.md`](./docs/en/glossary.md) — terms and how they are
   written; next to every English term stands its Russian original;
+- [`docs/en/releases/`](./docs/en/releases/README.md) — release notes: what
+  changed in a version, the code before and after;
 - [`docs/decisions/`](./docs/decisions/ideas.md) — the decision log: what,
   when and why. It is written by whoever works inside the repository and
   stays in Russian, as do the code comments and the examples.

@@ -451,7 +451,7 @@ function readOutline(readme, readmePath, fallbackGroup) {
       continue;
     }
 
-    const cell = /^\|\s*\[[^\]]+\]\(\.\/([\w-]+)\.md\)/.exec(line);
+    const cell = /^\|\s*\[[^\]]+\]\(\.\/([\w.-]+)\.md\)/.exec(line);
     if (!cell) {
       continue;
     }

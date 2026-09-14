@@ -72,6 +72,8 @@ each one rests on the code of the previous one.
 - [Glossary](./glossary.md) and [naming conventions](./conventions.md) —
   the dictionary of the documentation and the rules for names in the code
   of an application.
+- [Releases](./releases/README.md) — what changed in every version: the
+  code before and after, where to read more.
 
 ## Status
 

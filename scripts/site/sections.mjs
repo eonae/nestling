@@ -114,6 +114,12 @@ export const SECTIONS = [
     path: 'docs/conventions.md',
     group: { en: 'References', ru: 'Справочники' },
   },
+  {
+    kind: 'folder',
+    path: 'docs/releases',
+    section: 'releases',
+    group: { en: 'Releases', ru: 'Релизы' },
+  },
 ];
 
 /** Оглавление источника-пакетов: раздел «Пакеты» этого файла */

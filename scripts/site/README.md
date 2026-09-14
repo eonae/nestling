@@ -1,9 +1,10 @@
 # Генератор документации
 
 Собирает сайт из источников, перечисленных в `sections.mjs`: папок
-[`docs/guide/`](../../docs/guide/), [`docs/recipes/`](../../docs/recipes/)
-и [`docs/design/`](../../docs/design/), README каталогов
-[`packages/`](../../packages/) и четырёх отдельных страниц корня `docs/`.
+[`docs/guide/`](../../docs/guide/), [`docs/recipes/`](../../docs/recipes/),
+[`docs/design/`](../../docs/design/) и
+[`docs/releases/`](../../docs/releases/), README каталогов
+[`packages/`](../../packages/) и пяти отдельных страниц корня `docs/`.
 Каждый источник печатается на двух языках. **Не источник истины**: текст
 живёт в этих файлах, а источник намерения — в
 [`docs/design/`](../../docs/design/) и
@@ -217,8 +218,8 @@ README, каталог `packages/` не назван в разделе «Пак�
 
 ## Добавить раздел
 
-1. Новый файл: `docs/guide/<NN-имя>.md`, `docs/recipes/<имя>.md` или
-   `docs/design/<имя>.md`.
+1. Новый файл: `docs/guide/<NN-имя>.md`, `docs/recipes/<имя>.md`,
+   `docs/design/<имя>.md` или `docs/releases/vX.Y.Z.md`.
 2. Английская пара по тому же имени в `docs/en/<та же папка>/`.
 3. Строка в таблице оглавления той же папки — в обоих языках.
 4. `yarn docs:build`.
