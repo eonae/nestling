@@ -184,17 +184,17 @@ interface MetricsStore {
 
 ```typescript
 // src/app.ts
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 
 export const app = makeApp({
   features: [OrdersFeature],
-  plugins: [prometheus()],
+  plugins: [makePrometheus()],
   transports: [http({ server: api })],
 });
 ```
 
 Плагин читает `MetricsStore$` и отдаёт экспозицию по `GET /metrics`;
-адрес меняется опцией `prometheus({ path: '/internal/metrics' })`. Своего
+адрес меняется опцией `makePrometheus({ path: '/internal/metrics' })`. Своего
 сервера пакет не поднимает — экспозиция живёт на сокете приложения.
 Endpoint помечен `detached` и скрыт из документа API: метрики снимает
 сборщик, а не клиент.

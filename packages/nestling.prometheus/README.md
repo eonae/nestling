@@ -20,14 +20,14 @@ npm install @nestlingjs/prometheus
 
 ```typescript
 import { makeApp } from '@nestlingjs/app';
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, server } from '@nestlingjs/transport.http';
 
 const api = server();
 
 export const app = makeApp({
   features: [OrdersFeature],
-  plugins: [prometheus()],
+  plugins: [makePrometheus()],
   transports: [http({ server: api })],
 });
 ```
@@ -35,11 +35,11 @@ export const app = makeApp({
 There is nothing else to configure: the kernel metrics and the
 application metrics are already in `MetricsStore$`, and the plugin
 serializes them. The address of the exposition is changed by the option
-`prometheus({ path: '/internal/metrics' })`.
+`makePrometheus({ path: '/internal/metrics' })`.
 
 ## Exports
 
-- **Plugin** ([design](../../docs/en/design/container.md)) — `prometheus`,
+- **Plugin** ([design](../../docs/en/design/container.md)) — `makePrometheus`,
   `PrometheusOptions`.
 - **Format** — `serialize`: a snapshot of the store as the exposition
   text. The plugin uses it, and so does whoever serves the metrics

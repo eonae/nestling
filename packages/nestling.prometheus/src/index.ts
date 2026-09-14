@@ -10,7 +10,7 @@
  */
 
 // ./plugin.js — 2
-export { prometheus } from './plugin.js';
+export { makePrometheus } from './plugin.js';
 export type { PrometheusOptions } from './plugin.js';
 
 // ./serialize.js — 1

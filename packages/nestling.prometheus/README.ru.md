@@ -19,25 +19,25 @@ npm install @nestlingjs/prometheus
 
 ```typescript
 import { makeApp } from '@nestlingjs/app';
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, server } from '@nestlingjs/transport.http';
 
 const api = server();
 
 export const app = makeApp({
   features: [OrdersFeature],
-  plugins: [prometheus()],
+  plugins: [makePrometheus()],
   transports: [http({ server: api })],
 });
 ```
 
 Настраивать больше нечего: метрики ядра и метрики приложения уже лежат в
 `MetricsStore$`, а плагин их сериализует. Адрес экспозиции меняет опция
-`prometheus({ path: '/internal/metrics' })`.
+`makePrometheus({ path: '/internal/metrics' })`.
 
 ## Экспорты
 
-- **Плагин** ([design](../../docs/design/container.md)) — `prometheus`,
+- **Плагин** ([design](../../docs/design/container.md)) — `makePrometheus`,
   `PrometheusOptions`.
 - **Формат** — `serialize`: снимок store в текст экспозиции. Им
   пользуется сам плагин, и он же нужен тому, кто отдаёт метрики иначе.

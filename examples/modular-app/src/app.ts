@@ -20,7 +20,7 @@ import {
   makeApp,
 } from '@nestlingjs/app';
 import { makeOutbox } from '@nestlingjs/outbox';
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, makeHttpProbes } from '@nestlingjs/transport.http';
 import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
 import { nats } from '@nestlingjs/transport.nats';
@@ -63,7 +63,7 @@ export function declareApp(options: DeclareOptions = {}): App<[typeof Mail]> {
       outbox,
       inboxStore,
       inbox,
-      prometheus(),
+      makePrometheus(),
       // Пробы `GET /healthz` и `GET /readyz` поверх узла ядра `Health$`:
       // правило готовности принадлежит ядру, плагину — только адреса и
       // коды

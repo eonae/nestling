@@ -34,12 +34,12 @@ const DEFAULT_PATH = '/metrics';
  * ```typescript
  * export const app = makeApp({
  *   features: [Orders],
- *   plugins: [prometheus()],
+ *   plugins: [makePrometheus()],
  *   transports: [http({ server: api })],
  * });
  * ```
  */
-export function prometheus(options: PrometheusOptions = {}): Plugin {
+export function makePrometheus(options: PrometheusOptions = {}): Plugin {
   const path = options.path ?? DEFAULT_PATH;
 
   @Handler([MetricsStore$])

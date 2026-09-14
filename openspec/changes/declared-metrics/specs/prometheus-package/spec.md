@@ -3,7 +3,7 @@
 ### Requirement: `@nestlingjs/prometheus` — один вход, один плагин
 
 Репозиторий SHALL содержать пакет `@nestlingjs/prometheus`, экспортирующий
-функцию `prometheus(options?): Plugin`.
+функцию `makePrometheus(options?): Plugin`.
 
 `PrometheusOptions` SHALL нести поле `path?: string` с умолчанием
 `/metrics`.
@@ -16,12 +16,12 @@ SHALL NOT требовать.
 
 #### Scenario: Приложение подключает экспозицию
 
-- **WHEN** в `plugins:` корня передан `prometheus()`
+- **WHEN** в `plugins:` корня передан `makePrometheus()`
 - **THEN** приложение собирается, и `GET /metrics` отдаёт экспозицию
 
 #### Scenario: Адрес экспозиции меняется опцией
 
-- **WHEN** передано `prometheus({ path: '/internal/metrics' })`
+- **WHEN** передано `makePrometheus({ path: '/internal/metrics' })`
 - **THEN** экспозиция живёт по этому адресу, а `/metrics` не объявляется
 
 ### Requirement: Экспозиция строится из снимка

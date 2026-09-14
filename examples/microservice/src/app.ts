@@ -8,7 +8,7 @@ import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
 import { mcp, McpTransport$ } from '@nestlingjs/mcp';
 import { makeOpenapi } from '@nestlingjs/openapi';
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { http, HttpTransport$, server } from '@nestlingjs/transport.http';
 
 /**
@@ -51,7 +51,7 @@ export const app = makeApp({
     db,
     // Экспозиция метрик: плагин читает store ядра и отдаёт текст по
     // `GET /metrics`. Накопленное держит ядро, настраивать нечего
-    prometheus(),
+    makePrometheus(),
     // Документ строится на фазе BUILD из тех же деклараций, которые
     // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
     DocsEnabled.when(openapi),

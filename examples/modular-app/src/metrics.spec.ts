@@ -14,7 +14,7 @@ import { describeWithDatabase, testConfig } from './testing.js';
 import { describe, expect, it } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import { KernelMetrics, makeApp, makeFeature } from '@nestlingjs/app';
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 import { buildTest } from '@nestlingjs/testing';
 import { http } from '@nestlingjs/transport.http';
 
@@ -30,7 +30,7 @@ const scrape = async (
 
 describe('экспозиция метрик примера', () => {
   it('свежее приложение отдаёт нули по объявленным рядам', async () => {
-    const plugin = prometheus();
+    const plugin = makePrometheus();
     // Приложение без фич: endpoint приносит плагин, и базы ему не нужно
     const observed = makeApp({
       features: [makeFeature({ name: 'users', metrics: [UsersMetrics] })],

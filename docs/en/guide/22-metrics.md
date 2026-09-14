@@ -192,18 +192,18 @@ comes from a separate package:
 
 ```typescript
 // src/app.ts
-import { prometheus } from '@nestlingjs/prometheus';
+import { makePrometheus } from '@nestlingjs/prometheus';
 
 export const app = makeApp({
   features: [OrdersFeature],
-  plugins: [prometheus()],
+  plugins: [makePrometheus()],
   transports: [http({ server: api })],
 });
 ```
 
 The plugin reads `MetricsStore$` and serves the exposition at
 `GET /metrics`; the address is changed by the option
-`prometheus({ path: '/internal/metrics' })`. The package starts no server
+`makePrometheus({ path: '/internal/metrics' })`. The package starts no server
 of its own — the exposition lives on the socket of the application. The
 endpoint is marked `detached` and hidden from the API document: metrics
 are scraped by the collector, not by a client.

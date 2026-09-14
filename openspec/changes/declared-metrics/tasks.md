@@ -73,7 +73,7 @@
   `yarn typecheck` зелёные
 - [x] 5.3 `src/serialize.ts`: имя ряда, метки в устойчивом порядке, `# HELP`
   и `# TYPE`, корзины `_bucket`, `_sum` и `_count`
-- [x] 5.4 `src/plugin.ts`: `prometheus(options?)`, endpoint `output: 'text'`
+- [x] 5.4 `src/plugin.ts`: `makePrometheus(options?)`, endpoint `output: 'text'`
   с пометкой `detached`, чтение `MetricsStore$`
 - [x] 5.5 `src/index.ts` — барель поимённым экспортом; `boundary.spec.ts` по
   образцу `nestling.mcp`
@@ -83,7 +83,7 @@
 ## 6. Примеры
 
 - [x] 6.1 `examples/microservice`: `src/metrics.ts` удалён, группа метрик
-  примера объявлена, `prometheus()` в `plugins:`, `src/app.ts` обновлён
+  примера объявлена, `makePrometheus()` в `plugins:`, `src/app.ts` обновлён
 - [x] 6.2 `examples/modular-app`: то же плюс переписанная `src/metrics.spec.ts`
   против store и экспозиции
 - [x] 6.3 Имён `MetricsExporter`, `MetricsExporter$`, `prometheusExporter` и

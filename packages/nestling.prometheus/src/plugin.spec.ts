@@ -3,7 +3,7 @@
  * отделённость endpoint'а от API приложения.
  */
 
-import { prometheus } from './plugin.js';
+import { makePrometheus } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type {
@@ -22,7 +22,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { Component, Handler } from '@nestlingjs/container';
-import { openapi } from '@nestlingjs/openapi';
+import { makeOpenapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { buildTest } from '@nestlingjs/testing';
 import { http, httpEndpoint } from '@nestlingjs/transport.http';
@@ -90,7 +90,7 @@ const scrape = async (
 
 describe('плагин экспозиции', () => {
   it('свежее приложение отдаёт нули по каждому endpoint’у и исходу', async () => {
-    const plugin = prometheus();
+    const plugin = makePrometheus();
     await using testApp = await buildTest(appWith(plugin));
 
     const text = await scrape(testApp, expositionOf(plugin));
@@ -104,7 +104,7 @@ describe('плагин экспозиции', () => {
   });
 
   it('запись приложения видна в экспозиции', async () => {
-    const plugin = prometheus();
+    const plugin = makePrometheus();
     await using testApp = await buildTest(appWith(plugin));
 
     await testApp.call(CreateOrder);
@@ -115,7 +115,7 @@ describe('плагин экспозиции', () => {
   });
 
   it('описание метрики уходит в HELP и TYPE', async () => {
-    const plugin = prometheus();
+    const plugin = makePrometheus();
     await using testApp = await buildTest(appWith(plugin));
 
     const text = await scrape(testApp, expositionOf(plugin));
@@ -125,7 +125,7 @@ describe('плагин экспозиции', () => {
   });
 
   it('гистограмма ядра выводится корзинами', async () => {
-    const plugin = prometheus();
+    const plugin = makePrometheus();
     await using testApp = await buildTest(appWith(plugin));
 
     await testApp.call(CreateOrder);
@@ -137,7 +137,7 @@ describe('плагин экспозиции', () => {
   });
 
   it('адрес экспозиции меняется опцией', async () => {
-    const plugin = prometheus({ path: '/internal/metrics' });
+    const plugin = makePrometheus({ path: '/internal/metrics' });
     await using testApp = await buildTest(appWith(plugin));
 
     expect(expositionOf(plugin).pattern).toBe('GET /internal/metrics');
@@ -149,7 +149,7 @@ describe('плагин экспозиции', () => {
 
 describe('endpoint экспозиции отделён от API', () => {
   it('пути экспозиции нет в документе OpenAPI', () => {
-    const docs = openapi({
+    const docs = makeOpenapi({
       info: { title: 'Orders', version: '1.0.0' },
       converters: [zodConverter()],
       announceHidden: false,
@@ -157,7 +157,7 @@ describe('endpoint экспозиции отделён от API', () => {
 
     const app = makeApp({
       features: [Orders],
-      plugins: [prometheus(), docs],
+      plugins: [makePrometheus(), docs],
       transports: [http()],
     });
 
@@ -169,7 +169,7 @@ describe('endpoint экспозиции отделён от API', () => {
   it('политика слоя экспозицию не трогает', async () => {
     const app = makeApp({
       features: [Orders],
-      plugins: [prometheus()],
+      plugins: [makePrometheus()],
       transports: [http()],
       policies: [everyEndpoint().hasLayer(observability, 'observability')],
     });
